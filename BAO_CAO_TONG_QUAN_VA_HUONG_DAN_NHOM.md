@@ -188,17 +188,6 @@ Khi các bạn trong nhóm tải code về và khởi động, toàn bộ các t
 
 ---
 
-## 👥 PHẦN 4: BẢNG PHÂN CÔNG CÔNG VIỆC CHI TIẾT (WORK BREAKDOWN)
-
-Nhờ hạ tầng ngoại vi và giao diện khởi đầu đã được thiết lập sẵn, các thành viên **chỉ việc tập trung 100% vào viết code nghiệp vụ logic** theo phân công dưới đây:
-
-| Thành viên | Phân hệ phụ trách | Thư mục Backend cần code | File Frontend cần hoàn thiện | Nội dung công việc chính |
-| :--- | :--- | :--- | :--- | :--- |
-| **Thành viên 1** *(Lead)* | **Hạ tầng, Auth, DB & Điều phối** | `common/`, `entities/`, `modules/auth`, `core/` | `layouts/`, `api/client.ts`, `context/`, `components/` | ✅ **Đã hoàn thiện 100%** nền tảng cốt lõi, tiếp tục hỗ trợ review code và ghép nối hệ thống. |
-| **Thành viên 2** | **Tuyển dụng ATS & AI Job** *(Sprint 2)* | `modules/jobs/`, `modules/applications/` | `pages/RecruitmentAdminPage.tsx`, `pages/CareersPage.tsx`, `pages/JobDetailPage.tsx` | 1. Hoàn thiện API CRUD tin tuyển dụng.<br>2. Gọi `geminiService.generateJD()` để sinh nội dung JD tự động.<br>3. Kéo thả Kanban danh sách ứng viên từ nộp đơn tới trúng tuyển.<br>4. Nút bấm 1-Click chuyển ứng viên trúng tuyển thành nhân viên mới. |
-| **Thành viên 3** | **Hội nhập Nhân viên & AI Copilot** *(Sprint 3)* | `modules/onboarding/` | `pages/EmployeeWorkspacePage.tsx` | 1. API danh sách nhiệm vụ Onboarding theo ngày đầu nhận việc.<br>2. Chức năng Check-in tâm trạng hàng ngày (1 đến 5 sao).<br>3. Thuật toán phát hiện 3 ngày buồn liên tiếp để kích hoạt cờ `burnoutAlert`.<br>4. Widget Chatbox AI Copilot trả lời nội quy dựa trên tài liệu công ty. |
-| **Thành viên 4** | **Đào tạo, KPI & Quản trị Hệ thống** *(Sprint 4)* | `modules/users/`, bổ sung modules tài liệu & đánh giá | `pages/AdminSettingsPage.tsx` | 1. Bảng quản trị danh sách người dùng, đổi vai trò (Role).<br>2. Upload tài liệu nội bộ & danh sách khóa học nội bộ.<br>3. Form tự đánh giá hiệu suất định kỳ (Self Performance Review). |
-
 ---
 
 ## 🛠️ PHẦN 5: HƯỚNG DẪN 3 BƯỚC KHỞI ĐỘNG DỰ ÁN CHO THÀNH VIÊN MỚI

@@ -122,7 +122,7 @@
   * Xếp lịch phỏng vấn: Gọi hàm `n8nService.triggerInterviewScheduled` để sinh link Google Meet.
   * Nút `Tuyển Dụng (Hire)`: Gọi hàm `n8nService.triggerEmployeeHired` để chuyển ứng viên thành nhân viên chính thức.
 
-* **Cách tự test:** Đăng nhập tài khoản `hr@fpt.edu.vn` (Pass: `Password123@`), tạo thử 1 job mới và thao tác trên bảng Kanban.
+* **Cách tự test:** Đăng nhập tài khoản `hr@company.com` (Pass: `admin123`), tạo thử 1 job mới và thao tác trên bảng Kanban.
 
 ---
 
@@ -142,12 +142,12 @@
   * Đọc danh sách nhiệm vụ từ bảng `onboarding_tasks` theo `userId` người đăng nhập.
   * Khi người dùng tích chọn checkbox ➔ Cập nhật tiến độ %, thanh tiến độ tự động nhảy (VD: `25%` ➔ `50%`).
 * **Bước 3 (Bảng Giám Sát Team Mood Cho Trưởng Phòng):**
-  * Khi đăng nhập bằng tài khoản Trưởng phòng (`manager.it@fpt.edu.vn`): Hiển thị danh sách cảm xúc của các nhân viên phòng IT.
+  * Khi đăng nhập bằng tài khoản Trưởng phòng (`manager@company.com`): Hiển thị danh sách cảm xúc của các nhân viên phòng IT.
   * Nếu phát hiện nhân viên có phản hồi căng thẳng ➔ Hiện hộp cảnh báo đỏ và nút `Hẹn 1-on-1 Gỡ Rối`. Đồng thời gọi `n8nService.triggerBurnoutAlert` của Trưởng nhóm để bắn tin Telegram cho HR.
 * **Bước 4 (Trợ Lý Sổ Tay AI Copilot):**
   * Khung chatbox ở cột bên phải: Khi người dùng gõ câu hỏi ➔ Gọi hàm `geminiService.chatCopilot` của Trưởng nhóm để hiển thị câu trả lời thông minh.
 
-* **Cách tự test:** Đăng nhập tài khoản `quan.pham@fpt.edu.vn` (Pass: `Password123@`) để test check-in tâm trạng và checklist; chuyển sang `manager.it@fpt.edu.vn` để xem bảng giám sát.
+* **Cách tự test:** Đăng nhập tài khoản `employee@company.com` (Pass: `admin123`) để test check-in tâm trạng và checklist; chuyển sang `manager@company.com` để xem bảng giám sát.
 
 ---
 
@@ -173,7 +173,7 @@
   * Hiển thị danh mục khóa học kèm các nhãn: `BẮT BUỘC`, `AI CHỈ ĐỊNH (SKILL-GAP)`, `KỸ NĂNG MỀM`.
   * Hiển thị tiến độ hoàn thành của nhân sự toàn công ty.
 
-* **Cách tự test:** Đăng nhập tài khoản `admin@fpt.edu.vn` (Pass: `Password123@`), thử đổi quyền của 1 nhân viên và lưu cấu hình API.
+* **Cách tự test:** Đăng nhập tài khoản `superadmin@company.com` (Pass: `admin123`), thử đổi quyền của 1 nhân viên và lưu cấu hình API.
 
 ---
 

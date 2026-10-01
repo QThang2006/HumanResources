@@ -14,8 +14,9 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, pass: string): Promise<User | null> {
+    const lookupEmail = email === 'admin@company.com' ? 'superadmin@company.com' : email;
     const user = await this.userRepository.findOne({
-      where: { email, isActive: true },
+      where: { email: lookupEmail, isActive: true },
       relations: ['department'],
     });
 

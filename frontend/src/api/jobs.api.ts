@@ -18,7 +18,7 @@ export interface GenerateJdPayload {
 
 export const jobsApi = {
   getAll: async (all: boolean = false): Promise<Job[]> => {
-    return apiClient.get(`/jobs?all=${all}`);
+    return apiClient.get(all ? '/jobs/admin' : '/jobs');
   },
 
   getById: async (id: number): Promise<Job> => {

@@ -1,56 +1,98 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job, JobStatus } from '../../entities/job.entity';
+import { Department } from '../../entities/department.entity';
+import { User, UserRole } from '../../entities/user.entity';
 import { GeminiService } from '../core/ai/gemini.service';
+import { CreateJobDto } from './dto/create-job.dto';
 
-/**
- * 📌 PHÂN HỆ JOBS (TUYỂN DỤNG)
- * Phân công: Thành viên 2 sẽ hoàn thiện logic CRUD Jobs & AI JD Generator tại đây (Sprint 2)
- */
+type JobsActor = Pick<User, 'id' | 'role' | 'departmentId'>;
+
+function jobView(job: Job) {
+  return {
+    id: job.id,
+    title: job.title,
+    departmentId: job.departmentId,
+    departmentName: job.department?.name || '',
+    location: job.location,
+    salaryRange: job.salaryRange,
+    description: job.description,
+    requirements: job.requirements,
+    status: job.status,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+  };
+}
+
 @Injectable()
 export class JobsService {
   constructor(
-    @InjectRepository(Job)
-    private jobRepository: Repository<Job>,
+    @InjectRepository(Job) private readonly jobs: Repository<Job>,
+    @InjectRepository(Department) private readonly departments: Repository<Department>,
     private readonly geminiService: GeminiService,
   ) {}
 
-  async findAll(onlyOpen: boolean = true) {
-    const where = onlyOpen ? { status: JobStatus.OPEN } : {};
-    return this.jobRepository.find({
+  private assertScope(actor: JobsActor, departmentId: number) {
+    if (actor.role === UserRole.MANAGER) {
+      if (!actor.departmentId || actor.departmentId !== departmentId) {
+        throw new NotFoundException('Không tìm thấy tin trong phạm vi của bạn.');
+      }
+    } else if (![UserRole.HR, UserRole.SUPERADMIN].includes(actor.role)) {
+      throw new ForbiddenException('Bạn không có quyền xem tin tuyển dụng nội bộ.');
+    }
+  }
+
+  async findAll(actor?: JobsActor) {
+    const where = !actor
+      ? { status: JobStatus.OPEN }
+      : actor.role === UserRole.MANAGER
+        ? { departmentId: actor.departmentId || -1 }
+        : {};
+    if (actor && actor.role !== UserRole.MANAGER) this.assertScope(actor, 0);
+    const jobs = await this.jobs.find({
       where,
       relations: ['department'],
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC', id: 'DESC' },
     });
+    return jobs.map(jobView);
   }
 
-  async findById(id: number) {
-    const job = await this.jobRepository.findOne({
-      where: { id },
-      relations: ['department'],
-    });
-    if (!job) {
-      throw new NotFoundException(`Không tìm thấy công việc ID #${id}`);
+  async findById(id: number, actor?: JobsActor) {
+    const job = await this.jobs.findOne({ where: { id }, relations: ['department'] });
+    if (!job || (!actor && job.status !== JobStatus.OPEN)) {
+      throw new NotFoundException('Không tìm thấy vị trí tuyển dụng.');
     }
-    return job;
+    if (actor) this.assertScope(actor, job.departmentId);
+    return jobView(job);
   }
 
-  // TODO: Thành viên 2 sẽ hoàn thiện tính năng tạo tin tuyển dụng và gọi Gemini AI sinh JD
-  async create(data: Partial<Job>) {
-    const job = this.jobRepository.create(data);
-    return this.jobRepository.save(job);
+  async create(input: CreateJobDto, userId: number) {
+    if (!await this.departments.existsBy({ id: input.departmentId })) {
+      throw new BadRequestException('Phòng ban không tồn tại.');
+    }
+    const job = await this.jobs.save(this.jobs.create({
+      title: input.title,
+      departmentId: input.departmentId,
+      location: input.location,
+      salaryRange: input.salaryRange,
+      description: input.description,
+      requirements: input.requirements,
+      createdBy: userId,
+      status: JobStatus.OPEN,
+    }));
+    const saved = await this.jobs.findOne({ where: { id: job.id }, relations: ['department'] });
+    return jobView(saved);
   }
 
-  // TODO: Thành viên 2 sẽ sử dụng this.geminiService để sinh JD tự động theo prompt
+  // Existing AI skeleton remains a separate feature for a later increment.
   async generateJDWithAI(title: string, departmentName: string, level: string) {
-    // Ví dụ mẫu: const aiResult = await this.geminiService.generateJson(...)
     return {
       title,
       departmentName,
       level,
       aiAvailable: this.geminiService.isAvailable(),
-      message: 'Khung sườn đã sẵn sàng. Thành viên 2 sẽ gọi this.geminiService để sinh JD tại đây.',
+      message: 'Khung sườn đã sẵn sàng. Tính năng sinh JD chưa được triển khai.',
     };
   }
 }

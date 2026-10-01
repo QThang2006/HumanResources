@@ -16,6 +16,15 @@ export interface GenerateJdPayload {
   level?: string;
 }
 
+export interface UpdateJobPayload extends CreateJobPayload {
+  expectedUpdatedAt: string;
+}
+
+export interface ChangeJobStatusPayload {
+  status: 'OPEN' | 'CLOSED';
+  expectedUpdatedAt: string;
+}
+
 export const jobsApi = {
   getAll: async (all: boolean = false): Promise<Job[]> => {
     return apiClient.get(all ? '/jobs/admin' : '/jobs');
@@ -27,6 +36,14 @@ export const jobsApi = {
 
   create: async (payload: CreateJobPayload): Promise<Job> => {
     return apiClient.post('/jobs', payload);
+  },
+
+  update: async (id: number, payload: UpdateJobPayload): Promise<Job> => {
+    return apiClient.patch(`/jobs/${id}`, payload);
+  },
+
+  changeStatus: async (id: number, payload: ChangeJobStatusPayload): Promise<Job> => {
+    return apiClient.patch(`/jobs/${id}/status`, payload);
   },
 
   generateJdWithAi: async (payload: GenerateJdPayload): Promise<any> => {

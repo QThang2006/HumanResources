@@ -25,9 +25,17 @@ export interface ChangeJobStatusPayload {
   expectedUpdatedAt: string;
 }
 
+export interface JobFilters {
+  departments: { id: number; name: string }[];
+}
+
 export const jobsApi = {
-  getAll: async (all: boolean = false, signal?: AbortSignal, q?: string): Promise<Job[]> => {
-    return apiClient.get<unknown, Job[]>(all ? '/jobs/admin' : '/jobs', { signal, params: q ? { q } : undefined });
+  getAll: async (all: boolean = false, signal?: AbortSignal, q?: string, departmentId?: number): Promise<Job[]> => {
+    return apiClient.get<unknown, Job[]>(all ? '/jobs/admin' : '/jobs', { signal, params: { q: q || undefined, departmentId } });
+  },
+
+  getFilters: async (signal?: AbortSignal): Promise<JobFilters> => {
+    return apiClient.get<unknown, JobFilters>('/jobs/filters', { signal });
   },
 
   getById: async (id: number, signal?: AbortSignal): Promise<Job> => {

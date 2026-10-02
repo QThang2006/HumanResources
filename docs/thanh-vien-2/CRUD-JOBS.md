@@ -14,9 +14,10 @@ Phần được đưa lên nhánh đợt này:
 
 | Endpoint | Quyền | Ghi chú |
 | --- | --- | --- |
-| GET /api/jobs | Public | Chỉ OPEN; q tìm theo title; all=false tương thích, all=true trả400 |
+| GET /api/jobs | Public | Chỉ OPEN; q tìm title, departmentId lọc phòng; all=false tương thích, all=true trả400 |
+| GET /api/jobs/filters | Public | departments: các cặp id/name duy nhất từ phòng có tin OPEN |
 | GET /api/jobs/:id | Public | Tin CLOSED hoặc thiếu trả404 |
-| GET /api/jobs/admin | HR/SuperAdmin/Manager | q tìm theo title; Manager chỉ phòng mình |
+| GET /api/jobs/admin | HR/SuperAdmin/Manager | q và departmentId kết hợp; Manager chỉ phòng mình |
 | GET /api/jobs/admin/:id | HR/SuperAdmin/Manager | Tin nội bộ trong scope |
 | POST /api/jobs | HR/SuperAdmin | title, departmentId, description, requirements, location?, salaryRange? |
 | PATCH /api/jobs/:id | HR/SuperAdmin | Như create + expectedUpdatedAt ISO |
@@ -81,10 +82,29 @@ Smoke Chromium local với phản hồi API kiểm thử: **6 nhóm PASS** (trim
 
 Demo: tạo hai tin có title khác nhau, mở Careers và nhập một phần title, xóa từ khóa để xem lại tất cả, thử từ khóa không khớp. Đóng một tin rồi tìm lại title của tin đó: không hiện ở public.
 
+## Đợt 4 - Q02: Lọc tin tuyển dụng theo phòng ban
+
+Ngày công bố: 03/10/2026. Một chức năng: chọn phòng ban trên Careers, kết hợp với tìm tên công việc đã có.
+
+- Select phòng ban lấy từ `GET /api/jobs/filters`, chỉ trả `{ departments: [{ id, name }] }` của phòng có tin OPEN, không lặp phòng và không lộ metadata nội bộ. Phòng hết tin mở biến mất ở lần tải lookup tiếp theo.
+- `departmentId` trên `/jobs` và `/jobs/admin` là tham số tùy chọn, chấp nhận chuỗi chữ số biểu diễn số nguyên từ1 đến2147483647. Rỗng, số âm/thập phân, mảng/object và giá trị vượt giới hạn trả400. ID hợp lệ nhưng không có tin phù hợp trả array rỗng.
+- Kết hợp phòng ban với q và điều kiện OPEN/quyền nội bộ. Manager yêu cầu phòng khác nhận array rỗng; không thể ghi đè scope bằng query. Response list vẫn là `Job[]`.
+- Chọn `Tất cả phòng ban` bỏ riêng bộ lọc phòng; xóa từ khóa giữ phòng đang chọn. Có trạng thái tải/rỗng/lỗi và thử lại riêng cho lookup. Tìm tên công việc vẫn dùng được khi lookup lỗi.
+- Giữ debounce250ms, AbortSignal và chặn response cũ; thử lại danh sách giữ cả từ khóa lẫn phòng ban. Chưa đưa bộ lọc địa điểm hoặc phân trang vào đợt này.
+
+### Kiểm tra đợt 4
+
+- Backend build, frontend TypeScript/Vite production build, oxlint hai file frontend thay đổi và `git diff --check`: đạt.
+- `node --test test/jobs-crud.test.cjs`: **18/18 PASS** (17 bài con +1 nhóm), JWT/password thật và MySQL9.6.0 local tại13316, datadir tạm riêng; database ngẫu nhiên được dọn sau test. Docker không khởi động được trong lượt này nên dùng bản MySQL cài sẵn; chưa chạy lại Q02 trên MySQL8.0.
+- Test mới kiểm kết hợp q/phòng/OPEN, bỏ lọc, ID không có tin, DTO sai, scope Manager, lookup chỉ id/name không trùng và thay đổi khi mở/đóng tin cuối cùng.
+- Chromium chạy bản production với API fixture: **8 nhóm PASS**, gồm lookup tải/lỗi/thử lại/rỗng; kết hợp q/phòng/bỏ lọc; giữ phòng khi xóa từ khóa; response trễ; lỗi danh sách/thử lại; link chi tiết đúng ID; desktop1366px/mobile390px không tràn nội dung Careers và không có pageerror. Đã xem ảnh hai kích thước. UI dùng fixture, test backend dùng database thật.
+
+Demo: tạo tin OPEN ở hai phòng, mở Careers, chọn một phòng rồi nhập một phần title. Chọn tất cả phòng để mở rộng kết quả; xóa từ khóa để xem lại tin trong phòng đang chọn. Đóng tin cuối của một phòng, tải lại Careers: phòng đó không còn trong select.
+
 ## Tiếp theo
 
 1. Nối giao diện quản lý Job với API thật.
-2. Careers: lọc phòng ban (Q02), địa điểm và phân trang; tìm theo từ khóa đã có ở Q01.
+2. Careers: lọc địa điểm (Q03) và phân trang; tìm theo từ khóa Q01 và lọc phòng ban Q02 đã có.
 3. Nộp CV/Applications.
 4. Kanban, phỏng vấn và caller SDK theo từng đợt review.
 

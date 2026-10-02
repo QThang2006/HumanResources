@@ -172,4 +172,60 @@ test('Jobs CRUD with real MySQL and JWT', { timeout: 60000 }, async t => {
     }
     assert.deepEqual((await request('/jobs?q=' + encodeURIComponent("' OR 1=1 --"))).data, []);
   });
+
+  await t.test('department filter combines OPEN and keyword conditions without changing the array contract', async () => {
+    const path = '/jobs?departmentId=' + departments[0].id;
+    const result = await request(path);
+    assert.equal(result.status, 200); assert.ok(Array.isArray(result.data));
+    assert.ok(result.data.length > 0);
+    assert.ok(result.data.every(item => item.departmentId === departments[0].id && item.status === 'OPEN'));
+    assert.deepEqual((await request(path + '&q=%20Backend%20Search%20')).data.map(item => item.id), [searchJobs[0].id]);
+    assert.deepEqual((await request('/jobs?departmentId=' + departments[1].id + '&q=Backend')).data.map(item => item.id), [searchJobs[1].id]);
+    assert.deepEqual((await request(path + '&q=missing-title')).data, []);
+    assert.deepEqual((await request('/jobs?departmentId=2147483647')).data, []);
+    assert.ok((await request('/jobs')).data.some(item => item.departmentId === departments[1].id));
+    assert.deepEqual((await request(path + '&all=false')).data, result.data);
+    assert.equal((await request(path + '&all=true')).status, 400);
+  });
+  await t.test('requested departments never override Manager scope or internal authentication', async () => {
+    const own = '/jobs/admin?departmentId=' + departments[0].id + '&q=Backend%20Search';
+    const other = '/jobs/admin?departmentId=' + departments[1].id + '&q=Backend%20Search';
+    assert.equal((await request(own)).status, 401);
+    assert.equal((await request(own, 'GET', undefined, 'employee')).status, 403);
+    assert.deepEqual((await request(own, 'GET', undefined, 'manager')).data.map(item => item.id), [searchJobs[2].id, searchJobs[0].id]);
+    assert.deepEqual((await request(other, 'GET', undefined, 'manager')).data, []);
+    assert.deepEqual((await request(own, 'GET', undefined, 'other')).data, []);
+    for (const actor of ['hr', 'admin', 'other']) {
+      assert.deepEqual((await request(other, 'GET', undefined, actor)).data.map(item => item.id), [searchJobs[1].id]);
+    }
+  });
+  await t.test('department validation rejects malformed numbers and structured queries', async () => {
+    const invalid = ['', '0', '-1', '1.5', '1e0', '0x1', 'NaN', 'Infinity', 'abc', '2147483648', '9007199254740993', '%20', '%201%20'];
+    for (const query of [...invalid.map(value => 'departmentId=' + value), 'departmentId=1&departmentId=2', 'departmentId[]=1', 'departmentId[id]=1']) {
+      assert.equal((await request('/jobs?' + query)).status, 400, query);
+      assert.equal((await request('/jobs/admin?' + query, 'GET', undefined, 'hr')).status, 400, query);
+    }
+  });
+  await t.test('public lookup exposes unique id/name pairs only for departments with OPEN jobs and follows status changes', async () => {
+    const [empty, closedOnly] = await db.getRepository(entities.Department).save([
+      { name: 'Empty Test', code: 'EMPTY', description: 'Internal department metadata', managerId: users.hr.id },
+      { name: 'Closed Only Test', code: 'CLOSED' },
+    ]);
+    let closed = await db.getRepository(entities.Job).save({ ...input, departmentId: closedOnly.id, status: 'CLOSED', createdBy: users.hr.id });
+    const expected = departments.map(({ id, name }) => ({ id, name }));
+    const lookup = await request('/jobs/filters');
+    assert.equal(lookup.status, 200);
+    assert.deepEqual(lookup.data, { departments: expected });
+    for (const department of [empty, closedOnly]) assert.deepEqual((await request('/jobs?departmentId=' + department.id)).data, []);
+
+    const opened = await request('/jobs/' + closed.id + '/status', 'PATCH', { status: 'OPEN', expectedUpdatedAt: closed.updatedAt.toISOString() }, 'hr');
+    assert.equal(opened.status, 200); closed = opened.data;
+    assert.deepEqual((await request('/jobs/filters')).data, { departments: [{ id: closedOnly.id, name: closedOnly.name }, ...expected] });
+    assert.deepEqual((await request('/jobs?departmentId=' + closedOnly.id)).data.map(item => item.id), [closed.id]);
+    assert.equal((await request('/jobs/' + closed.id + '/status', 'PATCH', { status: 'CLOSED', expectedUpdatedAt: closed.updatedAt }, 'hr')).status, 200);
+    assert.deepEqual((await request('/jobs/filters')).data, { departments: expected });
+    await db.getRepository(entities.Job).createQueryBuilder().update().set({ status: 'CLOSED' }).execute();
+    assert.deepEqual((await request('/jobs/filters')).data, { departments: [] });
+    assert.deepEqual((await request('/jobs')).data, []);
+  });
 });

@@ -47,13 +47,16 @@ export class JobsService {
     }
   }
 
-  async findAll(actor?: JobsActor, q = '') {
+  async findAll(actor?: JobsActor, q = '', departmentId?: number) {
     const where = !actor
       ? { status: JobStatus.OPEN }
       : actor.role === UserRole.MANAGER
         ? { departmentId: actor.departmentId || -1 }
         : {};
     if (actor && actor.role !== UserRole.MANAGER) this.assertScope(actor, 0);
+    // A requested department can narrow a Manager's scope, never replace it.
+    if (actor?.role === UserRole.MANAGER && departmentId !== undefined && departmentId !== actor.departmentId) return [];
+    const departmentFilter = departmentId === undefined ? {} : { departmentId };
     // Bind the keyword and treat LIKE wildcards as literal search characters.
     const titleFilter = q ? {
       title: Raw(alias => `${alias} LIKE :searchTerm ESCAPE '!'`, {
@@ -61,11 +64,23 @@ export class JobsService {
       }),
     } : {};
     const jobs = await this.jobs.find({
-      where: { ...where, ...titleFilter },
+      where: { ...where, ...titleFilter, ...departmentFilter },
       relations: ['department'],
       order: { createdAt: 'DESC', id: 'DESC' },
     });
     return jobs.map(jobView);
+  }
+
+  async filters() {
+    const departments = await this.departments.createQueryBuilder('department')
+      .innerJoin('department.jobs', 'job', 'job.status = :status', { status: JobStatus.OPEN })
+      .select('department.id', 'id')
+      .addSelect('department.name', 'name')
+      .distinct(true)
+      .orderBy('department.name', 'ASC')
+      .addOrderBy('department.id', 'ASC')
+      .getRawMany<{ id: number; name: string }>();
+    return { departments };
   }
 
   async findById(id: number, actor?: JobsActor) {

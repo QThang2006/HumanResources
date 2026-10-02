@@ -8,8 +8,8 @@ export const LoginPage: React.FC = () => {
   const { user, login, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('admin@fpt.edu.vn');
-  const [password, setPassword] = useState('Password123@');
+  const [email, setEmail] = useState('superadmin@company.com');
+  const [password, setPassword] = useState('admin123');
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleRoleSelect = (role: UserRole) => {
@@ -105,7 +105,7 @@ export const LoginPage: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="vd: admin@fpt.edu.vn, hr@fpt.edu.vn..."
+                placeholder="vd: superadmin@company.com, hr@company.com..."
                 className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>

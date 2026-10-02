@@ -107,14 +107,17 @@ npm run dev
 ---
 
 ## 🔑 4. DANH SÁCH 4 TÀI KHOẢN MẪU ĐỂ TEST
-Mật khẩu mặc định cho tất cả tài khoản: **`Password123@`**
+Mật khẩu mặc định cho tất cả tài khoản: **`admin123`**
 
-| Vai trò (Role) | Email đăng nhập | Tên hiển thị | Mục đích kiểm thử |
-| :--- | :--- | :--- | :--- |
-| **`SUPERADMIN`** | `admin@fpt.edu.vn` | Quản Trị Hệ Thống | Kiểm tra quyền cao nhất, trang `/admin` |
-| **`HR`** | `hr@fpt.edu.vn` | Chuyên Viên Tuyển Dụng | Kiểm tra trang tuyển dụng `/recruitment` |
-| **`MANAGER`** | `manager.it@fpt.edu.vn` | Trưởng Phòng IT | Kiểm tra góc nhìn quản lý đánh giá phỏng vấn |
-| **`EMPLOYEE`** | `quan.pham@fpt.edu.vn` | Nhân Viên Kỹ Thuật | Kiểm tra trang làm việc nhân viên `/workspace` |
+| Vai trò (Role) | Email đăng nhập | Tên hiển thị | Chức danh | Mục đích kiểm thử |
+| :--- | :--- | :--- | :--- | :--- |
+| **`SUPERADMIN`** | `superadmin@company.com` | Nguyễn Văn Quản Trị | Hệ Thống Trưởng | Kiểm tra quyền cao nhất, cấu hình API, trang `/admin` |
+| **`HR`** | `hr@company.com` | Lê Thị Thu Thảo | Trưởng Nhóm Tuyển Dụng | Đăng tin tuyển dụng, ATS Kanban, trang `/recruitment` |
+| **`MANAGER`** | `manager@company.com` | Trần Văn Minh | Trưởng Phòng Kỹ Thuật | Chấm điểm PV Kỹ thuật, Team Mood Monitor |
+| **`EMPLOYEE`** | `employee@company.com` | Phạm Hồng Quân | Kỹ Sư Phần Mềm Mới | Checklist 30 ngày, Check-in cảm xúc, trang `/workspace` |
+
+*(Lưu ý: Tại màn hình đăng nhập, bạn có thể gõ email/mật khẩu trên hoặc click nhanh vào 1 trong 4 thẻ Demo bên dưới để đăng nhập ngay lập tức mà không cần gõ phím).*
+
 
 ---
 

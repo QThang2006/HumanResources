@@ -170,11 +170,11 @@ Khi các bạn trong nhóm tải code về và khởi động, toàn bộ các t
    - TypeORM tự động đồng bộ hóa tạo đủ **11 bảng** cùng các khóa ngoại và ràng buộc toàn vẹn.
 2. **Khởi tạo dữ liệu mẫu (Seed Data)**:
    - Hệ thống tự động tạo 2 phòng ban: `Kỹ Thuật Công Nghệ` và `Nhân Sự & Vận Hành`.
-   - Tự động tạo sẵn **4 tài khoản đại diện cho 4 quyền** với mật khẩu mặc định `Password123@`:
-     - `admin@fpt.edu.vn` (Vai trò: **SUPERADMIN**)
-     - `hr@fpt.edu.vn` (Vai trò: **HR**)
-     - `manager.it@fpt.edu.vn` (Vai trò: **MANAGER**)
-     - `quan.pham@fpt.edu.vn` (Vai trò: **EMPLOYEE**)
+   - Tự động tạo sẵn **4 tài khoản đại diện cho 4 quyền** với mật khẩu mặc định `admin123`:
+     - `superadmin@company.com` (Vai trò: **SUPERADMIN** - Nguyễn Văn Quản Trị)
+     - `hr@company.com` (Vai trò: **HR** - Lê Thị Thu Thảo)
+     - `manager@company.com` (Vai trò: **MANAGER** - Trần Văn Minh)
+     - `employee@company.com` (Vai trò: **EMPLOYEE** - Phạm Hồng Quân)
 3. **Luồng Xác thực & Phân quyền hoàn chỉnh (Authentication & RBAC)**:
    - Đăng nhập nhập form hoặc **click nhanh vào 1 trong 4 thẻ tài khoản mẫu** tại màn hình Login.
    - Nhận mã JWT, lưu vào `localStorage`, tự động giải mã thông tin hiển thị lên Navbar.

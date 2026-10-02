@@ -26,12 +26,12 @@ export interface ChangeJobStatusPayload {
 }
 
 export const jobsApi = {
-  getAll: async (all: boolean = false): Promise<Job[]> => {
-    return apiClient.get(all ? '/jobs/admin' : '/jobs');
+  getAll: async (all: boolean = false, signal?: AbortSignal): Promise<Job[]> => {
+    return apiClient.get<unknown, Job[]>(all ? '/jobs/admin' : '/jobs', { signal });
   },
 
-  getById: async (id: number): Promise<Job> => {
-    return apiClient.get(`/jobs/${id}`);
+  getById: async (id: number, signal?: AbortSignal): Promise<Job> => {
+    return apiClient.get<unknown, Job>(`/jobs/${id}`, { signal });
   },
 
   create: async (payload: CreateJobPayload): Promise<Job> => {

@@ -22,7 +22,7 @@ Phần được đưa lên nhánh đợt này:
 | PATCH /api/jobs/:id | HR/SuperAdmin | Như create + expectedUpdatedAt ISO |
 | PATCH /api/jobs/:id/status | HR/SuperAdmin | status OPEN/CLOSED + expectedUpdatedAt ISO |
 
-Endpoint AI từ starter vẫn là skeleton, chưa nghiệm thu. Đợt này chưa đưa code mới cho CV, AI, Kanban hoặc phỏng vấn. Các page frontend hiện vẫn dùng mock của starter; chưa có nghiệm thu UI dữ liệu thật.
+Endpoint AI từ starter vẫn là skeleton, chưa nghiệm thu. Đợt này chưa đưa code mới cho CV, AI, Kanban hoặc phỏng vấn. Tại thời điểm kết thúc đợt 1, các page frontend vẫn dùng mock của starter; phần nối Careers với API được ghi ở đợt 2 bên dưới.
 
 ## Kiểm thử
 
@@ -42,10 +42,34 @@ docker stop hr-ats-tv2-test
 
 Mỗi test run tạo và dọn một database ngẫu nhiên hr_jobs_test_<16 hex>, không dùng database nhóm. ATS_TEST_DB_PORT mặc định13316.
 
+## Đợt 2 - Xem tin tuyển dụng trên Careers
+
+Ngày triển khai/commit: 02/10/2026. Một chức năng: xem danh sách và chi tiết tin công khai từ API Jobs có sẵn.
+
+- `/careers` gọi `GET /api/jobs`, hiển thị tin OPEN do backend trả về, bỏ danh sách mẫu và số ứng viên giả.
+- Bấm một tin mở `/careers/:id`, gọi `GET /api/jobs/:id` và hiển thị đúng nội dung, mô tả, yêu cầu.
+- Có trạng thái tải, danh sách rỗng, lỗi và nút thử lại. Tin đóng/không tồn tại hiển thị lỗi, không lấy tin mẫu thay thế.
+- Mã tin sai bị chặn trước khi gọi API; request được hủy khi rời trang để tránh dữ liệu cũ.
+- Thay form nộp hồ sơ giả bằng thông báo chưa mở nhận hồ sơ trực tuyến. Chưa triển khai CV, tìm kiếm, bộ lọc hoặc phân trang trong đợt này.
+
+### Kiểm tra đợt 2
+
+- TypeScript (`tsc -b`), Vite production build, oxlint cho ba file frontend thay đổi và `git diff --check`: đạt.
+- Chromium chạy bản production trên localhost với phản hồi API mô phỏng theo envelope hiện tại: đạt 8 nhóm kiểm tra (tải/danh sách/link đúng ID; chi tiết và văn bản an toàn; danh sách rỗng; lỗi/thử lại; 404 không có dữ liệu thay thế; mã sai không gọi API; rời trang khi request đang chờ; nội dung Careers trên mobile).
+- Đã xem giao diện ở 1366px và 390px. Nội dung Careers không tràn chiều ngang; thanh menu demo dùng chung còn tràn trên mobile và nằm ngoài phạm vi đợt này.
+- Kiểm tra trình duyệt dùng dữ liệu kiểm thử, chưa chạy lại luồng xuyên suốt với MySQL trong đợt 2. Kết quả test backend ở đợt 1 vẫn là kết quả của đợt 1.
+
+### Demo với backend thật
+
+1. Chạy backend cùng MySQL theo README; frontend dùng `VITE_API_BASE_URL` hoặc mặc định `http://localhost:3001/api`.
+2. Tạo một tin OPEN bằng API Jobs đã có ở đợt 1, mở `/careers`, kiểm tra tiêu đề/phòng ban rồi bấm `Xem chi tiết`.
+3. Đóng tin bằng API, tải lại danh sách: tin biến mất. Mở lại URL chi tiết của tin đó: hiển thị lỗi.
+4. Tắt backend rồi tải lại trang: có thông báo lỗi. Bật backend và bấm `Thử lại`: dữ liệu tải lại được.
+
 ## Tiếp theo
 
 1. Nối giao diện quản lý Job với API thật.
-2. Careers: tìm kiếm/lọc/phân trang và chi tiết.
+2. Careers: tìm kiếm/lọc/phân trang (danh sách và chi tiết cơ bản đã có ở đợt 2).
 3. Nộp CV/Applications.
 4. Kanban, phỏng vấn và caller SDK theo từng đợt review.
 

@@ -36,7 +36,7 @@ test('Jobs CRUD with real MySQL and JWT', { timeout: 60000 }, async t => {
   ] }).overrideProvider(GeminiService).useValue({ isAvailable: () => false }).compile();
   app = module.createNestApplication({ logger: false });
   app.setGlobalPrefix('api');
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true, transformOptions: { enableImplicitConversion: true } }));
   app.useGlobalInterceptors(new TransformInterceptor());
   await app.listen(0, '127.0.0.1');
   const db = app.get(DataSource);
@@ -128,5 +128,48 @@ test('Jobs CRUD with real MySQL and JWT', { timeout: 60000 }, async t => {
     assert.equal((await request('/jobs/' + job.id, 'PATCH', { ...input, departmentId: departments[1].id, expectedUpdatedAt: job.updatedAt }, 'hr')).status, 400);
     assert.equal((await request('/jobs/' + job.id + '/status', 'PATCH', { status: 'CLOSED', expectedUpdatedAt: job.updatedAt }, 'hr')).status, 200);
     assert.equal(await db.getRepository(entities.Application).count(), 1);
+  });
+
+  let searchJobs;
+  await t.test('title search trims keywords, preserves array responses and only returns OPEN jobs', async () => {
+    const rows = [
+      { title: 'Backend Search Engineer', departmentId: departments[0].id },
+      { title: 'Backend Search Finance', departmentId: departments[1].id },
+      { title: 'Backend Search Closed', departmentId: departments[0].id, status: 'CLOSED' },
+      { title: 'Platform Reliability', departmentId: departments[0].id, description: 'Backend Search in description only' },
+    ];
+    searchJobs = await db.getRepository(entities.Job).save(rows.map(row => ({ ...input, status: 'OPEN', createdBy: users.hr.id, ...row })));
+    const result = await request('/jobs?q=' + encodeURIComponent('  backend search  '));
+    assert.equal(result.status, 200); assert.ok(Array.isArray(result.data));
+    assert.deepEqual(result.data.map(item => item.id), [searchJobs[1].id, searchJobs[0].id]);
+    assert.deepEqual((await request('/jobs?q=not-a-matching-title')).data, []);
+    const all = (await request('/jobs')).data;
+    assert.deepEqual((await request('/jobs?q=%20%20')).data, all);
+    assert.deepEqual((await request('/jobs?all=false&q=')).data, all);
+    assert.equal((await request('/jobs?all=true&q=Backend')).status, 400);
+  });
+  await t.test('search retains internal auth and Manager department scope', async () => {
+    const path = '/jobs/admin?q=Backend%20Search';
+    assert.equal((await request(path)).status, 401);
+    assert.equal((await request(path, 'GET', undefined, 'employee')).status, 403);
+    assert.deepEqual((await request(path, 'GET', undefined, 'manager')).data.map(item => item.id), [searchJobs[2].id, searchJobs[0].id]);
+    assert.deepEqual((await request(path, 'GET', undefined, 'other')).data.map(item => item.id), [searchJobs[1].id]);
+    assert.equal((await request(path, 'GET', undefined, 'hr')).data.length, 3);
+  });
+  await t.test('search rejects oversized or structured keywords with production validation settings', async () => {
+    for (const query of ['q=' + 'x'.repeat(151), 'q=a&q=b', 'q[name]=Backend', 'q[]=Backend']) {
+      assert.equal((await request('/jobs?' + query)).status, 400, query);
+      assert.equal((await request('/jobs/admin?' + query, 'GET', undefined, 'hr')).status, 400, query);
+    }
+    assert.equal((await request('/jobs?q=' + 'x'.repeat(150))).status, 200);
+  });
+  await t.test('search binds quotes safely and matches SQL wildcard characters literally', async () => {
+    const special = await db.getRepository(entities.Job).save({ ...input, title: "O'Reilly 100% Data_Team! C\\Tools", createdBy: users.hr.id });
+    for (const keyword of ["O'Reilly", '%', '_', '!', '\\']) {
+      const result = await request('/jobs?q=' + encodeURIComponent(keyword));
+      assert.equal(result.status, 200);
+      assert.deepEqual(result.data.map(item => item.id), [special.id], keyword);
+    }
+    assert.deepEqual((await request('/jobs?q=' + encodeURIComponent("' OR 1=1 --"))).data, []);
   });
 });

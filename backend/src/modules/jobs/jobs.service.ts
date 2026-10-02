@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Raw, Repository } from 'typeorm';
 import { Job, JobStatus } from '../../entities/job.entity';
 import { Department } from '../../entities/department.entity';
 import { Application } from '../../entities/application.entity';
@@ -47,15 +47,21 @@ export class JobsService {
     }
   }
 
-  async findAll(actor?: JobsActor) {
+  async findAll(actor?: JobsActor, q = '') {
     const where = !actor
       ? { status: JobStatus.OPEN }
       : actor.role === UserRole.MANAGER
         ? { departmentId: actor.departmentId || -1 }
         : {};
     if (actor && actor.role !== UserRole.MANAGER) this.assertScope(actor, 0);
+    // Bind the keyword and treat LIKE wildcards as literal search characters.
+    const titleFilter = q ? {
+      title: Raw(alias => `${alias} LIKE :searchTerm ESCAPE '!'`, {
+        searchTerm: '%' + q.replace(/[!%_]/g, '!$&') + '%',
+      }),
+    } : {};
     const jobs = await this.jobs.find({
-      where,
+      where: { ...where, ...titleFilter },
       relations: ['department'],
       order: { createdAt: 'DESC', id: 'DESC' },
     });

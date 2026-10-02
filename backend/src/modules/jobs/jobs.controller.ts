@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Post, Patch, Param, Body, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -9,24 +9,22 @@ import { CreateJobDto } from './dto/create-job.dto';
 import { GenerateJdDto } from './dto/generate-jd.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { ChangeJobStatusDto } from './dto/change-job-status.dto';
+import { ListJobsQueryDto } from './dto/list-jobs-query.dto';
 
 @Controller('jobs')
 export class JobsController {
   constructor(private readonly jobs: JobsService) {}
 
   @Get()
-  list(@Query('all') all?: string) {
-    if (all !== undefined && all !== 'false') {
-      throw new BadRequestException('Tin nội bộ chỉ được xem qua /jobs/admin sau khi đăng nhập.');
-    }
-    return this.jobs.findAll();
+  list(@Query() query: ListJobsQueryDto) {
+    return this.jobs.findAll(undefined, query.q);
   }
 
   @Get('admin')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
-  internalList(@CurrentUser() user: User) {
-    return this.jobs.findAll(user);
+  internalList(@CurrentUser() user: User, @Query() query: ListJobsQueryDto) {
+    return this.jobs.findAll(user, query.q);
   }
 
   @Get('admin/:id')

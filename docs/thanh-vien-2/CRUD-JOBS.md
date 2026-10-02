@@ -14,9 +14,9 @@ Phần được đưa lên nhánh đợt này:
 
 | Endpoint | Quyền | Ghi chú |
 | --- | --- | --- |
-| GET /api/jobs | Public | Chỉ OPEN; all=false tương thích, all=true trả400 |
+| GET /api/jobs | Public | Chỉ OPEN; q tìm theo title; all=false tương thích, all=true trả400 |
 | GET /api/jobs/:id | Public | Tin CLOSED hoặc thiếu trả404 |
-| GET /api/jobs/admin | HR/SuperAdmin/Manager | Manager chỉ phòng mình |
+| GET /api/jobs/admin | HR/SuperAdmin/Manager | q tìm theo title; Manager chỉ phòng mình |
 | GET /api/jobs/admin/:id | HR/SuperAdmin/Manager | Tin nội bộ trong scope |
 | POST /api/jobs | HR/SuperAdmin | title, departmentId, description, requirements, location?, salaryRange? |
 | PATCH /api/jobs/:id | HR/SuperAdmin | Như create + expectedUpdatedAt ISO |
@@ -66,10 +66,25 @@ Ngày triển khai/commit: 02/10/2026. Một chức năng: xem danh sách và ch
 3. Đóng tin bằng API, tải lại danh sách: tin biến mất. Mở lại URL chi tiết của tin đó: hiển thị lỗi.
 4. Tắt backend rồi tải lại trang: có thông báo lỗi. Bật backend và bấm `Thử lại`: dữ liệu tải lại được.
 
+## Đợt 3 - Q01: Tìm tin tuyển dụng theo từ khóa
+
+Ngày công bố: 02/10/2026, thêm một commit theo yêu cầu mới sau đợt Careers đọc tin.
+
+- Careers có ô tìm theo tên công việc, giới hạn150 ký tự, chờ250ms sau khi ngừng nhập và nút xóa tìm kiếm. Từ khóa rỗng trả lại danh sách; không có kết quả và lỗi API có thông báo riêng.
+- `GET /api/jobs?q=...` và `/api/jobs/admin?q=...` trim/validate từ khóa và tìm chuỗi con trong title. Response vẫn là array trong wrapper hiện có; public chỉ OPEN và admin giữ nguyên role/scope.
+- Bind từ khóa bằng tham số SQL; các ký tự `%`, `_`, `!` và dấu gạch chéo ngược được tìm như ký tự thông thường. Query mảng/object hoặc dài quá150 ký tự bị400.
+- Hủy request khi từ khóa đổi hoặc rời trang; response cũ không được thay kết quả mới. Thử lại giữ nguyên từ khóa.
+
+Kiểm thử trên nhánh công bố: backend build, frontend TypeScript/Vite build, lint các file frontend thay đổi và kiểm tra diff đều đạt. Bộ `jobs-crud.test.cjs`: **14/14 PASS** (13 bài con + 1 nhóm) với MySQL8/JWT thật; có test public OPEN, Manager scope, từ khóa đặc biệt, query sai và tương thích array/all=false.
+
+Smoke Chromium local với phản hồi API kiểm thử: **6 nhóm PASS** (trim/tìm theo title; rỗng/xóa/whitespace; debounce; response đến chậm; lỗi/thử lại/link chi tiết; nội dung mobile390px). Kiểm thử UI này dùng API fixture; kiểm thử backend dùng database thật. Thanh menu demo dùng chung vẫn có giới hạn mobile nêu ở đợt2.
+
+Demo: tạo hai tin có title khác nhau, mở Careers và nhập một phần title, xóa từ khóa để xem lại tất cả, thử từ khóa không khớp. Đóng một tin rồi tìm lại title của tin đó: không hiện ở public.
+
 ## Tiếp theo
 
 1. Nối giao diện quản lý Job với API thật.
-2. Careers: tìm kiếm/lọc/phân trang (danh sách và chi tiết cơ bản đã có ở đợt 2).
+2. Careers: lọc phòng ban (Q02), địa điểm và phân trang; tìm theo từ khóa đã có ở Q01.
 3. Nộp CV/Applications.
 4. Kanban, phỏng vấn và caller SDK theo từng đợt review.
 

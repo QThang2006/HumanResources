@@ -12,10 +12,11 @@ type JobsState =
 export function CareersPage() {
   const [state, setState] = useState<JobsState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
-    jobsApi.getAll(false, controller.signal)
+    const timer = setTimeout(() => jobsApi.getAll(false, controller.signal, query.trim())
       .then(jobs => {
         if (!controller.signal.aborted) setState({ status: 'ready', jobs });
       })
@@ -26,9 +27,14 @@ export function CareersPage() {
             message: error instanceof Error ? error.message : 'Không tải được danh sách tuyển dụng.',
           });
         }
-      });
-    return () => controller.abort();
-  }, [attempt]);
+      }), 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [query, attempt]);
+
+  function search(value: string) {
+    setQuery(value);
+    setState({ status: 'loading' });
+  }
 
   function retry() {
     setState({ status: 'loading' });
@@ -45,6 +51,22 @@ export function CareersPage() {
           Khám phá các vị trí đang tuyển và tìm cơ hội phù hợp với bạn.
         </p>
       </header>
+
+      <section aria-label="Tìm kiếm vị trí tuyển dụng" className="mb-6 rounded-2xl border border-slate-200 bg-white p-5">
+        <label htmlFor="job-search" className="mb-2 block text-sm font-semibold text-slate-700">Tìm theo tên công việc</label>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            id="job-search"
+            type="search"
+            maxLength={150}
+            value={query}
+            onChange={event => search(event.target.value)}
+            placeholder="Ví dụ: Backend, Kế toán..."
+            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          {query && <button type="button" onClick={() => search('')} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Xóa tìm kiếm</button>}
+        </div>
+      </section>
 
       {state.status === 'loading' && (
         <p role="status" className="py-12 text-center text-sm text-slate-500">
@@ -69,7 +91,7 @@ export function CareersPage() {
         state.jobs.length === 0 ? (
           <div role="status" className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center">
             <Briefcase aria-hidden="true" className="w-8 h-8 mx-auto mb-3 text-slate-400" />
-            <p className="text-sm text-slate-600">Hiện chưa có vị trí đang tuyển. Vui lòng quay lại sau.</p>
+            <p className="text-sm text-slate-600">{query.trim() ? 'Không tìm thấy vị trí phù hợp với từ khóa.' : 'Hiện chưa có vị trí đang tuyển. Vui lòng quay lại sau.'}</p>
           </div>
         ) : (
           <section aria-label="Vị trí đang tuyển" className="grid grid-cols-1 md:grid-cols-2 gap-6">

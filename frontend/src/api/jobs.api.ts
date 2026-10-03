@@ -27,11 +27,12 @@ export interface ChangeJobStatusPayload {
 
 export interface JobFilters {
   departments: { id: number; name: string }[];
+  locations: string[];
 }
 
 export const jobsApi = {
-  getAll: async (all: boolean = false, signal?: AbortSignal, q?: string, departmentId?: number): Promise<Job[]> => {
-    return apiClient.get<unknown, Job[]>(all ? '/jobs/admin' : '/jobs', { signal, params: { q: q || undefined, departmentId } });
+  getAll: async (all: boolean = false, signal?: AbortSignal, q?: string, departmentId?: number, location?: string): Promise<Job[]> => {
+    return apiClient.get<unknown, Job[]>(all ? '/jobs/admin' : '/jobs', { signal, params: { q: q || undefined, departmentId, location: location || undefined } });
   },
 
   getFilters: async (signal?: AbortSignal): Promise<JobFilters> => {

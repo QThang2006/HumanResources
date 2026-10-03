@@ -17,7 +17,7 @@ export class JobsController {
 
   @Get()
   list(@Query() query: ListJobsQueryDto) {
-    return this.jobs.findAll(undefined, query.q, query.departmentId);
+    return this.jobs.findAll(undefined, query.q, query.departmentId, query.location);
   }
 
   @Get('filters')
@@ -29,7 +29,7 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
   internalList(@CurrentUser() user: User, @Query() query: ListJobsQueryDto) {
-    return this.jobs.findAll(user, query.q, query.departmentId);
+    return this.jobs.findAll(user, query.q, query.departmentId, query.location);
   }
 
   @Get('admin/:id')

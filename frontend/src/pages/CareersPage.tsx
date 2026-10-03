@@ -13,13 +13,14 @@ type JobsState =
 type FiltersState =
   | { status: 'loading' }
   | { status: 'error' }
-  | { status: 'ready'; departments: JobFilters['departments'] };
+  | ({ status: 'ready' } & JobFilters);
 
 export function CareersPage() {
   const [state, setState] = useState<JobsState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
   const [departmentId, setDepartmentId] = useState('');
+  const [location, setLocation] = useState('');
   const [filters, setFilters] = useState<FiltersState>({ status: 'loading' });
   const [filtersAttempt, setFiltersAttempt] = useState(0);
 
@@ -27,7 +28,7 @@ export function CareersPage() {
     const controller = new AbortController();
     jobsApi.getFilters(controller.signal)
       .then(data => {
-        if (!controller.signal.aborted) setFilters({ status: 'ready', departments: data.departments });
+        if (!controller.signal.aborted) setFilters({ status: 'ready', departments: data.departments, locations: data.locations });
       })
       .catch(() => {
         if (!controller.signal.aborted) setFilters({ status: 'error' });
@@ -37,7 +38,7 @@ export function CareersPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const timer = setTimeout(() => jobsApi.getAll(false, controller.signal, query.trim(), departmentId ? Number(departmentId) : undefined)
+    const timer = setTimeout(() => jobsApi.getAll(false, controller.signal, query.trim(), departmentId ? Number(departmentId) : undefined, location)
       .then(jobs => {
         if (!controller.signal.aborted) setState({ status: 'ready', jobs });
       })
@@ -50,7 +51,7 @@ export function CareersPage() {
         }
       }), 250);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [query, departmentId, attempt]);
+  }, [query, departmentId, location, attempt]);
 
   function search(value: string) {
     setQuery(value);
@@ -87,30 +88,48 @@ export function CareersPage() {
           />
           {query && <button type="button" onClick={() => search('')} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Xóa tìm kiếm</button>}
         </div>
-        <div className="mt-4">
-          <label htmlFor="job-department" className="mb-2 block text-sm font-semibold text-slate-700">Phòng ban</label>
-          <select
-            id="job-department"
-            value={departmentId}
-            disabled={filters.status !== 'ready' || filters.departments.length === 0}
-            onChange={event => { setDepartmentId(event.target.value); setState({ status: 'loading' }); }}
-            className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400 sm:max-w-sm"
-          >
-            <option value="">Tất cả phòng ban</option>
-            {filters.status === 'ready' && filters.departments.map(department => (
-              <option key={department.id} value={department.id}>{department.name}</option>
-            ))}
-          </select>
-          {filters.status === 'loading' && <p role="status" className="mt-2 text-sm text-slate-500">Đang tải phòng ban...</p>}
-          {filters.status === 'ready' && filters.departments.length === 0 && <p className="mt-2 text-sm text-slate-500">Chưa có phòng ban đang tuyển.</p>}
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="min-w-0">
+            <label htmlFor="job-department" className="mb-2 block text-sm font-semibold text-slate-700">Phòng ban</label>
+            <select
+              id="job-department"
+              value={departmentId}
+              disabled={filters.status !== 'ready' || filters.departments.length === 0}
+              onChange={event => { setDepartmentId(event.target.value); setState({ status: 'loading' }); }}
+              className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+            >
+              <option value="">Tất cả phòng ban</option>
+              {filters.status === 'ready' && filters.departments.map(department => (
+                <option key={department.id} value={department.id}>{department.name}</option>
+              ))}
+            </select>
+            {filters.status === 'ready' && filters.departments.length === 0 && <p className="mt-2 text-sm text-slate-500">Chưa có phòng ban đang tuyển.</p>}
+          </div>
+          <div className="min-w-0">
+            <label htmlFor="job-location" className="mb-2 block text-sm font-semibold text-slate-700">Địa điểm</label>
+            <select
+              id="job-location"
+              value={location}
+              disabled={filters.status !== 'ready' || filters.locations.length === 0}
+              onChange={event => { setLocation(event.target.value); setState({ status: 'loading' }); }}
+              className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+            >
+              <option value="">Tất cả địa điểm</option>
+              {filters.status === 'ready' && filters.locations.map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+            {filters.status === 'ready' && filters.locations.length === 0 && <p className="mt-2 text-sm text-slate-500">Chưa có địa điểm đang tuyển.</p>}
+          </div>
+        </div>
+        <div>
+          {filters.status === 'loading' && <p role="status" className="mt-2 text-sm text-slate-500">Đang tải phòng ban và địa điểm...</p>}
           {filters.status === 'error' && (
             <div role="alert" className="mt-2 text-sm text-amber-800">
-              <p>Không tải được danh sách phòng ban.</p>
+              <p>Không tải được danh sách phòng ban và địa điểm.</p>
               <button
                 type="button"
                 onClick={() => { setFilters({ status: 'loading' }); setFiltersAttempt(value => value + 1); }}
                 className="mt-2 rounded-lg border border-amber-300 px-3 py-2 font-semibold hover:bg-amber-50"
-              >Thử lại phòng ban</button>
+              >Thử lại bộ lọc</button>
             </div>
           )}
         </div>
@@ -139,7 +158,7 @@ export function CareersPage() {
         state.jobs.length === 0 ? (
           <div role="status" className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center">
             <Briefcase aria-hidden="true" className="w-8 h-8 mx-auto mb-3 text-slate-400" />
-            <p className="text-sm text-slate-600">{departmentId ? 'Không tìm thấy vị trí phù hợp với phòng ban và từ khóa đã chọn.' : query.trim() ? 'Không tìm thấy vị trí phù hợp với từ khóa.' : 'Hiện chưa có vị trí đang tuyển. Vui lòng quay lại sau.'}</p>
+            <p className="text-sm text-slate-600">{departmentId || location ? 'Không tìm thấy vị trí phù hợp với bộ lọc đã chọn.' : query.trim() ? 'Không tìm thấy vị trí phù hợp với từ khóa.' : 'Hiện chưa có vị trí đang tuyển. Vui lòng quay lại sau.'}</p>
           </div>
         ) : (
           <section aria-label="Vị trí đang tuyển" className="grid grid-cols-1 md:grid-cols-2 gap-6">

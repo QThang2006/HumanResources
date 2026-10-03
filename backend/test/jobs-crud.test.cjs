@@ -215,17 +215,97 @@ test('Jobs CRUD with real MySQL and JWT', { timeout: 60000 }, async t => {
     const expected = departments.map(({ id, name }) => ({ id, name }));
     const lookup = await request('/jobs/filters');
     assert.equal(lookup.status, 200);
-    assert.deepEqual(lookup.data, { departments: expected });
+    assert.deepEqual(lookup.data, { departments: expected, locations: ['Hà Nội'] });
     for (const department of [empty, closedOnly]) assert.deepEqual((await request('/jobs?departmentId=' + department.id)).data, []);
 
     const opened = await request('/jobs/' + closed.id + '/status', 'PATCH', { status: 'OPEN', expectedUpdatedAt: closed.updatedAt.toISOString() }, 'hr');
     assert.equal(opened.status, 200); closed = opened.data;
-    assert.deepEqual((await request('/jobs/filters')).data, { departments: [{ id: closedOnly.id, name: closedOnly.name }, ...expected] });
+    assert.deepEqual((await request('/jobs/filters')).data, { departments: [{ id: closedOnly.id, name: closedOnly.name }, ...expected], locations: ['Hà Nội'] });
     assert.deepEqual((await request('/jobs?departmentId=' + closedOnly.id)).data.map(item => item.id), [closed.id]);
     assert.equal((await request('/jobs/' + closed.id + '/status', 'PATCH', { status: 'CLOSED', expectedUpdatedAt: closed.updatedAt }, 'hr')).status, 200);
-    assert.deepEqual((await request('/jobs/filters')).data, { departments: expected });
+    assert.deepEqual((await request('/jobs/filters')).data, { departments: expected, locations: ['Hà Nội'] });
     await db.getRepository(entities.Job).createQueryBuilder().update().set({ status: 'CLOSED' }).execute();
-    assert.deepEqual((await request('/jobs/filters')).data, { departments: [] });
+    assert.deepEqual((await request('/jobs/filters')).data, { departments: [], locations: [] });
     assert.deepEqual((await request('/jobs')).data, []);
+  });
+
+  let locationJobs;
+  await t.test('location combines with keyword, department and OPEN; empty values remove only location', async () => {
+    const rows = [
+      { title: 'Backend Location Engineer', departmentId: departments[0].id, location: '  Đà Nẵng  ' },
+      { title: 'Frontend Location Engineer', departmentId: departments[0].id, location: 'Đà Nẵng' },
+      { title: 'Backend Location Finance', departmentId: departments[1].id, location: 'Đà Nẵng' },
+      { title: 'Backend Location Remote', departmentId: departments[0].id, location: 'Remote' },
+      { title: 'Backend Location Closed', departmentId: departments[0].id, location: 'Đà Nẵng' },
+    ];
+    locationJobs = [];
+    for (const row of rows) {
+      const result = await request('/jobs', 'POST', { ...input, ...row }, 'hr');
+      assert.equal(result.status, 201); locationJobs.push(result.data);
+    }
+    assert.equal(locationJobs[0].location, 'Đà Nẵng');
+    const closed = await request('/jobs/' + locationJobs[4].id + '/status', 'PATCH', { status: 'CLOSED', expectedUpdatedAt: locationJobs[4].updatedAt }, 'hr');
+    assert.equal(closed.status, 200);
+    const locationQuery = 'location=' + encodeURIComponent('  Đà Nẵng  ');
+    const all = await request('/jobs?' + locationQuery);
+    assert.equal(all.status, 200); assert.ok(Array.isArray(all.data));
+    assert.deepEqual(all.data.map(item => item.id).sort((a, b) => a - b), locationJobs.slice(0, 3).map(item => item.id));
+    const filters = '&departmentId=' + departments[0].id + '&q=Backend%20Location';
+    assert.deepEqual((await request('/jobs?' + locationQuery + filters)).data.map(item => item.id), [locationJobs[0].id]);
+    assert.deepEqual((await request('/jobs?location=Remote' + filters)).data.map(item => item.id), [locationJobs[3].id]);
+    assert.deepEqual((await request('/jobs?location=Rem' + filters)).data, []);
+    assert.deepEqual((await request('/jobs?location=Unknown' + filters)).data, []);
+    const unfiltered = (await request('/jobs?' + filters.slice(1))).data;
+    for (const value of ['', '%20%20']) assert.deepEqual((await request('/jobs?location=' + value + filters)).data, unfiltered);
+    assert.equal(unfiltered.length, 2);
+    assert.equal((await request('/jobs?' + locationQuery + '&all=true')).status, 400);
+    assert.deepEqual((await request('/jobs?' + locationQuery + '&all=false')).data, all.data);
+  });
+  await t.test('location filtering keeps admin authentication and intersects Manager department scope', async () => {
+    const query = '?q=Backend%20Location&location=' + encodeURIComponent('Đà Nẵng');
+    assert.equal((await request('/jobs/admin' + query)).status, 401);
+    assert.equal((await request('/jobs/admin' + query, 'GET', undefined, 'employee')).status, 403);
+    const own = await request('/jobs/admin' + query, 'GET', undefined, 'manager');
+    assert.deepEqual(own.data.map(item => item.id).sort((a, b) => a - b), [locationJobs[0].id, locationJobs[4].id]);
+    assert.deepEqual((await request('/jobs/admin' + query, 'GET', undefined, 'other')).data.map(item => item.id), [locationJobs[2].id]);
+    assert.deepEqual((await request('/jobs/admin' + query + '&departmentId=' + departments[1].id, 'GET', undefined, 'manager')).data, []);
+    for (const actor of ['hr', 'admin']) assert.equal((await request('/jobs/admin' + query, 'GET', undefined, actor)).data.length, 3);
+  });
+  await t.test('location validates query shape and length and binds special characters literally', async () => {
+    for (const query of ['location=' + 'x'.repeat(151), 'location=a&location=b', 'location[]=Remote', 'location[name]=Remote']) {
+      assert.equal((await request('/jobs?' + query)).status, 400, query);
+      assert.equal((await request('/jobs/admin?' + query, 'GET', undefined, 'hr')).status, 400, query);
+    }
+    assert.equal((await request('/jobs?location=' + 'x'.repeat(150))).status, 200);
+    const specialLocation = "O'Reilly 100%_! C\\Tools & Office";
+    const special = await request('/jobs', 'POST', { ...input, location: specialLocation }, 'hr');
+    assert.equal(special.status, 201);
+    assert.deepEqual((await request('/jobs?location=' + encodeURIComponent(specialLocation))).data.map(item => item.id), [special.data.id]);
+    for (const fragment of ['%', '_', '!', '\\', "' OR 1=1 --"]) {
+      assert.deepEqual((await request('/jobs?location=' + encodeURIComponent(fragment))).data, []);
+    }
+  });
+  await t.test('location lookup is unique, OPEN-only and reflects closing, reopening and editing a job', async () => {
+    const lookup = (await request('/jobs/filters')).data;
+    assert.deepEqual(Object.keys(lookup).sort(), ['departments', 'locations']);
+    assert.deepEqual(lookup.departments, departments.map(({ id, name }) => ({ id, name })));
+    assert.equal(lookup.locations.length, 3);
+    assert.equal(new Set(lookup.locations).size, 3);
+    assert.ok(lookup.locations.includes('Đà Nẵng')); assert.ok(lookup.locations.includes('Remote'));
+    let remote = locationJobs[3];
+    const closed = await request('/jobs/' + remote.id + '/status', 'PATCH', { status: 'CLOSED', expectedUpdatedAt: remote.updatedAt }, 'hr');
+    assert.equal(closed.status, 200); remote = closed.data;
+    assert.equal((await request('/jobs/filters')).data.locations.includes('Remote'), false);
+    assert.deepEqual((await request('/jobs?location=Remote')).data, []);
+    const reopened = await request('/jobs/' + remote.id + '/status', 'PATCH', { status: 'OPEN', expectedUpdatedAt: remote.updatedAt }, 'hr');
+    assert.equal(reopened.status, 200); remote = reopened.data;
+    assert.equal((await request('/jobs/filters')).data.locations.includes('Remote'), true);
+    const edited = await request('/jobs/' + remote.id, 'PATCH', { ...input, title: remote.title, location: '  Huế  ', expectedUpdatedAt: remote.updatedAt }, 'hr');
+    assert.equal(edited.status, 200); assert.equal(edited.data.location, 'Huế');
+    const updated = (await request('/jobs/filters')).data.locations;
+    assert.equal(updated.includes('Remote'), false); assert.equal(updated.includes('Huế'), true);
+    assert.deepEqual((await request('/jobs?location=' + encodeURIComponent('Huế'))).data.map(item => item.id), [remote.id]);
+    await db.getRepository(entities.Job).createQueryBuilder().update().set({ status: 'CLOSED' }).execute();
+    assert.deepEqual((await request('/jobs/filters')).data, { departments: [], locations: [] });
   });
 });

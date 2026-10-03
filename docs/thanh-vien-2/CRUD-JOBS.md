@@ -14,10 +14,10 @@ Phần được đưa lên nhánh đợt này:
 
 | Endpoint | Quyền | Ghi chú |
 | --- | --- | --- |
-| GET /api/jobs | Public | Chỉ OPEN; q tìm title, departmentId lọc phòng; all=false tương thích, all=true trả400 |
-| GET /api/jobs/filters | Public | departments: các cặp id/name duy nhất từ phòng có tin OPEN |
+| GET /api/jobs | Public | Chỉ OPEN; q tìm title, departmentId lọc phòng, location lọc địa điểm; all=false tương thích, all=true trả400 |
+| GET /api/jobs/filters | Public | departments: id/name; locations: chuỗi địa điểm duy nhất từ tin OPEN |
 | GET /api/jobs/:id | Public | Tin CLOSED hoặc thiếu trả404 |
-| GET /api/jobs/admin | HR/SuperAdmin/Manager | q và departmentId kết hợp; Manager chỉ phòng mình |
+| GET /api/jobs/admin | HR/SuperAdmin/Manager | q, departmentId và location kết hợp; Manager chỉ phòng mình |
 | GET /api/jobs/admin/:id | HR/SuperAdmin/Manager | Tin nội bộ trong scope |
 | POST /api/jobs | HR/SuperAdmin | title, departmentId, description, requirements, location?, salaryRange? |
 | PATCH /api/jobs/:id | HR/SuperAdmin | Như create + expectedUpdatedAt ISO |
@@ -101,10 +101,28 @@ Ngày công bố: 03/10/2026. Một chức năng: chọn phòng ban trên Career
 
 Demo: tạo tin OPEN ở hai phòng, mở Careers, chọn một phòng rồi nhập một phần title. Chọn tất cả phòng để mở rộng kết quả; xóa từ khóa để xem lại tin trong phòng đang chọn. Đóng tin cuối của một phòng, tải lại Careers: phòng đó không còn trong select.
 
+## Đợt 5 - Q03: Lọc tin tuyển dụng theo địa điểm
+
+Ngày công bố: 03/10/2026, thêm một commit theo yêu cầu mới sau Q02 cùng ngày.
+
+- Careers có select `Địa điểm`, dùng danh sách `locations` bổ sung trong `/jobs/filters`. Lookup chỉ lấy địa điểm không rỗng của tin OPEN, loại trùng và sắp xếp theo collation MySQL; giữ nguyên departments. Đóng tin cuối hoặc sửa địa điểm sẽ cập nhật lookup ở lần tải tiếp theo.
+- `/jobs` và `/jobs/admin` nhận `location` tùy chọn: trim như API tạo/sửa tin, tối đa150 ký tự; mảng/object hoặc quá dài trả400. Rỗng hoặc chỉ khoảng trắng bỏ lọc địa điểm.
+- So khớp toàn bộ địa điểm bằng tham số SQL, theo collation của database; không tìm chuỗi con hay diễn giải `%`/`_` thành wildcard. Kết hợp AND với q, departmentId và điều kiện OPEN/scope Manager. Response list vẫn là `Job[]`.
+- Chọn tất cả địa điểm giữ nguyên từ khóa/phòng; bỏ phòng giữ địa điểm; xóa từ khóa giữ cả hai select. Có trạng thái rỗng phù hợp, lookup loading/error/retry dùng chung và thử lại danh sách giữ cả ba điều kiện.
+- Giữ AbortSignal/debounce và chặn response cũ khi đổi địa điểm. Chưa thêm phân trang trong đợt này.
+
+### Kiểm tra đợt 5
+
+- Backend build, frontend TypeScript/Vite production build, oxlint hai file frontend thay đổi và `git diff --check`: đạt.
+- `node --test test/jobs-crud.test.cjs`: **22/22 PASS** (21 bài con +1 nhóm), MySQL9.6.0 và JWT/password thật, datadir test riêng tại localhost13316. Kiểm cả bộ Q01/Q02 và bốn nhóm mới: kết hợp/bỏ lọc/OPEN, quyền/scope, DTO/ký tự đặc biệt, lookup khi mở/đóng/sửa. Database ngẫu nhiên được dọn sau test. Docker chưa hoạt động; chưa chạy Q03 trên MySQL8.0.
+- Chromium production với API fixture: **9 nhóm PASS**; loading/options, cả ba bộ lọc và bỏ từng bộ lọc, rỗng/khôi phục, ký tự đặc biệt, response trễ, retry giữ điều kiện/link đúng ID, lookup lỗi/retry, lookup rỗng, desktop1366px/mobile390px. Không pageerror; đã xem ảnh, nội dung Careers không tràn ngang. Kiểm thử UI dùng fixture, backend dùng database thật; chưa phải E2E trình duyệt với MySQL.
+
+Demo: tạo các tin ở Đà Nẵng và Remote thuộc hai phòng. Chọn địa điểm, phòng và một phần title; bỏ từng điều kiện để xem kết quả mở rộng. Đóng tin cuối ở Remote rồi tải lại Careers: Remote biến mất khỏi select. Thử tắt API và bấm thử lại sau khi bật lại.
+
 ## Tiếp theo
 
 1. Nối giao diện quản lý Job với API thật.
-2. Careers: lọc địa điểm (Q03) và phân trang; tìm theo từ khóa Q01 và lọc phòng ban Q02 đã có.
+2. Careers: phân trang (Q04); tìm theo từ khóa Q01, lọc phòng ban Q02 và địa điểm Q03 đã có.
 3. Nộp CV/Applications.
 4. Kanban, phỏng vấn và caller SDK theo từng đợt review.
 

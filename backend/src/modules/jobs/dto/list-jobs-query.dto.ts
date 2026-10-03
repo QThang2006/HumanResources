@@ -17,6 +17,12 @@ export class ListJobsQueryDto {
   departmentId?: number;
 
   @IsOptional()
+  @Transform(({ obj, key }) => typeof obj[key] === 'string' ? obj[key].trim() : obj[key])
+  @IsString()
+  @MaxLength(150)
+  location?: string;
+
+  @IsOptional()
   @IsIn(['false'], { message: 'Tin nội bộ chỉ được xem qua /jobs/admin sau khi đăng nhập.' })
   all?: string;
 }

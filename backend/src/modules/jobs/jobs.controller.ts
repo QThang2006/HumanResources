@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Patch, Param, Body, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -17,7 +17,8 @@ export class JobsController {
 
   @Get()
   list(@Query() query: ListJobsQueryDto) {
-    return this.jobs.findAll(undefined, query.q, query.departmentId, query.location);
+    this.validatePagination(query);
+    return this.jobs.findAll(undefined, query.q, query.departmentId, query.location, query.page, query.pageSize);
   }
 
   @Get('filters')
@@ -29,7 +30,14 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
   internalList(@CurrentUser() user: User, @Query() query: ListJobsQueryDto) {
-    return this.jobs.findAll(user, query.q, query.departmentId, query.location);
+    this.validatePagination(query);
+    return this.jobs.findAll(user, query.q, query.departmentId, query.location, query.page, query.pageSize);
+  }
+
+  private validatePagination(query: ListJobsQueryDto) {
+    if ((query.page === undefined) !== (query.pageSize === undefined)) {
+      throw new BadRequestException('Phải gửi đồng thời page và pageSize.');
+    }
   }
 
   @Get('admin/:id')

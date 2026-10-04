@@ -308,4 +308,110 @@ test('Jobs CRUD with real MySQL and JWT', { timeout: 60000 }, async t => {
     await db.getRepository(entities.Job).createQueryBuilder().update().set({ status: 'CLOSED' }).execute();
     assert.deepEqual((await request('/jobs/filters')).data, { departments: [], locations: [] });
   });
+
+  let paginationJobs;
+  await t.test('opt-in pagination returns totals and stable pages while legacy requests remain arrays', async () => {
+    const sameTime = new Date('2026-10-04T00:00:00.000Z');
+    const rows = [];
+    for (let index = 1; index <= 10; index++) rows.push({
+      ...input,
+      title: 'Pagination Engineering ' + String(index).padStart(2, '0'),
+      departmentId: departments[0].id,
+      location: 'Đà Nẵng',
+      status: 'OPEN',
+      createdBy: users.hr.id,
+      createdAt: sameTime,
+      updatedAt: sameTime,
+    });
+    for (let index = 1; index <= 3; index++) rows.push({
+      ...input,
+      title: 'Pagination Finance ' + String(index).padStart(2, '0'),
+      departmentId: departments[1].id,
+      location: 'Remote',
+      status: 'OPEN',
+      createdBy: users.hr.id,
+      createdAt: sameTime,
+      updatedAt: sameTime,
+    });
+    rows.push({
+      ...input,
+      title: 'Pagination Engineering Closed',
+      departmentId: departments[0].id,
+      location: 'Đà Nẵng',
+      status: 'CLOSED',
+      createdBy: users.hr.id,
+      createdAt: sameTime,
+      updatedAt: sameTime,
+    });
+    paginationJobs = await db.getRepository(entities.Job).save(rows);
+    const legacy = await request('/jobs?q=Pagination');
+    assert.equal(legacy.status, 200); assert.ok(Array.isArray(legacy.data)); assert.equal(legacy.data.length, 13);
+
+    const expectedIds = paginationJobs.slice(0, 13).map(item => item.id).sort((a, b) => b - a);
+    const pages = [];
+    for (const page of [1, 2, 3]) {
+      const result = await request('/jobs?q=Pagination&page=' + page + '&pageSize=5');
+      assert.equal(result.status, 200);
+      assert.deepEqual({ total: result.data.total, page: result.data.page, pageSize: result.data.pageSize }, { total: 13, page, pageSize: 5 });
+      assert.equal(result.data.items.length, page === 3 ? 3 : 5);
+      pages.push(...result.data.items.map(item => item.id));
+    }
+    assert.deepEqual(pages, expectedIds);
+    assert.equal(new Set(pages).size, 13);
+    const beyond = await request('/jobs?q=Pagination&page=4&pageSize=5');
+    assert.deepEqual(beyond.data, { items: [], total: 13, page: 4, pageSize: 5 });
+    const falseCompat = await request('/jobs?q=Pagination&all=false&page=1&pageSize=5');
+    assert.equal(falseCompat.status, 200); assert.equal(falseCompat.data.total, 13);
+  });
+  await t.test('pagination totals are calculated after all public filters and before page slicing', async () => {
+    const engineering = await request('/jobs?q=Pagination&departmentId=' + departments[0].id + '&location=' + encodeURIComponent('Đà Nẵng') + '&page=2&pageSize=4');
+    assert.equal(engineering.status, 200);
+    assert.deepEqual({ total: engineering.data.total, page: engineering.data.page, pageSize: engineering.data.pageSize, count: engineering.data.items.length }, { total: 10, page: 2, pageSize: 4, count: 4 });
+    assert.ok(engineering.data.items.every(item => item.departmentId === departments[0].id && item.location === 'Đà Nẵng' && item.status === 'OPEN'));
+    const finance = await request('/jobs?q=Pagination&departmentId=' + departments[1].id + '&location=Remote&page=1&pageSize=2');
+    assert.equal(finance.data.total, 3); assert.equal(finance.data.items.length, 2);
+    const none = await request('/jobs?q=Pagination&departmentId=' + departments[1].id + '&location=' + encodeURIComponent('Đà Nẵng') + '&page=1&pageSize=6');
+    assert.deepEqual(none.data, { items: [], total: 0, page: 1, pageSize: 6 });
+  });
+  await t.test('paginated internal lists preserve authentication and Manager scope', async () => {
+    const path = '/jobs/admin?q=Pagination&page=1&pageSize=20';
+    assert.equal((await request(path)).status, 401);
+    assert.equal((await request(path, 'GET', undefined, 'employee')).status, 403);
+    const manager = await request(path, 'GET', undefined, 'manager');
+    assert.equal(manager.status, 200); assert.equal(manager.data.total, 11); assert.equal(manager.data.items.length, 11);
+    assert.ok(manager.data.items.every(item => item.departmentId === departments[0].id));
+    assert.ok(manager.data.items.some(item => item.status === 'CLOSED'));
+    const other = await request(path, 'GET', undefined, 'other');
+    assert.equal(other.data.total, 3); assert.ok(other.data.items.every(item => item.departmentId === departments[1].id));
+    const crossScope = await request(path + '&departmentId=' + departments[1].id, 'GET', undefined, 'manager');
+    assert.deepEqual(crossScope.data, { items: [], total: 0, page: 1, pageSize: 20 });
+    const hr = await request(path, 'GET', undefined, 'hr');
+    assert.equal(hr.data.total, 14);
+  });
+  await t.test('pagination rejects partial, structured and out-of-range parameters', async () => {
+    const invalid = [
+      'page=1', 'pageSize=6', 'page=&pageSize=6', 'page=0&pageSize=6', 'page=-1&pageSize=6',
+      'page=1.5&pageSize=6', 'page=1e1&pageSize=6', 'page=100001&pageSize=6',
+      'page=1&pageSize=0', 'page=1&pageSize=101', 'page=1&pageSize=1.5',
+      'page=1&page=2&pageSize=6', 'page[]=1&pageSize=6', 'page[id]=1&pageSize=6',
+      'page=1&pageSize=6&pageSize=7', 'page=1&pageSize[]=6', 'page=1&pageSize[value]=6',
+    ];
+    for (const query of invalid) {
+      assert.equal((await request('/jobs?' + query)).status, 400, query);
+      assert.equal((await request('/jobs/admin?' + query, 'GET', undefined, 'hr')).status, 400, query);
+    }
+    assert.equal((await request('/jobs?page=100000&pageSize=100')).status, 200);
+  });
+  await t.test('closing a public job updates the total and final page without changing legacy behavior', async () => {
+    const target = paginationJobs[0];
+    const closed = await request('/jobs/' + target.id + '/status', 'PATCH', { status: 'CLOSED', expectedUpdatedAt: target.updatedAt.toISOString() }, 'hr');
+    assert.equal(closed.status, 200);
+    const last = await request('/jobs?q=Pagination&page=3&pageSize=5');
+    assert.equal(last.data.total, 12); assert.equal(last.data.items.length, 2);
+    assert.equal(last.data.items.some(item => item.id === target.id), false);
+    const beyond = await request('/jobs?q=Pagination&page=4&pageSize=5');
+    assert.deepEqual(beyond.data, { items: [], total: 12, page: 4, pageSize: 5 });
+    const legacy = await request('/jobs?q=Pagination');
+    assert.ok(Array.isArray(legacy.data)); assert.equal(legacy.data.length, 12);
+  });
 });

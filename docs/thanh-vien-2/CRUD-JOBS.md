@@ -14,10 +14,10 @@ Phần được đưa lên nhánh đợt này:
 
 | Endpoint | Quyền | Ghi chú |
 | --- | --- | --- |
-| GET /api/jobs | Public | Chỉ OPEN; q tìm title, departmentId lọc phòng, location lọc địa điểm; all=false tương thích, all=true trả400 |
+| GET /api/jobs | Public | Chỉ OPEN; q/phòng/địa điểm; không page trả array, có page+pageSize trả page envelope |
 | GET /api/jobs/filters | Public | departments: id/name; locations: chuỗi địa điểm duy nhất từ tin OPEN |
 | GET /api/jobs/:id | Public | Tin CLOSED hoặc thiếu trả404 |
-| GET /api/jobs/admin | HR/SuperAdmin/Manager | q, departmentId và location kết hợp; Manager chỉ phòng mình |
+| GET /api/jobs/admin | HR/SuperAdmin/Manager | q/phòng/địa điểm/phân trang; Manager chỉ phòng mình |
 | GET /api/jobs/admin/:id | HR/SuperAdmin/Manager | Tin nội bộ trong scope |
 | POST /api/jobs | HR/SuperAdmin | title, departmentId, description, requirements, location?, salaryRange? |
 | PATCH /api/jobs/:id | HR/SuperAdmin | Như create + expectedUpdatedAt ISO |
@@ -119,10 +119,28 @@ Ngày công bố: 03/10/2026, thêm một commit theo yêu cầu mới sau Q02 c
 
 Demo: tạo các tin ở Đà Nẵng và Remote thuộc hai phòng. Chọn địa điểm, phòng và một phần title; bỏ từng điều kiện để xem kết quả mở rộng. Đóng tin cuối ở Remote rồi tải lại Careers: Remote biến mất khỏi select. Thử tắt API và bấm thử lại sau khi bật lại.
 
+## Đợt 6 - Q04: Phân trang Careers có tổng kết quả
+
+Ngày công bố: 04/10/2026. Một chức năng: chia danh sách Careers thành các trang, hiển thị tổng kết quả và giữ tương thích API cũ.
+
+- `GET /api/jobs` và `/jobs/admin` chỉ bật phân trang khi gửi đồng thời `page` và `pageSize`. Khi có phân trang, response là `{ items, total, page, pageSize }`; request cũ không có hai tham số vẫn nhận `Job[]` như Q01-Q03.
+- `page` là số nguyên1..100000, `pageSize` là số nguyên1..100. Thiếu một trong hai, mảng/object, số âm/thập phân/ký hiệu hoặc vượt giới hạn trả400. `total` được tính sau q/phòng/địa điểm/quyền, trước khi cắt trang.
+- Thứ tự ổn định theo `createdAt DESC, id DESC`; các tin cùng thời điểm không bị lặp hoặc mất giữa trang. Public chỉ OPEN; danh sách nội bộ giữ auth và Manager scope, kể cả khi query yêu cầu phòng khác.
+- Careers dùng6 tin/trang, hiển thị tổng vị trí và trang hiện tại. Nút trước/sau disable ở biên; đổi từ khóa, phòng hoặc địa điểm đưa về trang1. Retry giữ trang và các bộ lọc; khi tổng giảm làm trang hiện tại vượt giới hạn, UI tự quay về trang cuối hợp lệ.
+- Request trang cũ bị hủy và không thể ghi đè trang/bộ lọc mới. Link chi tiết tiếp tục dùng ID thật. Chưa triển khai trang quản trị tuyển dụng hoặc form ứng tuyển trong đợt này.
+
+### Kiểm tra đợt 6
+
+- Backend build, frontend TypeScript/Vite production build, oxlint hai file frontend thay đổi và `git diff --check`: đạt.
+- `node --test test/jobs-crud.test.cjs`: **27/27 PASS** (26 bài con +1 nhóm), MySQL9.6.0 và JWT/password thật, database ngẫu nhiên tại localhost13316. Năm nhóm mới kiểm array tương thích/page envelope, tổng sau lọc và trang ổn định, auth/Manager scope, DTO sai/giới hạn, đóng tin làm giảm tổng/trang cuối. Server và datadir test được dọn sau lượt chạy. Docker chưa hoạt động; chưa chạy Q04 trên MySQL8.0.
+- Chromium production với API fixture: **6 nhóm PASS**: trang đầu/biên, trước-sau và trang cuối; reset trang khi lọc; response trang cũ; lỗi/retry và tổng giảm; desktop1366px/mobile390px. Không pageerror; đã xem ảnh, nội dung Careers và điều khiển phân trang không tràn ngang. Thanh menu dùng chung vẫn có giới hạn mobile đã ghi từ đợt2. UI dùng fixture; backend test dùng database thật, chưa phải browser E2E với MySQL.
+
+Demo: tạo hơn6 tin OPEN, mở Careers và chuyển trang; kết hợp q/phòng/địa điểm để xem tổng thay đổi và tự về trang1. Đóng các tin ở trang cuối rồi thử lại: giao diện quay về trang hợp lệ. Gọi `/api/jobs` không page để kiểm response vẫn là array.
+
 ## Tiếp theo
 
 1. Nối giao diện quản lý Job với API thật.
-2. Careers: phân trang (Q04); tìm theo từ khóa Q01, lọc phòng ban Q02 và địa điểm Q03 đã có.
+2. Careers Q01-Q04 đã có tìm kiếm, hai bộ lọc và phân trang; tiếp theo nối đăng nhập thật cho phân hệ tuyển dụng (Q05).
 3. Nộp CV/Applications.
 4. Kanban, phỏng vấn và caller SDK theo từng đợt review.
 

@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Raw, Repository } from 'typeorm';
+import { DataSource, FindManyOptions, Raw, Repository } from 'typeorm';
 import { Job, JobStatus } from '../../entities/job.entity';
 import { Department } from '../../entities/department.entity';
 import { Application } from '../../entities/application.entity';
@@ -47,7 +47,7 @@ export class JobsService {
     }
   }
 
-  async findAll(actor?: JobsActor, q = '', departmentId?: number, location = '') {
+  async findAll(actor?: JobsActor, q = '', departmentId?: number, location = '', page?: number, pageSize?: number) {
     const where = !actor
       ? { status: JobStatus.OPEN }
       : actor.role === UserRole.MANAGER
@@ -55,7 +55,9 @@ export class JobsService {
         : {};
     if (actor && actor.role !== UserRole.MANAGER) this.assertScope(actor, 0);
     // A requested department can narrow a Manager's scope, never replace it.
-    if (actor?.role === UserRole.MANAGER && departmentId !== undefined && departmentId !== actor.departmentId) return [];
+    if (actor?.role === UserRole.MANAGER && departmentId !== undefined && departmentId !== actor.departmentId) {
+      return page !== undefined && pageSize !== undefined ? { items: [], total: 0, page, pageSize } : [];
+    }
     const departmentFilter = departmentId === undefined ? {} : { departmentId };
     const locationFilter = location ? { location } : {};
     // Bind the keyword and treat LIKE wildcards as literal search characters.
@@ -64,11 +66,20 @@ export class JobsService {
         searchTerm: '%' + q.replace(/[!%_]/g, '!$&') + '%',
       }),
     } : {};
-    const jobs = await this.jobs.find({
+    const options: FindManyOptions<Job> = {
       where: { ...where, ...titleFilter, ...departmentFilter, ...locationFilter },
       relations: ['department'],
       order: { createdAt: 'DESC', id: 'DESC' },
-    });
+    };
+    if (page !== undefined && pageSize !== undefined) {
+      const [jobs, total] = await this.jobs.findAndCount({
+        ...options,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      });
+      return { items: jobs.map(jobView), total, page, pageSize };
+    }
+    const jobs = await this.jobs.find(options);
     return jobs.map(jobView);
   }
 

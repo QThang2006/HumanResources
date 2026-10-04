@@ -23,6 +23,20 @@ export class ListJobsQueryDto {
   location?: string;
 
   @IsOptional()
+  @Transform(({ obj, key }) => typeof obj[key] === 'string' && /^\d+$/.test(obj[key]) ? Number(obj[key]) : obj[key])
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  page?: number;
+
+  @IsOptional()
+  @Transform(({ obj, key }) => typeof obj[key] === 'string' && /^\d+$/.test(obj[key]) ? Number(obj[key]) : obj[key])
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
+
+  @IsOptional()
   @IsIn(['false'], { message: 'Tin nội bộ chỉ được xem qua /jobs/admin sau khi đăng nhập.' })
   all?: string;
 }

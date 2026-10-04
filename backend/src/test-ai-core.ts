@@ -162,9 +162,91 @@ Hãy trả lời ngắn gọn câu hỏi: "${testQuery}"
     console.log('\n🤖 Câu trả lời từ AI Copilot (RAG):');
     console.log(`"${ragAnswer.trim()}"`);
   }
+  console.log('\n');
+
+  // 5. TEST: PHÂN TÍCH CẢM XÚC & NGUY CƠ KIỆT SỨC (analyzeMoodSentiment)
+  console.log('----------------------------------------------------');
+  console.log('5. TEST: analyzeMoodSentiment() [Engagement & Burnout Agent]');
+  console.log('----------------------------------------------------');
+  const stressFeedback = 'Dạo này sprint dồn dập quá, mình liên tục phải OT đến 21h đêm và cảm thấy rất mệt mỏi, kiệt sức, deadline đè nặng không kịp thở.';
+  console.log(`Lời nhắn nhân viên: "${stressFeedback}"`);
+  const moodResult = await geminiService.analyzeMoodSentiment(stressFeedback, 'STRESSED', {
+    consecutiveStressDays: 3,
+    employeeName: 'Trần Văn Hoàng',
+    departmentName: 'Kỹ Thuật Phần Mềm',
+  });
+  console.log('Cảm xúc nhận diện:', moodResult.sentimentLabel);
+  console.log('Điểm cảm xúc (0.0 - 1.0):', moodResult.sentimentScore);
+  console.log('Nguy cơ kiệt sức (Burnout Risk):', moodResult.isBurnoutRisk ? '🚨 CÓ NGUY CƠ CAO' : '🟢 Bình thường');
+  console.log('Mức độ nghiêm trọng:', moodResult.burnoutSeverity);
+  console.log('Điểm số Burnout:', moodResult.burnoutScore + '/100');
+  console.log('Từ khóa cảm xúc bắt được:', moodResult.emotionalKeywords);
+  console.log('Nguyên nhân cốt lõi:', moodResult.keyStressFactors);
+  console.log('Khuyến nghị cho Quản lý / HR (Top 2):', moodResult.actionableRecommendations.slice(0, 2));
+  console.log('Lời nhắn thấu cảm:', moodResult.empathyNote);
+  console.log('Nguồn:', moodResult.aiGenerated ? `✅ ${geminiService.getModelName()}` : '⚡ Fallback Mock Engine');
+  console.log('\n');
+
+  // 6. TEST: TRỢ LÝ HỎI ĐÁP QUY CHẾ 24/7 (chatCopilot)
+  console.log('----------------------------------------------------');
+  console.log('6. TEST: chatCopilot() [RAG Employee Copilot 24/7]');
+  console.log('----------------------------------------------------');
+  const copilotQuery = 'Năm nay tôi có bao nhiêu ngày nghỉ phép năm và nếu ốm đột xuất thì sao?';
+  console.log(`Câu hỏi của nhân viên: "${copilotQuery}"`);
+  const copilotResult = await geminiService.chatCopilot(copilotQuery, [sampleHandbookText]);
+  console.log('\nCâu trả lời từ Copilot:');
+  console.log(copilotResult.reply);
+  console.log('\nTài liệu trích dẫn:', copilotResult.citedSources);
+  console.log('Gợi ý câu hỏi tiếp theo:');
+  copilotResult.suggestedFollowUpQuestions.forEach((q, idx) => console.log(`  👉 [${idx + 1}] ${q}`));
+  console.log('Cần chuyên viên HR hỗ trợ trực tiếp:', copilotResult.requiresHrIntervention ? 'CÓ' : 'KHÔNG');
+  console.log('Nguồn:', copilotResult.aiGenerated ? `✅ ${geminiService.getModelName()}` : '⚡ Fallback Mock Engine');
+  console.log('\n');
+
+  // 7. TEST: ĐỀ XUẤT KHÓA HỌC BÙ ĐẮP KỸ NĂNG (recommendSkillGapCourse)
+  console.log('----------------------------------------------------');
+  console.log('7. TEST: recommendSkillGapCourse() [L&D Training Agent]');
+  console.log('----------------------------------------------------');
+  const missingSkills = ['Message Queue (Apache Kafka / RabbitMQ)', 'Tối ưu hóa Indexing MySQL', 'Docker & Kubernetes'];
+  console.log('Kỹ năng thiếu hụt:', missingSkills);
+
+  const availableSampleCourses = [
+    {
+      id: 101,
+      title: 'Xây dựng Hệ thống Phân tán & Message Queue với Apache Kafka',
+      skillsProvided: ['Message Queue', 'Kafka', 'Microservices'],
+      durationHours: 16,
+      courseUrl: 'https://learning.enterprise.vn/courses/kafka-101',
+    },
+    {
+      id: 102,
+      title: 'Tối ưu hóa Truy vấn & Thiết kế Lập Chỉ Mục MySQL Chuyên Sâu',
+      skillsProvided: ['MySQL', 'Database Indexing', 'SQL Optimization'],
+      durationHours: 12,
+      courseUrl: 'https://learning.enterprise.vn/courses/mysql-perf',
+    },
+  ];
+
+  const courseResult = await geminiService.recommendSkillGapCourse(
+    missingSkills,
+    availableSampleCourses,
+    'Junior Backend Developer',
+    'Middle Backend Engineer',
+  );
+  console.log('Tóm tắt đánh giá:', courseResult.summary);
+  console.log('Điểm sẵn sàng nghề nghiệp:', courseResult.readinessScore + '%');
+  console.log(`Lộ trình đề xuất: ${courseResult.recommendedCourses.length} khóa học:`);
+  courseResult.recommendedCourses.forEach((c) => {
+    console.log(`\n  [Khóa ${c.learningPathOrder}] ${c.courseTitle} (Ưu tiên: ${c.priority})`);
+    console.log(`  ⏱️ Thời lượng: ${c.estimatedTimeToComplete}`);
+    console.log(`  🎯 Bù đắp kỹ năng: ${c.matchedMissingSkills.join(', ')}`);
+    console.log(`  💡 Lý do: ${c.whyRecommended}`);
+  });
+  console.log('\nLời khuyên lộ trình:', courseResult.careerAdvice);
+  console.log('Nguồn:', courseResult.aiGenerated ? `✅ ${geminiService.getModelName()}` : '⚡ Fallback Mock Engine');
 
   console.log('\n====================================================');
-  console.log('🎉 HOÀN TẤT KIỂM THỬ TOÀN BỘ AI CORE & VECTOR DATABASE (RAG)!');
+  console.log('🎉 HOÀN TẤT KIỂM THỬ TOÀN DIỆN CẢ 7 TÍNH NĂNG AI CORE & RAG!');
   console.log('====================================================');
 }
 

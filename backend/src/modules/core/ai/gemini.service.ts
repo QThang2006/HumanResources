@@ -61,6 +61,56 @@ export interface InterviewQuestionsResult {
   aiGenerated: boolean;
 }
 
+// =========================================================================
+// 4. INTERFACES CHO PHÂN TÍCH CẢM XÚC & NGUY CƠ KIỆT SỨC (BURNOUT RISK)
+// =========================================================================
+export interface MoodSentimentResult {
+  sentimentLabel: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+  sentimentScore: number; // 0.0 (rất tiêu cực) đến 1.0 (rất tích cực)
+  isBurnoutRisk: boolean;
+  burnoutSeverity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  burnoutScore: number; // 0 - 100
+  keyStressFactors: string[];
+  emotionalKeywords: string[];
+  actionableRecommendations: string[];
+  empathyNote: string;
+  aiGenerated: boolean;
+}
+
+// =========================================================================
+// 5. INTERFACES CHO TRỢ LÝ HỎI ĐÁP QUY CHẾ 24/7 (RAG COPILOT)
+// =========================================================================
+export interface CopilotChatResult {
+  query: string;
+  reply: string;
+  citedSources: string[];
+  suggestedFollowUpQuestions: string[];
+  requiresHrIntervention: boolean;
+  aiGenerated: boolean;
+}
+
+// =========================================================================
+// 6. INTERFACES CHO ĐỀ XUẤT KHÓA HỌC BÙ ĐẮP KỸ NĂNG (SKILL GAP COURSE)
+// =========================================================================
+export interface CourseRecommendationItem {
+  courseId?: number;
+  courseTitle: string;
+  matchedMissingSkills: string[];
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  estimatedTimeToComplete: string;
+  whyRecommended: string;
+  learningPathOrder: number;
+}
+
+export interface SkillGapCourseResult {
+  summary: string;
+  skillGapsIdentified: string[];
+  readinessScore: number; // 0 - 100%
+  recommendedCourses: CourseRecommendationItem[];
+  careerAdvice: string;
+  aiGenerated: boolean;
+}
+
 /**
  * 🧠 Dịch vụ Tập Trung Google Gemini (Shared AI Engine)
  * Phục vụ chung cho: Sinh JD, Bóc tách CV, Gợi ý câu hỏi phỏng vấn, RAG Copilot, Phân tích Burnout
@@ -670,4 +720,453 @@ BẮT BUỘC TRẢ VỀ ĐỊNH DẠNG JSON SAU:
       aiGenerated: false,
     };
   }
+
+  // =========================================================================
+  // 4. PHÂN TÍCH CẢM XÚC & NGUY CƠ KIỆT SỨC (analyzeMoodSentiment)
+  // =========================================================================
+  async analyzeMoodSentiment(
+    feedbackText: string,
+    moodType: string = 'STRESSED',
+    context?: { consecutiveStressDays?: number; employeeName?: string; departmentName?: string },
+  ): Promise<MoodSentimentResult> {
+    this.logger.log(`🤖 AI [${this.selectedModel}] đang phân tích cảm xúc & rủi ro Burnout: "${feedbackText?.slice(0, 50)}..."`);
+
+    const consecutiveDays = context?.consecutiveStressDays || 1;
+    const department = context?.departmentName || 'Bộ phận nội bộ';
+    const employeeName = context?.employeeName || 'Nhân sự';
+
+    const prompt = `
+Bạn là Giám đốc Hạnh phúc Doanh nghiệp (Chief People & Happiness Officer) kiêm Chuyên gia Tâm lý Học Lao động Cấp cao.
+Nhiệm vụ của bạn là phân tích sâu sắc phản hồi của nhân viên để đánh giá trạng thái tâm lý, nguy cơ quá tải tinh thần và kiệt sức (Burnout Risk theo chuẩn WHO ICD-11):
+- Tên nhân viên: ${employeeName}
+- Phòng ban: ${department}
+- Trạng thái tự chọn: ${moodType}
+- Số ngày stress liên tiếp ghi nhận: ${consecutiveDays} ngày
+- Nội dung phản hồi (feedback): "${feedbackText || '(Không có lời nhắn đi kèm)'}"
+
+Tiêu chí đánh giá chuyên sâu:
+1. sentimentLabel: "POSITIVE" | "NEUTRAL" | "NEGATIVE"
+2. sentimentScore: Số thực từ 0.0 (rất tiêu cực/trầm cảm) đến 1.0 (rất tích cực/nhiệt huyết)
+3. isBurnoutRisk: true nếu phát hiện dấu hiệu kiệt sức/quá tải công việc/áp lực kéo dài, false nếu ổn
+4. burnoutSeverity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+5. burnoutScore: Thang điểm 0 - 100 đo lường mức độ kiệt sức
+6. keyStressFactors: Mảng 2-4 yếu tố gây stress cốt lõi (Ví dụ: "Khối lượng công việc quá tải", "Áp lực deadline liên tục", "Thiếu sự ghi nhận", "Bất đồng quan điểm")
+7. emotionalKeywords: Các từ khóa cảm xúc nhận diện được từ phản hồi
+8. actionableRecommendations: 2-3 hành động thiết thực cho Quản lý / HR (Ví dụ: "Lên lịch trò chuyện 1-1 lắng nghe", "Rà soát điều chỉnh khối lượng task trong Sprint", "Gợi ý nghỉ phép nạp năng lượng")
+9. empathyNote: 1-2 câu nhắn gửi ấm áp, chân thành, thấu hiểu và khích lệ nhân viên từ phía công ty
+
+BẮT BUỘC TRẢ VỀ THEO ĐÚNG ĐỊNH DẠNG JSON SAU (không kèm markdown ngoài JSON):
+{
+  "sentimentLabel": "NEGATIVE",
+  "sentimentScore": 0.2,
+  "isBurnoutRisk": true,
+  "burnoutSeverity": "HIGH",
+  "burnoutScore": 75,
+  "keyStressFactors": ["Khối lượng công việc vượt tải", "Áp lực deadline dồn dập"],
+  "emotionalKeywords": ["mệt mỏi", "quá tải", "áp lực"],
+  "actionableRecommendations": [
+    "Quản lý trực tiếp hẹn buổi 1-on-1 trong vòng 24h để lắng nghe khó khăn",
+    "Rà soát và san sẻ bớt các đầu việc tồn đọng cho đồng đội trong nhóm"
+  ],
+  "empathyNote": "Công ty rất hiểu và trân trọng sự nỗ lực của bạn trong giai đoạn này. Sức khỏe và tinh thần của bạn luôn là ưu tiên hàng đầu, hãy chia sẻ cùng quản lý để tìm giải pháp nhé!"
 }
+    `.trim();
+
+    const systemInstruction = 'Bạn là Chuyên gia Tâm lý Tổ chức & Nhân sự Doanh nghiệp. Phân tích công tâm, thấu cảm, sắc sảo và đưa ra giải pháp bảo vệ sức khỏe tinh thần nhân viên. Trả về JSON hợp lệ 100%.';
+
+    const aiResult = await this.generateJson<MoodSentimentResult>(prompt, systemInstruction);
+
+    if (aiResult && aiResult.sentimentLabel && aiResult.burnoutScore !== undefined) {
+      return {
+        ...aiResult,
+        aiGenerated: true,
+      };
+    }
+
+    this.logger.warn(`Sử dụng Fallback Mock Mood Sentiment Analysis cho phản hồi.`);
+    return this.getFallbackMoodSentiment(feedbackText, moodType, context);
+  }
+
+  // =========================================================================
+  // 5. TRỢ LÝ HỎI ĐÁP QUY CHẾ, NGÀY PHÉP 24/7 (chatCopilot)
+  // =========================================================================
+  async chatCopilot(
+    query: string,
+    contextDocuments: string[] | { title: string; content: string }[] = [],
+  ): Promise<CopilotChatResult> {
+    this.logger.log(`🤖 AI [${this.selectedModel}] Copilot nhận câu hỏi: "${query}"`);
+
+    // Chuẩn hóa tài liệu ngữ cảnh
+    let formattedContext = '';
+    if (Array.isArray(contextDocuments) && contextDocuments.length > 0) {
+      formattedContext = contextDocuments
+        .map((doc, idx) => {
+          if (typeof doc === 'string') {
+            return `[Tài liệu ${idx + 1}]:\n${doc}`;
+          }
+          return `[Tài liệu: ${doc.title}]:\n${doc.content}`;
+        })
+        .join('\n\n---\n\n');
+    } else {
+      formattedContext = 'Không có trích đoạn tài liệu cụ thể được cung cấp kèm theo.';
+    }
+
+    const prompt = `
+Bạn là Trợ lý HR AI Copilot thông minh, tận tâm và chuyên nghiệp của Doanh nghiệp.
+Dưới đây là các tài liệu chính sách, quy chế và sổ tay nhân viên nội bộ:
+--------------------------------------------------------------------------------
+${formattedContext}
+--------------------------------------------------------------------------------
+
+Câu hỏi của nhân viên: "${query}"
+
+Nguyên tắc giải đáp:
+1. Trả lời trực tiếp, rõ ràng, ân cần, định dạng Markdown gạch đầu dòng chuyên nghiệp.
+2. Dẫn chứng chính xác các điều khoản, con số cụ thể trong quy chế nội bộ (ngày phép, WFH, bảo hiểm, trợ cấp, quy trình thử việc...).
+3. Gợi ý 2-3 câu hỏi tiếp theo nhân viên có thể quan tâm (suggestedFollowUpQuestions).
+4. Đánh giá xem câu hỏi có chứa vấn đề nhạy cảm/khiếu nại cần chuyên viên HR trực tiếp can thiệp không (requiresHrIntervention).
+5. Trích dẫn danh sách tài liệu nguồn đã tham chiếu (citedSources).
+
+BẮT BUỘC TRẢ VỀ THEO ĐỊNH DẠNG JSON SAU (không kèm markdown ngoài JSON):
+{
+  "reply": "Nội dung câu trả lời hoàn chỉnh, chi tiết và ân cần...",
+  "citedSources": ["Sổ tay Nhân viên 2026 - Chương 2: Chế độ Nghỉ Phép"],
+  "suggestedFollowUpQuestions": [
+    "Quy trình tạo đơn xin nghỉ phép trên cổng HR Portal như thế nào?",
+    "Số ngày phép chưa dùng hết trong năm có được cộng dồn không?"
+  ],
+  "requiresHrIntervention": false
+}
+    `.trim();
+
+    const systemInstruction = 'Bạn là Trợ lý HR AI Copilot nội bộ. Luôn trung thực với tài liệu chính sách, lịch thiệp, dễ hiểu và hỗ trợ nhân viên hết mình. Trả về JSON hợp lệ 100%.';
+
+    const aiResult = await this.generateJson<CopilotChatResult>(prompt, systemInstruction);
+
+    if (aiResult && aiResult.reply) {
+      return {
+        query,
+        reply: aiResult.reply,
+        citedSources: aiResult.citedSources || [],
+        suggestedFollowUpQuestions: aiResult.suggestedFollowUpQuestions || [],
+        requiresHrIntervention: !!aiResult.requiresHrIntervention,
+        aiGenerated: true,
+      };
+    }
+
+    this.logger.warn(`Sử dụng Fallback Mock Copilot Chat.`);
+    return this.getFallbackCopilotChat(query, contextDocuments);
+  }
+
+  // =========================================================================
+  // 6. ĐỀ XUẤT KHÓA HỌC BÙ ĐẮP KỸ NĂNG THIẾU HỤT (recommendSkillGapCourse)
+  // =========================================================================
+  async recommendSkillGapCourse(
+    missingSkills: string[],
+    availableCourses?: { id: number; title: string; skillsProvided: string[]; durationHours?: number; courseUrl?: string }[],
+    currentRole: string = 'Nhân viên mới / Thử việc',
+    targetRole: string = 'Nhân viên chính thức / Nâng chuẩn Senior',
+  ): Promise<SkillGapCourseResult> {
+    this.logger.log(`🤖 AI [${this.selectedModel}] đang phân tích Skill Gap & đề xuất khóa học cho ${missingSkills.length} kỹ năng...`);
+
+    const prompt = `
+Bạn là Giám đốc Đào tạo & Phát triển Năng lực (L&D Director) kiêm Chuyên gia Khai vấn Nghề nghiệp Công nghệ (Technical Career Coach).
+Nhiệm vụ của bạn là phân tích các khoảng cách kỹ năng (Skill Gaps) và thiết kế lộ trình đào tạo bù đắp cá nhân hóa:
+- Danh sách kỹ năng còn thiếu: ${JSON.stringify(missingSkills)}
+- Vai trò hiện tại: ${currentRole}
+- Mục tiêu năng lực: ${targetRole}
+- Danh mục khóa học hiện có của công ty: ${JSON.stringify(availableCourses || [])}
+
+Tiêu chuẩn đầu ra:
+1. summary: Đánh giá tổng quan về khoảng cách kỹ năng và tiềm năng phát triển của nhân sự.
+2. skillGapsIdentified: Chuẩn hóa lại danh sách các lỗ hổng kỹ năng cần bù đắp.
+3. readinessScore: Điểm độ sẵn sàng nghề nghiệp hiện tại (0 - 100%).
+4. recommendedCourses: Lộ trình 2-4 khóa học thiết thực sắp xếp theo thứ tự học tập tối ưu:
+   - courseId: ID khóa học (nếu khớp với danh mục hiện có)
+   - courseTitle: Tên khóa học chuyên môn
+   - matchedMissingSkills: Danh sách các kỹ năng thiếu được giải quyết bởi khóa học này
+   - priority: "HIGH" (kỹ năng cốt lõi bắt buộc) | "MEDIUM" (nâng cao) | "LOW" (bổ trợ)
+   - estimatedTimeToComplete: Thời gian hoàn thành dự kiến (ví dụ: "2 tuần (10 giờ học)")
+   - whyRecommended: Lý do vì sao khóa học này giúp bù đắp kỹ năng thiếu
+   - learningPathOrder: Thứ tự học tập (1, 2, 3...)
+5. careerAdvice: Lời khuyên định hướng học tập và áp dụng kiến thức vào công việc thực tế.
+
+BẮT BUỘC TRẢ VỀ THEO ĐÚNG ĐỊNH DẠNG JSON SAU (không kèm markdown ngoài JSON):
+{
+  "summary": "Nhân viên có nền tảng tốt nhưng cần bổ sung các kỹ năng kiến trúc chuyên sâu...",
+  "skillGapsIdentified": ${JSON.stringify(missingSkills)},
+  "readinessScore": 75,
+  "recommendedCourses": [
+    {
+      "courseId": 1,
+      "courseTitle": "Kiến trúc Microservices & Message Queue chuyên sâu",
+      "matchedMissingSkills": ["Message Queue"],
+      "priority": "HIGH",
+      "estimatedTimeToComplete": "2 tuần (12 giờ học)",
+      "whyRecommended": "Cung cấp kiến thức toàn diện về kiến trúc phân tán phục vụ dự án",
+      "learningPathOrder": 1
+    }
+  ],
+  "careerAdvice": "Nên dành 30 phút mỗi ngày vào đầu giờ sáng để hoàn thành các bài học..."
+}
+    `.trim();
+
+    const systemInstruction = 'Bạn là Giám đốc Đào tạo & Phát triển Doanh nghiệp. Thiết kế lộ trình khoa học, thực tế, bám sát năng lực công nghệ hiện đại. Trả về JSON hợp lệ 100%.';
+
+    const aiResult = await this.generateJson<SkillGapCourseResult>(prompt, systemInstruction);
+
+    if (aiResult && aiResult.recommendedCourses && aiResult.recommendedCourses.length > 0) {
+      return {
+        ...aiResult,
+        aiGenerated: true,
+      };
+    }
+
+    this.logger.warn(`Sử dụng Fallback Mock Skill Gap Recommender.`);
+    return this.getFallbackSkillGapCourse(missingSkills, availableCourses, currentRole, targetRole);
+  }
+
+  // =========================================================================
+  // CÁC HÀM FALLBACK MOCK THÔNG MINH DÀNH CHO 3 TÍNH NĂNG TRÊN
+  // =========================================================================
+  private getFallbackMoodSentiment(
+    feedbackText: string,
+    moodType: string = 'STRESSED',
+    context?: { consecutiveStressDays?: number; employeeName?: string; departmentName?: string },
+  ): MoodSentimentResult {
+    const text = (feedbackText || '').toLowerCase();
+    const consecutiveDays = context?.consecutiveStressDays || 1;
+
+    const stressWords = ['mệt', 'áp lực', 'stress', 'quá tải', 'chán', 'kiệt sức', 'overtime', 'ot', 'nghỉ việc', 'bất mãn', 'bế tắc', 'deadline'];
+    const positiveWords = ['tuyệt', 'vui', 'hào hứng', 'hài lòng', 'tốt', 'thích', 'động lực', 'thoải mái', 'tuyệt vời', 'ổn'];
+
+    const matchedStress = stressWords.filter((w) => text.includes(w));
+    const matchedPositive = positiveWords.filter((w) => text.includes(w));
+
+    const isNegative = matchedStress.length > 0 || moodType === 'STRESSED';
+    const isPositive = matchedPositive.length > 0 && moodType === 'GREAT';
+
+    if (isNegative) {
+      const severity = consecutiveDays >= 3 || matchedStress.length >= 2 ? 'HIGH' : 'MEDIUM';
+      const burnoutScore = Math.min(65 + consecutiveDays * 8 + matchedStress.length * 5, 95);
+
+      return {
+        sentimentLabel: 'NEGATIVE',
+        sentimentScore: 0.2,
+        isBurnoutRisk: true,
+        burnoutSeverity: severity,
+        burnoutScore,
+        keyStressFactors: [
+          'Khối lượng công việc dồn dập vượt ngưỡng tiếp nhận',
+          'Áp lực deadline và tiến độ dự án căng thẳng',
+          'Thời gian phục hồi và nghỉ ngơi chưa đảm bảo',
+        ],
+        emotionalKeywords: matchedStress.length > 0 ? matchedStress : ['căng thẳng', 'áp lực'],
+        actionableRecommendations: [
+          'Quản lý trực tiếp hẹn buổi gặp gỡ 1-on-1 trong vòng 24h để lắng nghe tâm tư và khó khăn thực tế',
+          'Rà soát lại phân bổ công việc trong Sprint hiện tại, san sẻ bớt task tồn đọng sang thành viên khác',
+          'Khuyến khích nhân viên sử dụng 01 ngày nghỉ phép phục hồi (Mental Health Day) để tái tạo năng lượng',
+        ],
+        empathyNote:
+          'Chúng tôi rất trân trọng mọi nỗ lực và sự cống hiến của bạn. Hãy nhớ rằng sức khỏe thể chất và tinh thần của bạn luôn là ưu tiên số một. Đừng ngần ngại chia sẻ với Lead để được hỗ trợ kịp thời nhé!',
+        aiGenerated: false,
+      };
+    }
+
+    if (isPositive) {
+      return {
+        sentimentLabel: 'POSITIVE',
+        sentimentScore: 0.9,
+        isBurnoutRisk: false,
+        burnoutSeverity: 'LOW',
+        burnoutScore: 12,
+        keyStressFactors: [],
+        emotionalKeywords: matchedPositive.length > 0 ? matchedPositive : ['hài lòng', 'động lực'],
+        actionableRecommendations: [
+          'Ghi nhận tinh thần làm việc tích cực trong cuộc họp toàn đội',
+          'Tạo cơ hội để nhân viên chia sẻ kinh nghiệm và năng lượng tích cực tới đồng nghiệp',
+        ],
+        empathyNote:
+          'Thật tuyệt vời khi thấy bạn tràn đầy năng lượng và nhiệt huyết với công việc! Chúc bạn tiếp tục có thêm nhiều thành công rực rỡ.',
+        aiGenerated: false,
+      };
+    }
+
+    return {
+      sentimentLabel: 'NEUTRAL',
+      sentimentScore: 0.55,
+      isBurnoutRisk: false,
+      burnoutSeverity: 'LOW',
+      burnoutScore: 28,
+      keyStressFactors: ['Nhịp độ làm việc duy trì ở mức bình thường'],
+      emotionalKeywords: ['ổn định', 'bình thường'],
+      actionableRecommendations: [
+        'Duy trì các buổi trao đổi định kỳ hàng tuần để theo sát tiến độ và hỗ trợ khi cần',
+      ],
+      empathyNote:
+        'Cảm ơn bạn đã check-in cảm xúc hôm nay. Chúc bạn có một ngày làm việc hiệu quả và thuận lợi!',
+      aiGenerated: false,
+    };
+  }
+
+  private getFallbackCopilotChat(
+    query: string,
+    contextDocuments: any = [],
+  ): CopilotChatResult {
+    const q = (query || '').toLowerCase();
+
+    if (q.includes('nghỉ phép') || q.includes('phép năm') || q.includes('nghỉ ốm')) {
+      return {
+        query,
+        reply: `### 📋 Quy Định Chế Độ Nghỉ Phép Doanh Nghiệp 2026:
+- **Nghỉ phép năm có lương:** Nhân viên chính thức được hưởng **14 ngày phép/năm**.
+- **Thâm niên công tác:** Cứ mỗi **03 năm** làm việc liên tục, bạn được cộng thêm **01 ngày phép năm** (tối đa không quá 20 ngày/năm).
+- **Nghỉ ốm đau:** Công ty hỗ trợ thêm **03 ngày nghỉ ốm nguyên lương mỗi năm** không yêu cầu giấy viện tuyến huyện.
+- **Cách đăng ký:** Tạo đơn xin nghỉ trước tối thiểu 24h trên HR Portal để Quản lý trực tiếp phê duyệt.`,
+        citedSources: ['Sổ tay Nhân viên 2026 - Chương 2: Chế độ Nghỉ Phép & Lễ Tết'],
+        suggestedFollowUpQuestions: [
+          'Quy trình tạo đơn xin nghỉ phép trên HR Portal thực hiện như thế nào?',
+          'Ngày phép năm chưa dùng hết có được chuyển sang năm sau không?',
+          'Chế độ nghỉ phép kết hôn và việc hiếu hỷ được quy định ra sao?',
+        ],
+        requiresHrIntervention: false,
+        aiGenerated: false,
+      };
+    }
+
+    if (q.includes('wfh') || q.includes('từ xa') || q.includes('ở nhà') || q.includes('hybrid') || q.includes('giờ làm')) {
+      return {
+        query,
+        reply: `### 🏠 Chính Sách Làm Việc Linh Hoạt (Hybrid Work) & Giờ Giấc:
+- **Giờ làm việc tiêu chuẩn:** Thứ Hai đến Thứ Sáu, từ **08:30 đến 17:30** (nghỉ trưa từ 12:00 - 13:00).
+- **Giờ linh hoạt (Flexitime):** Cho phép check-in linh hoạt trong khung giờ **08:00 - 09:30 sáng**, chỉ cần đảm bảo đủ 8 tiếng làm việc thực tế.
+- **Chính sách WFH:** Sau khi hoàn thành **02 tháng thử việc**, bạn được quyền đăng ký WFH tối đa **02 ngày/tuần** với sự phê duyệt của Line Manager qua hệ thống.`,
+        citedSources: ['Sổ tay Nhân viên 2026 - Chương 1: Thời Gian Làm Việc & Hybrid Work'],
+        suggestedFollowUpQuestions: [
+          'Đăng ký lịch làm việc WFH hàng tuần ở đâu trên hệ thống?',
+          'Làm thêm giờ (Overtime) được tính phụ cấp như thế nào?',
+        ],
+        requiresHrIntervention: false,
+        aiGenerated: false,
+      };
+    }
+
+    if (q.includes('bảo hiểm') || q.includes('pvi') || q.includes('khám') || q.includes('sức khỏe') || q.includes('nha khoa')) {
+      return {
+        query,
+        reply: `### 🏥 Chế Độ Chăm Sóc Sức Khỏe & Bảo Hiểm Cao Cấp:
+- **Bảo hiểm Xã hội:** Đóng đầy đủ 100% BHXH, BHYT, BHTN theo mức lương thực nhận.
+- **Thẻ Bảo hiểm Sức khỏe PVI HealthCare:** Cấp miễn phí cho nhân viên chính thức với hạn mức nội trú **120.000.000 VNĐ/năm**, ngoại trú **15.000.000 VNĐ/năm**, chăm sóc nha khoa **3.000.000 VNĐ/năm**.
+- **Ưu đãi người thân:** Mua thẻ bảo hiểm cho bố mẹ, vợ/chồng, con cái với chiết khấu doanh nghiệp **40%**.
+- **Khám sức khỏe định kỳ:** Tổ chức vào Quý 3 hàng năm tại Vinmec / Thu Cúc.`,
+        citedSources: ['Sổ tay Nhân viên 2026 - Chương 3: Chế Độ Bảo Hiểm & Chăm Sóc Sức Khỏe'],
+        suggestedFollowUpQuestions: [
+          'Hồ sơ thanh toán viện phí bảo hiểm PVI nộp ở đâu?',
+          'Quy trình đăng ký mua thêm gói bảo hiểm cho người thân như thế nào?',
+        ],
+        requiresHrIntervention: false,
+        aiGenerated: false,
+      };
+    }
+
+    if (q.includes('đào tạo') || q.includes('học') || q.includes('chứng chỉ') || q.includes('l&d') || q.includes('ngân sách')) {
+      return {
+        query,
+        reply: `### 🎓 Chính Sách Đào Tạo & Phát Triển Năng Lực (L&D):
+- **Ngân sách học tập cá nhân:** Mỗi nhân viên được cấp **10.000.000 VNĐ/năm** để tham gia các khóa học chuyên môn, mua sách hoặc thi chứng chỉ quốc tế (AWS, GCP, PMP, Scrum Master...).
+- **Tài trợ lệ phí thi:** Hoàn trả **100% lệ phí thi** cho các chứng chỉ công nghệ trọng điểm khi thi đỗ lần đầu.
+- **Tech Sharing:** Diễn ra vào chiều Thứ Sáu tuần thứ 2 và thứ 4 hàng tháng (15:00 - 17:00).`,
+        citedSources: ['Sổ tay Nhân viên 2026 - Chương 4: Chính Sách Đào Tạo & Học Tập L&D'],
+        suggestedFollowUpQuestions: [
+          'Thủ tục hoàn tiền hóa đơn khóa học và lệ phí thi chứng chỉ như thế nào?',
+          'Danh mục các chứng chỉ công nghệ được công ty hoàn trả 100% lệ phí?',
+        ],
+        requiresHrIntervention: false,
+        aiGenerated: false,
+      };
+    }
+
+    return {
+      query,
+      reply: `Xin chào! Tôi là **Trợ lý HR AI Copilot 24/7**. Tôi có thể hỗ trợ bạn tra cứu mọi thông tin về **Chính sách ngày phép, chế độ Hybrid WFH, Bảo hiểm sức khỏe PVI, Ngân sách đào tạo L&D, Quy chế thử việc và Phúc lợi doanh nghiệp**.\n\nĐối với câu hỏi "${query}", bạn có thể tra cứu chi tiết trong Sổ tay Nhân viên hoặc liên hệ trực tiếp Bộ phận HR qua email \`hr@enterprise-corp.vn\` để được hỗ trợ cụ thể nhé!`,
+      citedSources: ['Sổ tay Nhân viên & Quy chế Phúc lợi Doanh nghiệp 2026'],
+      suggestedFollowUpQuestions: [
+        'Công ty có những chế độ phúc lợi nào cho nhân viên chính thức?',
+        'Thời gian thử việc và tiêu chí đánh giá hoàn thành thử việc?',
+        'Chính sách làm việc từ xa (WFH) được áp dụng như thế nào?',
+      ],
+      requiresHrIntervention: false,
+      aiGenerated: false,
+    };
+  }
+
+  private getFallbackSkillGapCourse(
+    missingSkills: string[],
+    availableCourses?: { id: number; title: string; skillsProvided: string[]; durationHours?: number; courseUrl?: string }[],
+    currentRole: string = 'Nhân viên mới / Thử việc',
+    targetRole: string = 'Nhân viên chính thức / Nâng chuẩn Senior',
+  ): SkillGapCourseResult {
+    const identified = missingSkills.length > 0 ? missingSkills : ['Kiến trúc Microservices', 'Message Queue (Kafka/RabbitMQ)'];
+    const courses: CourseRecommendationItem[] = [];
+
+    // Nếu có danh mục khóa học truyền vào -> so khớp
+    if (availableCourses && availableCourses.length > 0) {
+      availableCourses.forEach((c, idx) => {
+        const matched = (c.skillsProvided || []).filter((s) =>
+          identified.some((m) => m.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(m.toLowerCase())),
+        );
+        if (matched.length > 0) {
+          courses.push({
+            courseId: c.id,
+            courseTitle: c.title,
+            matchedMissingSkills: matched,
+            priority: idx === 0 ? 'HIGH' : 'MEDIUM',
+            estimatedTimeToComplete: `${c.durationHours || 12} giờ học (${Math.ceil((c.durationHours || 12) / 6)} tuần)`,
+            whyRecommended: `Trực tiếp cung cấp kỹ năng thực chiến về ${matched.join(', ')} cần thiết cho vị trí công việc.`,
+            learningPathOrder: courses.length + 1,
+          });
+        }
+      });
+    }
+
+    // Nếu chưa đủ khóa học -> bổ sung các khóa đào tạo chuẩn hóa công nghệ
+    if (courses.length === 0) {
+      identified.forEach((skill, idx) => {
+        let title = `Khóa học Nâng cao Năng lực: ${skill}`;
+        let duration = '12 giờ học (2 tuần)';
+        let priority: 'HIGH' | 'MEDIUM' | 'LOW' = idx === 0 ? 'HIGH' : 'MEDIUM';
+
+        if (skill.toLowerCase().includes('queue') || skill.toLowerCase().includes('kafka') || skill.toLowerCase().includes('rabbitmq')) {
+          title = 'Kiến Trúc Event-Driven & Xử Lý Tác Vụ Bất Đồng Bộ với Message Queue';
+          duration = '15 giờ học (2-3 tuần)';
+        } else if (skill.toLowerCase().includes('docker') || skill.toLowerCase().includes('kubernetes') || skill.toLowerCase().includes('devops')) {
+          title = 'Containerization & Triển Khai Hệ Thống Phân Tán với Docker & K8s';
+          duration = '18 giờ học (3 tuần)';
+        } else if (skill.toLowerCase().includes('sql') || skill.toLowerCase().includes('database') || skill.toLowerCase().includes('typeorm')) {
+          title = 'Tối Ưu Hóa Truy Vấn Cơ Sở Dữ Liệu MySQL & Thiết Kế Lập Chỉ Mục (Indexing)';
+          duration = '10 giờ học (2 tuần)';
+        }
+
+        courses.push({
+          courseTitle: title,
+          matchedMissingSkills: [skill],
+          priority,
+          estimatedTimeToComplete: duration,
+          whyRecommended: `Giải quyết triệt để lỗ hổng về ${skill}, hỗ trợ nhân sự đạt 100% năng lực kỳ vọng tại vị trí ${targetRole}.`,
+          learningPathOrder: courses.length + 1,
+        });
+      });
+    }
+
+    return {
+      summary: `Hệ thống AI đã phân tích ${identified.length} kỹ năng còn thiếu hụt so với chuẩn năng lực của vị trí ${targetRole}. Đã thiết lập lộ trình gồm ${courses.length} khóa học đào tạo trọng điểm giúp nhân sự nhanh chóng thu hẹp khoảng cách.`,
+      skillGapsIdentified: identified,
+      readinessScore: Math.max(85 - identified.length * 8, 45),
+      recommendedCourses: courses.slice(0, 3),
+      careerAdvice:
+        'Khuyến nghị phân bổ 45 phút học tập mỗi ngày vào đầu giờ sáng hoặc chiều Thứ Sáu. Vận dụng trực tiếp bài tập vào các task thực tế trong sprint để tối ưu hóa hiệu quả tiếp thu.',
+      aiGenerated: false,
+    };
+  }
+}
+

@@ -1,9 +1,10 @@
 import { ConfigService } from '@nestjs/config';
 import { GeminiService } from './modules/core/ai/gemini.service';
+import { VectorService } from './modules/core/ai/vector.service';
 
 async function runTest() {
   console.log('====================================================');
-  console.log('🚀 KIỂM THỬ 3 TÍNH NĂNG AI CORE (GEMINI SERVICE)');
+  console.log('🚀 KIỂM THỬ TOÀN DIỆN AI CORE & VECTOR DATABASE (RAG)');
   console.log('====================================================\n');
 
   const configService = new ConfigService();
@@ -89,8 +90,81 @@ async function runTest() {
     console.log(`  📋 Tiêu chí đánh giá (Top 1): ${q.expectedAnswerCriteria[0]}`);
   });
   console.log('\nNguồn:', questionsResult.aiGenerated ? `✅ ${geminiService.getModelName()}` : '⚡ Fallback Mock Engine');
+  console.log('\n');
+
+  // 4. TEST VECTOR DATABASE & RAG (VECTOR SERVICE + COSINE SIMILARITY + SEMANTIC SEARCH)
+  console.log('----------------------------------------------------');
+  console.log('4. TEST: VectorService (Chunking + 768-dim Embedding + Cosine Similarity + RAG)');
+  console.log('----------------------------------------------------');
+  const vectorService = new VectorService(configService);
+  console.log(`📌 Trạng thái Vector Engine: ${vectorService.isAvailable() ? '🟢 Sẵn sàng với text-embedding-004' : '🟡 Chế độ Deterministic Semantic Mock Vector (768 chiều)'}`);
+
+  // 4A. Text Chunking
+  const sampleHandbookText = `
+CHƯƠNG 1: THỜI GIAN LÀM VIỆC VÀ MÔ HÌNH LÀM VIỆC LINH HOẠT (HYBRID WORK)
+Thời gian làm việc tiêu chuẩn: Từ Thứ Hai đến Thứ Sáu, từ 08:30 đến 17:30 (nghỉ trưa 1 tiếng từ 12:00 đến 13:00).
+Chính sách Hybrid Work: Nhân viên sau khi hoàn thành 02 tháng thử việc được quyền đăng ký làm việc từ xa (Work from Home - WFH) tối đa 02 ngày/tuần với sự chấp thuận của Line Manager.
+Giờ làm việc linh hoạt (Flexitime): Check-in từ 08:00 đến 09:30 sáng và đảm bảo đủ 8 tiếng/ngày.
+
+CHƯƠNG 2: CHẾ ĐỘ NGHỈ PHÉP VÀ NGHỈ LỄ TẾT
+Nghỉ phép năm có hưởng lương: Nhân viên chính thức được hưởng 14 ngày nghỉ phép có hưởng nguyên lương mỗi năm.
+Thâm niên công tác: Cứ mỗi 03 năm làm việc liên tục tại công ty, nhân viên được cộng thêm 01 ngày nghỉ phép năm (tối đa 20 ngày).
+Nghỉ ốm đau: Hỗ trợ 03 ngày nghỉ ốm nguyên lương mỗi năm không cần giấy bệnh viện tuyến huyện.
+
+CHƯƠNG 3: BẢO HIỂM SỨC KHỎE CAO CẤP VÀ PHÚC LỢI NỘI TRÚ
+Bảo hiểm sức khỏe cao cấp PVI HealthCare cung cấp miễn phí cho toàn bộ nhân viên chính thức ngay sau khi ký hợp đồng.
+Hạn mức bảo hiểm nội trú lên tới 120.000.000 VNĐ/năm, điều trị ngoại trú lên tới 15.000.000 VNĐ/năm, bao gồm cả chăm sóc nha khoa 3.000.000 VNĐ/năm.
+Ngân sách học tập cá nhân (L&D): Mỗi nhân viên được cấp 10.000.000 VNĐ/năm để thi chứng chỉ quốc tế AWS, Google Cloud, PMP.
+  `.trim();
+
+  const chunks = vectorService.chunkText(sampleHandbookText, 350, 60);
+  console.log(`\n✂️ Kết quả Text Chunking: Tạo thành ${chunks.length} phân đoạn (chunks):`);
+  chunks.forEach((c, idx) => {
+    console.log(`  [Chunk #${idx + 1}] (${c.length} ký tự): "${c.slice(0, 70)}..."`);
+  });
+
+  // 4B. Sinh Vector Embeddings (768 chiều)
+  console.log('\n🧠 Đang tính toán Vector Embeddings (768 chiều) cho từng phân đoạn...');
+  const indexedChunks: { id: number; chunkIndex: number; content: string; embedding: number[] }[] = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const emb = await vectorService.generateEmbedding(chunks[i]);
+    indexedChunks.push({
+      id: i + 1,
+      chunkIndex: i,
+      content: chunks[i],
+      embedding: emb,
+    });
+  }
+  console.log(`✅ Đã vector hóa ${indexedChunks.length} chunks. Chiều vector: ${indexedChunks[0].embedding.length} dimensions.`);
+
+  // 4C. Tìm kiếm ngữ nghĩa (Semantic Search via Cosine Similarity)
+  const testQuery = 'Tôi muốn làm việc từ xa ở nhà (WFH) thì quy định công ty thế nào?';
+  console.log(`\n🔍 Câu hỏi kiểm thử: "${testQuery}"`);
+  const queryEmbedding = await vectorService.generateEmbedding(testQuery);
+
+  const matchedResults = vectorService.findSimilar(queryEmbedding, indexedChunks, 2);
+  console.log(`🎯 Top ${matchedResults.length} phân đoạn khớp ngữ nghĩa nhất:`);
+  matchedResults.forEach((r, idx) => {
+    console.log(`  Top #${idx + 1} (Cosine Similarity: ${(r.similarity * 100).toFixed(2)}%):`);
+    console.log(`  Nội dung trích đoạn: "${r.chunk.content.replace(/\n/g, ' ')}"`);
+  });
+
+  // 4D. Thử nghiệm Copilot RAG Response
+  if (matchedResults.length > 0) {
+    const bestChunk = matchedResults[0].chunk;
+    const ragPrompt = `
+Dựa vào chính sách công ty sau:
+"${bestChunk.content}"
+Hãy trả lời ngắn gọn câu hỏi: "${testQuery}"
+    `.trim();
+
+    const ragAnswer = await geminiService.generateText(ragPrompt);
+    console.log('\n🤖 Câu trả lời từ AI Copilot (RAG):');
+    console.log(`"${ragAnswer.trim()}"`);
+  }
+
   console.log('\n====================================================');
-  console.log('🎉 HOÀN TẤT KIỂM THỬ 3 TÍNH NĂNG AI CORE THÀNH CÔNG!');
+  console.log('🎉 HOÀN TẤT KIỂM THỬ TOÀN BỘ AI CORE & VECTOR DATABASE (RAG)!');
   console.log('====================================================');
 }
 

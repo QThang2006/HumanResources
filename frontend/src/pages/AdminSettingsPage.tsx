@@ -44,30 +44,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 const ALL_ROLES: UserRole[] = ['SUPERADMIN', 'HR', 'MANAGER', 'EMPLOYEE'];
-const [geminiApiKey, setGeminiApiKey] = useState('');
-const [n8nWebhookUrl, setN8nWebhookUrl] = useState('');
-const [configSaving, setConfigSaving] = useState(false);
-const [configMessage, setConfigMessage] = useState('');
-const handleSaveConfig = async () => {
-  try {
-    setConfigSaving(true);
-    setConfigMessage('');
 
-    const result = await systemConfigApi.update({
-      geminiApiKey: geminiApiKey || undefined,
-      n8nWebhookUrl: n8nWebhookUrl || undefined,
-    });
-
-    setGeminiApiKey(result.geminiApiKey);
-    setN8nWebhookUrl(result.n8nWebhookUrl);
-    setConfigMessage('Đã lưu cấu hình thành công.');
-  } catch (error) {
-    console.error(error);
-    setConfigMessage('Lưu cấu hình thất bại.');
-  } finally {
-    setConfigSaving(false);
-  }
-};
 
 // ─── Component con: Bảng danh sách nhân sự & phân quyền ───────────────────
 const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
@@ -323,7 +300,30 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
 export const AdminSettingsPage: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'rbac' | 'api' | 'rag' | 'courses'>('rbac');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [n8nWebhookUrl, setN8nWebhookUrl] = useState('');
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configMessage, setConfigMessage] = useState('');
+  const handleSaveConfig = async () => {
+    try {
+      setConfigSaving(true);
+      setConfigMessage('');
 
+      const result = await systemConfigApi.update({
+        geminiApiKey: geminiApiKey || undefined,
+        n8nWebhookUrl: n8nWebhookUrl || undefined,
+      });
+
+      setGeminiApiKey(result.geminiApiKey);
+      setN8nWebhookUrl(result.n8nWebhookUrl);
+      setConfigMessage('Đã lưu cấu hình thành công.');
+    } catch (error) {
+      console.error(error);
+      setConfigMessage('Lưu cấu hình thất bại.');
+    } finally {
+      setConfigSaving(false);
+    }
+  };
   // Chặn quyền truy cập nếu là MANAGER hoặc EMPLOYEE (403 Forbidden)
   if (user?.role === 'MANAGER' || user?.role === 'EMPLOYEE') {
     return (

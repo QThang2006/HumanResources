@@ -1,3 +1,4 @@
+import { authApi } from '../api/auth.api';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -5,8 +6,7 @@ import type { UserRole } from '../types';
 import { Bot, ShieldCheck, UserCheck, Briefcase, User, LogIn, KeyRound, Mail, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { user, login, logout, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  const { user, login, logout, isAuthenticated, setAuthSession } = useAuth();  const navigate = useNavigate();
 
   const [email, setEmail] = useState('superadmin@company.com');
   const [password, setPassword] = useState('admin123');
@@ -23,19 +23,31 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
-    // Khớp tài khoản theo email mẫu
-    if (email.includes('admin')) {
-      handleRoleSelect('SUPERADMIN');
-    } else if (email.includes('hr')) {
-      handleRoleSelect('HR');
-    } else if (email.includes('manager')) {
-      handleRoleSelect('MANAGER');
-    } else {
-      handleRoleSelect('EMPLOYEE');
+    try {
+      const result = await authApi.login({
+        email,
+        password,
+      });
+
+      setAuthSession(result.user, result.accessToken);
+
+      if (result.user.role === 'EMPLOYEE') {
+        navigate('/employee/workspace');
+      } else if (result.user.role === 'SUPERADMIN') {
+        navigate('/admin/settings');
+      } else {
+        navigate('/admin/recruitment');
+      }
+    } catch (error) {
+      setErrorMessage(
+          error instanceof Error
+              ? error.message
+              : 'Đăng nhập thất bại.'
+      );
     }
   };
 

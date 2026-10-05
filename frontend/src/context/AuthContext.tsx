@@ -50,7 +50,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('hr_current_user');
-    return saved ? JSON.parse(saved) : mockUsers.HR; // Mặc định vào vai trò HR để dễ trải nghiệm
+    return saved ? JSON.parse(saved) : null;
   });
 
   useEffect(() => {

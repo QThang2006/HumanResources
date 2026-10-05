@@ -42,14 +42,41 @@ export interface Application {
   createdAt: string;
 }
 
+export type TaskCategory = 'PAPERWORK' | 'EQUIPMENT' | 'TRAINING' | 'MEETING';
+
 export interface OnboardingTask {
   id: number;
+  userId: number;
   title: string;
   description?: string;
-  category: 'PAPERWORK' | 'EQUIPMENT' | 'TRAINING' | 'MEETING';
-  dueDay: number;
+  category: TaskCategory;
+  dueDay: number; // Ngày cần xong (1, 2, 3, 5, 7, 14, 30)
   isCompleted: boolean;
-  completedAt?: string;
+  completedAt?: string | null;
+  createdAt?: string;
+}
+
+export interface OnboardingTasksResponse {
+  userId: number;
+  progressPercent: number;
+  totalTasks: number;
+  completedTasks: number;
+  tasks: OnboardingTask[];
+  message: string;
+}
+
+export interface ToggleTaskResponse {
+  task: Pick<OnboardingTask, 'id' | 'isCompleted' | 'completedAt'>;
+  progressPercent: number;
+  totalTasks: number;
+  completedTasks: number;
+  message: string;
+}
+
+export interface SeedTasksResponse {
+  message: string;
+  seeded: boolean;
+  count?: number;
 }
 
 export interface EmployeeMood {

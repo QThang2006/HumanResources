@@ -50,13 +50,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('hr_current_user');
-    return saved ? JSON.parse(saved) : mockUsers.HR; // Mặc định vào vai trò HR để dễ trải nghiệm
+    return saved ? JSON.parse(saved) : null; // Không auto-login, bắt buộc đăng nhập
   });
 
   useEffect(() => {
     if (user) {
       localStorage.setItem('hr_current_user', JSON.stringify(user));
-      // Tạo token demo tương ứng nếu chưa có
+      // Chỉ tạo mock token nếu chưa có token nào (kể cả JWT thật)
       if (!localStorage.getItem('hr_access_token')) {
         localStorage.setItem('hr_access_token', `mock_jwt_token_${user.role.toLowerCase()}`);
       }

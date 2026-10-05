@@ -5,11 +5,12 @@ import type { UserRole } from '../types';
 import { Bot, ShieldCheck, UserCheck, Briefcase, User, LogIn, KeyRound, Mail, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { user, login, logout, isAuthenticated } = useAuth();
+  const { user, login, logout, isAuthenticated, setAuthSession } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('superadmin@company.com');
+  const [email, setEmail] = useState('employee@company.com');
   const [password, setPassword] = useState('admin123');
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleRoleSelect = (role: UserRole) => {
@@ -23,19 +24,53 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setIsLoading(true);
 
-    // Khớp tài khoản theo email mẫu
-    if (email.includes('admin')) {
-      handleRoleSelect('SUPERADMIN');
-    } else if (email.includes('hr')) {
-      handleRoleSelect('HR');
-    } else if (email.includes('manager')) {
-      handleRoleSelect('MANAGER');
-    } else {
-      handleRoleSelect('EMPLOYEE');
+    try {
+      // Gọi API login thật để lấy JWT token thật
+      const res = await fetch('http://localhost:3001/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+
+      if (data.success && data.data?.accessToken) {
+        // Lưu JWT thật + user info vào AuthContext
+        const u = data.data.user;
+        setAuthSession(
+          {
+            id: u.id,
+            fullName: u.fullName,
+            email: u.email,
+            role: u.role,
+            departmentName: u.department,
+            jobTitle: u.jobTitle,
+          },
+          data.data.accessToken,
+        );
+
+        // Chuyển hướng theo role
+        if (u.role === 'EMPLOYEE') navigate('/employee/workspace');
+        else if (u.role === 'SUPERADMIN') navigate('/admin/settings');
+        else navigate('/admin/recruitment');
+      } else {
+        setErrorMessage(data.message || 'Email hoặc mật khẩu không đúng');
+      }
+    } catch {
+      // Backend chưa chạy → fallback mock login
+      setErrorMessage('Không kết nối được Backend. Đang dùng chế độ Demo...');
+      setTimeout(() => {
+        if (email.includes('admin')) handleRoleSelect('SUPERADMIN');
+        else if (email.includes('hr')) handleRoleSelect('HR');
+        else if (email.includes('manager')) handleRoleSelect('MANAGER');
+        else handleRoleSelect('EMPLOYEE');
+      }, 1000);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -130,10 +165,11 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+            disabled={isLoading}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
           >
             <LogIn className="w-4 h-4" />
-            Đăng Nhập Ngay
+            {isLoading ? 'Đang xác thực...' : 'Đăng Nhập Ngay'}
           </button>
         </form>
 

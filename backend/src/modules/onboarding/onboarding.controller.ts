@@ -30,6 +30,20 @@ export class OnboardingController {
     return this.onboardingService.toggleTask(id, userId);
   }
 
+  // Kiểm tra đã check-in cảm xúc hôm nay chưa (Frontend dùng để hiện trạng thái)
+  @UseGuards(JwtAuthGuard)
+  @Get('mood/today')
+  async getTodayMood(@CurrentUser('id') userId: number) {
+    return this.onboardingService.getTodayMood(userId);
+  }
+
+  // Lịch sử cảm xúc 7 ngày gần nhất (Frontend hiển thị mood dots)
+  @UseGuards(JwtAuthGuard)
+  @Get('mood/history')
+  async getMoodHistory(@CurrentUser('id') userId: number) {
+    return this.onboardingService.getMoodHistory(userId);
+  }
+
   // Check-in cảm xúc nhân viên hàng ngày (Engagement Agent)
   @UseGuards(JwtAuthGuard)
   @Post('mood')
@@ -38,6 +52,14 @@ export class OnboardingController {
     @Body() dto: CheckInMoodDto,
   ) {
     return this.onboardingService.recordMood(userId, dto.mood, dto.feedbackText);
+  }
+
+  // Dashboard Team Mood cho Trưởng phòng (Manager giám sát mood toàn phòng ban)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MANAGER)
+  @Get('team-mood')
+  async getTeamMood(@CurrentUser('id') userId: number) {
+    return this.onboardingService.getTeamMood(userId);
   }
 
   // Danh sách cảnh báo kiệt sức Burnout (HR & SUPERADMIN)
@@ -75,5 +97,12 @@ export class OnboardingController {
     @Body() dto: ChatCopilotDto,
   ) {
     return this.onboardingService.chatWithCopilot(userId, dto.message);
+  }
+
+  // Seed dữ liệu mẫu onboarding tasks cho user đang đăng nhập (dùng cho demo)
+  @UseGuards(JwtAuthGuard)
+  @Post('seed-tasks')
+  async seedTasks(@CurrentUser('id') userId: number) {
+    return this.onboardingService.seedOnboardingTasks(userId);
   }
 }

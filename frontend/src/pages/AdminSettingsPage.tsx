@@ -304,7 +304,36 @@ export const AdminSettingsPage: React.FC = () => {
   const [n8nWebhookUrl, setN8nWebhookUrl] = useState('');
   const [configSaving, setConfigSaving] = useState(false);
   const [configMessage, setConfigMessage] = useState('');
+  useEffect(() => {
+    const loadSystemConfig = async () => {
+      try {
+        const config = await systemConfigApi.get();
+
+        setGeminiApiKey(config.geminiApiKey || '');
+        setN8nWebhookUrl(config.n8nWebhookUrl || '');
+      } catch (error) {
+        console.error('Không thể tải cấu hình hệ thống:', error);
+      }
+    };
+
+    loadSystemConfig();
+  }, []);
   const handleSaveConfig = async () => {
+    const n8nUrl = n8nWebhookUrl.trim();
+
+    if (n8nUrl) {
+      try {
+        const parsedUrl = new URL(n8nUrl);
+
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+          setConfigMessage('Webhook n8n phải sử dụng http:// hoặc https://');
+          return;
+        }
+      } catch {
+        setConfigMessage('Địa chỉ n8n Webhook không hợp lệ.');
+        return;
+      }
+    }
     try {
       setConfigSaving(true);
       setConfigMessage('');

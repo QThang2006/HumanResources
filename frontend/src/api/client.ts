@@ -7,11 +7,8 @@ const API_BASE_URL =
  * Tự động gắn Bearer Token và xử lý mã lỗi HTTP chuẩn mực
  */
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 15000,
+    baseURL: API_BASE_URL,
+    timeout: 15000,
 });
 
 // 1. Request Interceptor: Tự động đính kèm JWT Token vào Header của mọi request

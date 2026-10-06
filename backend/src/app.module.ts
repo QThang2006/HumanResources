@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DocumentsModule } from './modules/documents/documents.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -78,6 +79,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     ApplicationsModule,
     OnboardingModule,
     SystemConfigModule,
+    DocumentsModule,
   ],
 })
 export class AppModule {}

@@ -2,17 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../api/users.api';
 import { systemConfigApi } from '../api/system-config.api';
+import { KnowledgeBasePanel } from '../components/KnowledgeBasePanel';
 import type { User, UserRole } from '../types';
 import { Badge } from '../components/common';
 import {
   ShieldCheck,
   Settings,
-  BookOpen,
   ShieldAlert,
   Code2,
   Key,
   Lock,
-  GraduationCap,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -395,6 +394,17 @@ export const AdminSettingsPage: React.FC = () => {
             >
               <Key className="w-4 h-4" /> Cấu Hình API & Bảo Mật
             </button>
+            <button
+                onClick={() => setActiveTab('rag')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    activeTab === 'rag'
+                        ? 'bg-rose-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-100'
+                }`}
+            >
+              <Code2 className="w-4 h-4" />
+              Knowledge Base & RAG
+            </button>
           </div>
 
           {/* Tab 1: Phân Quyền RBAC — đã triển khai Bước 1 */}
@@ -456,6 +466,9 @@ export const AdminSettingsPage: React.FC = () => {
               </div>
             </div>
           )}
+          {activeTab === 'rag' && (
+              <KnowledgeBasePanel />
+          )}
         </div>
       )}
 
@@ -482,26 +495,8 @@ export const AdminSettingsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200">
-              <h3 className="text-sm font-bold text-slate-900 mb-1 flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-indigo-600" /> Kho Sổ Tay Quy Chế & RAG
-              </h3>
-              <p className="text-xs text-slate-500 mb-4">Nạp tài liệu PDF để làm giàu tri thức cho trợ lý AI Copilot</p>
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center text-slate-400 text-xs">
-                Khung sườn tải file PDF • Thành viên 4 sẽ tích hợp tải file tại đây
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl border border-slate-200">
-              <h3 className="text-sm font-bold text-slate-900 mb-1 flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-indigo-600" /> Danh Mục Khóa Đào Tạo AI (L&D)
-              </h3>
-              <p className="text-xs text-slate-500 mb-4">Quản trị các khóa bổ trợ kỹ năng cho nhân viên mới</p>
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center text-slate-400 text-xs">
-                Khung sườn khóa học • Thành viên 2 sẽ render danh mục tại đây
-              </div>
-            </div>
+          <div className="md:col-span-2">
+            <KnowledgeBasePanel />
           </div>
         </div>
       )}

@@ -13,9 +13,9 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const handleRoleSelect = (role: UserRole) => {
-    login(role);
-    if (role === 'EMPLOYEE') {
+  const handleRoleSelect = async (role: UserRole) => {
+    await login(role);
+    if (role === 'EMPLOYEE' || role === 'MANAGER') {
       navigate('/employee/workspace');
     } else if (role === 'SUPERADMIN') {
       navigate('/admin/settings');

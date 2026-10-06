@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useId } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { onboardingApi } from '../api/onboarding.api';
+import { ManagerTeamMoodWidget } from '../features/team-mood/ManagerTeamMoodWidget';
 import type { EmployeeMood, OnboardingTask, TaskCategory } from '../types';
 import {
   Users,
-  Bot,
-  Activity,
   BookOpen,
   Sun,
   CloudSun,
@@ -14,7 +13,6 @@ import {
   Loader2,
   Clock,
   Heart,
-  Code2,
   Calendar,
   Sparkles,
 } from 'lucide-react';
@@ -130,9 +128,10 @@ const OnboardingTaskRow: React.FC<OnboardingTaskRowProps> = ({ task, isUpdating,
           className={`mt-0.5 flex w-5 h-5 shrink-0 items-center justify-center rounded-md border-2
             transition-colors duration-200
             peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2
-            ${task.isCompleted
-              ? 'bg-emerald-600 border-emerald-600'
-              : 'bg-white border-slate-300 group-hover:border-indigo-500'
+            ${
+              task.isCompleted
+                ? 'bg-emerald-600 border-emerald-600'
+                : 'bg-white border-slate-300 group-hover:border-indigo-500'
             }`}
         >
           {task.isCompleted && (
@@ -142,15 +141,17 @@ const OnboardingTaskRow: React.FC<OnboardingTaskRowProps> = ({ task, isUpdating,
 
         <div className="min-w-0 flex-1">
           <p
-            className={`text-sm font-semibold break-words ${task.isCompleted ? 'line-through text-slate-400' : 'text-slate-900'
-              }`}
+            className={`text-sm font-semibold break-words ${
+              task.isCompleted ? 'line-through text-slate-400' : 'text-slate-900'
+            }`}
           >
             {task.title}
           </p>
           {task.description && (
             <p
-              className={`mt-0.5 text-xs leading-relaxed break-words ${task.isCompleted ? 'text-slate-400' : 'text-slate-500'
-                }`}
+              className={`mt-0.5 text-xs leading-relaxed break-words ${
+                task.isCompleted ? 'text-slate-400' : 'text-slate-500'
+              }`}
             >
               {task.description}
             </p>
@@ -165,8 +166,9 @@ const OnboardingTaskRow: React.FC<OnboardingTaskRowProps> = ({ task, isUpdating,
         <div className="shrink-0 text-right">
           <p className="text-xs font-medium text-slate-600">Ngày {task.dueDay}</p>
           <p
-            className={`mt-0.5 text-[11px] ${task.isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-400'
-              }`}
+            className={`mt-0.5 text-[11px] ${
+              task.isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-400'
+            }`}
           >
             {task.isCompleted ? 'Hoàn thành' : 'Chưa xong'}
           </p>
@@ -394,8 +396,9 @@ const OnboardingChecklistWidget: React.FC = () => {
             aria-valuenow={progress.progressPercent}
           >
             <div
-              className={`h-full rounded-full transition-all duration-300 ease-out ${isAllDone ? 'bg-emerald-600' : 'bg-indigo-600'
-                }`}
+              className={`h-full rounded-full transition-all duration-300 ease-out ${
+                isAllDone ? 'bg-emerald-600' : 'bg-indigo-600'
+              }`}
               style={{ width: `${progress.progressPercent}%` }}
             />
           </div>
@@ -413,9 +416,10 @@ const OnboardingChecklistWidget: React.FC = () => {
               aria-pressed={activeCategory === f.value}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-200
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2
-                ${activeCategory === f.value
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                ${
+                  activeCategory === f.value
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               {f.label}
@@ -431,6 +435,249 @@ const OnboardingChecklistWidget: React.FC = () => {
       )}
 
       <div className="mt-4">{renderBody()}</div>
+    </section>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// AI COPILOT — hỏi đáp sổ tay nhân viên (POST /onboarding/chat)
+// ─────────────────────────────────────────────────────────────────────
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sourceDocuments?: string[];
+}
+
+const SUGGESTED_QUESTIONS = [
+  'Nghỉ phép năm?',
+  'Lương chi trả ngày nào?',
+  'Cách cài Wi-Fi văn phòng?',
+  'Quy định làm việc từ xa?',
+];
+
+const NEAR_BOTTOM_THRESHOLD_PX = 80;
+
+const CopilotTypingIndicator: React.FC = () => (
+  <div className="flex justify-start">
+    <div
+      role="status"
+      className="inline-flex items-center gap-1 px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-2xl rounded-bl-md"
+    >
+      <span className="sr-only">AI đang soạn câu trả lời</span>
+      <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
+      <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]" />
+      <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]" />
+    </div>
+  </div>
+);
+
+const CopilotMessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
+  if (message.role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <p className="max-w-[85%] px-3.5 py-2 bg-slate-900 text-white text-sm leading-relaxed rounded-2xl rounded-br-md whitespace-pre-wrap [overflow-wrap:anywhere]">
+          {message.content}
+        </p>
+      </div>
+    );
+  }
+
+  const sources = message.sourceDocuments ?? [];
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-[95%] px-3.5 py-2.5 bg-slate-50 text-slate-800 border border-slate-200 rounded-2xl rounded-bl-md">
+        <p className="text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{message.content}</p>
+        {sources.length > 0 && (
+          <div className="mt-2.5 pt-2 border-t border-slate-200">
+            <p className="text-[11px] font-semibold text-slate-500">Nguồn tham khảo</p>
+            <ul className="mt-1 space-y-0.5">
+              {sources.map((name, idx) => (
+                <li key={`${name}-${idx}`} className="text-xs text-slate-600 [overflow-wrap:anywhere]">
+                  {name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CopilotChatWidget: React.FC = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [failedPrompt, setFailedPrompt] = useState<string | null>(null);
+
+  const isLoadingRef = useRef(false); // chặn gửi kép trước khi React render lại
+  const messageIdRef = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const inputId = useId();
+
+  const nextId = () => `msg-${++messageIdRef.current}`;
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_THRESHOLD_PX;
+  };
+
+  // Chỉ tự cuộn khi người dùng đang ở gần cuối; không kéo họ khỏi tin nhắn cũ đang đọc
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && stickToBottomRef.current) el.scrollTop = el.scrollHeight;
+  }, [messages, isLoading, error]);
+
+  const requestReply = async (text: string) => {
+    isLoadingRef.current = true;
+    setIsLoading(true);
+    setError(null);
+    setFailedPrompt(null);
+    try {
+      const res = await onboardingApi.chatWithCopilot(text);
+      setMessages((cur) => [
+        ...cur,
+        { id: nextId(), role: 'assistant', content: res.reply, sourceDocuments: res.sourceDocuments ?? [] },
+      ]);
+    } catch {
+      setFailedPrompt(text);
+      setError('Không thể nhận câu trả lời lúc này. Vui lòng thử lại.');
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoading(false);
+    }
+  };
+
+  // Điểm gửi duy nhất — dùng chung cho ô nhập và câu hỏi gợi ý
+  const submitMessage = async (raw: string) => {
+    const text = raw.trim();
+    if (!text || isLoadingRef.current) return;
+    stickToBottomRef.current = true; // tin nhắn vừa gửi luôn được hiển thị
+    setMessages((cur) => [...cur, { id: nextId(), role: 'user', content: text }]);
+    setInput('');
+    await requestReply(text);
+  };
+
+  const handleRetry = () => {
+    if (!failedPrompt || isLoadingRef.current) return;
+    stickToBottomRef.current = true;
+    requestReply(failedPrompt); // không thêm lại tin nhắn người dùng
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // isComposing: không gửi khi đang gõ dấu tiếng Việt bằng bộ gõ (Telex/VNI)
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      submitMessage(input);
+    }
+  };
+
+  const canSend = input.trim().length > 0 && !isLoading;
+
+  return (
+    <section
+      aria-labelledby="copilot-title"
+      className="h-[520px] lg:h-auto lg:absolute lg:inset-0 flex flex-col bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 id="copilot-title" className="text-sm font-bold text-slate-900">AI Copilot</h3>
+          <p className="text-xs text-slate-500">Trợ lý sổ tay nhân viên</p>
+        </div>
+        <span className="text-[11px] font-medium text-slate-500">{isLoading ? 'Đang xử lý' : 'Sẵn sàng'}</span>
+      </div>
+
+      {/* Conversation */}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        role="log"
+        aria-live="polite"
+        aria-label="Cuộc hội thoại với AI Copilot"
+        className="mt-3 flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3 pr-1"
+      >
+        {messages.length === 0 && !isLoading ? (
+          <div className="py-2">
+            <p className="text-sm font-semibold text-slate-900">Hỏi tôi về chính sách, quy định và thông tin trong sổ tay nhân viên.</p>
+            <p className="mt-3 text-[11px] font-medium text-slate-500">Câu hỏi gợi ý</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {SUGGESTED_QUESTIONS.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => submitMessage(q)}
+                  disabled={isLoading}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700
+                    hover:bg-slate-50 hover:border-slate-300 transition-colors duration-150
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
+                    disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          messages.map((m) => <CopilotMessageBubble key={m.id} message={m} />)
+        )}
+
+        {isLoading && <CopilotTypingIndicator />}
+
+        {error && (
+          <div role="alert" className="px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg">
+            <p className="text-xs text-rose-700">{error}</p>
+            {failedPrompt && (
+              <button
+                type="button"
+                onClick={handleRetry}
+                disabled={isLoading}
+                className="mt-1.5 px-2.5 py-1 rounded-md border border-rose-300 bg-white text-xs font-semibold text-rose-700
+                  hover:bg-rose-50 transition-colors duration-150
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
+                  disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Thử lại
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Composer */}
+      <form
+        className="mt-3 pt-3 border-t border-slate-200 flex items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submitMessage(input);
+        }}
+      >
+        <label htmlFor={inputId} className="sr-only">Câu hỏi gửi tới AI Copilot</label>
+        <textarea
+          id={inputId}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          rows={2}
+          placeholder="Đặt câu hỏi về chính sách nhân sự..."
+          className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-800 placeholder-slate-400
+            resize-none max-h-32 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
+        />
+        <button
+          type="submit"
+          disabled={!canSend}
+          className="shrink-0 min-h-[44px] px-4 rounded-xl bg-slate-900 text-white text-xs font-semibold
+            hover:bg-slate-800 transition-colors duration-150
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2
+            disabled:bg-slate-300 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Đang gửi' : 'Gửi'}
+        </button>
+      </form>
     </section>
   );
 };
@@ -723,11 +970,12 @@ export const EmployeeWorkspacePage: React.FC = () => {
                                 bg-gradient-to-br ${mood.gradient}
                                 transition-all duration-300 ease-out
                                 focus:outline-none
-                                ${isSelected
-                                  ? `scale-105 ring-4 ${mood.ring} shadow-xl ${mood.shadow} z-10`
-                                  : hasSelection
-                                    ? 'opacity-40 scale-95 saturate-50'
-                                    : 'hover:shadow-lg hover:scale-[1.03] active:scale-[0.97]'
+                                ${
+                                  isSelected
+                                    ? `scale-105 ring-4 ${mood.ring} shadow-xl ${mood.shadow} z-10`
+                                    : hasSelection
+                                      ? 'opacity-40 scale-95 saturate-50'
+                                      : 'hover:shadow-lg hover:scale-[1.03] active:scale-[0.97]'
                                 }
                                 ${isSubmitting || submitSuccess ? 'pointer-events-none' : 'cursor-pointer'}
                               `}
@@ -788,11 +1036,12 @@ export const EmployeeWorkspacePage: React.FC = () => {
                             w-full py-3.5 rounded-2xl text-sm font-bold
                             transition-all duration-300 ease-out
                             flex items-center justify-center gap-2
-                            ${submitSuccess
-                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200/60 scale-[0.98]'
-                              : isSubmitting
-                                ? 'bg-indigo-400 text-white cursor-wait'
-                                : 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-200/40 hover:shadow-xl hover:shadow-indigo-200/60 active:scale-[0.97]'
+                            ${
+                              submitSuccess
+                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200/60 scale-[0.98]'
+                                : isSubmitting
+                                  ? 'bg-indigo-400 text-white cursor-wait'
+                                  : 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-200/40 hover:shadow-xl hover:shadow-indigo-200/60 active:scale-[0.97]'
                             }
                             disabled:cursor-not-allowed
                           `}
@@ -910,43 +1159,10 @@ export const EmployeeWorkspacePage: React.FC = () => {
               </div>
 
               {/* ══════════════════════════════════════════════════════ */}
-              {/* AI COPILOT CHAT (col-span-1) — Placeholder TV4        */}
+              {/* AI COPILOT CHAT (col-span-1)                          */}
               {/* ══════════════════════════════════════════════════════ */}
-              <div className="lg:col-span-1">
-                <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-6 shadow-sm h-full flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200/50">
-                        <Bot className="w-4.5 h-4.5" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-bold text-slate-900">HR Copilot RAG 24/7</h3>
-                        <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                          Trực tuyến
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Hỏi đáp chính sách ngày phép, bảo hiểm, nội quy hoặc gõ{' '}
-                      <em className="text-indigo-500 font-medium">&quot;tôi đã nộp cccd&quot;</em> để tự tích task.
-                    </p>
-                  </div>
-
-                  <div className="border-2 border-dashed border-slate-200/60 rounded-2xl p-8 text-center text-slate-400 text-xs my-5 flex-1 flex items-center justify-center bg-white/30">
-                    <div>
-                      <Bot className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-                      Khung Chat Copilot • Thành viên 4 sẽ tích hợp Gemini RAG tại đây
-                    </div>
-                  </div>
-
-                  <input
-                    type="text"
-                    disabled
-                    placeholder="Nhập câu hỏi quy chế..."
-                    className="w-full px-4 py-2.5 border border-slate-200/80 rounded-xl text-xs bg-white/50 cursor-not-allowed placeholder-slate-400"
-                  />
-                </div>
+              <div className="lg:col-span-1 relative lg:min-h-[480px]">
+                <CopilotChatWidget />
               </div>
 
               {/* ══════════════════════════════════════════════════════ */}
@@ -970,49 +1186,7 @@ export const EmployeeWorkspacePage: React.FC = () => {
         {/* ══════════════════════════════════════════════════════════ */}
         {/* 2. GÓC NHÌN MANAGER — GIÁM SÁT SỨC KHỎE TINH THẦN      */}
         {/* ══════════════════════════════════════════════════════════ */}
-        {user?.role === 'MANAGER' && (
-          <div className="space-y-6">
-            {/* Banner hướng dẫn Thành viên 3 */}
-            <div className="p-4 rounded-2xl bg-amber-50/70 backdrop-blur-sm border border-amber-200/80 flex items-start gap-3">
-              <div className="p-2 bg-amber-600 text-white rounded-xl shadow-sm">
-                <Code2 className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold bg-amber-200/80 text-amber-800 px-2 py-0.5 rounded-full">
-                    Khung Sườn Chờ Code • Sprint 3 &amp; 4
-                  </span>
-                  <span className="text-xs font-bold text-amber-900">
-                    Theo Dõi Sức Khỏe Tinh Thần Đội Ngũ (Team Mood Monitor)
-                  </span>
-                </div>
-                <p className="text-xs text-amber-700/90 mt-1">
-                  📌 <strong>Phân công: Thành viên 3</strong> sẽ kết nối bảng{' '}
-                  <code className="bg-white/80 px-1 rounded">employee_moods</code>, hiển thị chỉ số
-                  cảm xúc các thành viên team mình, nhận diện cảnh báo kiệt sức và nút{' '}
-                  <em>Hẹn 1-on-1 Gỡ Rối</em> để giải quyết cảnh báo.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white/70 backdrop-blur-xl border border-white/40 p-6 rounded-3xl shadow-sm">
-              <h2 className="text-xl font-black text-slate-900 mb-1 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-amber-600" /> Giám Sát Sức Khỏe Tinh Thần &amp;
-                Tiến Độ Hội Nhập
-              </h2>
-              <p className="text-xs text-slate-500 mb-6">
-                Dành riêng cho Trưởng phòng phụ trách bộ phận Kỹ thuật Phần mềm (TECH)
-              </p>
-
-              <div className="border-2 border-dashed border-slate-200/60 rounded-2xl p-12 text-center text-slate-400 bg-white/30">
-                <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                <p className="text-xs font-medium">
-                  Khung sườn danh sách thành viên • Thành viên 3 sẽ tích hợp bảng Team Mood tại đây
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        {user?.role === 'MANAGER' && <ManagerTeamMoodWidget />}
 
         {/* ══════════════════════════════════════════════════════════ */}
         {/* 3. GÓC NHÌN KHÁC (HR / SUPERADMIN)                       */}

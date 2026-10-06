@@ -514,7 +514,7 @@ Hãy trả lời ngắn gọn, hữu ích.`;
     if (lowerMsg.includes('onboarding') || lowerMsg.includes('thử việc')) {
       return '🚀 Giai đoạn thử việc kéo dài 60 ngày. Hãy hoàn thành checklist onboarding trong tab "Lộ trình 30 ngày" để được đánh giá tốt nhất!';
     }
-    if (lowerMsg.includes('wifi') || lowerMsg.includes('password')) {
+    if (lowerMsg.includes('wifi') || lowerMsg.includes('wi-fi') || lowerMsg.includes('mạng') || lowerMsg.includes('password') || lowerMsg.includes('mật khẩu')) {
       return '📶 Thông tin WiFi văn phòng: Tên mạng "Company-Wifi", mật khẩu liên hệ IT Support. Nếu cần hỗ trợ kỹ thuật, gửi ticket qua hệ thống IT Helpdesk.';
     }
 

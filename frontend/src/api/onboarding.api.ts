@@ -4,6 +4,7 @@ import type {
   OnboardingTasksResponse,
   ToggleTaskResponse,
   SeedTasksResponse,
+  ChatCopilotResponse,
 } from '../types';
 
 export interface CheckInMoodPayload {
@@ -52,7 +53,7 @@ export const onboardingApi = {
     return apiClient.get('/onboarding/trainings');
   },
 
-  chatWithCopilot: async (message: string): Promise<{ reply: string; sourceDocuments?: string[] }> => {
+  chatWithCopilot: async (message: string): Promise<ChatCopilotResponse> => {
     return apiClient.post('/onboarding/chat', { message });
   },
 };

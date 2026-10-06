@@ -79,6 +79,13 @@ export interface SeedTasksResponse {
   count?: number;
 }
 
+export interface ChatCopilotResponse {
+  userId?: number;
+  reply: string;
+  sourceDocuments?: string[];
+  toolActionExecuted?: unknown;
+}
+
 export interface EmployeeMood {
   id: number;
   userId: number;

@@ -3,7 +3,7 @@ import type { User, UserRole } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  login: (role: UserRole) => void;
+  login: (role: UserRole) => Promise<void>;
   setAuthSession: (user: User, token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
@@ -45,6 +45,15 @@ const mockUsers: Record<UserRole, User> = {
   },
 };
 
+const DEMO_CREDENTIALS: Record<UserRole, { email: string; pass: string }> = {
+  SUPERADMIN: { email: 'superadmin@company.com', pass: 'admin123' },
+  HR: { email: 'hr@company.com', pass: 'admin123' },
+  MANAGER: { email: 'manager@company.com', pass: 'admin123' },
+  EMPLOYEE: { email: 'employee@company.com', pass: 'admin123' },
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -66,7 +75,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
-  const login = (role: UserRole) => {
+  const login = async (role: UserRole) => {
+    const creds = DEMO_CREDENTIALS[role];
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: creds.email, password: creds.pass }),
+      });
+      const data = await res.json();
+      if (data.success && data.data?.accessToken) {
+        const u = data.data.user;
+        const loggedUser: User = {
+          id: u.id,
+          fullName: u.fullName,
+          email: u.email,
+          role: u.role,
+          departmentName: u.department,
+          jobTitle: u.jobTitle,
+        };
+        localStorage.setItem('hr_access_token', data.data.accessToken);
+        localStorage.setItem('hr_current_user', JSON.stringify(loggedUser));
+        setUser(loggedUser);
+        return;
+      }
+    } catch (e) {
+      console.warn('Backend login fallback:', e);
+    }
     const selected = mockUsers[role];
     localStorage.setItem('hr_access_token', `mock_jwt_token_${role.toLowerCase()}`);
     setUser(selected);

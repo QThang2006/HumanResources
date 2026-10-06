@@ -1,7 +1,6 @@
-version: '3.8'
-
 services:
-  # 1. Cơ sở dữ liệu MySQL 8.0
+  # 1. Cơ sở dữ liệu MySQL 8.0 (Dành cho thành viên chạy DB trên Docker)
+  # Lưu ý: Cổng được map ra 3307 để tránh xung đột với MySQL 3306 cài sẵn trên máy Windows
   mysql:
     image: mysql:8.0
     container_name: hr_mysql
@@ -12,7 +11,7 @@ services:
       MYSQL_USER: hr_user
       MYSQL_PASSWORD: hr_password
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
@@ -32,8 +31,6 @@ services:
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
     volumes:
       - n8n_data:/home/node/.n8n
-    depends_on:
-      - mysql
 
 volumes:
   mysql_data:

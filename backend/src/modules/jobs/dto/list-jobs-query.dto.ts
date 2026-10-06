@@ -1,7 +1,12 @@
 import { Transform } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { JobStatus } from '../../../entities/job.entity';
 
 export class ListJobsQueryDto {
+  @IsOptional()
+  @Transform(({ obj, key }) => obj[key])
+  @IsIn(['OPEN', 'CLOSED'])
+  status?: JobStatus;
   @IsOptional()
   // Keep arrays/objects intact so implicit conversion cannot bypass validation.
   @Transform(({ obj, key }) => typeof obj[key] === 'string' ? obj[key].trim() : obj[key])

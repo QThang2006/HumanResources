@@ -5,14 +5,14 @@ import { Job, JobStatus } from '../../entities/job.entity';
 import { Department } from '../../entities/department.entity';
 import { Application } from '../../entities/application.entity';
 import { User, UserRole } from '../../entities/user.entity';
-import { GeminiService } from '../core/ai/gemini.service';
+import { RecruitmentAiService } from './recruitment-ai.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { ChangeJobStatusDto } from './dto/change-job-status.dto';
 
 type JobsActor = Pick<User, 'id' | 'role' | 'departmentId'>;
 
-function jobView(job: Job) {
+function jobView(job: Job & { applicationCount?: number }) {
   return {
     id: job.id,
     title: job.title,
@@ -25,6 +25,7 @@ function jobView(job: Job) {
     status: job.status,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
+    applicationCount: job.applicationCount ?? 0,
   };
 }
 
@@ -33,7 +34,7 @@ export class JobsService {
   constructor(
     @InjectRepository(Job) private readonly jobs: Repository<Job>,
     @InjectRepository(Department) private readonly departments: Repository<Department>,
-    private readonly geminiService: GeminiService,
+    private readonly ai: RecruitmentAiService,
     private readonly db: DataSource,
   ) {}
 
@@ -47,7 +48,7 @@ export class JobsService {
     }
   }
 
-  async findAll(actor?: JobsActor, q = '', departmentId?: number, location = '', page?: number, pageSize?: number) {
+  async findAll(actor?: JobsActor, q = '', departmentId?: number, location = '', page?: number, pageSize?: number, status?: JobStatus) {
     const where = !actor
       ? { status: JobStatus.OPEN }
       : actor.role === UserRole.MANAGER
@@ -67,7 +68,7 @@ export class JobsService {
       }),
     } : {};
     const options: FindManyOptions<Job> = {
-      where: { ...where, ...titleFilter, ...departmentFilter, ...locationFilter },
+      where: { ...where, ...(actor && status ? { status } : {}), ...titleFilter, ...departmentFilter, ...locationFilter },
       relations: ['department'],
       order: { createdAt: 'DESC', id: 'DESC' },
     };
@@ -77,10 +78,24 @@ export class JobsService {
         skip: (page - 1) * pageSize,
         take: pageSize,
       });
-      return { items: jobs.map(jobView), total, page, pageSize };
+      return { items: await this.views(jobs, actor), total, page, pageSize };
     }
     const jobs = await this.jobs.find(options);
-    return jobs.map(jobView);
+    return this.views(jobs, actor);
+  }
+
+  private async views(rows: Job[], actor?: JobsActor) {
+    if (!actor || !rows.length) return rows.map(jobView);
+    const counts = await this.db.getRepository(Application).createQueryBuilder('application')
+      .select('application.jobId', 'jobId').addSelect('COUNT(*)', 'count')
+      .where('application.jobId IN (:...ids)', { ids: rows.map(row => row.id) })
+      .groupBy('application.jobId').getRawMany<{ jobId: number; count: string }>();
+    const byJob = new Map(counts.map(row => [Number(row.jobId), Number(row.count)]));
+    return rows.map(row => jobView(Object.assign(row, { applicationCount: byJob.get(row.id) || 0 })));
+  }
+
+  async departmentLookup() {
+    return this.departments.find({ select: { id: true, name: true, code: true }, order: { name: 'ASC' } });
   }
 
   async filters() {
@@ -182,14 +197,7 @@ export class JobsService {
     return this.savedJob(id);
   }
 
-  // Existing AI skeleton remains a separate feature for a later increment.
   async generateJDWithAI(title: string, departmentName: string, level: string) {
-    return {
-      title,
-      departmentName,
-      level,
-      aiAvailable: this.geminiService.isAvailable(),
-      message: 'Khung sườn đã sẵn sàng. Tính năng sinh JD chưa được triển khai.',
-    };
+    return this.ai.jd(title, departmentName, level);
   }
 }

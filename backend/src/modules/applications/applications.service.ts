@@ -1,281 +1,234 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, ServiceUnavailableException, ForbiddenException } from '@nestjs/common';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import * as fs from 'fs';
-import * as path from 'path';
 import { Application, ApplicationStatus, AiRecommendation } from '../../entities/application.entity';
-import { Job } from '../../entities/job.entity';
-import { GeminiService } from '../core/ai/gemini.service';
+import { Job, JobStatus } from '../../entities/job.entity';
+import { Interview, InterviewResult } from '../../entities/interview.entity';
+import { User, UserRole } from '../../entities/user.entity';
+import { RecruitmentAiService } from '../jobs/recruitment-ai.service';
+import { Actor, assertOperator, assertScope, assertStatusTransition, assertFresh, nextRevision } from '../jobs/recruitment.policy';
+import { ApplicationQuery, SubmitInput, StateInput, ScheduleInput, ResultInput } from '../jobs/recruitment.dto';
 import { N8nService } from '../core/automation/n8n.service';
+import { CvStorageService } from './cv-storage.service';
 
-/**
- * 📌 PHÂN HỆ APPLICATIONS & INTERVIEWS (ATS & PHỎNG VẤN)
- * Phân công: 
- * - Thành viên 2: Nộp đơn ứng tuyển, bóc tách CV bằng AI, xếp lịch & 1-Click Tuyển dụng (Sprint 2 & 3)
- * - Thành viên 3: Phỏng vấn kỹ thuật & Manager chấm điểm Pass/Fail (Sprint 3)
- */
+function interviewView(row: Interview) {
+  return { id: row.id, applicationId: row.applicationId, interviewerId: row.interviewerId,
+    interviewerName: row.interviewer?.fullName || '', round: row.round, scheduledAt: row.scheduledAt,
+    meetingLink: row.meetingLink || null, questions: row.aiSuggestedQuestions || [],
+    score: row.score, feedback: row.interviewerFeedback, result: row.result, updatedAt: row.updatedAt };
+}
+export function applicationView(row: Application) {
+  return { id: row.id, jobId: row.jobId, jobTitle: row.job?.title || '', candidateName: row.candidateName,
+    candidateEmail: row.candidateEmail, candidatePhone: row.candidatePhone, status: row.status,
+    matchScore: row.matchScore === null ? null : Number(row.matchScore), aiSummary: row.aiSummary,
+    aiRecommendation: row.aiRecommendation, skillsDetected: row.skillsDetected || [], hiredUserId: row.hiredUserId,
+    createdAt: row.createdAt, updatedAt: row.updatedAt,
+    hasCv: /^[a-f0-9-]{36}\.pdf$/.test(row.cvFileUrl || ''), hasCvText: Boolean(row.rawCvText?.trim()),
+    interviews: (row.interviews || []).sort((a, b) => b.round - a.round).map(interviewView) };
+}
 @Injectable()
 export class ApplicationsService {
-  private readonly logger = new Logger(ApplicationsService.name);
+  private readonly activeAi = new Set<string>();
+  constructor(@InjectRepository(Application) private readonly applications: Repository<Application>,
+    private readonly db: DataSource, private readonly files: CvStorageService,
+    private readonly ai: RecruitmentAiService, private readonly n8n: N8nService) {}
 
-  constructor(
-    @InjectRepository(Application)
-    private readonly appRepository: Repository<Application>,
-    @InjectRepository(Job)
-    private readonly jobRepository: Repository<Job>,
-    private readonly geminiService: GeminiService,
-    private readonly n8nService: N8nService,
-  ) {}
-
-  async findAll(jobId?: number, status?: ApplicationStatus) {
-    const query = this.appRepository
-      .createQueryBuilder('app')
-      .leftJoinAndSelect('app.job', 'job')
-      .leftJoinAndSelect('job.department', 'department')
-      .orderBy('app.createdAt', 'DESC');
-
-    if (jobId) {
-      query.andWhere('app.jobId = :jobId', { jobId });
-    }
-    if (status) {
-      query.andWhere('app.status = :status', { status });
-    }
-
-    return query.getMany();
+  private async scopedJob(id: number, actor: Actor) {
+    const job = await this.db.getRepository(Job).findOneBy({ id });
+    if (!job) throw new NotFoundException('Không tìm thấy vị trí tuyển dụng.');
+    assertScope(actor, job.departmentId); return job;
   }
-
-  async findById(id: number) {
-    const app = await this.appRepository.findOne({
-      where: { id },
-      relations: ['job', 'job.department', 'interviews'],
-    });
-    if (!app) {
-      throw new NotFoundException(`Không tìm thấy hồ sơ ứng viên ID #${id}`);
-    }
-    return app;
+  private async row(id: number, actor: Actor) {
+    const app = await this.applications.findOne({ where: { id }, relations: ['job', 'interviews', 'interviews.interviewer'] });
+    if (!app) throw new NotFoundException('Không tìm thấy hồ sơ.');
+    assertScope(actor, app.job.departmentId); return app;
   }
-
-  // Cập nhật trạng thái Kanban
-  async updateStatus(id: number, status: ApplicationStatus) {
-    const app = await this.findById(id);
-    app.status = status;
-    return this.appRepository.save(app);
+  private async locked(manager: EntityManager, id: number, actor: Actor) {
+    const app = await manager.getRepository(Application).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+    if (!app) throw new NotFoundException('Không tìm thấy hồ sơ.');
+    const job = await manager.getRepository(Job).findOneBy({ id: app.jobId });
+    assertScope(actor, job.departmentId); return app;
   }
-
-  // 1. Chấm điểm hồ sơ CV tự động bằng Gemini AI Matcher của Trưởng nhóm
-  async scoreApplication(id: number) {
-    const app = await this.findById(id);
-    const jobInfo = app.job
-      ? `Vị trí: ${app.job.title}\nPhòng ban: ${app.job.department?.name || ''}\nMô tả: ${app.job.description || ''}\nYêu cầu: ${app.job.requirements || ''}`
-      : 'Vị trí phần mềm công nghệ thông tin';
-
-    let scoreResult: any;
-    let extractedTextFromDisk = '';
-
-    // Kiểm tra nếu hồ sơ có tệp tin trên đĩa thì ưu tiên đọc lại file để bóc tách tối ưu
-    if (app.cvFileUrl && app.cvFileUrl.startsWith('/uploads/cvs/')) {
-      const diskPath = path.join(process.cwd(), app.cvFileUrl.replace(/^\//, ''));
-      if (fs.existsSync(diskPath)) {
-        try {
-          const buffer = await fs.promises.readFile(diskPath);
-          const ext = path.extname(diskPath).toLowerCase();
-          const mimeType = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'application/pdf';
-          const fileResult = await this.geminiService.scoreResumeFile(buffer, mimeType, jobInfo);
-          extractedTextFromDisk = fileResult.extractedText;
-          scoreResult = fileResult;
-        } catch (err: any) {
-          this.logger.warn(`Không đọc được file từ đĩa: ${err.message}`);
-        }
-      }
-    }
-
-    if (!scoreResult) {
-      const resumeContent = app.rawCvText && app.rawCvText.trim().length > 10
-        ? app.rawCvText
-        : `Ứng viên: ${app.candidateName}\nEmail: ${app.candidateEmail}\nĐiện thoại: ${app.candidatePhone || ''}\nFile CV: ${app.cvFileUrl}`;
-      scoreResult = await this.geminiService.scoreResume(resumeContent, jobInfo);
-    }
-
-    // Tự động lưu văn bản bóc tách vào cột rawCvText nếu trước đó chưa có
-    if (extractedTextFromDisk && (!app.rawCvText || app.rawCvText.trim().length < 10)) {
-      app.rawCvText = extractedTextFromDisk;
-    }
-
-    // Cập nhật lại vào cơ sở dữ liệu
-    app.matchScore = scoreResult.matchScore;
-    app.skillsDetected = scoreResult.matchedSkills;
-    app.aiSummary = `${scoreResult.summary}\nKhuyến nghị: ${scoreResult.recommendationNote}`;
-    
-    if (scoreResult.recommendation === 'STRONG_MATCH') {
-      app.aiRecommendation = AiRecommendation.STRONG_HIRE;
-    } else if (scoreResult.recommendation === 'GOOD_MATCH') {
-      app.aiRecommendation = AiRecommendation.HIRE;
-    } else if (scoreResult.recommendation === 'POTENTIAL') {
-      app.aiRecommendation = AiRecommendation.CONSIDER;
-    } else {
-      app.aiRecommendation = AiRecommendation.REJECT;
-    }
-
-    await this.appRepository.save(app);
-    return scoreResult;
+  async list(query: ApplicationQuery, actor: Actor) {
+    await this.scopedJob(query.jobId, actor);
+    const qb = this.applications.createQueryBuilder('app').leftJoinAndSelect('app.job', 'job')
+      .where('app.jobId = :jobId', { jobId: query.jobId });
+    if (query.status) qb.andWhere('app.status = :status', { status: query.status });
+    else qb.andWhere('app.status != :rejected', { rejected: ApplicationStatus.REJECTED });
+    if (query.minScore !== undefined) qb.andWhere('app.matchScore >= :minScore', { minScore: query.minScore });
+    if (query.q) qb.andWhere('(app.candidateName LIKE :q OR app.candidateEmail LIKE :q)', { q: '%' + query.q + '%' });
+    const counts = await qb.clone().select('app.status', 'status').addSelect('COUNT(*)', 'count').groupBy('app.status').getRawMany();
+    const [rows, total] = await qb.orderBy('app.createdAt', 'DESC').addOrderBy('app.id', 'DESC')
+      .skip((query.page - 1) * query.pageSize).take(query.pageSize).getManyAndCount();
+    return { items: rows.map(applicationView), total, page: query.page, pageSize: query.pageSize,
+      counts: Object.fromEntries(counts.map(row => [row.status, Number(row.count)])) };
   }
+  async detail(id: number, actor: Actor) { return applicationView(await this.row(id, actor)); }
+  async download(id: number, actor: Actor) { const app = await this.row(id, actor); return this.files.read(app.cvFileUrl); }
 
-  // 2. Gợi ý bộ câu hỏi phỏng vấn kỹ thuật chuyên sâu cho Tech Lead
-  async getInterviewQuestions(id: number) {
-    const app = await this.findById(id);
-    const jobReqs = app.job
-      ? `Vị trí: ${app.job.title}\nYêu cầu: ${app.job.requirements || ''}`
-      : 'Yêu cầu kỹ thuật lập trình phần mềm';
-
-    const resumeContent = app.rawCvText && app.rawCvText.trim().length > 10
-      ? app.rawCvText
-      : `Ứng viên: ${app.candidateName}\nKinh nghiệm: Lập trình viên`;
-
-    return this.geminiService.generateInterviewQuestions(resumeContent, jobReqs);
-  }
-
-  // Ứng viên nộp hồ sơ (Chấp nhận File PDF / Ảnh hoặc Text thô)
-  async applyJob(
-    data: {
-      jobId: number;
-      candidateName: string;
-      candidateEmail: string;
-      candidatePhone?: string;
-      cvFileUrl?: string;
-      rawCvText?: string;
-    },
-    file?: Express.Multer.File,
-  ) {
-    let jobInfo = 'Vị trí phần mềm công nghệ thông tin';
+  async apply(input: SubmitInput, file: Express.Multer.File) {
+    const job = await this.db.getRepository(Job).findOneBy({ id: input.jobId, status: JobStatus.OPEN });
+    if (!job) throw new NotFoundException('Vị trí đã đóng hoặc không tồn tại.');
+    const rawCvText = await this.files.parse(file);
+    const key = await this.files.save(file);
     try {
-      const job = await this.jobRepository.findOne({
-        where: { id: data.jobId },
-        relations: ['department'],
+      const app = await this.db.transaction(async manager => {
+        const lockedJob = await manager.getRepository(Job).findOne({ where: { id: input.jobId }, lock: { mode: 'pessimistic_write' } });
+        if (!lockedJob || lockedJob.status !== JobStatus.OPEN) throw new ConflictException('Vị trí vừa đóng tuyển dụng.');
+        return manager.getRepository(Application).save(manager.getRepository(Application).create({
+          ...input, candidateEmail: input.candidateEmail.trim().toLowerCase(),
+          cvFileUrl: key, rawCvText, status: ApplicationStatus.APPLIED,
+        }));
       });
-      if (job) {
-        jobInfo = `Vị trí: ${job.title}\nPhòng ban: ${job.department?.name || ''}\nMô tả: ${job.description || ''}\nYêu cầu: ${job.requirements || ''}`;
-      }
-    } catch (e) {
-      // Bỏ qua nếu chưa có job
+      return { applicationId: app.id, submittedAt: app.createdAt, message: 'Hồ sơ đã được lưu. HR sẽ xem xét CV của bạn.',
+        warning: rawCvText ? null : 'PDF không có văn bản trích xuất. HR có thể tải CV để xem trực tiếp.' };
+    } catch (error) {
+      await this.files.remove(key);
+      if (error?.driverError?.code === 'ER_DUP_ENTRY' || error?.code === 'ER_DUP_ENTRY') throw new ConflictException('Email này đã ứng tuyển vị trí này.');
+      throw error;
     }
-
-    let cvFileUrl = data.cvFileUrl || '/uploads/sample_cv.pdf';
-    let rawCvText = data.rawCvText || '';
-    let matchScore: number | undefined;
-    let skillsDetected: string[] | undefined;
-    let aiSummary: string | undefined;
-    let aiRecommendation: AiRecommendation | undefined;
-
-    // 1. Trường hợp nộp File (PDF hoặc Ảnh)
-    if (file) {
-      cvFileUrl = `/uploads/cvs/${file.filename}`;
-      const buffer = file.buffer || (file.path ? await fs.promises.readFile(file.path) : null);
-      if (buffer) {
-        const aiFileResult = await this.geminiService.scoreResumeFile(
-          buffer,
-          file.mimetype,
-          jobInfo,
-        );
-
-        // Lưu toàn bộ text bóc tách từ PDF/Ảnh vào cột rawCvText để search & phục vụ phỏng vấn sau này!
-        rawCvText = aiFileResult.extractedText || rawCvText;
-        matchScore = aiFileResult.matchScore;
-        skillsDetected = aiFileResult.matchedSkills;
-        aiSummary = `${aiFileResult.summary}\nKhuyến nghị: ${aiFileResult.recommendationNote}`;
-
-        if (aiFileResult.recommendation === 'STRONG_MATCH') {
-          aiRecommendation = AiRecommendation.STRONG_HIRE;
-        } else if (aiFileResult.recommendation === 'GOOD_MATCH') {
-          aiRecommendation = AiRecommendation.HIRE;
-        } else if (aiFileResult.recommendation === 'POTENTIAL') {
-          aiRecommendation = AiRecommendation.CONSIDER;
-        } else {
-          aiRecommendation = AiRecommendation.REJECT;
-        }
-
-        // Tự động bổ sung thông tin ứng viên nếu chưa điền đầy đủ
-        if (!data.candidateName && aiFileResult.candidateName) {
-          data.candidateName = aiFileResult.candidateName;
-        }
-        if (!data.candidateEmail && aiFileResult.candidateEmail) {
-          data.candidateEmail = aiFileResult.candidateEmail;
-        }
-        if (!data.candidatePhone && aiFileResult.candidatePhone) {
-          data.candidatePhone = aiFileResult.candidatePhone;
-        }
+  }
+  async status(id: number, input: StateInput, actor: Actor) {
+    assertOperator(actor);
+    await this.db.transaction(async manager => {
+      const app = await this.locked(manager, id, actor);
+      if (app.status !== input.expectedStatus) throw new ConflictException('Hồ sơ đã đổi trạng thái. Hãy tải lại.');
+      assertStatusTransition(app.status, input.status);
+      if (input.status === ApplicationStatus.OFFERED) {
+        const latest = await manager.getRepository(Interview).findOne({ where: { applicationId: id }, order: { round: 'DESC' } });
+        if (latest?.result !== InterviewResult.PASSED) throw new ConflictException('Vòng phỏng vấn mới nhất chưa đạt.');
       }
-    } else if (rawCvText && rawCvText.trim().length > 10) {
-      // 2. Trường hợp nộp text thuần
-      const scoreResult = await this.geminiService.scoreResume(rawCvText, jobInfo);
-      matchScore = scoreResult.matchScore;
-      skillsDetected = scoreResult.matchedSkills;
-      aiSummary = `${scoreResult.summary}\nKhuyến nghị: ${scoreResult.recommendationNote}`;
-
-      if (scoreResult.recommendation === 'STRONG_MATCH') {
-        aiRecommendation = AiRecommendation.STRONG_HIRE;
-      } else if (scoreResult.recommendation === 'GOOD_MATCH') {
-        aiRecommendation = AiRecommendation.HIRE;
-      } else if (scoreResult.recommendation === 'POTENTIAL') {
-        aiRecommendation = AiRecommendation.CONSIDER;
-      } else {
-        aiRecommendation = AiRecommendation.REJECT;
-      }
-    }
-
-    const newApp = this.appRepository.create({
-      jobId: data.jobId,
-      candidateName: data.candidateName || 'Ứng viên Tuyển Dụng',
-      candidateEmail: data.candidateEmail || 'candidate@example.com',
-      candidatePhone: data.candidatePhone,
-      cvFileUrl,
-      rawCvText,
-      matchScore,
-      skillsDetected,
-      aiSummary,
-      aiRecommendation,
-      status: ApplicationStatus.APPLIED,
+      app.status = input.status; app.updatedAt = nextRevision(app.updatedAt);
+      await manager.getRepository(Application).save(app);
     });
-
-    return this.appRepository.save(newApp);
+    return this.detail(id, actor);
   }
-
-  // TODO: Thành viên 2 & 4 sẽ gọi this.n8nService.triggerInterviewScheduled để tự động tạo Google Meet
-  async scheduleInterview(
-    applicationId: number,
-    interviewerId: number,
-    scheduledAt: Date,
-    round: number = 1,
-  ) {
-    return {
-      applicationId,
-      interviewerId,
-      scheduledAt,
-      round,
-      message: 'Khung sườn đã sẵn sàng. Gọi this.n8nService để kích hoạt webhook Google Meet.',
-    };
+  async score(id: number, actor: Actor) {
+    assertOperator(actor);
+    const key = 'score:' + id;
+    if (this.activeAi.has(key)) throw new ConflictException('Hồ sơ đang được chấm.');
+    this.activeAi.add(key);
+    try {
+      const app = await this.row(id, actor);
+      if ([ApplicationStatus.HIRED, ApplicationStatus.REJECTED].includes(app.status)) throw new ConflictException('Hồ sơ đã kết thúc quy trình.');
+      if (!app.rawCvText) throw new BadRequestException('CV chưa có văn bản. Hãy tải file để xem trực tiếp.');
+      const jd = app.job.description + '\n' + app.job.requirements;
+      const result = await this.ai.score(app.rawCvText, jd);
+      // Shared schema has no provider-mode field: mock output is preview-only.
+      if (result.mode === 'MOCK') return { ...result, saved: false };
+      await this.db.transaction(async manager => {
+        const current = await this.locked(manager, id, actor);
+        assertFresh(current.updatedAt, app.updatedAt.toISOString());
+        const job = await manager.getRepository(Job).findOne({ where: { id: app.jobId }, lock: { mode: 'pessimistic_read' } });
+        if (job.description + '\n' + job.requirements !== jd) throw new ConflictException('JD đã đổi trong lúc chấm. Hãy thử lại.');
+        current.matchScore = result.data.matchScore;
+        current.aiSummary = result.data.summary;
+        current.skillsDetected = result.data.skillsDetected;
+        current.aiRecommendation = result.data.matchScore >= 85 ? AiRecommendation.STRONG_HIRE : result.data.matchScore >= 70 ? AiRecommendation.HIRE : result.data.matchScore >= 50 ? AiRecommendation.CONSIDER : AiRecommendation.REJECT;
+        current.updatedAt = nextRevision(current.updatedAt);
+        await manager.getRepository(Application).save(current);
+      });
+      return { ...result, saved: true };
+    } finally { this.activeAi.delete(key); }
   }
-
-  // TODO: Thành viên 3 sẽ hoàn thiện chấm điểm kỹ thuật cho Manager (Pass/Fail)
-  async recordInterviewResult(
-    interviewId: number,
-    score: number,
-    feedback: string,
-    passed: boolean,
-  ) {
-    return {
-      interviewId,
-      score,
-      feedback,
-      passed,
-      message: 'Khung sườn đã sẵn sàng. Thành viên 3 sẽ lưu kết quả phỏng vấn tại đây.',
-    };
+  async interviewers(jobId: number, actor: Actor) {
+    assertOperator(actor);
+    const job = await this.scopedJob(jobId, actor);
+    return this.db.getRepository(User).find({ where: { departmentId: job.departmentId, role: UserRole.MANAGER, isActive: true },
+      select: { id: true, fullName: true }, order: { fullName: 'ASC' } });
   }
-
-  // TODO: Thành viên 2 sẽ hoàn thiện 1-Click Tuyển Dụng & gọi this.n8nService.triggerEmployeeHired
-  async hireCandidate(applicationId: number) {
-    return {
-      applicationId,
-      message: 'Khung sườn đã sẵn sàng. Thành viên 2 sẽ hoàn thiện logic 1-Click Tuyển Dụng tại đây.',
-    };
+  async schedule(id: number, input: ScheduleInput, actor: Actor) {
+    assertOperator(actor);
+    if (new Date(input.scheduledAt).getMilliseconds() !== 0) throw new BadRequestException('Thời gian xếp lịch chỉ nhận độ chính xác đến giây.');
+    if (!/(Z|[+-]\d{2}:\d{2})$/i.test(input.scheduledAt) || new Date(input.scheduledAt).getTime() <= Date.now()) {
+      throw new BadRequestException('Chọn thời gian tương lai có múi giờ.');
+    }
+    const result = await this.db.transaction(async manager => {
+      const app = await this.locked(manager, id, actor);
+      if (![ApplicationStatus.APPLIED, ApplicationStatus.INTERVIEWING].includes(app.status)) throw new ConflictException('Hồ sơ không còn được xếp lịch.');
+      const job = await manager.getRepository(Job).findOneBy({ id: app.jobId });
+      const interviewer = await manager.getRepository(User).findOneBy({ id: input.interviewerId, role: UserRole.MANAGER, isActive: true, departmentId: job.departmentId });
+      if (!interviewer) throw new BadRequestException('Người phỏng vấn phải là Manager đang hoạt động của phòng ban này.');
+      const existing = await manager.getRepository(Interview).findOneBy({ applicationId: id, round: input.round });
+      if (existing) {
+        if (existing.interviewerId !== input.interviewerId || existing.scheduledAt.getTime() !== new Date(input.scheduledAt).getTime()) throw new ConflictException('Vòng phỏng vấn này đã có lịch khác.');
+        return { interview: existing, app, interviewer, created: false };
+      }
+      const last = await manager.getRepository(Interview).findOne({ where: { applicationId: id }, order: { round: 'DESC' } });
+      if (input.round !== (last?.round || 0) + 1) throw new ConflictException('Số vòng phải nối tiếp vòng gần nhất.');
+      const interview = await manager.getRepository(Interview).save(manager.getRepository(Interview).create({
+        applicationId: id, interviewerId: input.interviewerId, round: input.round, scheduledAt: new Date(input.scheduledAt), result: InterviewResult.PENDING,
+      }));
+      app.status = ApplicationStatus.INTERVIEWING; app.updatedAt = nextRevision(app.updatedAt);
+      await manager.getRepository(Application).save(app);
+      return { interview, app, interviewer, created: true };
+    });
+    let dispatch = 'NOT_RETRIED';
+    if (result.created) {
+      try {
+        const accepted = await this.n8n.triggerInterviewScheduled({
+          interviewId: result.interview.id, applicationId: id, candidateName: result.app.candidateName,
+          candidateEmail: result.app.candidateEmail, interviewerName: result.interviewer.fullName,
+          interviewerEmail: result.interviewer.email, scheduledAt: result.interview.scheduledAt.toISOString(), round: result.interview.round,
+        });
+        dispatch = accepted ? 'UNVERIFIED' : 'FAILED';
+      } catch { dispatch = 'FAILED'; }
+    }
+    return { interview: interviewView(result.interview), dispatch,
+      message: 'Đã lưu lịch. SDK hiện chưa xác nhận email/Google Meet hoàn tất; hãy kiểm tra workflow với lead.' };
+  }
+  async result(interviewId: number, input: ResultInput, actor: Actor) {
+    if (actor.role !== UserRole.MANAGER) throw new ForbiddenException('Chỉ Manager được phân công mới chấm phỏng vấn.');
+    if (input.result === InterviewResult.PENDING) throw new BadRequestException('Chọn Đạt hoặc Chưa đạt.');
+    const record = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
+    if (!record) throw new NotFoundException('Không tìm thấy lịch.');
+    await this.db.transaction(async manager => {
+      const app = await this.locked(manager, record.applicationId, actor);
+      const interview = await manager.getRepository(Interview).findOne({ where: { id: interviewId }, lock: { mode: 'pessimistic_write' } });
+      if (interview.interviewerId !== actor.id) throw new ForbiddenException('Bạn không được phân công vòng này.');
+      if (app.status !== ApplicationStatus.INTERVIEWING) throw new ConflictException('Chỉ chấm khi hồ sơ đang phỏng vấn.');
+      if (interview.result !== input.expectedResult) throw new ConflictException('Kết quả đã đổi. Hãy tải lại.');
+      assertFresh(interview.updatedAt, input.expectedUpdatedAt);
+      interview.score = input.score; interview.interviewerFeedback = input.feedback;
+      interview.result = input.result; interview.updatedAt = nextRevision(interview.updatedAt);
+      await manager.getRepository(Interview).save(interview);
+    });
+    return this.detail(record.applicationId, actor);
+  }
+  async questions(interviewId: number, actor: Actor) {
+    assertOperator(actor);
+    const key = 'questions:' + interviewId;
+    if (this.activeAi.has(key)) throw new ConflictException('Vòng phỏng vấn đang được tạo câu hỏi.');
+    this.activeAi.add(key);
+    try { return await this.generateQuestions(interviewId, actor); }
+    finally { this.activeAi.delete(key); }
+  }
+  private async generateQuestions(interviewId: number, actor: Actor) {
+    const interview = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
+    if (!interview) throw new NotFoundException('Không tìm thấy lịch.');
+    const app = await this.row(interview.applicationId, actor);
+    if (app.status !== ApplicationStatus.INTERVIEWING || interview.result !== InterviewResult.PENDING) throw new ConflictException('Chỉ tạo câu hỏi cho vòng phỏng vấn đang chờ.');
+    if (!app.rawCvText) throw new BadRequestException('CV không có văn bản.');
+    const result = await this.ai.questions(app.rawCvText, app.job.requirements);
+    if (result.mode === 'LIVE') await this.db.transaction(async manager => {
+      const currentApp = await this.locked(manager, app.id, actor);
+      const current = await manager.getRepository(Interview).findOne({ where: { id: interviewId }, lock: { mode: 'pessimistic_write' } });
+      assertFresh(currentApp.updatedAt, app.updatedAt.toISOString());
+      assertFresh(current.updatedAt, interview.updatedAt.toISOString());
+      if (currentApp.status !== ApplicationStatus.INTERVIEWING || current.result !== InterviewResult.PENDING) throw new ConflictException('Vòng phỏng vấn đã thay đổi.');
+      const job = await manager.getRepository(Job).findOne({ where: { id: app.jobId }, lock: { mode: 'pessimistic_read' } });
+      if (job.requirements !== app.job.requirements) throw new ConflictException('Yêu cầu tuyển dụng đã thay đổi.');
+      current.aiSuggestedQuestions = result.data; current.updatedAt = nextRevision(current.updatedAt);
+      await manager.getRepository(Interview).save(current);
+    });
+    return { ...result, saved: result.mode === 'LIVE' };
+  }
+  async hire(id: number, actor: Actor) {
+    assertOperator(actor);
+    const app = await this.row(id, actor);
+    if (app.status === ApplicationStatus.HIRED && app.hiredUserId) return { hiredUserId: app.hiredUserId, alreadyHired: true };
+    if (![ApplicationStatus.INTERVIEWING, ApplicationStatus.OFFERED].includes(app.status)) throw new ConflictException('Hồ sơ chưa ở bước nhận việc.');
+    if ([...app.interviews].sort((a, b) => b.round - a.round)[0]?.result !== InterviewResult.PASSED) throw new ConflictException('Vòng phỏng vấn mới nhất chưa đạt.');
+    throw new ServiceUnavailableException('Chưa thể nhận việc: lead cần bàn giao nguồn userId và hợp đồng provisioning. Chưa tạo tài khoản, task hoặc thay đổi hồ sơ.');
   }
 }

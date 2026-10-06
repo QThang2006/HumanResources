@@ -9,9 +9,13 @@ import { User } from '../../entities/user.entity';
 import { OnboardingTask } from '../../entities/onboarding-task.entity';
 import { TrainingCourse } from '../../entities/training-course.entity';
 import { EmployeeTraining } from '../../entities/employee-training.entity';
+import { JobsModule } from '../jobs/jobs.module';
+import { CvStorageService } from './cv-storage.service';
+import { SubmitRateGuard } from './submit-rate.guard';
 
 @Module({
   imports: [
+    JobsModule,
     TypeOrmModule.forFeature([
       Application,
       Job,
@@ -23,7 +27,7 @@ import { EmployeeTraining } from '../../entities/employee-training.entity';
     ]),
   ],
   controllers: [ApplicationsController],
-  providers: [ApplicationsService],
+  providers: [ApplicationsService, CvStorageService, SubmitRateGuard],
   exports: [ApplicationsService],
 })
 export class ApplicationsModule {}

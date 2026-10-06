@@ -1,130 +1,57 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Param,
-  Body,
-  UseGuards,
-  ParseIntPipe,
-  Query,
-  UseInterceptors,
-  UploadedFile,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, ParseIntPipe, Query, UploadedFile, UseInterceptors, Res } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
+import { Response } from 'express';
 import { ApplicationsService } from './applications.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '../../entities/user.entity';
-import { ApplicationStatus } from '../../entities/application.entity';
-import { ApplyJobDto } from './dto/apply-job.dto';
-import { ScheduleInterviewDto } from './dto/schedule-interview.dto';
-
-const cvUploadFolder = './uploads/cvs';
-if (!fs.existsSync(cvUploadFolder)) {
-  fs.mkdirSync(cvUploadFolder, { recursive: true });
-}
-
-const cvStorage = diskStorage({
-  destination: cvUploadFolder,
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    cb(null, `cv-${uniqueSuffix}${ext}`);
-  },
-});
+import { Actor } from '../jobs/recruitment.policy';
+import { ApplicationQuery, SubmitInput, StateInput, ScheduleInput, ResultInput, JobIdQuery } from '../jobs/recruitment.dto';
+import { SubmitRateGuard } from './submit-rate.guard';
+import { MAX_CV_BYTES } from './cv-storage.service';
 
 @Controller('applications')
 export class ApplicationsController {
-  constructor(private readonly appService: ApplicationsService) {}
-
-  // 1. Ứng viên nộp hồ sơ công khai (Chấp nhận cả JSON hoặc Multipart File PDF / Ảnh)
+  constructor(private readonly service: ApplicationsService) {}
   @Post('apply')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: cvStorage,
-      limits: { fileSize: 10 * 1024 * 1024 }, // Tối đa 10MB
-    }),
-  )
-  async submitApplication(
-    @Body() dto: ApplyJobDto,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
-    return this.appService.applyJob(dto, file);
-  }
-
-  // 2. Lấy danh sách hồ sơ cho Kanban ATS (HR, MANAGER, SUPERADMIN)
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.HR, UserRole.MANAGER, UserRole.SUPERADMIN)
+  @UseGuards(SubmitRateGuard)
+  @UseInterceptors(FileInterceptor('cv', { storage: memoryStorage(), limits: { fileSize: MAX_CV_BYTES, files: 1, fields: 4, fieldSize: 1000, parts: 6 } }))
+  apply(@Body() input: SubmitInput, @UploadedFile() file: Express.Multer.File) { return this.service.apply(input, file); }
   @Get()
-  async getApplications(
-    @Query('jobId') jobId?: string,
-    @Query('status') status?: ApplicationStatus,
-  ) {
-    return this.appService.findAll(jobId ? parseInt(jobId, 10) : undefined, status);
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
+  list(@Query() query: ApplicationQuery, @CurrentUser() actor: Actor) { return this.service.list(query, actor); }
+  @Get('interviewers')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  interviewers(@Query() query: JobIdQuery, @CurrentUser() actor: Actor) { return this.service.interviewers(query.jobId, actor); }
+  @Patch('interviews/:id/result')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.MANAGER)
+  result(@Param('id', ParseIntPipe) id: number, @Body() input: ResultInput, @CurrentUser() actor: Actor) { return this.service.result(id, input, actor); }
+  @Post('interviews/:id/questions')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  questions(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: Actor) { return this.service.questions(id, actor); }
+  @Get(':id/cv')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
+  async cv(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: Actor, @Res() response: Response) {
+    const buffer = await this.service.download(id, actor);
+    response.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="cv-' + id + '.pdf"', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' });
+    response.send(buffer);
   }
-
-  // 3. Xem chi tiết hồ sơ và đánh giá AI
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.HR, UserRole.MANAGER, UserRole.SUPERADMIN)
   @Get(':id')
-  async getApplicationDetail(@Param('id', ParseIntPipe) id: number) {
-    return this.appService.findById(id);
-  }
-
-  // 4. Kéo thả Kanban cập nhật trạng thái
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.HR, UserRole.MANAGER, UserRole.SUPERADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
+  detail(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: Actor) { return this.service.detail(id, actor); }
   @Patch(':id/status')
-  async updateApplicationStatus(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('status') status: ApplicationStatus,
-  ) {
-    return this.appService.updateStatus(id, status);
-  }
-
-  // 5. Xếp lịch phỏng vấn với AI gợi ý câu hỏi và n8n webhook
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  status(@Param('id', ParseIntPipe) id: number, @Body() input: StateInput, @CurrentUser() actor: Actor) { return this.service.status(id, input, actor); }
+  @Post(':id/score')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  score(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: Actor) { return this.service.score(id, actor); }
   @Post(':id/interview')
-  async scheduleInterview(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: ScheduleInterviewDto,
-  ) {
-    return this.appService.scheduleInterview(
-      id,
-      dto.interviewerId,
-      new Date(dto.scheduledAt),
-      dto.round || 1,
-    );
-  }
-
-  // 6. Tuyển dụng 1-Click (1-Click Hired)
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  schedule(@Param('id', ParseIntPipe) id: number, @Body() input: ScheduleInput, @CurrentUser() actor: Actor) { return this.service.schedule(id, input, actor); }
   @Post(':id/hire')
-  async hireCandidate(@Param('id', ParseIntPipe) id: number) {
-    return this.appService.hireCandidate(id);
-  }
-
-  // 7. [AI Core] Chấm điểm CV & tính Match Score tự động (Dành cho HR, MANAGER, SUPERADMIN)
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.HR, UserRole.MANAGER, UserRole.SUPERADMIN)
-  @Post(':id/ai-score')
-  async scoreApplication(@Param('id', ParseIntPipe) id: number) {
-    return this.appService.scoreApplication(id);
-  }
-
-  // 8. [AI Core] Gợi ý bộ câu hỏi phỏng vấn kỹ thuật cho Tech Lead
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.HR, UserRole.MANAGER, UserRole.SUPERADMIN)
-  @Get(':id/interview-questions')
-  async getInterviewQuestions(@Param('id', ParseIntPipe) id: number) {
-    return this.appService.getInterviewQuestions(id);
-  }
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  hire(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: Actor) { return this.service.hire(id, actor); }
 }
-

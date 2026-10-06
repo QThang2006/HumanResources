@@ -46,3 +46,8 @@ Thumbs.db
 tmp/
 **/tmp/
 .temp/
+
+# 8. Tệp tin tải lên của người dùng (CV, tài liệu)
+uploads/
+**/uploads/*
+!**/uploads/.gitkeep

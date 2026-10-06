@@ -1,0 +1,435 @@
+{
+  "name": "HR Pro: Enterprise Multi-Agent Automation Ecosystem",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "### 📌 Automated Interview Scheduling Engine (ATS)\n**Quy trình:**\n1. Nhận Webhook động từ NestJS khi HR bấm xếp lịch phỏng vấn.\n2. Phản hồi Webhook ngay lập tức (HTTP 200 OK) để giữ backend non-blocking.\n3. Tự động gọi Google Calendar API tạo sự kiện và sinh link Google Meet thật 100%.\n4. Soạn thảo Email HTML cao cấp chứa link Meet và thông tin ứng viên từ Backend.\n5. Gửi email xác nhận ứng viên và bắn thông báo Telegram nội bộ.",
+        "height": 420,
+        "width": 380,
+        "color": 6
+      },
+      "id": "sticky-interview-info",
+      "name": "Sticky Note - Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "interview-schedule",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-interview-schedule",
+      "name": "Webhook: Xếp lịch phỏng vấn",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        560
+      ],
+      "webhookId": "interview-schedule"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"n8n đã tiếp nhận lịch phỏng vấn thành công\",\n  \"scheduledFor\": \"{{ $json.body ? ($json.body.candidateName || ($json.body.data && $json.body.data.candidateName) || $json.candidateName) : $json.candidateName }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook-interview",
+      "name": "Respond HTTP 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        460,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "primary",
+          "mode": "list",
+          "cachedResultName": "primary"
+        },
+        "start": "={{ ($json.body && $json.body.scheduledAt ? $json.body.scheduledAt : ($json.body && $json.body.data && $json.body.data.scheduledAt ? $json.body.data.scheduledAt : ($json.scheduledAt || ($json.data && $json.data.scheduledAt)))) }}",
+        "end": "={{ new Date(new Date(($json.body && $json.body.scheduledAt ? $json.body.scheduledAt : ($json.body && $json.body.data && $json.body.data.scheduledAt ? $json.body.data.scheduledAt : ($json.scheduledAt || ($json.data && $json.data.scheduledAt))))).getTime() + 45 * 60000).toISOString() }}",
+        "summary": "={{ 'Phỏng vấn Vòng ' + ($json.body ? ($json.body.round || ($json.body.data && $json.body.data.round) || 1) : ($json.round || 1)) + ': ' + ($json.body ? ($json.body.candidateName || ($json.body.data && $json.body.data.candidateName) || 'Ứng viên') : ($json.candidateName || 'Ứng viên')) + ' - HR Enterprise' }}",
+        "description": "={{ 'Buổi phỏng vấn trực tuyến với ứng viên ' + ($json.body ? ($json.body.candidateName || ($json.body.data && $json.body.data.candidateName) || 'Ứng viên') : ($json.candidateName || 'Ứng viên')) }}",
+        "additionalFields": {
+          "conferenceDataUi": {
+            "conferenceDataValues": {
+              "conferenceSolution": "hangoutsMeet"
+            }
+          }
+        }
+      },
+      "id": "google-calendar-create-meet",
+      "name": "Tự Động Tạo Lịch & Sinh Google Meet",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const calendarItem = $input.first().json;\nlet webhookRaw;\ntry {\n  webhookRaw = $('Webhook: Xếp lịch phỏng vấn').first().json;\n} catch (e) {\n  webhookRaw = calendarItem;\n}\n\n// Bóc tách payload dù n8n bọc trong body, data hay ở root\nconst rawBody = webhookRaw.body || webhookRaw;\nconst payload = rawBody.data || rawBody;\n\nconst candidateName = payload.candidateName || payload.fullName || 'Ứng viên';\nconst candidateEmail = payload.candidateEmail || payload.email || 'quocthangngo2006@gmail.com';\nconst interviewerName = payload.interviewerName || 'Hội đồng Tuyển dụng';\nconst interviewerEmail = payload.interviewerEmail || '';\nconst round = payload.round || 1;\nconst fromEmail = payload.fromEmail || 'quocthangngo2006@gmail.com';\n\nconst scheduledDate = new Date(payload.scheduledAt || Date.now());\nconst formattedTime = scheduledDate.toLocaleString('vi-VN', {\n  timeZone: 'Asia/Ho_Chi_Minh',\n  hour: '2-digit',\n  minute: '2-digit',\n  day: '2-digit',\n  month: '2-digit',\n  year: 'numeric',\n  weekday: 'long'\n});\n\n// Link Google Meet thật do Google Calendar API sinh ra\nconst googleMeetUrl = calendarItem.hangoutLink || payload.googleMeetUrl || 'https://meet.google.com/new';\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }\n    .header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #ffffff; padding: 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 22px; font-weight: 600; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .info-card { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }\n    .info-item { margin: 8px 0; font-size: 15px; }\n    .btn { display: inline-block; background: #2563eb; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0; }\n    .tips { background: #fefce8; border: 1px solid #fef08a; padding: 15px; border-radius: 8px; font-size: 14px; color: #713f12; margin-top: 20px; }\n    .footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>THƯ MỜI PHỎNG VẤN TRỰC TUYẾN</h1>\n      <p style=\"margin: 5px 0 0 0; opacity: 0.9;\">Enterprise HR & Talent Ecosystem</p>\n    </div>\n    <div class=\"content\">\n      <p>Kính gửi <strong>${candidateName}</strong>,</p>\n      <p>Cảm ơn bạn đã quan tâm và ứng tuyển vào đội ngũ công nghệ của chúng tôi. Hội đồng tuyển dụng trân trọng kính mời bạn tham dự buổi phỏng vấn Vòng ${round} với thông tin chi tiết dưới đây:</p>\n      \n      <div class=\"info-card\">\n        <div class=\"info-item\">⏰ <strong>Thời gian:</strong> ${formattedTime}</div>\n        <div class=\"info-item\">🎯 <strong>Vòng phỏng vấn:</strong> Vòng ${round} (Chuyên môn Kỹ thuật)</div>\n        <div class=\"info-item\">👤 <strong>Người phỏng vấn:</strong> ${interviewerName} ${interviewerEmail ? '(' + interviewerEmail + ')' : ''}</div>\n        <div class=\"info-item\">💻 <strong>Hình thức:</strong> Trực tuyến qua Google Meet</div>\n      </div>\n\n      <div style=\"text-align: center;\">\n        <a href=\"${googleMeetUrl}\" class=\"btn\" target=\"_blank\">👉 Tham Gia Google Meet Ngay</a>\n      </div>\n\n      <div class=\"tips\">\n        💡 <strong>Lưu ý chuẩn bị:</strong>\n        <ul style=\"margin: 5px 0 0 0; padding-left: 20px;\">\n          <li>Vui lòng kiểm tra camera và microphone trước giờ phỏng vấn 10 phút.</li>\n          <li>Chuẩn bị sẵn không gian yên tĩnh và các tài liệu/dự án tiêu biểu đã thực hiện.</li>\n        </ul>\n      </div>\n\n      <p style=\"margin-top: 25px;\">Chúc bạn có một buổi phỏng vấn thành công tốt đẹp!</p>\n      <p>Trân trọng,<br><strong>Phòng Thu Hút Nhân Tài (Talent Acquisition Team)</strong></p>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Lịch phỏng vấn được tạo tự động bởi n8n & Google Calendar.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    candidateName: candidateName,\n    candidateEmail: candidateEmail,\n    interviewerName: interviewerName,\n    interviewerEmail: interviewerEmail,\n    round: round,\n    formattedTime: formattedTime,\n    googleMeetUrl: googleMeetUrl,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[Enterprise Corp] Thư mời phỏng vấn Vòng ${round} - Ứng viên ${candidateName}`,\n    emailHtml: htmlTemplate,\n    telegramAlert: `📅 <b>LỊCH PHỎNG VẤN MỚI</b>\\n• Ứng viên: <b>${candidateName}</b>\\n• Vòng: <b>Vòng ${round}</b>\\n• Người PV: <b>${interviewerName}</b>\\n• Thời gian: <code>${formattedTime}</code>\\n• Google Meet: <a href=\"${googleMeetUrl}\">${googleMeetUrl}</a>`\n  }\n};"
+      },
+      "id": "code-format-interview",
+      "name": "Tạo Link Meet & Template Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.fromEmail }}",
+        "toEmail": "={{ $json.candidateEmail }}",
+        "subject": "={{ $json.emailSubject }}",
+        "html": "={{ $json.emailHtml }}"
+      },
+      "id": "send-email-candidate",
+      "name": "Gửi Email Mời Ứng Viên",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        980,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegramChatId || $json.chatId || '@enterprise_hr_recruitment' }}",
+        "text": "={{ $json.telegramAlert }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-interview-alert",
+      "name": "Bắn Tin Nhắn Telegram HR",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        980,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 🚨 Burnout Early-Warning & Psychological Intervention Agent\n**Quy trình:**\n1. Nhận Webhook từ NestJS khi phát hiện nhân viên stress liên tục nhiều ngày hoặc đánh giá STRESSED.\n2. Phản hồi Webhook ngay lập tức (HTTP 200 OK) để giữ backend non-blocking.\n3. Tính toán cấp độ nghiêm trọng (CRITICAL / HIGH / MEDIUM) dựa trên số ngày stress và phản hồi.\n4. Bắn tin nhắn khẩn cấp qua kênh Telegram Bot nội bộ của HR Lead & Quản lý trực tiếp.\n5. Gửi Email thông báo điều phối lịch gặp 1-on-1 can thiệp kịp thời bảo vệ sức khỏe nhân sự.",
+        "height": 420,
+        "width": 380,
+        "color": 3
+      },
+      "id": "sticky-burnout-info",
+      "name": "Sticky Note - Burnout Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1110,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "burnout-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-burnout-alert",
+      "name": "Webhook: Cảnh báo kiệt sức",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1150,
+        560
+      ],
+      "webhookId": "burnout-alert"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"n8n đã kích hoạt quy trình can thiệp Burnout thành công\",\n  \"employeeAlerted\": \"{{ $json.body ? ($json.body.employeeName || ($json.body.data && $json.body.data.employeeName) || $json.employeeName) : $json.employeeName }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook-burnout",
+      "name": "Respond HTTP 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1390,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst rawBody = raw.body || raw;\nconst payload = rawBody.data || rawBody;\n\nconst employeeName = payload.employeeName || payload.fullName || 'Nhân sự';\nconst userId = payload.userId || 'N/A';\nconst department = payload.departmentName || payload.department || 'Phòng Ban';\nconst stressDays = payload.stressDays || 1;\nconst latestFeedback = payload.latestFeedback || '(Không có ghi chú thêm)';\nconst reviewPortalUrl = payload.reviewPortalUrl || 'http://localhost:5173/admin/burnout-alerts';\nconst fromEmail = payload.fromEmail || 'quocthangngo2006@gmail.com';\nconst hrEmail = payload.hrEmail || 'quocthangngo2006@gmail.com';\n\nlet severityBadge = '🟡 VỪA (MEDIUM)';\nlet severityColor = '#eab308';\nlet urgentLevel = 'Cảnh báo theo dõi';\n\nif (stressDays >= 3) {\n  severityBadge = '🔴 KHẨN CẤP (CRITICAL - NGUY CƠ NGHỈ VIỆC CAO)';\n  severityColor = '#ef4444';\n  urgentLevel = 'Yêu cầu Trưởng phòng can thiệp 1-on-1 trong 24 giờ!';\n} else if (stressDays >= 2) {\n  severityBadge = '🟠 CAO (HIGH - QUÁ TẢI SPRINT)';\n  severityColor = '#f97316';\n  urgentLevel = 'Khuyến nghị rà soát và san sẻ bớt task tồn đọng';\n}\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border-top: 5px solid ${severityColor}; }\n    .header { background: #ffffff; color: #0f172a; padding: 25px 30px; border-bottom: 1px solid #e2e8f0; }\n    .header h1 { margin: 0; font-size: 20px; color: #dc2626; display: flex; align-items: center; gap: 8px; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .badge { display: inline-block; background: ${severityColor}; color: #ffffff; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 15px; }\n    .alert-card { background: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px; padding: 18px; margin: 15px 0; }\n    .item { margin: 8px 0; font-size: 14px; }\n    .quote { background: #ffffff; border-left: 3px solid #dc2626; padding: 12px 16px; margin: 15px 0; font-style: italic; color: #475569; border-radius: 0 6px 6px 0; }\n    .actions { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin-top: 20px; }\n    .btn { display: inline-block; background: #dc2626; color: #ffffff !important; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; text-align: center; margin-top: 10px; }\n    .footer { text-align: center; font-size: 12px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🚨 CẢNH BÁO NGUY CƠ KIỆT SỨC (BURNOUT RISK)</h1>\n      <p style=\"margin: 4px 0 0 0; color: #64748b; font-size: 14px;\">Hệ thống Giám sát Hạnh phúc & Sức khỏe Tinh thần Đội ngũ</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"badge\">${severityBadge}</div>\n      <p>Kính gửi <strong>Trưởng Phòng Ban & Giám Đốc Nhân Sự</strong>,</p>\n      <p>Hệ thống AI vừa phát hiện dấu hiệu quá tải tinh thần nghiêm trọng từ nhân sự trực thuộc quản lý của bạn:</p>\n      \n      <div class=\"alert-card\">\n        <div class=\"item\">👤 <strong>Nhân viên:</strong> ${employeeName} (Mã nhân sự: #${userId})</div>\n        <div class=\"item\">🏢 <strong>Phòng ban:</strong> ${department}</div>\n        <div class=\"item\">⏱️ <strong>Số ngày stress liên tiếp:</strong> <span style=\"color: #dc2626; font-weight: 700;\">${stressDays} ngày</span></div>\n        <div class=\"item\">⚡ <strong>Mức độ khẩn cấp:</strong> ${urgentLevel}</div>\n      </div>\n\n      <p><strong>Lời nhắn phản hồi check-in từ nhân viên:</strong></p>\n      <div class=\"quote\">\"${latestFeedback}\"</div>\n\n      <div class=\"actions\">\n        <div style=\"font-weight: 700; color: #0f172a; margin-bottom: 8px;\">🎯 HÀNH ĐỘNG KHUYẾN NGHỊ NGAY HÔM NAY:</div>\n        <ul style=\"margin: 0; padding-left: 20px; font-size: 14px;\">\n          <li>Đặt lịch hẹn trao đổi 1-on-1 trong 24 giờ để lắng nghe tâm tư thực tế.</li>\n          <li>Rà soát lại danh sách task trong Sprint, hỗ trợ giảm tải hoặc san sẻ công việc.</li>\n          <li>Xem xét đề xuất cho nhân viên nghỉ bù hoặc sử dụng 1 ngày Mental Health Day.</li>\n        </ul>\n        <div style=\"text-align: center;\">\n          <a href=\"${reviewPortalUrl}\" class=\"btn\" target=\"_blank\">🔍 Mở Bảng Điều Khiển Can Thiệp 1-on-1</a>\n        </div>\n      </div>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Cảnh báo tự động phát ra từ n8n Automation Engine.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nconst telegramAlert = `🚨 <b>CẢNH BÁO NGUY CƠ KIỆT SỨC (BURNOUT ALERT)</b>\\n\\n` +\n  `• <b>Nhân sự:</b> ${employeeName} (ID: #${userId})\\n` +\n  `• <b>Phòng ban:</b> ${department}\\n` +\n  `• <b>Mức độ:</b> <b>${severityBadge}</b>\\n` +\n  `• <b>Số ngày stress liên tục:</b> <code>${stressDays} ngày</code>\\n` +\n  `• <b>Lời nhắn:</b> <i>\"${latestFeedback}\"</i>\\n\\n` +\n  `⚡ <b>Yêu cầu hành động:</b> ${urgentLevel}\\n` +\n  `👉 <a href=\"${reviewPortalUrl}\">Mở trang can thiệp 1-on-1 trên HR Portal</a>`;\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    hrEmail: hrEmail,\n    employeeName: employeeName,\n    userId: userId,\n    department: department,\n    stressDays: stressDays,\n    severityBadge: severityBadge,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[KHẨN CẤP] Cảnh báo nguy cơ kiệt sức đối với ${employeeName} (${department})`,\n    emailHtml: htmlTemplate,\n    telegramAlert: telegramAlert\n  }\n};"
+      },
+      "id": "code-format-burnout",
+      "name": "Đánh Giá Cấp Độ & Soạn Thảo Cảnh Báo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1390,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.fromEmail }}",
+        "toEmail": "={{ $json.hrEmail }}",
+        "subject": "={{ $json.emailSubject }}",
+        "html": "={{ $json.emailHtml }}"
+      },
+      "id": "send-email-burnout",
+      "name": "Gửi Email Khẩn Cấp Tới HR Lead",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1690,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegramChatId || $json.chatId || '@enterprise_hr_alerts' }}",
+        "text": "={{ $json.telegramAlert }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-burnout-push",
+      "name": "Bắn Telegram Bot Khẩn Cấp",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1690,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 🎉 1-Click Hired & Onboarding Package Automation\n**Quy trình:**\n1. Nhận Webhook từ NestJS khi HR bấm nút [1-Click Tuyển dụng].\n2. Phản hồi Webhook ngay lập tức (HTTP 200 OK) xác nhận tiếp nhận.\n3. Tạo Thư Chúc Mừng & Chào Đón Thành Viên Mới (Offer / Welcome Kit Package).\n4. Tự động gửi Email HTML cho nhân sự mới kèm hướng dẫn kích hoạt tài khoản.\n5. Bắn thông báo khẩn cấp tới kênh IT & HR nội bộ để chuẩn bị Laptop và thẻ nhân viên.",
+        "height": 420,
+        "width": 380,
+        "color": 4
+      },
+      "id": "sticky-hired-info",
+      "name": "Sticky Note - Hired",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2060,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "employee-hired",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-employee-hired",
+      "name": "Webhook: 1-Click Hired",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        560
+      ],
+      "webhookId": "employee-hired"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"n8n đã kích hoạt quy trình chào đón nhân sự mới\",\n  \"hiredUser\": \"{{ $json.body ? ($json.body.fullName || ($json.body.data && $json.body.data.fullName) || $json.fullName) : $json.fullName }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook-hired",
+      "name": "Respond HTTP 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2340,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst rawBody = raw.body || raw;\nconst payload = rawBody.data || rawBody;\n\n// Hỗ trợ cả 2 chuẩn tên thuộc tính (fullName hoặc candidateName, departmentName hoặc department)\nconst fullName = payload.fullName || payload.candidateName || 'Thành Viên Mới';\nconst jobTitle = payload.jobTitle || 'Chuyên viên Kỹ thuật';\nconst department = payload.departmentName || payload.department || 'Phòng Phát Triển Công Nghệ Số';\nconst email = payload.email || payload.candidateEmail || 'quocthangngo2006@gmail.com';\nconst tempPassword = payload.tempPassword || 'Enterprise@2026#';\nconst portalUrl = payload.portalUrl || 'http://localhost:5173/login';\nconst fromEmail = payload.fromEmail || 'quocthangngo2006@gmail.com';\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }\n    .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 35px 20px; text-align: center; }\n    .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; }\n    .card-title { font-weight: 700; color: #0f172a; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #10b981; padding-bottom: 6px; display: inline-block; }\n    .cred-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 18px; margin: 20px 0; }\n    .cred-title { font-weight: 700; color: #1e40af; margin-bottom: 10px; font-size: 15px; }\n    .item { margin: 8px 0; font-size: 15px; }\n    .code-tag { background: #dbeafe; color: #1e3a8a; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 15px; font-weight: bold; }\n    .btn { display: inline-block; background: #059669; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0; }\n    .kit-box { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 15px; margin-top: 15px; color: #065f46; font-size: 14px; }\n    .footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>CHÀO MỪNG GIA NHẬP ĐỘI NGŨ</h1>\n      <p style=\"margin: 6px 0 0 0; opacity: 0.95;\">Enterprise Multi-Agent Ecosystem</p>\n    </div>\n    <div class=\"content\">\n      <p>Thân gửi <strong>${fullName}</strong>,</p>\n      <p>Ban Giám đốc cùng toàn thể đại gia đình công ty xin gửi lời chúc mừng nồng nhiệt nhất tới bạn! Chúng tôi rất vui mừng và tự hào khi bạn chính thức trở thành một thành viên quan trọng trong đội ngũ.</p>\n      \n      <div class=\"card\">\n        <div class=\"card-title\">THÔNG TIN VỊ TRÍ CÔNG TÁC</div>\n        <div class=\"item\">📌 <strong>Chức danh:</strong> ${jobTitle}</div>\n        <div class=\"item\">🏢 <strong>Phòng ban:</strong> ${department}</div>\n        <div class=\"item\">🛡️ <strong>Chế độ đãi ngộ:</strong> 100% Bảo hiểm BHXH + Thẻ sức khỏe PVI + Ngân sách học tập L&D</div>\n      </div>\n\n      <div class=\"cred-box\">\n        <div class=\"cred-title\">🔐 THÔNG TIN TÀI KHOẢN NỘI BỘ (HR PORTAL)</div>\n        <div class=\"item\">👤 <strong>Tên đăng nhập (Email):</strong> <code>${email}</code></div>\n        <div class=\"item\">🔑 <strong>Mật khẩu tạm thời:</strong> <span class=\"code-tag\">${tempPassword}</span></div>\n        <div class=\"item\">🌐 <strong>Cổng thông tin:</strong> <a href=\"${portalUrl}\">${portalUrl}</a></div>\n        <p style=\"font-size: 13px; color: #64748b; margin: 10px 0 0 0;\"><i>* Lưu ý an toàn: Vui lòng đổi mật khẩu mới ngay trong lần đầu tiên đăng nhập hệ thống.</i></p>\n      </div>\n\n      <div class=\"kit-box\">\n        🎁 <strong>Gói Chào Mừng (Welcome Kit) chuẩn bị cho bạn vào Ngày 1:</strong>\n        <ul style=\"margin: 6px 0 0 0; padding-left: 20px;\">\n          <li>Laptop chuyên dụng & Màn hình phụ làm việc.</li>\n          <li>Thẻ nhân viên, Balo công nghệ và Sổ tay văn hóa doanh nghiệp 2026.</li>\n          <li>Checklist thử việc 30 ngày và Trợ lý AI Copilot hỗ trợ 24/7.</li>\n        </ul>\n      </div>\n\n      <div style=\"text-align: center; margin: 25px 0;\">\n        <a href=\"${portalUrl}\" class=\"btn\" target=\"_blank\">🚀 Kích Hoạt & Đăng Nhập HR Portal</a>\n      </div>\n\n      <p>Chúc bạn sẽ có một hành trình làm việc tràn đầy cảm hứng, phát triển vượt bậc và gặt hái nhiều thành công rực rỡ cùng chúng tôi!</p>\n      <p>Trân trọng,<br><strong>Phòng Nhân Sự & Văn Hóa Doanh Nghiệp</strong></p>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Email này được tạo tự động bởi n8n Workflow Engine.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    userId: payload.userId,\n    fullName: fullName,\n    jobTitle: jobTitle,\n    department: department,\n    email: email,\n    tempPassword: tempPassword,\n    portalUrl: portalUrl,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[Welcome to Enterprise] Chúc mừng ${fullName} chính thức gia nhập vị trí ${jobTitle}! 🎉`,\n    emailHtml: htmlTemplate,\n    telegramAlert: `🎉 <b>NHÂN SỰ MỚI GIA NHẬP CÔNG TY</b>\\n• Họ tên: <b>${fullName}</b> (ID #${payload.userId || 'NEW'})\\n• Vị trí: <b>${jobTitle}</b>\\n• Phòng ban: <b>${department}</b>\\n• Email: <code>${email}</code>\\n\\n⚡ <i>IT Helpdesk & HR Operations vui lòng chuẩn bị Welcome Kit, Laptop và kích hoạt tài khoản nội bộ trước ngày Onboarding!</i>`\n  }\n};"
+      },
+      "id": "code-format-hired",
+      "name": "Soạn Thảo Welcome Package & HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.fromEmail }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.emailSubject }}",
+        "html": "={{ $json.emailHtml }}"
+      },
+      "id": "send-email-hired",
+      "name": "Gửi Welcome Package Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2640,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegramChatId || $json.chatId || '@enterprise_it_ops' }}",
+        "text": "={{ $json.telegramAlert }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-hired-ops-alert",
+      "name": "Bắn Telegram IT & HR Ops",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2640,
+        780
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Xếp lịch phỏng vấn": {
+      "main": [
+        [
+          {
+            "node": "Respond HTTP 200",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tự Động Tạo Lịch & Sinh Google Meet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tự Động Tạo Lịch & Sinh Google Meet": {
+      "main": [
+        [
+          {
+            "node": "Tạo Link Meet & Template Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tạo Link Meet & Template Email": {
+      "main": [
+        [
+          {
+            "node": "Gửi Email Mời Ứng Viên",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bắn Tin Nhắn Telegram HR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Cảnh báo kiệt sức": {
+      "main": [
+        [
+          {
+            "node": "Respond HTTP 200",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Đánh Giá Cấp Độ & Soạn Thảo Cảnh Báo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Đánh Giá Cấp Độ & Soạn Thảo Cảnh Báo": {
+      "main": [
+        [
+          {
+            "node": "Gửi Email Khẩn Cấp Tới HR Lead",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bắn Telegram Bot Khẩn Cấp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: 1-Click Hired": {
+      "main": [
+        [
+          {
+            "node": "Respond HTTP 200",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Soạn Thảo Welcome Package & HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Soạn Thảo Welcome Package & HTML": {
+      "main": [
+        [
+          {
+            "node": "Gửi Welcome Package Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bắn Telegram IT & HR Ops",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { User } from './user.entity';
+import { DocumentChunk } from './document-chunk.entity';
 
 export enum DocumentStatus {
   PROCESSING = 'PROCESSING',
@@ -33,4 +34,7 @@ export class Document {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @OneToMany(() => DocumentChunk, (chunk) => chunk.document)
+  chunks: DocumentChunk[];
 }

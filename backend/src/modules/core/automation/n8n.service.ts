@@ -9,11 +9,20 @@ import { ConfigService } from '@nestjs/config';
 export class N8nService {
   private readonly logger = new Logger(N8nService.name);
   private webhookBaseUrl: string;
+  private defaultSenderEmail: string;
+  private defaultHrEmail: string;
 
   constructor(private readonly configService: ConfigService) {
     this.webhookBaseUrl =
       this.configService.get<string>('N8N_WEBHOOK_URL') ||
       'http://localhost:5678/webhook';
+    this.defaultSenderEmail =
+      this.configService.get<string>('MAIL_FROM') ||
+      this.configService.get<string>('GMAIL_USER') ||
+      'quocthangngo2006@gmail.com';
+    this.defaultHrEmail =
+      this.configService.get<string>('HR_EMAIL') ||
+      'quocthangngo2006@gmail.com';
   }
 
   /**
@@ -28,9 +37,15 @@ export class N8nService {
     interviewerEmail: string;
     scheduledAt: string;
     round: number;
+    fromEmail?: string;
+    telegramChatId?: string;
   }): Promise<boolean> {
     const url = `${this.webhookBaseUrl}/interview-schedule`;
-    return this.postWebhook(url, payload, 'Xếp lịch phỏng vấn');
+    const fullPayload = {
+      fromEmail: payload.fromEmail || this.defaultSenderEmail,
+      ...payload,
+    };
+    return this.postWebhook(url, fullPayload, 'Xếp lịch phỏng vấn');
   }
 
   /**
@@ -42,13 +57,20 @@ export class N8nService {
     email: string;
     jobTitle: string;
     departmentName: string;
+    tempPassword?: string;
+    fromEmail?: string;
+    telegramChatId?: string;
   }): Promise<boolean> {
     const url = `${this.webhookBaseUrl}/employee-hired`;
-    return this.postWebhook(url, payload, 'Tuyển dụng nhân sự mới');
+    const fullPayload = {
+      fromEmail: payload.fromEmail || this.defaultSenderEmail,
+      ...payload,
+    };
+    return this.postWebhook(url, fullPayload, 'Tuyển dụng nhân sự mới');
   }
 
   /**
-   * Bắn Webhook cảnh báo kiệt sức (Telegram / Slack)
+   * Bắn Webhook cảnh báo kiệt sức (Telegram / Slack / Email HR)
    */
   async triggerBurnoutAlert(payload: {
     userId: number;
@@ -56,9 +78,17 @@ export class N8nService {
     departmentName: string;
     stressDays: number;
     latestFeedback?: string;
+    hrEmail?: string;
+    fromEmail?: string;
+    telegramChatId?: string;
   }): Promise<boolean> {
     const url = `${this.webhookBaseUrl}/burnout-alert`;
-    return this.postWebhook(url, payload, 'Cảnh báo nguy cơ kiệt sức');
+    const fullPayload = {
+      fromEmail: payload.fromEmail || this.defaultSenderEmail,
+      hrEmail: payload.hrEmail || this.defaultHrEmail,
+      ...payload,
+    };
+    return this.postWebhook(url, fullPayload, 'Cảnh báo nguy cơ kiệt sức');
   }
 
   private async postWebhook(url: string, data: any, actionName: string): Promise<boolean> {
@@ -68,9 +98,11 @@ export class N8nService {
       fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(10000),
         body: JSON.stringify({
           event: actionName,
           timestamp: new Date().toISOString(),
+          ...data,
           data,
         }),
       }).catch((err) => {

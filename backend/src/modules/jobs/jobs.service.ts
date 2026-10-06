@@ -42,15 +42,8 @@ export class JobsService {
     return this.jobRepository.save(job);
   }
 
-  // TODO: Thành viên 2 sẽ sử dụng this.geminiService để sinh JD tự động theo prompt
+  // Gọi dịch vụ AI của Trưởng nhóm để sinh JD chuẩn JSON
   async generateJDWithAI(title: string, departmentName: string, level: string) {
-    // Ví dụ mẫu: const aiResult = await this.geminiService.generateJson(...)
-    return {
-      title,
-      departmentName,
-      level,
-      aiAvailable: this.geminiService.isAvailable(),
-      message: 'Khung sườn đã sẵn sàng. Thành viên 2 sẽ gọi this.geminiService để sinh JD tại đây.',
-    };
+    return this.geminiService.generateJobDescription(title, departmentName, level);
   }
 }

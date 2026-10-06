@@ -5,6 +5,7 @@ export * from './application.entity';
 export * from './interview.entity';
 export * from './onboarding-task.entity';
 export * from './document.entity';
+export * from './document-chunk.entity';
 export * from './training-course.entity';
 export * from './employee-training.entity';
 export * from './performance-review.entity';

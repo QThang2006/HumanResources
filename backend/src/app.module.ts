@@ -10,6 +10,7 @@ import {
   Interview,
   OnboardingTask,
   Document,
+  DocumentChunk,
   TrainingCourse,
   EmployeeTraining,
   PerformanceReview,
@@ -34,7 +35,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     // 2. Event Emitter xử lý bất đồng bộ
     EventEmitterModule.forRoot(),
 
-    // 3. Kết nối MySQL với 11 Entity chuẩn
+    // 3. Kết nối MySQL với 12 Entity chuẩn (bao gồm DocumentChunk cho Vector DB & RAG)
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -53,12 +54,13 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
           Interview,
           OnboardingTask,
           Document,
+          DocumentChunk,
           TrainingCourse,
           EmployeeTraining,
           PerformanceReview,
           EmployeeMood,
         ],
-        synchronize: true, // Tự động đồng bộ cấu trúc 11 bảng khi khởi động (Môi trường Dev)
+        synchronize: true, // Tự động đồng bộ cấu trúc các bảng khi khởi động (Môi trường Dev)
         logging: ['error', 'warn'],
         charset: 'utf8mb4_unicode_ci',
       }),

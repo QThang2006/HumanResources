@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SystemConfigModule } from './modules/system-config/system-config.module';
+import { TrainingModule } from './modules/training/training.module';
 import {
   Department,
   User,
@@ -80,6 +81,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
     OnboardingModule,
     SystemConfigModule,
     DocumentsModule,
+    TrainingModule,
   ],
 })
 export class AppModule {}

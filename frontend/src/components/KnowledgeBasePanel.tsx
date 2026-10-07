@@ -1,393 +1,450 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    AlertCircle,
-    CheckCircle2,
-    FileText,
-    Loader2,
-    RefreshCw,
-    Search,
-    UploadCloud,
+  AlertCircle,
+  CheckCircle2,
+  FileSearch,
+  FileText,
+  Layers3,
+  Library,
+  Loader2,
+  RefreshCw,
+  Search,
+  UploadCloud,
 } from 'lucide-react';
 
 import {
-    documentsApi,
-    type KnowledgeDocument,
-    type RagSearchResult,
+  documentsApi,
+  type KnowledgeDocument,
+  type RagSearchResult,
 } from '../api/documents.api';
 
+const formatFileSize = (bytes: number) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1 ? `${mb.toFixed(2)} MB` : `${Math.ceil(bytes / 1024)} KB`;
+};
+
+const statusClass = (status: string) => {
+  if (status === 'READY') {
+    return 'bg-[#EFF7F1] text-[#2F6B4F] border-[#D4E7DA]';
+  }
+  if (status === 'FAILED') {
+    return 'bg-[#FBF1F2] text-[#9D4150] border-[#EDC7CC]';
+  }
+  return 'bg-[#FFF7E8] text-[#9A6A2F] border-[#F0DFC1]';
+};
+
 export const KnowledgeBasePanel: React.FC = () => {
-    const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [uploading, setUploading] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-    const [query, setQuery] = useState('');
-    const [searching, setSearching] = useState(false);
-    const [searchResults, setSearchResults] = useState<RagSearchResult[]>([]);
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<RagSearchResult[]>([]);
 
-    const [message, setMessage] = useState<{
-        type: 'success' | 'error';
-        text: string;
-    } | null>(null);
+  const [message, setMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
-    const loadDocuments = useCallback(async () => {
-        try {
-            setLoading(true);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-            const data = await documentsApi.getAll();
-            setDocuments(data);
-        } catch (error) {
-            console.error(error);
+  const loadDocuments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await documentsApi.getAll();
+      setDocuments(data);
+    } catch (error) {
+      console.error(error);
+      setMessage({
+        type: 'error',
+        text: 'Không thể tải danh sách tài liệu Knowledge Base.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-            setMessage({
-                type: 'error',
-                text: 'Không thể tải danh sách tài liệu Knowledge Base.',
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
-    useEffect(() => {
-        loadDocuments();
-    }, [loadDocuments]);
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setMessage({ type: 'error', text: 'Vui lòng chọn file PDF.' });
+      return;
+    }
 
-    const handleUpload = async () => {
-        if (!selectedFile) {
-            setMessage({
-                type: 'error',
-                text: 'Vui lòng chọn file PDF.',
-            });
-            return;
-        }
+    if (selectedFile.type !== 'application/pdf') {
+      setMessage({ type: 'error', text: 'Chỉ chấp nhận file PDF.' });
+      return;
+    }
 
-        if (selectedFile.type !== 'application/pdf') {
-            setMessage({
-                type: 'error',
-                text: 'Chỉ chấp nhận file PDF.',
-            });
-            return;
-        }
+    try {
+      setUploading(true);
+      setMessage(null);
 
-        try {
-            setUploading(true);
-            setMessage(null);
+      const result = await documentsApi.uploadPdf(selectedFile);
+      setMessage({
+        type: 'success',
+        text: `${result.message} (${result.chunkCount} chunks)`,
+      });
 
-            const result = await documentsApi.uploadPdf(selectedFile);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      await loadDocuments();
+    } catch (error) {
+      console.error(error);
+      setMessage({
+        type: 'error',
+        text: 'Upload hoặc xử lý PDF thất bại.',
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
 
-            setMessage({
-                type: 'success',
-                text: `${result.message} (${result.chunkCount} chunks)`,
-            });
+  const handleSearch = async () => {
+    const trimmedQuery = query.trim();
 
-            setSelectedFile(null);
-            await loadDocuments();
-        } catch (error) {
-            console.error(error);
+    if (!trimmedQuery) {
+      setMessage({
+        type: 'error',
+        text: 'Vui lòng nhập câu hỏi để kiểm thử RAG.',
+      });
+      return;
+    }
 
-            setMessage({
-                type: 'error',
-                text: 'Upload hoặc xử lý PDF thất bại.',
-            });
-        } finally {
-            setUploading(false);
-        }
+    try {
+      setSearching(true);
+      setMessage(null);
+      const results = await documentsApi.search(trimmedQuery, 3);
+      setSearchResults(results);
+    } catch (error) {
+      console.error(error);
+      setMessage({
+        type: 'error',
+        text: 'Không thể thực hiện tìm kiếm RAG.',
+      });
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const stats = useMemo(() => {
+    const ready = documents.filter(document => document.status === 'READY').length;
+    const chunks = documents.reduce(
+      (total, document) => total + (Number(document.chunkCount) || 0),
+      0,
+    );
+
+    return {
+      total: documents.length,
+      ready,
+      chunks,
     };
+  }, [documents]);
 
-    const handleSearch = async () => {
-        const trimmedQuery = query.trim();
+  return (
+    <div className="space-y-5">
+      {message && (
+        <div
+          className={`flex items-start gap-3 rounded-2xl border bg-white px-4 py-3 text-sm font-semibold shadow-sm ${
+            message.type === 'success'
+              ? 'border-[#CDE3D6] text-[#2F6B4F]'
+              : 'border-[#EDC7CC] text-[#9D4150]'
+          }`}
+        >
+          {message.type === 'success' ? (
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+          ) : (
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          )}
+          <span>{message.text}</span>
+        </div>
+      )}
 
-        if (!trimmedQuery) {
-            setMessage({
-                type: 'error',
-                text: 'Vui lòng nhập câu hỏi để kiểm thử RAG.',
-            });
-            return;
-        }
+      <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+        <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
+                Knowledge base
+              </h2>
+            </div>
 
-        try {
-            setSearching(true);
-            setMessage(null);
+            <div className="flex flex-wrap gap-2">
+              <MetricPill label="Tài liệu" value={stats.total} />
+              <MetricPill label="Ready" value={stats.ready} />
+              <MetricPill label="Chunks" value={stats.chunks} />
+            </div>
+          </div>
+        </div>
 
-            const results = await documentsApi.search(
-                trimmedQuery,
-                3,
-            );
+        <div className="grid xl:grid-cols-[350px_minmax(0,1fr)]">
+          <aside className="border-b border-[#E8EAEC] bg-[#FFFFFF] p-5 sm:p-7 xl:border-b-0 xl:border-r">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F6E9ED] text-[#6F3042]">
+                <UploadCloud className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-[#202326]">Thêm tài liệu</h3>
+                <p className="mt-0.5 text-xs text-[#7F868B]">PDF document</p>
+              </div>
+            </div>
 
-            setSearchResults(results);
-        } catch (error) {
-            console.error(error);
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-5 flex min-h-44 w-full flex-col items-center justify-center rounded-[18px] border border-dashed border-[#D3D8DA] bg-[#FFFFFF] px-5 py-6 text-center transition hover:border-[#8B5361] hover:bg-white"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EFF1F2] text-[#8B7460]">
+                <UploadCloud className="h-5 w-5" />
+              </div>
+              <p className="mt-4 text-sm font-black text-[#303438]">Chọn file PDF</p>
+              <p className="mt-1 text-xs text-[#90979C]">Nhấn để duyệt tài liệu</p>
+            </button>
 
-            setMessage({
-                type: 'error',
-                text: 'Không thể thực hiện tìm kiếm RAG.',
-            });
-        } finally {
-            setSearching(false);
-        }
-    };
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={event =>
+                setSelectedFile(event.target.files?.[0] ?? null)
+              }
+              className="hidden"
+            />
 
-    return (
-        <div className="space-y-6">
-            {message && (
-                <div
-                    className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm ${
-                        message.type === 'success'
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                            : 'border-rose-200 bg-rose-50 text-rose-700'
-                    }`}
-                >
-                    {message.type === 'success' ? (
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                    ) : (
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    )}
-
-                    <span>{message.text}</span>
+            {selectedFile && (
+              <div className="mt-3 rounded-2xl border border-[#E1E4E5] bg-white p-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F6E9ED] text-[#6F3042]">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-black text-[#303438]">
+                      {selectedFile.name}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-[#82898E]">
+                      {formatFileSize(selectedFile.size)}
+                    </p>
+                  </div>
                 </div>
+              </div>
             )}
 
-            {/* Upload PDF */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <div className="mb-5">
-                    <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                        <UploadCloud className="h-4 w-4 text-indigo-600" />
-                        Knowledge Base PDF
-                    </h2>
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={!selectedFile || uploading}
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#6F3042] px-4 text-sm font-black text-white shadow-[0_8px_20px_rgba(111,48,66,0.16)] transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UploadCloud className="h-4 w-4" />
+              )}
+              {uploading ? 'Đang xử lý...' : 'Tải lên'}
+            </button>
+          </aside>
 
-                    <p className="mt-1 text-xs text-slate-500">
-                        Nạp tài liệu PDF, tự động chia chunks và tạo vector embedding cho RAG.
-                    </p>
-                </div>
-
-                <div className="rounded-xl border-2 border-dashed border-slate-200 p-5">
-                    <input
-                        type="file"
-                        accept="application/pdf,.pdf"
-                        onChange={(event) =>
-                            setSelectedFile(event.target.files?.[0] ?? null)
-                        }
-                        className="block w-full text-sm text-slate-600
-              file:mr-4 file:rounded-lg file:border-0
-              file:bg-indigo-50 file:px-4 file:py-2
-              file:text-xs file:font-bold file:text-indigo-700
-              hover:file:bg-indigo-100"
-                    />
-
-                    {selectedFile && (
-                        <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
-                            <FileText className="h-4 w-4 text-indigo-500" />
-                            <span className="font-medium">
-                {selectedFile.name}
-              </span>
-                        </div>
-                    )}
-
-                    <button
-                        type="button"
-                        onClick={handleUpload}
-                        disabled={!selectedFile || uploading}
-                        className="mt-4 inline-flex items-center gap-2 rounded-xl
-              bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white
-              transition-colors hover:bg-indigo-700
-              disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        {uploading ? (
-                            <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Đang xử lý PDF...
-                            </>
-                        ) : (
-                            <>
-                                <UploadCloud className="h-4 w-4" />
-                                Tải lên Knowledge Base
-                            </>
-                        )}
-                    </button>
-                </div>
+          <div className="min-w-0">
+            <div className="flex items-center justify-between border-b border-[#E8EAEC] px-5 py-4 sm:px-7">
+              <div className="flex items-center gap-2">
+                <Library className="h-4 w-4 text-[#8B7460]" />
+                <h3 className="text-sm font-black text-[#202326]">Tài liệu đã nạp</h3>
+              </div>
+              <button
+                type="button"
+                onClick={loadDocuments}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-bold text-[#72797E] transition hover:bg-[#F1F3F3] disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                Làm mới
+              </button>
             </div>
 
-            {/* Danh sách tài liệu */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <div className="mb-4 flex items-start justify-between">
-                    <div>
-                        <h2 className="text-base font-bold text-slate-900">
-                            Tài liệu đã nạp
-                        </h2>
-
-                        <p className="mt-1 text-xs text-slate-500">
-                            Theo dõi trạng thái xử lý và số lượng chunks.
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={loadDocuments}
-                        disabled={loading}
-                        className="flex items-center gap-1.5 text-xs font-semibold
-              text-slate-500 hover:text-indigo-600 disabled:opacity-50"
-                    >
-                        <RefreshCw
-                            className={`h-3.5 w-3.5 ${
-                                loading ? 'animate-spin' : ''
-                            }`}
-                        />
-                        Làm mới
-                    </button>
+            {loading ? (
+              <div className="flex min-h-80 items-center justify-center gap-3 text-[#82898E]">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm font-semibold">Đang tải tài liệu...</span>
+              </div>
+            ) : documents.length === 0 ? (
+              <div className="flex min-h-80 flex-col items-center justify-center px-6 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EFF1F2] text-[#8A8179]">
+                  <FileText className="h-5 w-5" />
                 </div>
-
-                {loading ? (
-                    <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        Đang tải tài liệu...
-                    </div>
-                ) : documents.length === 0 ? (
-                    <div className="py-10 text-center text-sm text-slate-400">
-                        Chưa có tài liệu nào trong Knowledge Base.
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                            <tr className="border-b border-slate-100 text-left">
-                                <th className="px-3 py-2.5 text-xs text-slate-400">
-                                    Tài liệu
-                                </th>
-
-                                <th className="px-3 py-2.5 text-xs text-slate-400">
-                                    Trạng thái
-                                </th>
-
-                                <th className="px-3 py-2.5 text-xs text-slate-400">
-                                    Chunks
-                                </th>
-
-                                <th className="px-3 py-2.5 text-xs text-slate-400">
-                                    Người tải
-                                </th>
-                            </tr>
-                            </thead>
-
-                            <tbody className="divide-y divide-slate-50">
-                            {documents.map((document) => (
-                                <tr key={document.id}>
-                                    <td className="px-3 py-3">
-                                        <div className="flex items-center gap-2">
-                                            <FileText className="h-4 w-4 text-indigo-500" />
-
-                                            <span className="font-semibold text-slate-700">
+                <p className="mt-3 text-sm font-black text-[#303438]">Chưa có tài liệu</p>
+                <p className="mt-1 text-xs text-[#7F868B]">Tải PDF đầu tiên để bắt đầu.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[#E9ECEC]">
+                {documents.map(document => (
+                  <article
+                    key={document.id}
+                    className="group flex flex-col gap-4 px-5 py-5 transition hover:bg-[#FFFFFF] sm:flex-row sm:items-center sm:justify-between sm:px-7"
+                  >
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EFF1F2] text-[#8B7460] transition group-hover:bg-[#F6E9ED] group-hover:text-[#6F3042]">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-[#303438]">
                           {document.title}
-                        </span>
-                                        </div>
-                                    </td>
+                        </p>
+                        <p className="mt-1 text-xs text-[#82898E]">
+                          {document.uploader?.name ?? '—'}
+                        </p>
+                      </div>
+                    </div>
 
-                                    <td className="px-3 py-3">
+                    <div className="flex items-center gap-3 pl-14 sm:pl-0">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-[#F1F3F3] px-2.5 py-1 text-[11px] font-bold text-[#72797E]">
+                        <Layers3 className="h-3.5 w-3.5" />
+                        {document.chunkCount} chunks
+                      </div>
                       <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                              document.status === 'READY'
-                                  ? 'bg-emerald-50 text-emerald-700'
-                                  : document.status === 'FAILED'
-                                      ? 'bg-rose-50 text-rose-700'
-                                      : 'bg-amber-50 text-amber-700'
-                          }`}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${statusClass(
+                          document.status,
+                        )}`}
                       >
+                        <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
                         {document.status}
                       </span>
-                                    </td>
-
-                                    <td className="px-3 py-3 text-xs text-slate-600">
-                                        {document.chunkCount}
-                                    </td>
-
-                                    <td className="px-3 py-3 text-xs text-slate-600">
-                                        {document.uploader?.name ?? '—'}
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
                     </div>
-                )}
-            </div>
-
-            {/* RAG Testing */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                    <Search className="h-4 w-4 text-indigo-600" />
-                    RAG Testing Sandbox
-                </h2>
-
-                <p className="mt-1 text-xs text-slate-500">
-                    Nhập câu hỏi để kiểm tra Cosine Similarity với các chunks trong Knowledge Base.
-                </p>
-
-                <div className="mt-5 flex gap-3">
-                    <input
-                        type="text"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                                handleSearch();
-                            }
-                        }}
-                        placeholder="Ví dụ: Thuật toán Bresenham hoạt động như thế nào?"
-                        className="flex-1 rounded-xl border border-slate-300 px-4 py-3
-              text-sm outline-none focus:border-indigo-500"
-                    />
-
-                    <button
-                        type="button"
-                        onClick={handleSearch}
-                        disabled={searching}
-                        className="inline-flex items-center gap-2 rounded-xl
-              bg-slate-900 px-5 py-3 text-xs font-bold text-white
-              hover:bg-slate-800 disabled:opacity-50"
-                    >
-                        {searching ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <Search className="h-4 w-4" />
-                        )}
-
-                        Kiểm thử
-                    </button>
-                </div>
-
-                {searchResults.length > 0 && (
-                    <div className="mt-5 space-y-3">
-                        {searchResults.map((result, index) => (
-                            <div
-                                key={result.chunkId}
-                                className="rounded-xl border border-slate-200 p-4"
-                            >
-                                <div className="mb-2 flex items-center justify-between gap-3">
-                                    <div className="text-xs font-bold text-slate-700">
-                                        #{index + 1} • {result.documentTitle}
-                                    </div>
-
-                                    <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700">
-                    Similarity:{' '}
-                                        {(result.similarity * 100).toFixed(2)}%
-                  </span>
-                                </div>
-
-                                <p className="whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                                    {result.content}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {!searching &&
-                    query.trim() &&
-                    searchResults.length === 0 && (
-                        <p className="mt-4 text-xs text-slate-400">
-                            Chưa có kết quả RAG phù hợp.
-                        </p>
-                    )}
-            </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-    );
+      </section>
+
+      <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+        <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EFF1F1] text-[#A26D3F]">
+              <FileSearch className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-[#202326]">RAG sandbox</h3>
+              <p className="mt-0.5 text-xs text-[#7F868B]">Thử một câu hỏi trên dữ liệu đã lập chỉ mục.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 sm:p-7">
+          <div className="flex flex-col gap-2 md:flex-row">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+              <input
+                type="text"
+                value={query}
+                onChange={event => {
+                  setQuery(event.target.value);
+                  if (!event.target.value.trim()) {
+                    setSearchResults([]);
+                  }
+                }}
+                onKeyDown={event => {
+                  if (event.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
+                placeholder="Ví dụ: Chính sách nghỉ phép của công ty như thế nào?"
+                className="h-12 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] pl-11 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={searching}
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#202326] px-5 text-sm font-black text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {searching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
+              {searching ? 'Đang tìm...' : 'Kiểm thử'}
+            </button>
+          </div>
+
+          {searchResults.length > 0 && (
+            <div className="mt-6 grid gap-3">
+              {searchResults.map((result, index) => {
+                const similarityPercent = Math.max(
+                  0,
+                  Math.min(100, result.similarity * 100),
+                );
+
+                return (
+                  <article
+                    key={result.chunkId}
+                    className="rounded-[18px] border border-[#E3E5E6] bg-[#FFFFFF] p-4 sm:p-5"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6F3042] text-xs font-black text-white">
+                          {index + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-[#303438]">
+                            {result.documentTitle}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-[#90979C]">
+                            Chunk #{result.chunkId}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="w-fit rounded-full bg-[#F6E9ED] px-3 py-1.5 text-[11px] font-black text-[#6F3042]">
+                        {similarityPercent.toFixed(2)}% match
+                      </span>
+                    </div>
+
+                    <div className="mt-3 h-1 overflow-hidden rounded-full bg-[#EAE2DB]">
+                      <div
+                        className="h-full rounded-full bg-[#B48855] transition-all"
+                        style={{ width: `${similarityPercent}%` }}
+                      />
+                    </div>
+
+                    <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#636A70]">
+                      {result.content}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          {!searching && query.trim() && searchResults.length === 0 && (
+            <div className="mt-6 rounded-[18px] border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-4 py-9 text-center">
+              <FileSearch className="mx-auto h-5 w-5 text-[#9FA6AB]" />
+              <p className="mt-2 text-xs font-bold text-[#7F868B]">Chưa có kết quả phù hợp.</p>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
 };
+
+const MetricPill: React.FC<{
+  label: string;
+  value: string | number;
+}> = ({ label, value }) => (
+  <div className="rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] px-3.5 py-2 text-left">
+    <div className="text-base font-black text-[#202326]">{value}</div>
+    <div className="text-[10px] font-black uppercase tracking-[0.13em] text-[#90979C]">
+      {label}
+    </div>
+  </div>
+);

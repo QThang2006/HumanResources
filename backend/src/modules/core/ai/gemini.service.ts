@@ -120,18 +120,21 @@ export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private genAI: GoogleGenerativeAI | null = null;
   private model: any = null;
-  private selectedModel: string = 'gemini-2.5-flash';
+  private selectedModel: string = 'gemini-3.6-flash';
+  private strictLive: boolean = false;
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    this.selectedModel = this.configService.get<string>('GEMINI_MODEL', 'gemini-2.5-flash');
+    this.selectedModel = this.configService.get<string>('GEMINI_MODEL', 'gemini-3.6-flash');
+    this.strictLive = this.configService.get<string>('GEMINI_STRICT_LIVE') === 'true';
+
     if (apiKey && apiKey !== 'your_gemini_api_key_here' && apiKey.trim() !== '') {
       try {
         this.genAI = new GoogleGenerativeAI(apiKey);
         this.model = this.genAI.getGenerativeModel({
           model: this.selectedModel,
         });
-        this.logger.log(`✅ Google Gemini AI Provider [${this.selectedModel}] đã được kết nối thành công.`);
+        this.logger.log(`✅ Google Gemini AI Provider [${this.selectedModel}] (Strict Live: ${this.strictLive}) đã được kết nối thành công.`);
       } catch (err: any) {
         this.logger.error(`❌ Khởi tạo Gemini AI [${this.selectedModel}] thất bại: ${err.message}`);
       }
@@ -149,40 +152,78 @@ export class GeminiService {
   }
 
   /**
+   * 🔄 Cơ chế Exponential Backoff Retry chống sập khi dính Rate Limit (HTTP 429) hoặc mạng chập chờn
+   */
+  private async retryOperation<T>(
+    fn: () => Promise<T>,
+    operationName: string,
+    maxRetries = 3,
+    initialDelayMs = 1000,
+  ): Promise<T> {
+    let delay = initialDelayMs;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        const isRateLimit =
+          error.message?.includes('429') ||
+          error.status === 429 ||
+          error.message?.includes('Resource has been exhausted') ||
+          error.message?.includes('Quota exceeded');
+        const isTransient =
+          isRateLimit ||
+          error.message?.includes('503') ||
+          error.message?.includes('fetch failed') ||
+          error.message?.includes('ECONNRESET');
+
+        if (attempt < maxRetries && isTransient) {
+          this.logger.warn(
+            `[Gemini Retry] Thử lại [${operationName}] (lần ${attempt}/${maxRetries}) sau ${delay}ms do: ${error.message}`,
+          );
+          await new Promise((res) => setTimeout(res, delay));
+          delay *= 2; // 1s -> 2s -> 4s
+        } else {
+          throw error;
+        }
+      }
+    }
+    throw new Error(`[Gemini Retry] Vượt quá số lần thử lại tối đa cho ${operationName}`);
+  }
+
+  /**
    * Gọi Gemini AI với đầu ra ép buộc định dạng JSON thuần túy
    */
   async generateJson<T>(prompt: string, systemInstruction?: string): Promise<T | null> {
     if (!this.model) {
+      if (this.strictLive) {
+        throw new Error(`[STRICT LIVE ERROR] Gemini AI chưa được khởi tạo. Vui lòng cấu hình GEMINI_API_KEY.`);
+      }
       return null;
     }
 
-    const modelsToTry = [this.selectedModel, 'gemini-2.5-flash', 'gemini-3.6-flash'].filter(
-      (m, i, arr) => arr.indexOf(m) === i,
-    );
-    let lastError: any = null;
+    try {
+      const chatModel = this.genAI!.getGenerativeModel({
+        model: this.selectedModel,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+        systemInstruction: systemInstruction || undefined,
+      });
 
-    for (const modelName of modelsToTry) {
-      try {
-        const chatModel = this.genAI!.getGenerativeModel({
-          model: modelName,
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.2,
-          },
-          systemInstruction: systemInstruction || undefined,
-        });
-
-        const response = await chatModel.generateContent(prompt);
-        const rawText = response.response.text();
-        return JSON.parse(rawText) as T;
-      } catch (error: any) {
-        lastError = error;
-        this.logger.warn(`Lỗi khi gọi Gemini generateJson [${modelName}]: ${error.message}. Đang thử fallback...`);
+      const response = await this.retryOperation(
+        () => chatModel.generateContent(prompt),
+        `generateJson [${this.selectedModel}]`,
+      );
+      const rawText = response.response.text();
+      return JSON.parse(rawText) as T;
+    } catch (error: any) {
+      this.logger.error(`Lỗi khi gọi Gemini generateJson [${this.selectedModel}]: ${error.message}`);
+      if (this.strictLive) {
+        throw new Error(`[STRICT LIVE ERROR] Gọi Gemini AI thất bại: ${error.message}`);
       }
+      return null;
     }
-
-    this.logger.error(`Tất cả các model generateJson đều thất bại: ${lastError?.message}`);
-    return null;
   }
 
   /**
@@ -194,36 +235,35 @@ export class GeminiService {
     systemInstruction?: string,
   ): Promise<T | null> {
     if (!this.model) {
+      if (this.strictLive) {
+        throw new Error(`[STRICT LIVE ERROR] Gemini AI chưa được khởi tạo. Vui lòng cấu hình GEMINI_API_KEY.`);
+      }
       return null;
     }
 
-    const modelsToTry = [this.selectedModel, 'gemini-2.5-flash', 'gemini-3.6-flash'].filter(
-      (m, i, arr) => arr.indexOf(m) === i,
-    );
-    let lastError: any = null;
+    try {
+      const chatModel = this.genAI!.getGenerativeModel({
+        model: this.selectedModel,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+        systemInstruction: systemInstruction || undefined,
+      });
 
-    for (const modelName of modelsToTry) {
-      try {
-        const chatModel = this.genAI!.getGenerativeModel({
-          model: modelName,
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.2,
-          },
-          systemInstruction: systemInstruction || undefined,
-        });
-
-        const response = await chatModel.generateContent([prompt, part]);
-        const rawText = response.response.text();
-        return JSON.parse(rawText) as T;
-      } catch (error: any) {
-        lastError = error;
-        this.logger.warn(`Lỗi khi gọi Gemini generateJsonWithPart [${modelName}]: ${error.message}. Đang thử fallback...`);
+      const response = await this.retryOperation(
+        () => chatModel.generateContent([prompt, part]),
+        `generateJsonWithPart [${this.selectedModel}]`,
+      );
+      const rawText = response.response.text();
+      return JSON.parse(rawText) as T;
+    } catch (error: any) {
+      this.logger.error(`Lỗi khi gọi Gemini generateJsonWithPart [${this.selectedModel}]: ${error.message}`);
+      if (this.strictLive) {
+        throw new Error(`[STRICT LIVE ERROR] Gọi Gemini AI thất bại: ${error.message}`);
       }
+      return null;
     }
-
-    this.logger.error(`Tất cả các model generateJsonWithPart đều thất bại: ${lastError?.message}`);
-    return null;
   }
 
   /**
@@ -231,34 +271,33 @@ export class GeminiService {
    */
   async generateText(prompt: string, systemInstruction?: string): Promise<string> {
     if (!this.model) {
+      if (this.strictLive) {
+        throw new Error(`[STRICT LIVE ERROR] Gemini AI chưa được khởi tạo. Vui lòng cấu hình GEMINI_API_KEY.`);
+      }
       return 'Dịch vụ Trí tuệ nhân tạo Gemini hiện chưa được cấu hình API Key. Đang hoạt động ở chế độ mô phỏng.';
     }
 
-    const modelsToTry = [this.selectedModel, 'gemini-2.5-flash', 'gemini-3.6-flash'].filter(
-      (m, i, arr) => arr.indexOf(m) === i,
-    );
-    let lastError: any = null;
+    try {
+      const chatModel = this.genAI!.getGenerativeModel({
+        model: this.selectedModel,
+        generationConfig: {
+          temperature: 0.3,
+        },
+        systemInstruction: systemInstruction || undefined,
+      });
 
-    for (const modelName of modelsToTry) {
-      try {
-        const chatModel = this.genAI!.getGenerativeModel({
-          model: modelName,
-          generationConfig: {
-            temperature: 0.3,
-          },
-          systemInstruction: systemInstruction || undefined,
-        });
-
-        const response = await chatModel.generateContent(prompt);
-        return response.response.text();
-      } catch (error: any) {
-        lastError = error;
-        this.logger.warn(`Lỗi khi gọi Gemini generateText [${modelName}]: ${error.message}. Đang thử fallback...`);
+      const response = await this.retryOperation(
+        () => chatModel.generateContent(prompt),
+        `generateText [${this.selectedModel}]`,
+      );
+      return response.response.text();
+    } catch (error: any) {
+      this.logger.error(`Lỗi khi gọi Gemini generateText [${this.selectedModel}]: ${error.message}`);
+      if (this.strictLive) {
+        throw new Error(`[STRICT LIVE ERROR] Gọi Gemini AI thất bại: ${error.message}`);
       }
+      return 'Xin lỗi, trợ lý AI đang gặp sự cố kết nối tạm thời. Vui lòng thử lại sau.';
     }
-
-    this.logger.error(`Tất cả các model generateText đều thất bại: ${lastError?.message}`);
-    return 'Xin lỗi, trợ lý AI đang gặp sự cố kết nối tạm thời. Vui lòng thử lại sau.';
   }
 
   // =========================================================================

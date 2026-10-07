@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import type { User, UserRole } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  login: (role: UserRole) => Promise<void>;
+  login: (role: UserRole) => void;
   setAuthSession: (user: User, token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
@@ -45,71 +45,34 @@ const mockUsers: Record<UserRole, User> = {
   },
 };
 
-const DEMO_CREDENTIALS: Record<UserRole, { email: string; pass: string }> = {
-  SUPERADMIN: { email: 'superadmin@company.com', pass: 'admin123' },
-  HR: { email: 'hr@company.com', pass: 'admin123' },
-  MANAGER: { email: 'manager@company.com', pass: 'admin123' },
-  EMPLOYEE: { email: 'employee@company.com', pass: 'admin123' },
-};
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('hr_current_user');
-    return saved ? JSON.parse(saved) : null; // Không auto-login, bắt buộc đăng nhập
-  });
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('hr_current_user', JSON.stringify(user));
-      // Chỉ tạo mock token nếu chưa có token nào (kể cả JWT thật)
-      if (!localStorage.getItem('hr_access_token')) {
-        localStorage.setItem('hr_access_token', `mock_jwt_token_${user.role.toLowerCase()}`);
-      }
-    } else {
-      localStorage.removeItem('hr_current_user');
-      localStorage.removeItem('hr_access_token');
-    }
-  }, [user]);
-
-  const login = async (role: UserRole) => {
-    const creds = DEMO_CREDENTIALS[role];
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: creds.email, password: creds.pass }),
-      });
-      const data = await res.json();
-      if (data.success && data.data?.accessToken) {
-        const u = data.data.user;
-        const loggedUser: User = {
-          id: u.id,
-          fullName: u.fullName,
-          email: u.email,
-          role: u.role,
-          departmentName: u.department,
-          jobTitle: u.jobTitle,
-        };
-        localStorage.setItem('hr_access_token', data.data.accessToken);
-        localStorage.setItem('hr_current_user', JSON.stringify(loggedUser));
-        setUser(loggedUser);
-        return;
+      const saved = localStorage.getItem('hr_current_user');
+      const token = localStorage.getItem('hr_access_token');
+      if (saved && token) {
+        return JSON.parse(saved);
       }
     } catch (e) {
-      console.warn('Backend login fallback:', e);
+      // Ignore parse error
     }
-    const selected = mockUsers[role];
-    localStorage.setItem('hr_access_token', `mock_jwt_token_${role.toLowerCase()}`);
-    setUser(selected);
-  };
+    return null;
+  });
 
   const setAuthSession = (newUser: User, token: string) => {
     localStorage.setItem('hr_access_token', token);
+    localStorage.setItem('hr_current_user', JSON.stringify(newUser));
     setUser(newUser);
+  };
+
+  const login = (role: UserRole) => {
+    const selected = mockUsers[role];
+    if (selected) {
+      setUser(selected);
+      localStorage.setItem('hr_current_user', JSON.stringify(selected));
+    }
   };
 
   const logout = () => {

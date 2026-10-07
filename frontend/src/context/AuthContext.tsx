@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import type { User, UserRole } from '../types';
 
 interface AuthContextType {
@@ -49,32 +49,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('hr_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('hr_current_user', JSON.stringify(user));
-      // Tạo token demo tương ứng nếu chưa có
-      if (!localStorage.getItem('hr_access_token')) {
-        localStorage.setItem('hr_access_token', `mock_jwt_token_${user.role.toLowerCase()}`);
+    try {
+      const saved = localStorage.getItem('hr_current_user');
+      const token = localStorage.getItem('hr_access_token');
+      if (saved && token) {
+        return JSON.parse(saved);
       }
-    } else {
-      localStorage.removeItem('hr_current_user');
-      localStorage.removeItem('hr_access_token');
+    } catch (e) {
+      // Ignore parse error
     }
-  }, [user]);
-
-  const login = (role: UserRole) => {
-    const selected = mockUsers[role];
-    localStorage.setItem('hr_access_token', `mock_jwt_token_${role.toLowerCase()}`);
-    setUser(selected);
-  };
+    return null;
+  });
 
   const setAuthSession = (newUser: User, token: string) => {
     localStorage.setItem('hr_access_token', token);
+    localStorage.setItem('hr_current_user', JSON.stringify(newUser));
     setUser(newUser);
+  };
+
+  const login = (role: UserRole) => {
+    const selected = mockUsers[role];
+    if (selected) {
+      setUser(selected);
+      localStorage.setItem('hr_current_user', JSON.stringify(selected));
+    }
   };
 
   const logout = () => {

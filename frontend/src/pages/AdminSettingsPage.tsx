@@ -16,7 +16,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  UserCog,
   Users,
   Workflow,
 } from 'lucide-react';

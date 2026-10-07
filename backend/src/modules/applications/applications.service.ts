@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as bcrypt from 'bcrypt';
 import { Application, ApplicationStatus, AiRecommendation } from '../../entities/application.entity';
 import { Job } from '../../entities/job.entity';
+import { User, UserRole } from '../../entities/user.entity';
+import { OnboardingTask, TaskCategory } from '../../entities/onboarding-task.entity';
+import { Interview, InterviewResult } from '../../entities/interview.entity';
 import { GeminiService } from '../core/ai/gemini.service';
 import { N8nService } from '../core/automation/n8n.service';
 
@@ -23,6 +27,12 @@ export class ApplicationsService {
     private readonly appRepository: Repository<Application>,
     @InjectRepository(Job)
     private readonly jobRepository: Repository<Job>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(OnboardingTask)
+    private readonly taskRepository: Repository<OnboardingTask>,
+    @InjectRepository(Interview)
+    private readonly interviewRepository: Repository<Interview>,
     private readonly geminiService: GeminiService,
     private readonly n8nService: N8nService,
   ) {}
@@ -271,11 +281,134 @@ export class ApplicationsService {
     };
   }
 
-  // TODO: Thành viên 2 sẽ hoàn thiện 1-Click Tuyển Dụng & gọi this.n8nService.triggerEmployeeHired
+  /**
+   * ⚡ 1-Click Tuyển dụng (1-Click Hired & Provisioning Engine)
+   * Tự động: Tạo User mới -> Băm mật khẩu -> Gán 5 Onboarding Tasks -> Kích hoạt Webhook n8n
+   * Tương thích hoàn toàn Idempotency (chống bấm lặp / tạo trùng)
+   */
   async hireCandidate(applicationId: number) {
+    const app = await this.appRepository.findOne({
+      where: { id: applicationId },
+      relations: ['job', 'job.department'],
+    });
+
+    if (!app) {
+      throw new NotFoundException(`Không tìm thấy hồ sơ ứng viên mang ID #${applicationId}`);
+    }
+
+    // 1. Kiểm tra tính Idempotent (Chống bấm lặp / Đã tuyển dụng trước đó)
+    if (app.status === ApplicationStatus.HIRED && app.hiredUserId) {
+      const existingUser = await this.userRepository.findOne({
+        where: { id: app.hiredUserId },
+        relations: ['department'],
+      });
+      return {
+        success: true,
+        alreadyHired: true,
+        hiredUserId: app.hiredUserId,
+        email: existingUser?.email || app.candidateEmail,
+        fullName: existingUser?.fullName || app.candidateName,
+        message: 'Ứng viên này đã hoàn tất quy trình tuyển dụng trước đó.',
+      };
+    }
+
+    // 2. Tạo mật khẩu tạm thời an toàn
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const tempPassword = `Enterprise@2026#${randomSuffix}`;
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(tempPassword, salt);
+
+    // 3. Kiểm tra xem User với email này đã tồn tại chưa
+    let user = await this.userRepository.findOne({
+      where: { email: app.candidateEmail },
+    });
+
+    if (!user) {
+      user = this.userRepository.create({
+        fullName: app.candidateName,
+        email: app.candidateEmail,
+        phone: app.candidatePhone || '0901234567',
+        passwordHash,
+        role: UserRole.EMPLOYEE,
+        jobTitle: app.job?.title || 'Chuyên viên Công nghệ',
+        departmentId: app.job?.departmentId,
+        isActive: true,
+      });
+      user = await this.userRepository.save(user);
+      this.logger.log(`✅ Đã tạo tài khoản nhân sự mới [ID #${user.id}] cho ứng viên ${user.fullName}`);
+    }
+
+    // 4. Cập nhật trạng thái hồ sơ thành HIRED
+    app.status = ApplicationStatus.HIRED;
+    app.hiredUserId = user.id;
+    await this.appRepository.save(app);
+
+    // 5. Tự động khởi tạo 5 nhiệm vụ hội nhập đầu vào (Standard 30-Day Onboarding Checklist)
+    const existingTasks = await this.taskRepository.count({ where: { userId: user.id } });
+    if (existingTasks === 0) {
+      const defaultOnboardingTasks = [
+        {
+          userId: user.id,
+          title: 'Nộp hồ sơ nhân sự & Ký hợp đồng lao động',
+          description: 'Nộp bản sao CCCD, bằng cấp chuyên môn và hoàn tất ký hợp đồng thử việc tại phòng HR.',
+          category: TaskCategory.PAPERWORK,
+          dueDay: 1,
+        },
+        {
+          userId: user.id,
+          title: 'Nhận máy tính làm việc & Cài đặt môi trường dự án',
+          description: 'Gặp bộ phận IT Helpdesk nhận laptop công ty, cài đặt môi trường phát triển và kết nối mạng nội bộ.',
+          category: TaskCategory.EQUIPMENT,
+          dueDay: 2,
+        },
+        {
+          userId: user.id,
+          title: 'Gặp gỡ Quản lý trực tiếp & Phân công Buddy hướng dẫn',
+          description: 'Buổi họp chào mừng định hướng mục tiêu công việc thử việc và nhận phân công người kèm cặp (Buddy).',
+          category: TaskCategory.MEETING,
+          dueDay: 3,
+        },
+        {
+          userId: user.id,
+          title: 'Hoàn thành khóa học hội nhập văn hóa & An toàn thông tin',
+          description: 'Đọc kỹ sổ tay nhân viên 2026, hoàn thành bài kiểm tra quy chế bảo mật thông tin nội bộ.',
+          category: TaskCategory.TRAINING,
+          dueDay: 7,
+        },
+        {
+          userId: user.id,
+          title: 'Đánh giá tổng kết thử việc 30 ngày cùng Manager',
+          description: 'Họp 1-on-1 cùng Trưởng phòng để tổng kết đánh giá kết quả hòa nhập và kế hoạch mục tiêu quý.',
+          category: TaskCategory.MEETING,
+          dueDay: 30,
+        },
+      ];
+
+      for (const t of defaultOnboardingTasks) {
+        await this.taskRepository.save(this.taskRepository.create(t));
+      }
+      this.logger.log(`✅ Đã tự động tạo 5 nhiệm vụ Onboarding Checklist cho nhân viên ID #${user.id}`);
+    }
+
+    // 6. Kích hoạt Webhook n8n gửi email chào mừng & thông tin tài khoản
+    const departmentName = app.job?.department?.name || 'Phòng Phát Triển Công Nghệ Số';
+    await this.n8nService.triggerEmployeeHired({
+      userId: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      jobTitle: user.jobTitle || 'Chuyên viên',
+      departmentName,
+      tempPassword,
+    });
+
     return {
-      applicationId,
-      message: 'Khung sườn đã sẵn sàng. Thành viên 2 sẽ hoàn thiện logic 1-Click Tuyển Dụng tại đây.',
+      success: true,
+      hiredUserId: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      tempPassword,
+      onboardingTasksCount: 5,
+      message: 'Tuyển dụng nhân sự mới & bàn giao quy trình Onboarding thành công.',
     };
   }
 }

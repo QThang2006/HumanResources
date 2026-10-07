@@ -11,7 +11,10 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main"
+    "start:prod": "node dist/main",
+    "seed:recruitment": "node dist/seeds/recruitment-demo.cli.js",
+    "demo:recruitment": "node test/recruitment-demo.cjs",
+    "test:recruitment-seed": "node --test test/recruitment-demo-seed.test.cjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

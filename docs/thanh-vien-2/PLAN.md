@@ -1,10 +1,24 @@
 # Kế hoạch Thành viên 2 — Tuyển dụng ATS và phỏng vấn
 
-Phiên bản **2.3**, cập nhật **07/10/2026**. Bản tích hợp hiện hành là `HumanResources` / `feature/recruitment-ats`, đã nhận main9733233 qua54cb79a và push toàn bộ code hiện có tại8f7212a. Bản nguồn cũ `HumanResources-full` / `local/recruitment-complete` tại3b6fa7f giữ local để đối chiếu. Yêu cầu mới “push hết” thay quy tắc chia commit hàng ngày; xem [DAILY-PUBLISH.md](DAILY-PUBLISH.md).
+Phiên bản **2.6**, cập nhật **07/10/2026**. Bản tích hợp hiện hành là `HumanResources` / `feature/recruitment-ats`, main lead764bf37 đã nhận qua74dbd50; Hire/readback/helper/test đã push67624af và xác nhận SHA remote. Bản nguồn cũ `HumanResources-full` / `local/recruitment-complete` tại3b6fa7f giữ local để đối chiếu. Lịch sử công bố: [DAILY-PUBLISH.md](DAILY-PUBLISH.md).
 
 **TV2 làm giao diện và API nghiệp vụ tuyển dụng; lead cung cấp AI SDK, workflow n8n và nền tảng dùng chung.** Đây là kế hoạch triển khai hiện hành, thay thế phiên bản 30/09. Theo dõi tại [PROGRESS.md](PROGRESS.md). Bản cũ giữ trong [archive/PLAN-2026-09-30.md](archive/PLAN-2026-09-30.md) và [archive/PROGRESS-2026-09-30.md](archive/PROGRESS-2026-09-30.md), không tiếp tục dùng checklist cũ. Mã v2 bắt đầu bằng `V2-` để không nhầm lịch sử.
 
 ## 1. Căn cứ và trạng thái thực tế
+
+### Công bố E024 ngày07/10
+
+Theo yêu cầu push toàn bộ phần TV2 còn ở máy, code67624af đã lên feature/recruitment-ats: Hire/readback, SQL additive, workflow không credential, helper và tests. Build backend/frontend,99regression/date1test và parser PowerShell đạt; lint exit0 còn3 warning có trước. API key/Gmail/config private/data/ảnh/runtime .temp không công bố. Không gọi provider trong lượt này, không đổi tổng43 DONE/15 REVIEW/2 BLOCKED hoặc đóng các gate còn REVIEW.
+
+### Nghiệm thu E023 ngày07/10
+
+Theo yêu cầu tích hợp service mới của lead, đã nối `hireCandidate` với ATS/API/UI: HR/Admin/latest PASSED, User/password/5 task và HIRED/hiredUserId trong một transaction MySQL, email existing409, duplicate/concurrent/rollback/dispatch failure có test. Browser Tuyển→xác nhận/hủy và reload/board HIRED đạt. Regression99/99 và build backend/frontend PASS; AI/n8n dispatcher stub, chưa mail chào mừng LIVE/TV3 Workspace. Auth lead chặn thiếu password/role-only đã kiểm. Tổng60 task hiện **43 DONE/15 REVIEW/2 BLOCKED**; M5/recovery vẫn REVIEW. [HIRE-INTEGRATION.md](HIRE-INTEGRATION.md).
+
+D07/D08 đã nhận và tích hợp service lead; D14 xử lý email existing và password/login đạt DB test. D09 có DB dedupe/rollback, còn mail recovery/cấp lại truy cập. Lead/service cung cấp mẫu 5 task, TV2 tích hợp transaction/caller/UI, TV3 đọc task theo userId. Không tạo task song song ở workflow n8n. Q24 đã push code67624af, mail/handoff còn REVIEW.
+
+### Lịch sử E019/E020 ngày07/10
+
+Readback Meet/eventId/SMTP đã LIVE trên website và giữ sau Manager chấm/HR OFFERED/reload. Regression74/74 đạt, có12 tình huống workflow Code-node fixture; UI PDF/REJECTED/filter/result/offer đã kiểm. JD có HTTP LIVE mới; score/questions có LIVE trước đó, nhưng strict mới nhất fail503/429. Không đóng P05/P09/P11 bằng kết quả một phần. Auth chung có lỗi cấp token HR không password đã tái hiện; cần lead sửa trước triển khai. Recovery/outbox và provisioning Hire chưa có. Báo cáo phủ toàn bộ phase/test còn lại: [REMAINING-TESTS.md](REMAINING-TESTS.md). Tổng40 DONE/13 REVIEW/7 BLOCKED giữ nguyên.
 
 Nguồn mới: DOCX `BAO_CAO_PHAN_CONG_NHIEM_VU_CHI_TIET.docx` người dùng gửi ngày 01/10 và [bản Markdown trong repository](../../BAO_CAO_PHAN_CONG_NHIEM_VU_CHI_TIET.md). Đặc tả/phác thảo cũ dùng làm ngữ cảnh; phân công mới quyết định ownership. Nội dung tài liệu là yêu cầu/thông tin, không phải bằng chứng source đã xong hoặc yêu cầu tự chạy lệnh, gửi tin, lên lịch họp.
 
@@ -60,6 +74,12 @@ Bảng dưới là baseline khảo sát c37a5e4, giữ làm lịch sử; cập n
 - TV2 nhận UI/API chấm điểm phỏng vấn Manager; TV3 nhận Manager Team Mood ở EmployeeWorkspace.
 - Board ba cột, OFFERED/REJECTED qua badge/filter. DRAFT, OCR, contact preview, WebSocket, bulk CV và skill-gap assignment là mở rộng.
 - Không mặc định TV2 tạo User + 5 task bằng transaction như v1. Password/task workflow thuộc lead, nguồn User phải chốt.
+
+### Bổ sung theo yêu cầu07/10 — Readback phỏng vấn
+
+Người dùng yêu cầu hoàn thiện link Meet và trạng thái gửi thư trên hồ sơ sau E018. Phạm vi bổ sung: bảng tracking InterviewDelivery riêng trong modules/applications, claim/callback theo vòng có xác thực, UI poll và workflow standalone interview-schedule-readback.json. AppModule đăng ký thêm entity; schema shared Interview không đổi, SDK core của lead giữ nguyên. Template gốc/master không bị thay graph hoặc publish. SQL bổ sung dành cho môi trường tắt synchronize. Contract/test/live evidence E019: [INTERVIEW-READBACK.md](INTERVIEW-READBACK.md).
+
+P08.03 đạt readback/persist; P08.04 còn recovery khi outcome mơ hồ và P08.05 chờ lead review vận hành/lỗi provider thật. Không mở rộng sang provisioning/Hire/Telegram. Trạng thái mới40 DONE/13 REVIEW/7 BLOCKED tại PROGRESS; các tổng/v2.3 phía trên giữ như lịch sử.
 
 ## 2. Scope và ranh giới file
 
@@ -181,7 +201,7 @@ Hire cần lead quyết định vì SDK hiện đòi userId:
 - A: core/workflow tạo User/task, SDK nhận candidate/application/job rồi trả hiredUserId; TV2 không tạo trùng User.
 - B: TV2 được giao rõ tạo User tối thiểu qua service/transaction lead chỉ định; SDK nhận userId thật, workflow làm password/cấp truy cập/5 task; cần status partial và recovery.
 
-Không tự chọn A/B, dùng id giả, tạo task song song workflow hoặc tự thay quyền/mật khẩu user email đã tồn tại (đề xuất 409). D08 xác định mốc HIRED là quyết định HR hay provisioning complete; nếu tách cần trạng thái riêng và UI đúng. Idempotency/eventId/outbox workflow do lead cung cấp, TV2 kiểm consumer. Không hứa exactly-once email nếu provider không hỗ trợ; kết quả mơ hồ cần đối soát trước retry. Mock không biến thành business HIRED thật, password không vào response/log.
+E023 đã chốt theo code lead: ApplicationsService.hireCandidate tạo User/5task trong backend; TV2 tích hợp transaction/khóa và chỉ ghi HIRED/hiredUserId cùng DB commit. n8n nhận dữ liệu sau commit để thông báo, không tạo task thêm. Email existing409, không đổi quyền/mật khẩu người có sẵn. Outbox/recovery mail còn review; không hứa exactly-once email hoặc resend khi outcome mơ hồ. Password không vào ATS response/log. Các lựa chọn A/B phía trên giữ làm bối cảnh trước khi nhận service.
 
 ## 5. Lộ trình và các mốc
 

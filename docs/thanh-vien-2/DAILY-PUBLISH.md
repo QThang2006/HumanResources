@@ -2,11 +2,17 @@
 
 Cập nhật: **07/10/2026**. Người dùng đã yêu cầu **“push hết các phần còn lại”**; giới hạn một chức năng/commit mỗi ngày của các lượt trước không còn áp dụng cho đợt này.
 
+**Đã công bố phần TV2 còn local ngày07/10 — E024:** theo yêu cầu push mới nhất, commit `67624af8f1ec8ac51909d8da63325170d18b1be1` đã lên `feature/recruitment-ats`; GitHub xác nhận SHA khớp. Gồm readback Meet/trạng thái SMTP, Hire/User/5 task/API/UI, SQL bổ sung, workflow không credential và các helper/test TV2. Main764bf37 đã được tích hợp bằng74dbd50. Build backend/frontend PASS, regression99/99, date test1/1, lint exit0 còn3 warning có trước, PowerShell parser0error. Không gửi provider mới trong lượt công bố.
+
+E023 đã kiểm User + 5 task + HIRED atomic, UI Tuyển/xác nhận/hủy và board/reload với MySQL/HTTP thật, dispatcher stub. Auth thiếu password/role-only được lead sửa và kiểm lại. **Q23/Q24 đã push code**, nhưng recovery lịch/thư, mail chào mừng LIVE và TV3 Workspace còn REVIEW. Ô Đã push không đồng nghĩa nghiệp vụ đã nghiệm thu toàn bộ. [HIRE-INTEGRATION.md](HIRE-INTEGRATION.md) và [INTERVIEW-READBACK.md](INTERVIEW-READBACK.md).
+
 ## 1. Trạng thái Git đã xác nhận
+
+Cập nhật mới nhất: code `67624af` đã push và xác nhận remote, tiếp nối lịch E022 `1b841ea` và seed E021 `27fbd3f`. Main764bf37/merge74dbd50 cũng đã có trên nhánh công bố. Tài liệu theo dõi đi cùng đợt này; SHA HEAD tài liệu xem Git thực tế. Hướng dẫn lịch: [INTERVIEW-CALENDAR.md](INTERVIEW-CALENDAR.md); Hire: [HIRE-INTEGRATION.md](HIRE-INTEGRATION.md).
 
 | Nơi | Nhánh | Trạng thái |
 | --- | --- | --- |
-| `HumanResources` | `feature/recruitment-ats` | Đã push toàn bộ implementation TV2 hiện có tại `8f7212a`; đây là bản tích hợp hiện hành |
+| `HumanResources` | `feature/recruitment-ats` | Code67624af đã push/xác nhận remote; main764bf37 đã nhận; tài liệu đi cùng đợt |
 | `HumanResources-full` | `local/recruitment-complete` | Bản nguồn cũ `3b6fa7f`, giữ local để đối chiếu; code chưa đồng bộ main mới |
 | Backup | `backup/recruitment-ats-full-2026-10-01` | `3429b99`, giữ nguyên và không push |
 
@@ -16,11 +22,11 @@ Jobs giữ hợp đồng cũ: không có page/pageSize trả array; có cả hai
 
 ## 2. Phần tiếp theo còn cần làm
 
-Không còn phần implementation TV2 đã chuẩn bị sẵn mà chưa công bố. Q05–Q19 đã push; Q20–Q22 đã push consumer và nối SDK lead, nhưng chưa nghiệm thu provider live. Q23/Q24 chưa hoàn tất nghiệp vụ, không tích hoàn thành bằng guard/stub.
+Q01–Q24 đều đã công bố code hiện có. Q20–Q22 còn strict Gemini LIVE; Q23 còn recovery/vận hành; Q24 còn mail chào mừng LIVE/recovery/TV3. Không còn implementation TV2 đã kiểm trong working tree chờ trích/push; file `.temp`, credential và dữ liệu thử riêng giữ ngoài Git.
 
 - **B01:** nghiệm thu JD/score/questions với Gemini thật, credentials và quota hợp lệ; adapter đã hỗ trợ `aiGenerated` từ SDK main và phân biệt LIVE/MOCK. Fallback thật đã test, MOCK score/questions không lưu.
-- **B03/Q23:** workflow schedule mới đã có trên main; còn callback/poll có xác thực, trạng thái mail/Meet bền và kiểm lỗi/retry/idempotency. Helper trả true trước khi HTTP hoàn tất nên hiện là UNVERIFIED.
-- **B02/Q24:** chốt nơi tạo User, nguồn userId, password/access và5 task; kiểm partial failure và handoff TV3. API hiện503/UI khóa, không tạo tài khoản/task hoặc đổi HIRED.
+- **B03/Q23:** code67624af đã công bố callback/poll/persist/claim dedupe; E019 website/Meet/SMTP/Inbox LIVE và reload đúng. Còn recovery/đối soát sau crash/mất callback, lỗi provider thật và lead review. Boolean SDK vẫn UNVERIFIED; callback mới là nguồn kết quả bền.
+- **B02/Q24 (REVIEW):** contract/service lead và User/5task/HIRED/UI đã công bố ở67624af,99test + browser đạt; còn thư chào mừng LIVE/recovery/cấp lại truy cập và TV3 Workspace.
 
 Kiểm thực tế 07/10: Jobs27/27 + recruitment37/37 = **64/64 PASS**, **10 nhóm browser PASS** với API/MySQL9.6 thật, AI/n8n contract stub. Có thêm test SDK lead thực tế không có key trả MOCK. Backend build, frontend TypeScript/Vite build đạt; lint exit0 còn5 warning, không error. Xem E009 tại [PROGRESS.md](PROGRESS.md) và [RUNBOOK.md](RUNBOOK.md).
 
@@ -38,6 +44,10 @@ Kiểm thực tế 07/10: Jobs27/27 + recruitment37/37 = **64/64 PASS**, **10 nh
 | [x] | 04/10/2026 | Q04 phân trang Careers, tổng kết quả và giữ response array cũ | `1da83aa` |
 | [x] | 07/10/2026 | Đồng bộ main mới của lead | `54cb79a` |
 | [x] | 07/10/2026 | Q05–Q19; consumer Q20–Q22; guard/caller cho phần tích hợp còn mở | `8f7212a` |
+| [x] | 07/10/2026 | Seed demo riêng TV2 | `27fbd3f` |
+| [x] | 07/10/2026 | Lịch và danh sách phỏng vấn | `1b841ea` |
+| [x] | 07/10/2026 | Đồng bộ service Hire/Auth/Gemini/log mới của lead | `74dbd50` |
+| [x] | 07/10/2026 | Q23 readback và Q24 Hire, SQL/workflow/helper/test TV2 | `67624af` |
 
 `007b2ae` là commit đồng bộ main đã có trước đợt Careers, không phải chức năng mới. Lịch sử thực tế giữ nguyên; giới hạn một commit chỉ áp dụng các lượt trước; đợt07/10 công bố hết theo yêu cầu mới.
 
@@ -69,8 +79,8 @@ Kiểm thực tế 07/10: Jobs27/27 + recruitment37/37 = **64/64 PASS**, **10 nh
 | [x] | Q20 | Gợi ý JD qua SDK và duyệt bản nháp | RecruitmentAiService.jd, JobEditor | Q07, B01 | ĐÃ PUSH CODE 07/10/2026:8f7212a; SDK lead đã nối, còn nghiệm thu LIVE |
 | [x] | Q21 | Chấm CV AI, lưu điểm và chống response cũ | RecruitmentAiService.score, ApplicationsService.score | Q09/Q13, B01 | ĐÃ PUSH CODE 07/10/2026:8f7212a; SDK lead đã nối, còn nghiệm thu LIVE |
 | [x] | Q22 | Sinh câu hỏi và snapshot theo vòng PV | RecruitmentAiService.questions, ApplicationsService.questions | Q16, B01 | ĐÃ PUSH CODE 07/10/2026:8f7212a; SDK lead đã nối, còn nghiệm thu LIVE |
-| [ ] | Q23 | Xác nhận email/Meet thật và trạng thái workflow | Schedule/n8n result contract | Q16, B03 | CHƯA HOÀN TẤT; workflow lead đã merge, còn readback/retry; caller/UNVERIFIED đã push8f7212a |
-| [ ] | Q24 | Hire thành User và bàn giao5 task | hire, provisioning contract | Q18, B02, TV3 | CHƯA HOÀN TẤT; guard503/UI khóa đã push8f7212a, chưa User/5 task |
+| [x] | Q23 | Xác nhận email/Meet thật và trạng thái workflow | Schedule/n8n result contract | Q16, B03 | ĐÃ PUSH CODE67624af; E019 readback LIVE đạt, recovery/lead review còn REVIEW |
+| [x] | Q24 | Hire thành User và bàn giao5 task | hireCandidate lead + ATS/API/UI | Q18, B02, TV3 | ĐÃ PUSH CODE67624af;99/99/User/5task/HIRED/UI đạt, mail/recovery/TV3 REVIEW |
 
 Thứ tự là gợi ý theo dependency, không phải cam kết phải có đủ24 ngày. Có thể chọn một mục sẵn sàng khác nếu nhóm đang cần; không lấy mục CHỜ LEAD để báo hoàn thành bằng mock.
 
@@ -105,22 +115,22 @@ Thứ tự là gợi ý theo dependency, không phải cam kết phải có đ�
 - Q16 lưu lịch và gọi helper n8n hiện có; hiển thị UNVERIFIED/FAILED/NOT_RETRIED đúng. Tin đã lưu không đồng nghĩa email đã gửi. Không thêm webhook/callback không xác thực.
 - Q17 chỉ Manager cùng phòng được giao vòng đó được ghi; điểm0..100/feedback/result, có CAS chống ghi đè.
 - Q18 dùng kết quả vòng cao nhất, không lấy một vòng cũ đã PASS để vượt qua vòng mới chưa đạt.
-- Q19 chỉ mở form khi thả APPLIED sang phỏng vấn, không chuyển thẻ trước API. Hủy/lỗi không đổi DB; bàn phím/mobile vẫn mở hồ sơ được. Thả HIRED không gọi mutation khi provisioning chưa sẵn sàng.
+- Q19 chỉ mở form khi thả APPLIED sang phỏng vấn, không chuyển thẻ trước API. Hủy/lỗi không đổi DB; bàn phím/mobile vẫn mở hồ sơ được. E023: thả INTERVIEWING/OFFERED sang HIRED mở detail/xác nhận; chỉ backend Hire hợp lệ mới đổi trạng thái.
 
 ### AI và Hire Q20-Q24
 
 - Chỉ đưa ra nghiệm thu live sau khi nhận đúng SDK và workflow. Bộ test có stub không thay thế credentials/quota/workflow thật.
 - Gợi ý JD là bản nháp HR duyệt/chỉnh sửa. Score/questions MOCK chỉ preview, không lưu giả thành kết quả live.
 - Khóa tác vụ trong process và kiểm dữ liệu đã đổi khi AI đang chạy; vận hành nhiều replica cần queue/lock dùng chung do nền cung cấp.
-- Hire hiện **chưa thực hiện**: đang kiểm precondition rồi503. Không tự tạo userId giả, không đánh dấuHIRED trước khi có tài khoản/task hợp lệ.
+- Hire **đã tích hợp E023 và push67624af**: dùng service lead, ghi User/5task/HIRED trong một transaction và dùng ID DB thật. Không trả password/hash qua ATS; true của dispatcher chỉ UNVERIFIED, chưa là mail gửi thành công. Mail LIVE/recovery/TV3 còn review.
 
 ## 6. Những phần còn chờ lead
 
 | ID | Cần bàn giao cụ thể | Có sẵn phía TV2 | Điều kiện bỏ chặn |
 | --- | --- | --- | --- |
 | B01 | Nghiệm thu Gemini live và môi trường thử | Ba SDK đã nhận từ main9733233; adapter aiGenerated, fallback thật và contract tests đạt | Credentials/quota hợp lệ, chạy provider live với dữ liệu test |
-| B03 | Workflow schedule, result/callback/poll đã xác thực, idempotency/retry, mail/Meet test | Lưu Interview, caller triggerInterviewScheduled, thông báo chưa xác nhận | Đọc được link/trạng thái bền, test lỗi/retry không gửi trùng và có chứng cứ mail/Meet |
-| B02 | Ai tạo User, nguồn userId, email đã tồn tại, password/access,5 task, partial failure/recovery | Guard Hire, latest PASS, UI khóa, test không side effect | Provisioning contract + owner rõ, test idempotency/partial failure, TV3 đọc đúng5 task |
+| B03 | Review/recovery workflow sau crash/mất callback/outcome mơ hồ | E019 authenticated claim/callback/persist, UI poll, Calendar/Meet/Inbox LIVE đã đạt | Cơ chế đối soát/recovery không gửi trùng, lỗi provider thật, lead review trước triển khai nhóm |
+| B02 (REVIEW) | Mail chào mừng LIVE/recovery/cấp lại truy cập, TV3 Workspace | Contract lead/User/5task/HIRED/UI và99test E023 đã có; no email rebind, DB atomic/dedupe | Review handoff Workspace và đối soát/mail recovery; không tự resend mật khẩu khi chưa biết kết quả |
 
 Auth/seed chung, exception filter/log, metadata/version AI bền và limiter nhiều replica cũng cần lead review trước triển khai môi trường thật; đây không phải các mục đã hoàn tất bằng demo local.
 
@@ -134,7 +144,7 @@ Fetch ngày03/10 phát hiện `origin/feature/core-ai-automation` tại8266411; 
 2. Xem B01/B03/B02; chỉ triển khai phần đã có hợp đồng/ownership hoặc thông tin cần thiết. Q05–Q22 đã công bố, không trích lại bản nguồn cũ để tạo commit trùng.
 3. Giữ các tính năng/API đã công bố; không ghi đè core/entities/auth/workflows của lead. Test đúng phạm vi, ghi rõ provider live hay stub/fallback.
 4. Commit với ngày thực tế và phạm vi thật; push riêng `feature/recruitment-ats`, không force hoặc sửa lịch sử. Nếu remote thay đổi, tích hợp và kiểm lại.
-5. Xác nhận SHA remote rồi cập nhật checklist/evidence. Q23/Q24 chỉ tích khi nghiệp vụ readback/provisioning đạt acceptance; guard/caller không đủ.
+5. Xác nhận SHA remote rồi tích cột Đã push và cập nhật evidence. Q23/Q24 đã có readback/provisioning thực, nhưng checkbox công bố không thay cho gate nghiệm thu recovery/provider/TV3 trong PROGRESS.
 6. Quy tắc “một commit hôm nay” chỉ áp dụng nếu người dùng yêu cầu lại cho lượt mới.
 
 Các lệnh kiểm thường dùng trong frontend/backend:
@@ -160,6 +170,10 @@ node --test test/jobs-crud.test.cjs test/recruitment.test.cjs
 | 01-03/10/2026 | 03/10/2026 | Q03 | Đã push thêm một commit theo yêu cầu mới | d4431ab | Backend22/22 MySQL9.6/JWT thật; browser9 nhóm API fixture; build/TS/lint đạt; chưa chạy Q03 trên MySQL8 |
 | 01-04/10/2026 | 04/10/2026 | Q04 | Đã push đúng một commit | 1da83aa | Backend27/27 MySQL9.6/JWT thật; browser6 nhóm API fixture; build/TS/lint đạt; chưa chạy Q04 trên MySQL8 |
 | 01-07/10/2026 | 07/10/2026 | Q05–Q22 và guards | Đã push code; live gate riêng | 8f7212a | Jobs27/27 + recruitment37/37; browser10 nhóm; build/TS/lint đạt |
+| 07/10/2026 | Chưa công bố | E018 website/n8n live test | LOCAL; không đóng Q23 | Không có commit mới | Interview persist/reload,1 dispatch thật, Calendar/Meet/Inbox VERIFIED; replay201 NOT_RETRIED, Manager khác phòng403; ATS chưa lưu Meet |
+| 07/10/2026 | Chưa công bố | E019 callback/readback TV2 | CODE LOCAL + LIVE PASS; chưa đóng toàn bộ Q23 | Không có commit mới |73/73 regression, claim/auth/dedupe, Calendar/SMTP→ATS persist, auto refresh/reload/Inbox VERIFIED; còn recovery/lead review |
+| 07/10/2026 | 07/10/2026 | E021 dữ liệu demo TV2 | Đã push riêng seed/demo; giữ E019/E020 local | 27fbd3f | Backend build + seed8/8 MySQL9.6; baseline công bố + demo cũng8/8; CV render/parse, website12 job/108 hồ sơ/90 vòng; DB demo riêng, main .env bị MySQL từ chối đăng nhập |
+| 07/10/2026 | 07/10/2026 | E022 lịch/danh sách phỏng vấn | Đã push riêng lịch; readback mới giữ local | 1b841ea | Baseline công bố cũng calendar7/7 + seed8/8; frontend date1/1; build/TS/Vite/lint; browser tuần/tháng/list/lọc/chi tiết/link fixture đã gỡ/empty date; API3003/MySQL13319, AI/n8n stub |
 
 Sau một đợt, thêm dòng với ngày thực tế, mã Qxx, commit SHA, lệnh/test đã chạy, giới hạn chưa kiểm; đổi đúng ô `[ ]` của mục đó thành `[x]` và cập nhật mục2. Nếu upstream đã làm thay phần đó thì ghi “đã có từ upstream” kèm SHA, chọn mục khác có thay đổi thật.
 
@@ -170,8 +184,3 @@ Sau một đợt, thêm dòng với ngày thực tế, mã Qxx, commit SHA, lệ
 Nếu chỉ muốn xem tiến độ:
 
 > Đọc DAILY-PUBLISH.md và PROGRESS.md, cho tôi biết cái gì đã code local, cái gì đã lên GitHub, cái gì còn chờ lead. Chưa push.
-
-
-### Bổ sung E022 — Lịch/danh sách phỏng vấn, 07/10/2026
-
-Commit chứa mục này chỉ bổ sung lịch/danh sách TV2 trên nền seed27fbd3f: API role/scope, UI tuần/tháng/list, lọc và mở chi tiết/link đã lưu. Build bản tách biệt đạt; calendar7/7 + seed8/8, frontend date1/1, browser và lint feature đạt. Giữ thay đổi readback/AI/Hire local ngoài commit này. Xem [INTERVIEW-CALENDAR.md](INTERVIEW-CALENDAR.md).

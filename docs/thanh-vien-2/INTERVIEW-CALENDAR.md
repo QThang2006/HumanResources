@@ -1,6 +1,6 @@
 # TV2 — Lịch và danh sách phỏng vấn
 
-Cập nhật 07/10/2026. Tính năng xem lịch/link của từng vòng phỏng vấn. Evidence E022 trong PROGRESS.md. Đây là phần xem lịch/link, thuộc phân hệ tuyển dụng TV2.
+Cập nhật 07/10/2026. Feature đã code/kiểm và **push tại `1b841ea` lên `feature/recruitment-ats`**; SHA remote đã xác nhận. Evidence E022 trong PROGRESS.md. Đây là phần xem lịch/link, thuộc phân hệ tuyển dụng TV2.
 
 ## Sử dụng
 
@@ -39,6 +39,6 @@ Màn hình nhỏ có thể vuốt ngang lịch để xem đủ 7 ngày; danh sá
 - Backend calendar 7/7 (gồm test cha), seed regression 8/8, tổng 15/15 đạt với MySQL/JWT thật. Kiểm role/scope, boundary ngày, pagination/ties, filter/validation, safe detail/link và thay đổi link trong DB.
 - Chạy test ngày trong `frontend`: `npm run test:calendar-date`. Test dùng TypeScript có sẵn để đọc source, không yêu cầu Node hỗ trợ import `.ts` trực tiếp; kiểm mốc 00:00 VN, tuần/tháng/năm nhuận và link.
 - Browser đã kiểm lịch tuần/tháng, danh sách theo giờ, tổ hợp bộ lọc, mở hồ sơ, thêm/bỏ fixture link và trạng thái tháng không có lịch. Viewport thực tế 662px; chưa khẳng định đã kiểm thiết bị 375px.
-- Frontend cấu hình bằng `VITE_API_BASE_URL`; xem DEMO-DATA.md để chạy demo seed hoặc thêm dữ liệu vào DB nhóm.
-- Bản công bố được build và test riêng từ HEAD seed `27fbd3f` cộng đúng thay đổi lịch, không cần code readback local để khởi động.
-- AI/n8n dùng stub trong test; link fixture đã gỡ. Không tạo phòng Meet/gửi thư trong lượt kiểm lịch. Link thật hiện khi một tích hợp lưu `interviews.meetingLink` thành công.
+- Runtime lịch riêng E022 dùng API3003, MySQL13319, control3014, bộ12job/108hồ sơ/90vòng synthetic; PID ở `.temp/calendar-demo/` (được ignore). Website `http://localhost:5173` đã chuyển sang bản tích hợp Hire API3005/MySQL13320 ở E023; test người dùng tự gửi thư dùng5175/API3007/MySQL13321. Mật khẩu/token control chỉ ở runtime/private file.
+- Frontend cấu hình bằng `VITE_API_BASE_URL` (ví dụ `http://127.0.0.1:3003/api`); xem DEMO-DATA.md để seed DB nhóm và giữ dữ liệu lâu dài. Demo riêng là dữ liệu tạm, không ghi vào MySQL3306 đang bị từ chối đăng nhập.
+- Test chỉ dùng stub AI/n8n. Link fixture để kiểm nút đã gỡ; không có phòng Meet mới hoặc email mới trong lượt này. Lịch sẽ hiện link thật khi workflow lưu thành công về đúng vòng. Các hạn chế recovery/AI/Hire/Auth của hệ thống vẫn được theo dõi riêng.

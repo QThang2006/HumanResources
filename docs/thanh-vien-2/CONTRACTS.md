@@ -1,6 +1,6 @@
 # Contract triển khai tuyển dụng TV2
 
-Ngày **07/10/2026**. Contract của bản tích hợp đã push `HumanResources` / `feature/recruitment-ats`, code8f7212a, main9733233. SDK lead đã nhận và consumer đã chuẩn hóa định dạng aiGenerated; envelope ok/mode/data vẫn được hỗ trợ cho contract tests. Provider live, workflow readback và Hire chưa nghiệm thu.
+Ngày **07/10/2026**. Contract hiện hành của `HumanResources` / `feature/recruitment-ats`: code `67624af` đã push và xác nhận SHA remote; main lead `764bf37` đã merge tại `74dbd50`. Hire/readback đã công bố. SDK lead đã nhận; consumer chuẩn hóa aiGenerated và vẫn hỗ trợ envelope ok/mode/data cho contract tests. Hire DB/UI đạt E023/E024; mail chào mừng/recovery/TV3 còn REVIEW.
 
 ## API hiện có
 
@@ -14,7 +14,7 @@ Prefix /api. JSON thành công qua wrapper chung `{ success, statusCode, data, t
 | GET /jobs/admin | HR/Admin/Manager | Query như public + status; Manager theo phòng |
 | GET /jobs/admin/:id | HR/Admin/Manager | Tin bất kỳ trạng thái trong scope |
 | GET /jobs/departments | HR/Admin | id/name/code, không User |
-| GET /jobs/capabilities | Nội bộ recruitment | jd/score/questions là method availability; hire=false |
+| GET /jobs/capabilities | Nội bộ recruitment | jd/score/questions là method availability; hire=true ở code67624af |
 | POST /jobs | HR/Admin | title, departmentId, description, requirements, location?, salaryRange? |
 | PATCH /jobs/:id | HR/Admin | Full JobInput + expectedUpdatedAt ISO |
 | PATCH /jobs/:id/status | HR/Admin | status OPEN/CLOSED + expectedUpdatedAt |
@@ -29,7 +29,7 @@ Prefix /api. JSON thành công qua wrapper chung `{ success, statusCode, data, t
 | POST /applications/:id/interview | HR/Admin | interviewerId, scheduledAt ISO có múi giờ, round |
 | POST /applications/interviews/:id/questions | HR/Admin | CV/requirements server; snapshot lên Interview |
 | PATCH /applications/interviews/:id/result | Manager được giao | score int0..100, feedback1..5000, result PASSED/FAILED, expectedResult, expectedUpdatedAt |
-| POST /applications/:id/hire | HR/Admin | Điều kiện tuyển hợp lệ → 503 chờ provisioning; đã HIRED có userId thì trả idempotent receipt |
+| POST /applications/:id/hire | HR/Admin | INTERVIEWING/OFFERED + latest PASSED → User/5 task/HIRED atomic; receipt tối thiểu, đã HIRED trả idempotent; email có tài khoản409 |
 
 Public `all=true` bị400. GET /jobs và /jobs/admin không gửi paging vẫn trả array; phải gửi đồng thời page và pageSize mới nhận `{items,total,page,pageSize}`, thiếu một bị400. Public luôn OPEN dù có status. Applications list luôn trả page envelope. Applications list thêm `counts` theo toàn bộ bộ lọc trước paging. Mặc định không gồm REJECTED; chọn status=REJECTED để xem riêng. Không có endpoint /summary riêng. Frontend api/jobs.api.ts giữ client array/getPage đã công bố; recruitment/api gửi paging tường minh; api/applications.api.ts là facade nghiệp vụ mới.
 
@@ -91,24 +91,18 @@ Response `{interview,dispatch,message}`:
 - FAILED: helper trả false hoặc throw; lịch vẫn giữ.
 - NOT_RETRIED: lịch đã có; không gửi lại webhook.
 
-Đọc meetingLink sẵn có từ entity và chỉ render liên kết HTTPS. Chưa có callback/poll/retry workflow endpoint của TV2 vì lead chưa cung cấp auth/event/result/idempotency contract. Cần lead bàn giao trước khi viết readback; không nhận callback không xác thực.
+Theo yêu cầu tiếp theo07/10, đã triển khai callback có xác thực và tracking riêng TV2: metadata delivery theo vòng; claim một lần trước provider, Calendar GET→callback lưu meetingLink/eventId, SMTP→callback lưu SMTP_ACCEPTED. Token256 bit được hash trong DB, callback/claim chống lặp và kiểm đúng aggregate. Website poll khi đang chờ và giữ link/trạng thái sau reload. Contract/config/schema/workflow riêng và E019 tại [INTERVIEW-READBACK.md](INTERVIEW-READBACK.md). SDK core của lead giữ nguyên; AppModule chỉ đăng ký thêm entity TV2. Q23 còn recovery/đối soát sau crash/mất callback và lead review; không tự resend provider khi outcome mơ hồ.
 
-## Hire: blocker cụ thể cần lead chốt
+## Hire: contract đã nhận, tích hợp E023 và công bố E024
 
-SDK hiện nhận userId nhưng không có source tạo User trước đó. TV2 chưa gọi helper bằng id đoán hoặc tự tạo User/task.
+Lead main764bf37 cung cấp `hireCandidate` tạo User/password/5 task. TV2 nối `hire` tới service này, giữ quyền HR/Admin/latest PASSED và bổ sung transaction/khóa/dedupe. Chỉ ghi HIRED/hiredUserId khi User + 5 task cùng commit; DB lỗi rollback. Email có User trả409, không đổi role/password hay liên kết tài khoản đó. Bấm lặp/đồng thời trả receipt đã có, không dispatch lại. PATCH status chung không bypass Hire.
 
-Lead cần trả lời/bàn giao:
+Receipt gồm `success, alreadyHired, hiredUserId, email, fullName, onboardingTasksCount, welcomeEmailStatus`; không password/hash. Mật khẩu tạm chỉ đi vào payload dispatcher sau commit. Helper true → DISPATCHED_UNVERIFIED, false/throw → FAILED, replay → NOT_RETRIED. Boolean bất đồng bộ không chứng minh mail đã gửi; trạng thái receipt chưa là readback bền. Provisioning vẫn giữ nếu dispatch thất bại; recovery/cấp lại truy cập cần lead hoàn thiện.
 
-1. SDK nhận applicationId tự tạo User hay gọi User service của lead trước? Ai sở hữu thao tác đó?
-2. Khóa idempotency, email đã có User, chống chiếm tài khoản/thay role/password.
-3. Thời điểm ghi HIRED/hiredUserId; payload accepted/completed/failed và cách đọc kết quả.
-4. Một nơi tạo password/cấp access/5 task; partial failure/retry không tạo thêm mail/task.
-5. Chứng cứ workflow test và dữ liệu handoff TV3; không trả password qua API tuyển dụng.
-
-Hiện API hire kiểm role, trạng thái và latest PASSED rồi trả503, không User/task/status mutation. UI Hire disable có lý do. Test kiểm count User/task không đổi. Đây là phần còn thiếu tích hợp, không phải Hire hoàn tất.
+UI bấm Tuyển hoặc kéo INTERVIEWING/OFFERED tới HIRED mở xác nhận; detail mới nhất quyết định đủ điều kiện. Thành công tải lại chi tiết/board; hủy không mutation. HTTP/MySQL regression99/99 và browser HIRED/persistence đạt; provider Hire dùng stub. TV3 nhận hiredUserId và task theo userId; Workspace/mail LIVE/recovery còn REVIEW. Chi tiết: [HIRE-INTEGRATION.md](HIRE-INTEGRATION.md).
 
 ## Vùng thay đổi và bàn giao
 
-TV2: modules/jobs, modules/applications, ba page, features/recruitment, domain API facade và backend/test. Giữ entities/core/auth/Workspace/dependencies của main9733233; merge54cb79a đưa cập nhật của lead vào, implementation TV2 không ghi đè core. Navbar chỉ đổi class flex-wrap/gap/height để sửa tràn ngang có bằng chứng browser.
+TV2: modules/jobs, modules/applications, ba page, features/recruitment, domain API facade và backend/test. Entities/core/auth/Workspace/dependencies nhận từ main764bf37 qua merge74dbd50; Auth/Gemini/log update do lead viết. Applications conflict đã tích hợp service Hire của lead với ATS, không bỏ các quyền/readback TV2. Navbar chỉ đổi class flex-wrap/gap/height để sửa tràn ngang có bằng chứng browser.
 
-Lead review API shape/mode/concurrency/shared concerns nêu trong RUNBOOK. TV3 giữ Workspace/onboarding tasks, nhận hiredUserId sau khi lead hoàn tất provisioning. Toàn bộ implementation TV2 hiện có đã push8f7212a ngày07/10 theo yêu cầu “push hết”; bản nguồn cũ giữ local. Chưa mở PR hoặc gửi tin nhắn cho thành viên khác. Thay đổi Applications thay endpoint demo lead bằng endpoint phân quyền/CV riêng tư: dùng multipart field cv, POST :id/score và POST interviews/:id/questions như bảng trên; không tự chấm khi nộp CV. Consumers cũ cần chuyển sang contract này.
+Lead review API shape/mode/concurrency/shared concerns nêu trong RUNBOOK. TV3 giữ Workspace/onboarding UI, nhận hiredUserId và task từ provisioning DB; handoff UI còn REVIEW. Code8f7212a, seed27fbd3f, lịch1b841ea và Hire/readback67624af đã push; chưa mở PR. Thay đổi Applications dùng multipart field cv, POST :id/score và POST interviews/:id/questions như bảng trên; không tự chấm khi nộp CV. Consumers cũ cần chuyển sang contract này.

@@ -1,5 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsEnum } from 'class-validator';
-import { UserRole } from '../../../entities/user.entity';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Định dạng email công vụ không hợp lệ.' })
@@ -7,10 +6,6 @@ export class LoginDto {
   email: string;
 
   @IsString({ message: 'Mật khẩu phải là chuỗi ký tự.' })
-  @IsOptional()
-  password?: string;
-
-  @IsEnum(UserRole, { message: 'Vai trò demo không hợp lệ.' })
-  @IsOptional()
-  role?: UserRole;
+  @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
+  password: string;
 }

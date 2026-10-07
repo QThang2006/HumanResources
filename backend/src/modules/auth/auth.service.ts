@@ -53,40 +53,4 @@ export class AuthService {
       },
     };
   }
-
-  // Tiện ích đăng nhập nhanh Demo (bằng role) phục vụ chấm đồ án
-  async quickDemoLogin(role: UserRole) {
-    let user = await this.userRepository.findOne({
-      where: { role, isActive: true },
-      relations: ['department'],
-    });
-
-    if (!user) {
-      // Nếu chưa có, lấy user đầu tiên
-      user = await this.userRepository.findOne({ relations: ['department'] });
-    }
-
-    if (!user) {
-      throw new UnauthorizedException('Chưa có dữ liệu người dùng trong cơ sở dữ liệu.');
-    }
-
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      fullName: user.fullName,
-    };
-
-    return {
-      accessToken: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        department: user.department?.name || 'Khối Chung',
-        jobTitle: user.jobTitle,
-      },
-    };
-  }
 }

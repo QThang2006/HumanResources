@@ -1,42 +1,57 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { authApi } from '../api/auth.api';
 import type { UserRole } from '../types';
-import { Bot, ShieldCheck, UserCheck, Briefcase, User, LogIn, KeyRound, Mail, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Bot, ShieldCheck, UserCheck, Briefcase, User, LogIn, KeyRound, Mail, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { user, login, logout, isAuthenticated } = useAuth();
+  const { user, setAuthSession, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('superadmin@company.com');
   const [password, setPassword] = useState('admin123');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleRoleSelect = (role: UserRole) => {
-    login(role);
-    if (role === 'EMPLOYEE') {
-      navigate('/employee/workspace');
-    } else if (role === 'SUPERADMIN') {
-      navigate('/admin/settings');
-    } else {
-      navigate('/admin/recruitment');
+  const executeLogin = async (targetEmail: string, targetPass: string) => {
+    setIsLoading(true);
+    setErrorMessage('');
+    try {
+      const res = await authApi.login({ email: targetEmail, password: targetPass });
+      setAuthSession(res.user, res.accessToken);
+      
+      if (res.user.role === 'EMPLOYEE') {
+        navigate('/employee/workspace');
+      } else if (res.user.role === 'SUPERADMIN') {
+        navigate('/admin/settings');
+      } else {
+        navigate('/admin/recruitment');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Email hoặc mật khẩu không chính xác.');
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleRoleQuickFill = (role: UserRole) => {
+    let targetEmail = 'superadmin@company.com';
+    const targetPass = 'admin123';
+
+    if (role === 'SUPERADMIN') targetEmail = 'superadmin@company.com';
+    else if (role === 'HR') targetEmail = 'hr@company.com';
+    else if (role === 'MANAGER') targetEmail = 'manager@company.com';
+    else if (role === 'EMPLOYEE') targetEmail = 'employee@company.com';
+
+    setEmail(targetEmail);
+    setPassword(targetPass);
+    executeLogin(targetEmail, targetPass);
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
-
-    // Khớp tài khoản theo email mẫu
-    if (email.includes('admin')) {
-      handleRoleSelect('SUPERADMIN');
-    } else if (email.includes('hr')) {
-      handleRoleSelect('HR');
-    } else if (email.includes('manager')) {
-      handleRoleSelect('MANAGER');
-    } else {
-      handleRoleSelect('EMPLOYEE');
-    }
+    executeLogin(email, password);
   };
 
   return (
@@ -130,10 +145,20 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+            disabled={isLoading}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
           >
-            <LogIn className="w-4 h-4" />
-            Đăng Nhập Ngay
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Đang xác thực bảo mật...
+              </>
+            ) : (
+              <>
+                <LogIn className="w-4 h-4" />
+                Đăng Nhập Ngay
+              </>
+            )}
           </button>
         </form>
 
@@ -143,7 +168,7 @@ export const LoginPage: React.FC = () => {
           </div>
           <div className="relative flex justify-center text-xs">
             <span className="bg-white px-2 text-slate-400 font-semibold flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-500" /> Hoặc Đăng Nhập Nhanh Theo Vai Trò (Demo)
+              <Sparkles className="w-3 h-3 text-amber-500" /> Hoặc Đăng Nhập Nhanh Theo Vai Trò (Tự Điền & Xác Thực Thật)
             </span>
           </div>
         </div>
@@ -152,8 +177,9 @@ export const LoginPage: React.FC = () => {
         <div className="space-y-2.5">
           <button
             type="button"
-            onClick={() => handleRoleSelect('SUPERADMIN')}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-rose-400 hover:bg-rose-50/40 transition-all text-left group"
+            disabled={isLoading}
+            onClick={() => handleRoleQuickFill('SUPERADMIN')}
+            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-rose-400 hover:bg-rose-50/40 transition-all text-left group disabled:opacity-50"
           >
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center">
@@ -171,8 +197,9 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => handleRoleSelect('HR')}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition-all text-left group"
+            disabled={isLoading}
+            onClick={() => handleRoleQuickFill('HR')}
+            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition-all text-left group disabled:opacity-50"
           >
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
@@ -190,8 +217,9 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => handleRoleSelect('MANAGER')}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50/40 transition-all text-left group"
+            disabled={isLoading}
+            onClick={() => handleRoleQuickFill('MANAGER')}
+            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50/40 transition-all text-left group disabled:opacity-50"
           >
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
@@ -209,8 +237,9 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => handleRoleSelect('EMPLOYEE')}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 transition-all text-left group"
+            disabled={isLoading}
+            onClick={() => handleRoleQuickFill('EMPLOYEE')}
+            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 transition-all text-left group disabled:opacity-50"
           >
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">

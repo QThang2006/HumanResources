@@ -394,3 +394,14 @@ Ngày/người kiểm/reviewer: ...
 - Manager result do TV2 hoàn thiện, TV3 nhận handoff Workspace rõ.
 - Hire/User/access/5 task có đúng owner, duplicate/partial failure được kiểm.
 - Người khác chạy lại được, lead review shared boundary, tài liệu và trạng thái đúng thực tế.
+
+
+### E022 — Lịch và danh sách phỏng vấn TV2, 07/10/2026
+
+- Commit chứa mục này bổ sung API lịch/phân trang/bộ lọc/chi tiết, JWT/role và Manager scope theo phòng ban; minimal projection và link Meet HTTPS kiểm ở cả BE/FE.
+- UI tuần/tháng, lịch/danh sách nhóm ngày giờ VN; tìm/lọc kết hợp, chuyển ngày/hôm nay/trước/sau, Xem thêm, mở chi tiết/link và hồ sơ. Polling lịch30s/chi tiết15s khi tab hiện, hủy request cũ, loading/error/retry/empty; tối đa1.000 buổi/khoảng, vượt mức yêu cầu thu hẹp bộ lọc.
+- Build backend/frontend, test calendar7/7 + seed8/8 =15/15 với MySQL/JWT thật, date test1/1 và lint feature đạt. Bản Git chuẩn bị công bố được dựng/kiểm riêng từ seed27fbd3f với đúng các file/hunk lịch.
+- Browser kiểm tuần18buổi, tháng66buổi, danh sách, lọc còn1kết quả, chi tiết09:00 ngày08/10, fixture link/target/rel rồi gỡ, mở hồ sơ, Xem thêm vòng2, đổi sang07/01/2027 hiện0buổi rồi Hôm nay trở lại. Viewport thực tế662px; không ghi PASS375px. AI/n8n stub; không tạo phòng/gửi email trong lượt này.
+- [x] Implementation và kiểm thử lịch/danh sách.
+- Phần readback mới và các gate Gemini/recovery/Hire chưa công bố cùng commit lịch. Lịch đọc `interviews.meetingLink` đã có trong entity; không tự tạo phòng. Tổng task nghiệp vụ cũ không thay đổi.
+- Hướng dẫn: [INTERVIEW-CALENDAR.md](INTERVIEW-CALENDAR.md).

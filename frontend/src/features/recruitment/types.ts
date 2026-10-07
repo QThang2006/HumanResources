@@ -21,6 +21,16 @@ export interface Candidate {
   interviews: Interview[]; createdAt: string; updatedAt: string;
 }
 export interface CandidatePage extends Page<Candidate> { counts: Partial<Record<ApplicationStatus, number>> }
+export interface ScheduledInterview {
+  id: number; applicationId: number; candidateName: string; candidateEmail: string; applicationStatus: ApplicationStatus;
+  jobId: number; jobTitle: string; departmentId: number; departmentName: string;
+  interviewerId: number; interviewerName: string; round: number; scheduledAt: string;
+  meetingLink: string | null; result: InterviewResult; score: number | null; updatedAt: string;
+}
+export interface InterviewScheduleQuery {
+  from: string; to: string; jobId?: number; interviewerId?: number; result?: InterviewResult; q?: string;
+  page?: number; pageSize?: number;
+}
 export interface Capabilities { jd: boolean; score: boolean; questions: boolean; hire: boolean; notice: string }
 export interface AiResult<T> { mode: 'LIVE' | 'MOCK'; data: T; saved?: boolean }
 export const statusLabels: Record<ApplicationStatus, string> = { APPLIED: 'Mới nộp', INTERVIEWING: 'Đang phỏng vấn', OFFERED: 'Đề xuất nhận việc', HIRED: 'Đã nhận việc', REJECTED: 'Đã từ chối' };

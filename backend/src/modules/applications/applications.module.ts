@@ -12,6 +12,7 @@ import { EmployeeTraining } from '../../entities/employee-training.entity';
 import { JobsModule } from '../jobs/jobs.module';
 import { CvStorageService } from './cv-storage.service';
 import { SubmitRateGuard } from './submit-rate.guard';
+import { InterviewScheduleController, InterviewScheduleService } from './interview-schedule.controller';
 
 @Module({
   imports: [
@@ -26,8 +27,8 @@ import { SubmitRateGuard } from './submit-rate.guard';
       EmployeeTraining,
     ]),
   ],
-  controllers: [ApplicationsController],
-  providers: [ApplicationsService, CvStorageService, SubmitRateGuard],
+  controllers: [ApplicationsController, InterviewScheduleController],
+  providers: [ApplicationsService, CvStorageService, SubmitRateGuard, InterviewScheduleService],
   exports: [ApplicationsService],
 })
 export class ApplicationsModule {}

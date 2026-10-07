@@ -170,3 +170,8 @@ Sau một đợt, thêm dòng với ngày thực tế, mã Qxx, commit SHA, lệ
 Nếu chỉ muốn xem tiến độ:
 
 > Đọc DAILY-PUBLISH.md và PROGRESS.md, cho tôi biết cái gì đã code local, cái gì đã lên GitHub, cái gì còn chờ lead. Chưa push.
+
+
+### Bổ sung E022 — Lịch/danh sách phỏng vấn, 07/10/2026
+
+Commit chứa mục này chỉ bổ sung lịch/danh sách TV2 trên nền seed27fbd3f: API role/scope, UI tuần/tháng/list, lọc và mở chi tiết/link đã lưu. Build bản tách biệt đạt; calendar7/7 + seed8/8, frontend date1/1, browser và lint feature đạt. Giữ thay đổi readback/AI/Hire local ngoài commit này. Xem [INTERVIEW-CALENDAR.md](INTERVIEW-CALENDAR.md).

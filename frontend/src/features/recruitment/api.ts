@@ -1,5 +1,5 @@
 import { apiClient } from '../../api/client';
-import type { AiResult, ApplicationStatus, Candidate, CandidatePage, Capabilities, Interview, InterviewResult, Job, JobInput, Lookup, Page } from './types';
+import type { AiResult, ApplicationStatus, Candidate, CandidatePage, Capabilities, Interview, InterviewResult, InterviewScheduleQuery, ScheduledInterview, Job, JobInput, Lookup, Page } from './types';
 
 // The shared client unwraps JSON responses; Axios' default return type does not reflect it.
 const get = <T>(url: string, params?: object, signal?: AbortSignal) => apiClient.get<unknown, T>(url, { params, signal });
@@ -18,6 +18,9 @@ export const recruitmentApi = {
   apply: (data: FormData, signal?: AbortSignal) => apiClient.post<unknown, { applicationId: number; message: string; warning: string | null }>('/applications/apply', data, { headers: { 'Content-Type': undefined }, timeout: 25000, signal }),
   candidates: (params: object, signal?: AbortSignal) => get<CandidatePage>('/applications', params, signal),
   candidate: (id: number) => get<Candidate>('/applications/' + id),
+  interviewSchedule: (params: InterviewScheduleQuery, signal?: AbortSignal) => get<Page<ScheduledInterview>>('/applications/interviews/schedule', params, signal),
+  scheduledInterview: (id: number, signal?: AbortSignal) => get<ScheduledInterview>('/applications/interviews/schedule/' + id, undefined, signal),
+  interviewFilters: (signal?: AbortSignal) => get<{ jobs: Lookup[]; interviewers: Lookup[] }>('/applications/interviews/schedule/filters', undefined, signal),
   state: (candidate: Candidate, status: ApplicationStatus) => patch<Candidate>('/applications/' + candidate.id + '/status', { expectedStatus: candidate.status, status }),
   score: (id: number) => post<AiResult<{ matchScore: number; summary: string; skillsDetected: string[] }>>('/applications/' + id + '/score'),
   interviewers: (jobId: number) => get<{ id: number; fullName: string }[]>('/applications/interviewers', { jobId }),

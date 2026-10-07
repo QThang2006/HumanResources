@@ -80,7 +80,7 @@ npm run build
 npm run demo:recruitment
 ```
 
-API mặc định ở `http://127.0.0.1:3001/api`. Frontend cần `VITE_API_URL=http://127.0.0.1:3001/api` và chạy cổng 5173. Tài khoản fixture: `hr@example.test`, `manager@example.test`; mật khẩu fixture: `Test-only-password-2026`. Đây là tài khoản dùng riêng cho harness, không phải tài khoản hệ thống của nhóm.
+API mặc định ở `http://127.0.0.1:3001/api`. Frontend cần `VITE_API_BASE_URL=http://127.0.0.1:3001/api` và chạy cổng 5173. Tài khoản fixture: `hr@example.test`, `manager@example.test`; mật khẩu fixture: `Test-only-password-2026`. Đây là tài khoản dùng riêng cho harness, không phải tài khoản hệ thống của nhóm.
 
 Harness tự tạo dữ liệu phòng ban/tài khoản tạm; seed chính ở mục 2 không tạo các dữ liệu này. AI/n8n bị thay bằng stub; không dùng chế độ này để chứng minh Google Meet/email hoặc AI LIVE đã chạy. Ctrl+C dọn database và CV của lần demo đó. Khởi động lại tạo một bộ mới.
 

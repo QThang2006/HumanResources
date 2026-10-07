@@ -436,17 +436,29 @@ export class OnboardingService {
       relations: ['department'],
     });
 
-    // Lấy documents có sẵn (sổ tay, tài liệu nội bộ) để làm RAG context
+    // Lấy documents có sẵn (sổ tay, tài liệu nội bộ) kèm các Chunks nội dung để làm RAG context
     const documents = await this.docRepository.find({
       where: { status: 'READY' as any },
+      relations: ['chunks'],
       take: 10,
       order: { createdAt: 'DESC' },
     });
 
     const docTitles = documents.map((d) => d.title);
-    const docContext = documents.length > 0
-      ? `\n\nTài liệu nội bộ hiện có:\n${documents.map((d, i) => `${i + 1}. ${d.title}`).join('\n')}`
-      : '';
+    
+    // Tổng hợp nội dung các chunks thành bộ cơ sở tri thức phong phú
+    let docContext = '';
+    if (documents.length > 0) {
+      docContext = documents
+        .map((d) => {
+          const chunksText = (d.chunks || [])
+            .sort((a, b) => a.chunkIndex - b.chunkIndex)
+            .map((c) => c.content)
+            .join('\n\n');
+          return `=== [TÀI LIỆU NỘI BỘ: ${d.title}] ===\n${chunksText}`;
+        })
+        .join('\n\n------------------------------------\n\n');
+    }
 
     // Kiểm tra Gemini có sẵn sàng không
     if (!this.geminiService.isAvailable()) {
@@ -459,19 +471,27 @@ export class OnboardingService {
       };
     }
 
-    // Xây dựng prompt RAG với system instruction
-    const systemInstruction = `Bạn là Trợ lý Sổ tay Nhân viên AI của công ty.
-Nhiệm vụ: Trả lời câu hỏi về quy trình nội bộ, chính sách nhân sự, onboarding, phúc lợi, và văn hóa công ty.
-Phong cách: Thân thiện, chuyên nghiệp, ngắn gọn, dùng tiếng Việt.
-Nếu không biết câu trả lời, hãy gợi ý nhân viên liên hệ phòng HR.
-Không bịa thông tin.`;
+    // Xây dựng prompt RAG với system instruction chuyên sâu
+    const systemInstruction = `Bạn là Trợ lý Sổ tay Nhân viên AI (HR Copilot) chính thức của công ty Enterprise HR Tech Corporation.
+Nhiệm vụ: Trả lời chính xác, tận tình, đầy đủ và thân thiện các câu hỏi của nhân viên về quy trình nội bộ, chính sách thử việc, ngày phép, giờ giấc làm việc, chế độ đãi ngộ, bảo hiểm, thiết bị, và văn hóa công ty.
+Nguyên tắc trả lời:
+1. Sử dụng trực tiếp thông tin từ các tài liệu nội bộ và quy chế công ty được cung cấp dưới đây để trả lời câu hỏi một cách chi tiết, cụ thể (nêu rõ số ngày phép, con số %, khung giờ, quyền lợi, thiết bị, quy trình đánh giá, v.v.).
+2. Tuyệt đối KHÔNG đùn đẩy hoặc trả lời qua loa bảo nhân viên "liên hệ phòng HR" khi thông tin đã có trong quy chế. Hãy giải thích cặn kẽ và giải đáp thoả đáng trước; chỉ gợi ý liên hệ HR khi nhân viên cần làm thủ tục giấy tờ nộp đơn hoặc trường hợp đặc biệt ngoài quy chế.
+3. Luôn xưng hô thân thiện, lịch sự bằng tiếng Việt ("Chào bạn [Tên]", "Chúc bạn làm việc hiệu quả").
+4. Định dạng câu trả lời rõ ràng bằng gạch đầu dòng Markdown dễ đọc.`;
 
-    const prompt = `Nhân viên: ${user?.fullName || 'Nhân viên'} (${user?.jobTitle || 'N/A'}, Phòng: ${user?.department?.name || 'N/A'})
+    const prompt = `THÔNG TIN NHÂN SỰ ĐANG HỎI:
+- Họ và tên: ${user?.fullName || 'Nhân viên'}
+- Vị trí công tác: ${user?.jobTitle || 'Nhân sự mới'}
+- Phòng ban: ${user?.department?.name || 'N/A'}
+
+CƠ SỞ TRI THỨC VÀ QUY CHẾ CÔNG TY ĐÃ ĐƯỢC PHÊ DUYỆT (KNOWLEDGE BASE):
 ${docContext}
 
-Câu hỏi của nhân viên: ${message}
+CÂU HỎI CỦA NHÂN VIÊN:
+"${message}"
 
-Hãy trả lời ngắn gọn, hữu ích.`;
+Hãy dựa vào quy chế nội bộ trên để giải thích và trả lời cặn kẽ, cụ thể cho bạn ${user?.fullName || 'Nhân sự'}.`;
 
     try {
       const reply = await this.geminiService.generateText(prompt, systemInstruction);

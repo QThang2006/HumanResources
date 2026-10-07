@@ -18,6 +18,7 @@ const { AiModule } = require('../dist/modules/core/ai/ai.module');
 const { AutomationModule } = require('../dist/modules/core/automation/automation.module');
 const { GeminiService } = require('../dist/modules/core/ai/gemini.service');
 const { N8nService } = require('../dist/modules/core/automation/n8n.service');
+const { InterviewDelivery } = require('../dist/modules/applications/interview-delivery.entity');
 const { TransformInterceptor } = require('../dist/common/interceptors/transform.interceptor');
 const { HttpExceptionFilter } = require('../dist/common/filters/http-exception.filter');
 
@@ -38,7 +39,7 @@ function pdf(text = 'Candidate CV - TypeScript NestJS React MySQL experience') {
   return Buffer.from(body);
 }
 
-async function startHarness() {
+async function startHarness({ realServices = false, frontendOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'] } = {}) {
   if (!process.env.ATS_TEST_DB_PASSWORD) throw new Error('Set ATS_TEST_DB_PASSWORD for a disposable local MySQL instance.');
   const options = { host: '127.0.0.1', port: Number(process.env.ATS_TEST_DB_PORT || 13316), user: 'root', password: process.env.ATS_TEST_DB_PASSWORD };
   const name = 'hr_ats_test_' + randomBytes(8).toString('hex');
@@ -47,7 +48,9 @@ async function startHarness() {
   process.env.ATS_UPLOAD_DIR = directory;
   let app;
   const sdk = {};
-  const automation = { calls: [], accepted: true, async triggerInterviewScheduled(payload) { this.calls.push(payload); return this.accepted; } };
+  const automation = { calls: [], hireCalls: [], accepted: true, hireAccepted: true,
+    async triggerInterviewScheduled(payload) { this.calls.push(payload); return this.accepted; },
+    async triggerEmployeeHired(payload) { this.hireCalls.push(payload); return this.hireAccepted; } };
   async function close() {
     if (app) await app.close();
     // Only the random database created by this harness can be removed.
@@ -58,13 +61,15 @@ async function startHarness() {
   }
   try {
     await admin.query('CREATE DATABASE ' + name + ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-    const module = await Test.createTestingModule({ imports: [
-      ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
-      TypeOrmModule.forRoot({ ...options, username: options.user, type: 'mysql', database: name, entities: Object.values(entities).filter(v => typeof v === 'function'), synchronize: true, timezone: 'Z', logging: false }),
+    let builder = Test.createTestingModule({ imports: [
+      ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: !realServices }),
+      TypeOrmModule.forRoot({ ...options, username: options.user, type: 'mysql', database: name, entities: [...Object.values(entities).filter(v => typeof v === 'function'), InterviewDelivery], synchronize: true, timezone: 'Z', logging: false }),
       AiModule, AutomationModule, AuthModule, JobsModule, ApplicationsModule,
-    ] }).overrideProvider(GeminiService).useValue(sdk).overrideProvider(N8nService).useValue(automation).compile();
+    ] });
+    if (!realServices) builder = builder.overrideProvider(GeminiService).useValue(sdk).overrideProvider(N8nService).useValue(automation);
+    const module = await builder.compile();
     app = module.createNestApplication({ logger: false });
-    app.setGlobalPrefix('api'); app.enableCors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] });
+    app.setGlobalPrefix('api'); app.enableCors({ origin: frontendOrigins });
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true, transformOptions: { enableImplicitConversion: true } }));
     app.useGlobalInterceptors(new TransformInterceptor()); app.useGlobalFilters(new HttpExceptionFilter());
     await app.listen(Number(process.env.ATS_TEST_API_PORT || 0), '127.0.0.1');
@@ -93,7 +98,7 @@ async function startHarness() {
       const body = new FormData(); body.set('jobId', String(jobId)); body.set('candidateName', 'Test Candidate'); body.set('candidateEmail', email); body.set('candidatePhone', '0900000000');
       body.set('cv', new Blob([buffer], { type: 'application/pdf' }), 'test-cv.pdf'); return body;
     }
-    return { app, db, sdk, automation, users, departments, tokens, base, request, upload, directory, close, entities };
+    return { app, db, sdk: realServices ? app.get(GeminiService) : sdk, automation: realServices ? app.get(N8nService) : automation, users, departments, tokens, base, request, upload, directory, close, entities };
   } catch (error) { await close(); throw error; }
 }
 module.exports = { startHarness, pdf };

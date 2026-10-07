@@ -1,5 +1,5 @@
 import { apiClient } from '../../api/client';
-import type { AiResult, ApplicationStatus, Candidate, CandidatePage, Capabilities, Interview, InterviewResult, InterviewScheduleQuery, ScheduledInterview, Job, JobInput, Lookup, Page } from './types';
+import type { AiResult, ApplicationStatus, Candidate, CandidatePage, Capabilities, HireReceipt, Interview, InterviewResult, InterviewScheduleQuery, ScheduledInterview, Job, JobInput, Lookup, Page } from './types';
 
 // The shared client unwraps JSON responses; Axios' default return type does not reflect it.
 const get = <T>(url: string, params?: object, signal?: AbortSignal) => apiClient.get<unknown, T>(url, { params, signal });
@@ -27,6 +27,6 @@ export const recruitmentApi = {
   schedule: (id: number, input: { interviewerId: number; scheduledAt: string; round: number }) => post<{ interview: Interview; dispatch: string; message: string }>('/applications/' + id + '/interview', input),
   questions: (id: number) => post<AiResult<string[]>>('/applications/interviews/' + id + '/questions'),
   result: (interview: Interview, input: { score: number; feedback: string; result: InterviewResult }) => patch<Candidate>('/applications/interviews/' + interview.id + '/result', { ...input, expectedResult: interview.result, expectedUpdatedAt: interview.updatedAt }),
-  hire: (id: number) => post<{ hiredUserId: number; alreadyHired: boolean }>('/applications/' + id + '/hire'),
+  hire: (id: number) => post<HireReceipt>('/applications/' + id + '/hire'),
   cv: (id: number) => apiClient.get<unknown, Blob>('/applications/' + id + '/cv', { responseType: 'blob' }),
 };

@@ -1,0 +1,596 @@
+{
+  "name": "TV2 - Interview scheduling with authenticated ATS readback",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "interview-schedule",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-interview-schedule",
+      "name": "Webhook: Xếp lịch phỏng vấn",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "webhookId": "interview-schedule",
+      "retryOnFail": false
+    },
+    {
+      "id": "tv2-delivery-envelope",
+      "name": "Validate delivery envelope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst p = body.data || body; const d = p.delivery;\nconst base = \"http://localhost:3001/api\";\nif (!Number.isSafeInteger(p.interviewId) || p.interviewId < 1 || !d || !/^[a-f0-9]{64}$/.test(d.token || '') || !/^[a-f0-9-]{36}$/.test(d.requestId || '')) throw new Error('Authenticated TV2 delivery metadata required');\nif (d.callbackUrl !== base + '/applications/interviews/' + p.interviewId + '/delivery') throw new Error('Callback destination must match configured API');\nreturn [{json:{interviewId:p.interviewId, delivery:d}}];"
+      }
+    },
+    {
+      "id": "tv2-delivery-claim",
+      "name": "Claim interview delivery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        400
+      ],
+      "retryOnFail": false,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.delivery.callbackUrl + '/claim' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-interview-callback-token",
+              "value": "={{ $('Validate delivery envelope').first().json.delivery.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {requestId:$json.delivery.requestId} }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "tv2-authoritative-payload",
+      "name": "Load interview payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json.data || $input.first().json;\nconst d = $('Validate delivery envelope').first().json.delivery; const p = r.payload;\nif (r.claimed !== true || !p || p.interviewId !== $('Validate delivery envelope').first().json.interviewId || r.eventId !== d.eventId) throw new Error('Interview claim mismatch');\nfor (const key of ['candidateEmail','fromEmail','interviewerEmail']) if (!/^[^\\s@]+@[^\\s@]+[.][^\\s@]+$/.test(p[key] || '')) throw new Error('Configured recipient and sender required');\nif (!Number.isFinite(Date.parse(p.scheduledAt)) || !Number.isSafeInteger(p.applicationId) || !Number.isSafeInteger(p.round)) throw new Error('Invalid persisted schedule');\nreturn [{json:{...p, delivery:d}}];"
+      }
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "primary",
+          "cachedResultName": "primary"
+        },
+        "start": "={{ $json.scheduledAt }}",
+        "end": "={{ new Date(Date.parse($json.scheduledAt)+45*60000).toISOString() }}",
+        "useDefaultReminders": false,
+        "remindersUi": {
+          "remindersValues": []
+        },
+        "additionalFields": {
+          "id": "={{ $json.delivery.eventId }}",
+          "summary": "={{ 'Phỏng vấn Vòng ' + $json.round + ' - ' + $json.candidateName }}",
+          "description": "Lịch phỏng vấn được quản lý trong ATS TV2.",
+          "sendUpdates": "none",
+          "conferenceDataUi": {
+            "conferenceDataValues": {
+              "conferenceSolution": "hangoutsMeet"
+            }
+          }
+        }
+      },
+      "id": "google-calendar-create-meet",
+      "name": "Tự Động Tạo Lịch & Sinh Google Meet",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.2,
+      "position": [
+        960,
+        400
+      ],
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "get",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "primary",
+          "cachedResultName": "primary"
+        },
+        "eventId": "={{ $json.id }}",
+        "options": {}
+      },
+      "id": "tv2-delivery-calendar-get",
+      "name": "Read back Calendar event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        400
+      ],
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tv2-delivery-calendar-verify",
+      "name": "Verify Calendar readback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const e = $input.first().json; const p = $('Load interview payload').first().json;\nconst meet = e.hangoutLink || e.conferenceData?.entryPoints?.find(x => x.entryPointType === 'video')?.uri;\nif (e.id !== p.delivery.eventId || e.status !== 'confirmed' || Date.parse(e.start?.dateTime) !== Date.parse(p.scheduledAt) || Date.parse(e.end?.dateTime) !== Date.parse(p.scheduledAt)+45*60000 || !/^https:\\/\\/meet[.]google[.]com\\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/.test(meet || '') || e.conferenceData?.createRequest?.status?.statusCode !== 'success') throw new Error('Calendar/Meet readback not confirmed');\nreturn [{json:{...e,hangoutLink:meet, callback:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'CALENDAR_CONFIRMED',eventId:e.id,meetingLink:meet,scheduledAt:e.start.dateTime}}}];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tv2-delivery-meet-callback",
+      "name": "Save Meet to ATS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Load interview payload').first().json.delivery.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-interview-callback-token",
+              "value": "={{ $('Validate delivery envelope').first().json.delivery.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.callback }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const calendarItem = $('Verify Calendar readback').first().json;\nconst payload = $('Load interview payload').first().json;\nconst escapeHtml = value => String(value).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));\nconst candidateName = escapeHtml(payload.candidateName);\nconst candidateEmail = payload.candidateEmail;\nconst interviewerName = escapeHtml(payload.interviewerName);\nconst interviewerEmail = payload.interviewerEmail || '';\nconst round = payload.round || 1;\nconst fromEmail = payload.fromEmail;\n\nconst scheduledDate = new Date(payload.scheduledAt || Date.now());\nconst formattedTime = scheduledDate.toLocaleString('vi-VN', {\n  timeZone: 'Asia/Ho_Chi_Minh',\n  hour: '2-digit',\n  minute: '2-digit',\n  day: '2-digit',\n  month: '2-digit',\n  year: 'numeric',\n  weekday: 'long'\n});\n\n// Link Google Meet thật do Google Calendar API sinh ra\nconst googleMeetUrl = calendarItem.hangoutLink;\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }\n    .header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #ffffff; padding: 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 22px; font-weight: 600; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .info-card { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }\n    .info-item { margin: 8px 0; font-size: 15px; }\n    .btn { display: inline-block; background: #2563eb; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0; }\n    .tips { background: #fefce8; border: 1px solid #fef08a; padding: 15px; border-radius: 8px; font-size: 14px; color: #713f12; margin-top: 20px; }\n    .footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>THƯ MỜI PHỎNG VẤN TRỰC TUYẾN</h1>\n      <p style=\"margin: 5px 0 0 0; opacity: 0.9;\">Enterprise HR & Talent Ecosystem</p>\n    </div>\n    <div class=\"content\">\n      <p>Kính gửi <strong>${candidateName}</strong>,</p>\n      <p>Cảm ơn bạn đã quan tâm và ứng tuyển vào đội ngũ công nghệ của chúng tôi. Hội đồng tuyển dụng trân trọng kính mời bạn tham dự buổi phỏng vấn Vòng ${round} với thông tin chi tiết dưới đây:</p>\n      \n      <div class=\"info-card\">\n        <div class=\"info-item\">⏰ <strong>Thời gian:</strong> ${formattedTime}</div>\n        <div class=\"info-item\">🎯 <strong>Vòng phỏng vấn:</strong> Vòng ${round} (Chuyên môn Kỹ thuật)</div>\n        <div class=\"info-item\">👤 <strong>Người phỏng vấn:</strong> ${interviewerName} ${interviewerEmail ? '(' + interviewerEmail + ')' : ''}</div>\n        <div class=\"info-item\">💻 <strong>Hình thức:</strong> Trực tuyến qua Google Meet</div>\n      </div>\n\n      <div style=\"text-align: center;\">\n        <a href=\"${googleMeetUrl}\" class=\"btn\" target=\"_blank\">👉 Tham Gia Google Meet Ngay</a>\n      </div>\n\n      <div class=\"tips\">\n        💡 <strong>Lưu ý chuẩn bị:</strong>\n        <ul style=\"margin: 5px 0 0 0; padding-left: 20px;\">\n          <li>Vui lòng kiểm tra camera và microphone trước giờ phỏng vấn 10 phút.</li>\n          <li>Chuẩn bị sẵn không gian yên tĩnh và các tài liệu/dự án tiêu biểu đã thực hiện.</li>\n        </ul>\n      </div>\n\n      <p style=\"margin-top: 25px;\">Chúc bạn có một buổi phỏng vấn thành công tốt đẹp!</p>\n      <p>Trân trọng,<br><strong>Phòng Thu Hút Nhân Tài (Talent Acquisition Team)</strong></p>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Lịch phỏng vấn được tạo tự động bởi n8n & Google Calendar.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    candidateName: candidateName,\n    candidateEmail: candidateEmail,\n    interviewerName: interviewerName,\n    interviewerEmail: interviewerEmail,\n    round: round,\n    formattedTime: formattedTime,\n    googleMeetUrl: googleMeetUrl,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[Enterprise Corp] Thư mời phỏng vấn Vòng ${round} - Ứng viên ${candidateName}`,\n    emailHtml: htmlTemplate,\n    telegramAlert: `📅 <b>LỊCH PHỎNG VẤN MỚI</b>\\n• Ứng viên: <b>${candidateName}</b>\\n• Vòng: <b>Vòng ${round}</b>\\n• Người PV: <b>${interviewerName}</b>\\n• Thời gian: <code>${formattedTime}</code>\\n• Google Meet: <a href=\"${googleMeetUrl}\">${googleMeetUrl}</a>`\n  }\n};"
+      },
+      "id": "code-format-interview",
+      "name": "Tạo Link Meet & Template Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        400
+      ],
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.fromEmail }}",
+        "toEmail": "={{ $json.candidateEmail }}",
+        "subject": "={{ $json.emailSubject }}",
+        "html": "={{ $json.emailHtml }}",
+        "emailFormat": "html"
+      },
+      "id": "send-email-candidate",
+      "name": "Gửi Email Mời Ứng Viên",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2160,
+        400
+      ],
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tv2-delivery-smtp-check",
+      "name": "Verify SMTP acceptance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const m = $input.first().json; const p = $('Load interview payload').first().json;\nif (!m.messageId || !Array.isArray(m.accepted) || m.accepted.length !== 1 || String(m.accepted[0]).toLowerCase() !== p.candidateEmail.toLowerCase() || (m.rejected || []).length) throw new Error('SMTP acceptance not confirmed');\nreturn [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'SMTP_ACCEPTED',eventId:p.delivery.eventId,recipient:p.candidateEmail,messageId:m.messageId}}];"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "tv2-delivery-email-callback",
+      "name": "Save email status to ATS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Load interview payload').first().json.delivery.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-interview-callback-token",
+              "value": "={{ $('Validate delivery envelope').first().json.delivery.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "tv2-delivery-calendar-error",
+      "name": "Calendar failure result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        720
+      ],
+      "parameters": {
+        "jsCode": "const p = $('Load interview payload').first().json; return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'FAILED',stage:'CALENDAR',code:'CALENDAR_ERROR'}}];"
+      }
+    },
+    {
+      "id": "tv2-delivery-email-error",
+      "name": "Email failure result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        720
+      ],
+      "parameters": {
+        "jsCode": "const p = $('Load interview payload').first().json; return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'FAILED',stage:'EMAIL',code:'SMTP_ERROR'}}];"
+      }
+    },
+    {
+      "id": "tv2-delivery-save-calendar-error",
+      "name": "Save Calendar failure to ATS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        720
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Load interview payload').first().json.delivery.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-interview-callback-token",
+              "value": "={{ $('Validate delivery envelope').first().json.delivery.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "tv2-delivery-save-email-error",
+      "name": "Save email failure to ATS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        720
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Load interview payload').first().json.delivery.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-interview-callback-token",
+              "value": "={{ $('Validate delivery envelope').first().json.delivery.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook-interview",
+      "name": "Respond HTTP 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2880,
+        400
+      ],
+      "retryOnFail": false
+    }
+  ],
+  "connections": {
+    "Webhook: Xếp lịch phỏng vấn": {
+      "main": [
+        [
+          {
+            "node": "Validate delivery envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate delivery envelope": {
+      "main": [
+        [
+          {
+            "node": "Claim interview delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim interview delivery": {
+      "main": [
+        [
+          {
+            "node": "Load interview payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load interview payload": {
+      "main": [
+        [
+          {
+            "node": "Tự Động Tạo Lịch & Sinh Google Meet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tự Động Tạo Lịch & Sinh Google Meet": {
+      "main": [
+        [
+          {
+            "node": "Read back Calendar event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Calendar failure result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read back Calendar event": {
+      "main": [
+        [
+          {
+            "node": "Verify Calendar readback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Calendar failure result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Calendar readback": {
+      "main": [
+        [
+          {
+            "node": "Save Meet to ATS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Calendar failure result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Meet to ATS": {
+      "main": [
+        [
+          {
+            "node": "Tạo Link Meet & Template Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tạo Link Meet & Template Email": {
+      "main": [
+        [
+          {
+            "node": "Gửi Email Mời Ứng Viên",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gửi Email Mời Ứng Viên": {
+      "main": [
+        [
+          {
+            "node": "Verify SMTP acceptance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email failure result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify SMTP acceptance": {
+      "main": [
+        [
+          {
+            "node": "Save email status to ATS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email failure result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save email status to ATS": {
+      "main": [
+        [
+          {
+            "node": "Respond HTTP 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar failure result": {
+      "main": [
+        [
+          {
+            "node": "Save Calendar failure to ATS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Calendar failure to ATS": {
+      "main": [
+        [
+          {
+            "node": "Respond HTTP 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email failure result": {
+      "main": [
+        [
+          {
+            "node": "Save email failure to ATS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save email failure to ATS": {
+      "main": [
+        [
+          {
+            "node": "Respond HTTP 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  }
+}

@@ -17,7 +17,7 @@ function ResultForm({ interview, busy, save }: { interview: Interview; busy: boo
   </form>;
 }
 
-export function CandidateDetail({ id, capabilities, close, changed, focusSchedule = false }: { id: number; capabilities: Capabilities | null; close: () => void; changed: () => void; focusSchedule?: boolean }) {
+export function CandidateDetail({ id, capabilities, close, changed, focusSchedule = false, focusHire = false }: { id: number; capabilities: Capabilities | null; close: () => void; changed: () => void; focusSchedule?: boolean; focusHire?: boolean }) {
   const { user } = useAuth(); const operator = user?.role === 'HR' || user?.role === 'SUPERADMIN';
   const [candidate, setCandidate] = useState<Candidate | null>(null); const [error, setError] = useState('');
   const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false);
@@ -25,8 +25,27 @@ export function CandidateDetail({ id, capabilities, close, changed, focusSchedul
   const [interviewerId, setInterviewer] = useState(''); const [scheduledAt, setScheduledAt] = useState('');
   const [scorePreview, setScorePreview] = useState<string>(''); const [questionPreview, setQuestionPreview] = useState<string[]>([]);
   const [confirmReject, setConfirmReject] = useState(false);
+  const [confirmHire, setConfirmHire] = useState(focusHire);
   const [peopleError, setPeopleError] = useState(''); const [peopleAttempt, setPeopleAttempt] = useState(0);
   const scheduleSelect = useRef<HTMLSelectElement>(null);
+  const waitingForDelivery = !!candidate?.interviews.some(i => ['PENDING', 'RUNNING'].includes(i.automation?.status || ''));
+  useEffect(() => {
+    if (!waitingForDelivery || busy) return;
+    let active = true; let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      try {
+        const value = await api.candidate(id);
+        if (active) {
+          setCandidate(value);
+          if (value.interviews[0]?.automation?.status === 'COMPLETED') setNotice('Đã tạo Google Meet. Máy chủ email đã chấp nhận gửi thư mời.');
+        }
+      }
+      catch { /* Keep the last readback; manual refresh exposes network errors. */ }
+      if (active) timer = setTimeout(refresh, 3000);
+    };
+    timer = setTimeout(refresh, 3000);
+    return () => { active = false; clearTimeout(timer); };
+  }, [id, busy, waitingForDelivery]);
   useEffect(() => {
     let active = true;
     api.candidate(id).then(value => {
@@ -57,6 +76,7 @@ export function CandidateDetail({ id, capabilities, close, changed, focusSchedul
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   }
   const terminal = candidate && ['HIRED', 'REJECTED'].includes(candidate.status);
+  const canHire = !!capabilities?.hire && !!candidate && ['INTERVIEWING', 'OFFERED'].includes(candidate.status) && candidate.interviews[0]?.result === 'PASSED';
   return <Dialog title={candidate ? candidate.candidateName : 'Hồ sơ ứng viên'} close={() => { if (!busy) close(); }}>
     <div className="space-y-5">
       {error && <Alert>{error} <button className={secondaryClass} disabled={busy} onClick={() => act(async () => {})}>Tải lại</button></Alert>}{notice && <Alert success>{notice}</Alert>}
@@ -85,6 +105,14 @@ export function CandidateDetail({ id, capabilities, close, changed, focusSchedul
           {candidate.interviews.map(interview => <article key={interview.id} className="rounded-xl border p-4">
             <h4 className="font-semibold">Vòng {interview.round} · {interview.interviewerName}</h4><p className="mt-1 text-sm">{new Date(interview.scheduledAt).toLocaleString('vi-VN')} · {interview.result === 'PENDING' ? 'Chưa chấm' : interview.result === 'PASSED' ? 'Đạt' : 'Chưa đạt'}{interview.score !== null ? ' · ' + interview.score + '/100' : ''}</p>
             {interview.meetingLink && /^https:\/\//i.test(interview.meetingLink) ? <a href={interview.meetingLink} target="_blank" rel="noreferrer" className="text-sm text-indigo-700 underline">Mở phòng phỏng vấn</a> : <p className="mt-1 text-xs text-slate-500">Chưa có liên kết cuộc họp.</p>}
+            <div role="status" className="mt-2 space-y-1 text-xs text-slate-600">
+              <p>{interview.automation?.calendarStatus === 'CONFIRMED' ? 'Google Meet: Đã tạo và xác nhận lịch.' : interview.automation?.calendarStatus === 'FAILED' ? 'Workflow tạo Meet gặp lỗi; cần kiểm tra lịch Google.' : ['PENDING', 'RUNNING'].includes(interview.automation?.status || '') ? 'Google Meet: Đang chờ workflow.' : 'Google Meet: Chưa nhận xác nhận từ workflow.'}</p>
+              <p>{interview.automation?.emailStatus === 'SMTP_ACCEPTED' ? 'Thư mời: Máy chủ email đã chấp nhận gửi.' : interview.automation?.emailStatus === 'FAILED' ? 'Thư mời: Gửi thất bại, cần kiểm tra workflow.' : ['PENDING', 'RUNNING'].includes(interview.automation?.status || '') ? 'Thư mời: Đang chờ workflow.' : 'Thư mời: Chưa xác nhận gửi.'}</p>
+              {interview.automation?.emailStatus === 'SMTP_ACCEPTED' && <p>Người nhận cần kiểm tra Hộp thư đến hoặc thư rác.</p>}
+              {interview.automation?.emailStatus === 'UNKNOWN' && <p className="text-amber-800">Workflow gửi thư gặp lỗi. Cần kiểm tra execution và hộp thư trước khi gửi lại.</p>}
+              {interview.automation?.status === 'UNKNOWN' && <p className="text-amber-800">Chưa nhận đủ kết quả sau 10 phút. Kiểm tra execution trước khi gửi lại để tránh thư trùng.</p>}
+              {interview.automation?.failureStage === 'DISPATCH' && <p className="text-amber-800">Không gửi được yêu cầu tới workflow. Lịch vẫn được lưu.</p>}
+            </div>
             {interview.feedback && <p className="mt-2 whitespace-pre-wrap text-sm">{interview.feedback}</p>}
             {interview.questions.length > 0 && <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">{interview.questions.map((q, index) => <li key={index}>{q}</li>)}</ol>}
             {operator && <button className={secondaryClass + ' mt-3'} disabled={busy || !capabilities?.questions || !candidate.hasCvText || candidate.status !== 'INTERVIEWING' || interview.result !== 'PENDING'} onClick={() => act(async () => { const result = await api.questions(interview.id); setQuestionPreview(result.mode === 'MOCK' ? result.data : []); return result.saved ? 'Đã lưu bộ câu hỏi.' : 'Câu hỏi MOCK chỉ để xem trước.'; })}>Gợi ý câu hỏi AI</button>}
@@ -95,12 +123,19 @@ export function CandidateDetail({ id, capabilities, close, changed, focusSchedul
         {operator && !terminal && <section className="space-y-3 border-t pt-4">
           <div className="flex flex-wrap gap-2">
             {candidate.status === 'INTERVIEWING' && <button className={buttonClass} disabled={busy || candidate.interviews[0]?.result !== 'PASSED'} onClick={() => act(async () => { await api.state(candidate, 'OFFERED'); return 'Đã chuyển sang đề xuất nhận việc.'; })}>Đề xuất nhận việc</button>}
-            <button className={secondaryClass} disabled={busy} onClick={() => setConfirmReject(true)}>Từ chối hồ sơ</button>
-            <button className={buttonClass} disabled={busy || !capabilities?.hire || candidate.interviews[0]?.result !== 'PASSED'} onClick={() => act(async () => { const result = await api.hire(id); return 'Đã nhận việc, mã nhân viên #' + result.hiredUserId; })}>Nhận việc (Hire)</button>
+            <button className={secondaryClass} disabled={busy} onClick={() => { setConfirmHire(false); setConfirmReject(true); }}>Từ chối hồ sơ</button>
+            <button className={buttonClass} disabled={busy || !canHire} onClick={() => { setConfirmReject(false); setConfirmHire(true); }}>Tuyển ứng viên</button>
           </div>
           {!capabilities?.hire && <p className="text-sm text-amber-800">Bước nhận việc đang chờ tích hợp tạo tài khoản và nhiệm vụ onboarding. Bạn vẫn có thể hoàn thành đánh giá và đề xuất nhận việc.</p>}
+          {capabilities?.hire && !canHire && <p className="text-sm text-slate-500">Chỉ tuyển hồ sơ đang phỏng vấn hoặc đã đề xuất, có vòng phỏng vấn mới nhất đạt.</p>}
+          {confirmHire && canHire && <Alert><p className="font-semibold">Xác nhận tuyển {candidate.candidateName}?</p><p className="mt-2">Hệ thống sẽ tạo tài khoản nhân viên và 5 nhiệm vụ onboarding, rồi chuyển hồ sơ sang Đã nhận việc.</p><div className="mt-3 flex flex-wrap gap-2"><button className={secondaryClass} disabled={busy} onClick={() => setConfirmHire(false)}>Hủy tuyển</button><button className={buttonClass} disabled={busy} onClick={() => act(async () => {
+            const result = await api.hire(id); setConfirmHire(false);
+            const emailNotice = result.welcomeEmailStatus === 'FAILED' ? ' Chưa khởi chạy được thư chào mừng; HR cần kiểm tra gửi thư.' : result.welcomeEmailStatus === 'DISPATCHED_UNVERIFIED' ? ' Thư chào mừng đang chờ xác nhận.' : '';
+            return (result.alreadyHired ? 'Hồ sơ đã nhận việc trước đó.' : 'Đã nhận việc.') + ' Mã nhân viên #' + result.hiredUserId + ' · ' + result.onboardingTasksCount + ' nhiệm vụ onboarding.' + emailNotice;
+          })}>{busy ? 'Đang tuyển...' : 'Xác nhận tuyển'}</button></div></Alert>}
           {confirmReject && <Alert>Từ chối hồ sơ sẽ kết thúc quy trình tuyển dụng này. <div className="mt-3 flex gap-2"><button className={secondaryClass} disabled={busy} onClick={() => setConfirmReject(false)}>Hủy</button><button className={buttonClass} disabled={busy} onClick={() => act(async () => { await api.state(candidate, 'REJECTED'); setConfirmReject(false); return 'Đã từ chối hồ sơ.'; })}>Xác nhận từ chối</button></div></Alert>}
         </section>}
+        {candidate.status === 'HIRED' && <Alert success><p className="font-semibold">Đã nhận việc</p><p className="mt-1">{candidate.hiredUserId ? 'Đã liên kết tài khoản nhân viên #' + candidate.hiredUserId + '. Các nhiệm vụ hội nhập được bàn giao sang Workspace.' : 'HR cần kiểm tra liên kết tài khoản nhân viên.'}</p></Alert>}
         {busy && <p role="status" className="text-sm text-indigo-700">Đang xử lý, vui lòng chờ...</p>}
       </>}
     </div>

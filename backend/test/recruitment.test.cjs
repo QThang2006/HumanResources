@@ -153,7 +153,7 @@ test('recruitment HTTP + real MySQL integration (AI/n8n are contract stubs)', { 
     const departments = (await req('/jobs/departments', { who: 'hr' })).data;
     assert.deepEqual(Object.keys(departments[0]).sort(), ['code', 'id', 'name']);
     const capabilities = (await req('/jobs/capabilities', { who: 'manager' })).data;
-    assert.equal(capabilities.hire, false); assert.equal(capabilities.jd, false);
+    assert.equal(capabilities.hire, true); assert.equal(capabilities.jd, false);
   });
   await t.test('cannot transfer department after receiving candidates', async () => {
     assert.equal((await req('/jobs/' + job.id, { who: 'hr', method: 'PATCH', body: { ...jobInput, departmentId: h.departments[1].id, expectedUpdatedAt: job.updatedAt } })).status, 400);
@@ -239,20 +239,25 @@ test('recruitment HTTP + real MySQL integration (AI/n8n are contract stubs)', { 
     assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
     const detail = (await req('/applications/' + candidate.id, { who: 'hr' })).data; assert.equal(detail.interviews[0].score, 88);
   });
-  await t.test('OFFERED follows passing result; Hire blocked without creating user/tasks', async () => {
+  await t.test('OFFERED follows passing result; Hire provisions user and five tasks', async () => {
     const usersBefore = await db.getRepository(e.User).count(); const tasksBefore = await db.getRepository(e.OnboardingTask).count();
     assert.equal((await req('/applications/' + candidate.id + '/status', { who: 'hr', method: 'PATCH', body: { expectedStatus: 'INTERVIEWING', status: 'OFFERED' } })).status, 200);
-    assert.equal((await req('/applications/' + candidate.id + '/hire', { who: 'hr', method: 'POST' })).status, 503);
-    assert.equal(await db.getRepository(e.User).count(), usersBefore); assert.equal(await db.getRepository(e.OnboardingTask).count(), tasksBefore);
-    assert.equal((await req('/applications/' + candidate.id, { who: 'hr' })).data.status, 'OFFERED');
+    const hired = await req('/applications/' + candidate.id + '/hire', { who: 'hr', method: 'POST' }); assert.equal(hired.status, 201);
+    assert.equal(hired.data.onboardingTasksCount, 5); assert.equal(hired.data.welcomeEmailStatus, 'DISPATCHED_UNVERIFIED');
+    assert.equal(await db.getRepository(e.User).count(), usersBefore + 1); assert.equal(await db.getRepository(e.OnboardingTask).count(), tasksBefore + 5);
+    assert.equal((await req('/applications/' + candidate.id, { who: 'hr' })).data.status, 'HIRED');
     assert.equal((await req('/applications/interviews/' + interview.id + '/questions', { who: 'hr', method: 'POST' })).status, 409);
   });
   await t.test('rejected applications have separate filter and no further score/schedule/result', async () => {
-    assert.equal((await req('/applications/' + candidate.id + '/status', { who: 'hr', method: 'PATCH', body: { expectedStatus: 'OFFERED', status: 'REJECTED' } })).status, 200);
-    assert.equal((await req('/applications?jobId=' + job.id, { who: 'hr' })).data.total, 1);
+    assert.equal((await req('/applications/' + candidate.id + '/status', { who: 'hr', method: 'PATCH', body: { expectedStatus: 'HIRED', status: 'REJECTED' } })).status, 409);
+    const rejected = await db.getRepository(e.Application).save({ jobId: job.id, candidateName: 'Separate rejection fixture', candidateEmail: 'reject@example.test', cvFileUrl: 'fixture-no-cv', rawCvText: 'Synthetic CV', status: 'OFFERED' });
+    const rejectedInterview = await db.getRepository(e.Interview).save({ applicationId: rejected.id, interviewerId: h.users.manager.id, round: 1, scheduledAt: new Date('2026-10-01T02:00:00Z'), result: 'PASSED', score: 80 });
+    assert.equal((await req('/applications/' + rejected.id + '/status', { who: 'hr', method: 'PATCH', body: { expectedStatus: 'OFFERED', status: 'REJECTED' } })).status, 200);
+    assert.equal((await req('/applications?jobId=' + job.id, { who: 'hr' })).data.total, 2);
     assert.equal((await req('/applications?jobId=' + job.id + '&status=REJECTED', { who: 'hr' })).data.total, 1);
-    assert.equal((await req('/applications/' + candidate.id + '/score', { who: 'hr', method: 'POST' })).status, 409);
-    assert.equal((await req('/applications/interviews/' + interview.id + '/result', { who: 'manager', method: 'PATCH', body: { score: 1, feedback: 'Stale', result: 'FAILED', expectedResult: 'PASSED', expectedUpdatedAt: interview.updatedAt } })).status, 409);
+    assert.equal((await req('/applications/' + rejected.id + '/score', { who: 'hr', method: 'POST' })).status, 409);
+    assert.equal((await req('/applications/' + rejected.id + '/interview', { who: 'hr', method: 'POST', body: { interviewerId: h.users.manager.id, scheduledAt: '2099-01-01T03:30:00Z', round: 2 } })).status, 409);
+    assert.equal((await req('/applications/interviews/' + rejectedInterview.id + '/result', { who: 'manager', method: 'PATCH', body: { score: 1, feedback: 'Stale', result: 'FAILED', expectedResult: 'PASSED', expectedUpdatedAt: rejectedInterview.updatedAt } })).status, 409);
   });
   await t.test('automation false keeps saved interview and does not claim delivery', async () => {
     const next = await db.getRepository(e.Application).findOneByOrFail({ candidateEmail: 'concurrent@example.test' });

@@ -12,6 +12,8 @@ import { EmployeeTraining } from '../../entities/employee-training.entity';
 import { JobsModule } from '../jobs/jobs.module';
 import { CvStorageService } from './cv-storage.service';
 import { SubmitRateGuard } from './submit-rate.guard';
+import { InterviewDelivery } from './interview-delivery.entity';
+import { InterviewDeliveryService } from './interview-delivery.service';
 import { InterviewScheduleController, InterviewScheduleService } from './interview-schedule.controller';
 
 @Module({
@@ -21,6 +23,7 @@ import { InterviewScheduleController, InterviewScheduleService } from './intervi
       Application,
       Job,
       Interview,
+      InterviewDelivery,
       User,
       OnboardingTask,
       TrainingCourse,
@@ -28,7 +31,7 @@ import { InterviewScheduleController, InterviewScheduleService } from './intervi
     ]),
   ],
   controllers: [ApplicationsController, InterviewScheduleController],
-  providers: [ApplicationsService, CvStorageService, SubmitRateGuard, InterviewScheduleService],
+  providers: [ApplicationsService, CvStorageService, SubmitRateGuard, InterviewDeliveryService, InterviewScheduleService],
   exports: [ApplicationsService],
 })
 export class ApplicationsModule {}

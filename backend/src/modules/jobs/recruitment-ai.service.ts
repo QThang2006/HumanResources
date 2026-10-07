@@ -23,8 +23,8 @@ export class RecruitmentAiService {
   constructor(private readonly gemini: GeminiService) {}
   capabilities() {
     const sdk = this.gemini as unknown as Sdk;
-    return { jd: typeof sdk.generateJobDescription === 'function', score: typeof sdk.scoreResume === 'function', questions: typeof sdk.generateInterviewQuestions === 'function', hire: false,
-      notice: 'Hire chưa được mở: cần hợp đồng tạo tài khoản và 5 nhiệm vụ. Kết quả AI mô phỏng chỉ dùng xem trước, không lưu điểm hoặc câu hỏi.' };
+    return { jd: typeof sdk.generateJobDescription === 'function', score: typeof sdk.scoreResume === 'function', questions: typeof sdk.generateInterviewQuestions === 'function', hire: true,
+      notice: 'Tuyển ứng viên tạo tài khoản và 5 nhiệm vụ onboarding sau vòng phỏng vấn đạt. Kết quả AI mô phỏng chỉ dùng xem trước, không lưu điểm hoặc câu hỏi.' };
   }
   private async call(method: Method, args: string[]): Promise<AiResult<Record<string, unknown>>> {
     const fn = (this.gemini as unknown as Sdk)[method];

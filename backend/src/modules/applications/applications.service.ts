@@ -1,6 +1,7 @@
+import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { OnboardingTask, TaskCategory } from '../../entities/onboarding-task.entity';
-import { BadRequestException, ConflictException, Logger, Injectable, NotFoundException, ServiceUnavailableException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Application, ApplicationStatus, AiRecommendation } from '../../entities/application.entity';
@@ -12,6 +13,8 @@ import { Actor, assertOperator, assertScope, assertStatusTransition, assertFresh
 import { ApplicationQuery, SubmitInput, StateInput, ScheduleInput, ResultInput } from '../jobs/recruitment.dto';
 import { N8nService } from '../core/automation/n8n.service';
 import { CvStorageService } from './cv-storage.service';
+import { deliveryView, InterviewDeliveryService } from './interview-delivery.service';
+import { ConfigService } from '@nestjs/config';
 
 function interviewView(row: Interview) {
   return { id: row.id, applicationId: row.applicationId, interviewerId: row.interviewerId,
@@ -34,7 +37,8 @@ export class ApplicationsService {
   private readonly activeAi = new Set<string>();
   constructor(@InjectRepository(Application) private readonly applications: Repository<Application>,
     private readonly db: DataSource, private readonly files: CvStorageService,
-    private readonly ai: RecruitmentAiService, private readonly n8n: N8nService) {}
+    private readonly ai: RecruitmentAiService, private readonly n8n: N8nService,
+    private readonly delivery: InterviewDeliveryService, private readonly config: ConfigService) {}
 
   private async scopedJob(id: number, actor: Actor) {
     const job = await this.db.getRepository(Job).findOneBy({ id });
@@ -66,7 +70,11 @@ export class ApplicationsService {
     return { items: rows.map(applicationView), total, page: query.page, pageSize: query.pageSize,
       counts: Object.fromEntries(counts.map(row => [row.status, Number(row.count)])) };
   }
-  async detail(id: number, actor: Actor) { return applicationView(await this.row(id, actor)); }
+  async detail(id: number, actor: Actor) {
+    const view = applicationView(await this.row(id, actor));
+    const deliveries = await this.delivery.views(view.interviews.map(i => i.id));
+    return { ...view, interviews: view.interviews.map(i => ({ ...i, automation: deliveries.get(i.id) || deliveryView() })) };
+  }
   async download(id: number, actor: Actor) { const app = await this.row(id, actor); return this.files.read(app.cvFileUrl); }
 
   async apply(input: SubmitInput, file: Express.Multer.File) {
@@ -164,21 +172,30 @@ export class ApplicationsService {
       }));
       app.status = ApplicationStatus.INTERVIEWING; app.updatedAt = nextRevision(app.updatedAt);
       await manager.getRepository(Application).save(app);
-      return { interview, app, interviewer, created: true };
+      const sender = this.config.get<string>('MAIL_FROM') || this.config.get<string>('GMAIL_USER');
+      const payload = {
+        interviewId: interview.id, applicationId: id, candidateName: app.candidateName,
+        candidateEmail: app.candidateEmail, interviewerName: interviewer.fullName, interviewerEmail: interviewer.email,
+        scheduledAt: interview.scheduledAt.toISOString(), round: interview.round,
+        ...(sender ? { fromEmail: sender } : {}),
+      };
+      const delivery = await this.delivery.prepare(manager, payload);
+      return { interview, app, interviewer, created: true, payload: { ...payload, delivery } };
     });
     let dispatch = 'NOT_RETRIED';
     if (result.created) {
       try {
-        const accepted = await this.n8n.triggerInterviewScheduled({
-          interviewId: result.interview.id, applicationId: id, candidateName: result.app.candidateName,
-          candidateEmail: result.app.candidateEmail, interviewerName: result.interviewer.fullName,
-          interviewerEmail: result.interviewer.email, scheduledAt: result.interview.scheduledAt.toISOString(), round: result.interview.round,
-        });
+        const accepted = await this.n8n.triggerInterviewScheduled(result.payload);
         dispatch = accepted ? 'UNVERIFIED' : 'FAILED';
       } catch { dispatch = 'FAILED'; }
+      if (dispatch === 'FAILED') await this.delivery.dispatchFailed(result.interview.id);
     }
-    return { interview: interviewView(result.interview), dispatch,
-      message: 'Đã lưu lịch. SDK hiện chưa xác nhận email/Google Meet hoàn tất; hãy kiểm tra workflow với lead.' };
+    const interview = (await this.detail(id, actor)).interviews.find(i => i.id === result.interview.id);
+    return { interview, dispatch, message: dispatch === 'FAILED'
+      ? 'Đã lưu lịch nhưng chưa gửi được yêu cầu tạo Meet và thư mời. Hãy kiểm tra workflow.'
+      : result.created && result.payload.delivery
+        ? 'Đã lưu lịch. Đang chờ kết quả tạo Google Meet và gửi thư mời.'
+        : 'Đã lưu lịch. Chưa xác nhận email/Google Meet; hãy kiểm tra workflow.' };
   }
   async result(interviewId: number, input: ResultInput, actor: Actor) {
     if (actor.role !== UserRole.MANAGER) throw new ForbiddenException('Chỉ Manager được phân công mới chấm phỏng vấn.');
@@ -226,76 +243,38 @@ export class ApplicationsService {
     });
     return { ...result, saved: result.mode === 'LIVE' };
   }
-  async hire(id: number, actor: Actor) {
+  async hire(id: number, actor: Actor) { return this.hireCandidate(id, actor); }
+
+  // Lead main 764bf37 supplies the hireCandidate provisioning flow and five tasks.
+  // Keep the ATS authorization/preconditions and make its DB writes atomic.
+  async hireCandidate(applicationId: number, actor: Actor) {
     assertOperator(actor);
-    const app = await this.row(id, actor);
-    if (app.status === ApplicationStatus.HIRED && app.hiredUserId) return { hiredUserId: app.hiredUserId, alreadyHired: true };
-    if (![ApplicationStatus.INTERVIEWING, ApplicationStatus.OFFERED].includes(app.status)) throw new ConflictException('Hồ sơ chưa ở bước nhận việc.');
-    if ([...app.interviews].sort((a, b) => b.round - a.round)[0]?.result !== InterviewResult.PASSED) throw new ConflictException('Vòng phỏng vấn mới nhất chưa đạt.');
-    throw new ServiceUnavailableException('Chưa thể nhận việc: lead cần bàn giao nguồn userId và hợp đồng provisioning. Chưa tạo tài khoản, task hoặc thay đổi hồ sơ.');
-  }
-
-  // Provisioning method supplied by lead main 764bf37; ATS guards call this engine.
-  async hireCandidate(applicationId: number) {
-    const app = await this.applications.findOne({
-      where: { id: applicationId },
-      relations: ['job', 'job.department'],
-    });
-
-    if (!app) {
-      throw new NotFoundException(`Không tìm thấy hồ sơ ứng viên mang ID #${applicationId}`);
-    }
-
-    // 1. Kiểm tra tính Idempotent (Chống bấm lặp / Đã tuyển dụng trước đó)
-    if (app.status === ApplicationStatus.HIRED && app.hiredUserId) {
-      const existingUser = await this.db.getRepository(User).findOne({
-        where: { id: app.hiredUserId },
-        relations: ['department'],
-      });
-      return {
-        success: true,
-        alreadyHired: true,
-        hiredUserId: app.hiredUserId,
-        email: existingUser?.email || app.candidateEmail,
-        fullName: existingUser?.fullName || app.candidateName,
-        message: 'Ứng viên này đã hoàn tất quy trình tuyển dụng trước đó.',
-      };
-    }
-
-    // 2. Tạo mật khẩu tạm thời an toàn
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const tempPassword = `Enterprise@2026#${randomSuffix}`;
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(tempPassword, salt);
-
-    // 3. Kiểm tra xem User với email này đã tồn tại chưa
-    let user = await this.db.getRepository(User).findOne({
-      where: { email: app.candidateEmail },
-    });
-
-    if (!user) {
-      user = this.db.getRepository(User).create({
-        fullName: app.candidateName,
-        email: app.candidateEmail,
-        phone: app.candidatePhone || '0901234567',
-        passwordHash,
-        role: UserRole.EMPLOYEE,
-        jobTitle: app.job?.title || 'Chuyên viên Công nghệ',
-        departmentId: app.job?.departmentId,
-        isActive: true,
-      });
-      user = await this.db.getRepository(User).save(user);
-      this.logger.log(`✅ Đã tạo tài khoản nhân sự mới [ID #${user.id}] cho ứng viên ${user.fullName}`);
-    }
-
-    // 4. Cập nhật trạng thái hồ sơ thành HIRED
-    app.status = ApplicationStatus.HIRED;
-    app.hiredUserId = user.id;
-    await this.applications.save(app);
-
-    // 5. Tự động khởi tạo 5 nhiệm vụ hội nhập đầu vào (Standard 30-Day Onboarding Checklist)
-    const existingTasks = await this.db.getRepository(OnboardingTask).count({ where: { userId: user.id } });
-    if (existingTasks === 0) {
+    let provisioned: {
+      receipt: { success: boolean; alreadyHired: boolean; hiredUserId: number; email: string; fullName: string; onboardingTasksCount: number };
+      notification?: { userId: number; fullName: string; email: string; jobTitle: string; departmentName: string; tempPassword: string };
+    };
+    try {
+      provisioned = await this.db.transaction(async manager => {
+        const app = await this.locked(manager, applicationId, actor);
+        if (app.status === ApplicationStatus.HIRED && app.hiredUserId) {
+          const user = await manager.getRepository(User).findOneBy({ id: app.hiredUserId });
+          if (!user) throw new ConflictException('Hồ sơ đã nhận việc nhưng thiếu tài khoản nhân viên. Cần HR kiểm tra.');
+          const count = await manager.getRepository(OnboardingTask).countBy({ userId: user.id });
+          return { receipt: { success: true, alreadyHired: true, hiredUserId: user.id, email: user.email, fullName: user.fullName, onboardingTasksCount: count } };
+        }
+        if (![ApplicationStatus.INTERVIEWING, ApplicationStatus.OFFERED].includes(app.status)) throw new ConflictException('Hồ sơ chưa ở bước nhận việc.');
+        const latest = await manager.getRepository(Interview).findOne({ where: { applicationId }, order: { round: 'DESC', id: 'DESC' }, lock: { mode: 'pessimistic_read' } });
+        if (latest?.result !== InterviewResult.PASSED) throw new ConflictException('Vòng phỏng vấn mới nhất chưa đạt.');
+        const job = await manager.getRepository(Job).findOne({ where: { id: app.jobId }, relations: ['department'] });
+        const email = app.candidateEmail.trim().toLowerCase();
+        if (await manager.getRepository(User).findOneBy({ email })) throw new ConflictException('Email ứng viên đã có tài khoản. HR cần đối soát tài khoản trước khi tuyển.');
+        const tempPassword = randomBytes(24).toString('base64url');
+        const passwordHash = await bcrypt.hash(tempPassword, 10);
+        const user = await manager.getRepository(User).save(manager.getRepository(User).create({
+          fullName: app.candidateName, email, phone: app.candidatePhone,
+          passwordHash, role: UserRole.EMPLOYEE, departmentId: job.departmentId,
+          jobTitle: job.title.slice(0, 100), isActive: true,
+        }));
       const defaultOnboardingTasks = [
         {
           userId: user.id,
@@ -333,32 +312,26 @@ export class ApplicationsService {
           dueDay: 30,
         },
       ];
-
-      for (const t of defaultOnboardingTasks) {
-        await this.db.getRepository(OnboardingTask).save(this.db.getRepository(OnboardingTask).create(t));
-      }
-      this.logger.log(`✅ Đã tự động tạo 5 nhiệm vụ Onboarding Checklist cho nhân viên ID #${user.id}`);
+        await manager.getRepository(OnboardingTask).save(defaultOnboardingTasks.map(task => manager.getRepository(OnboardingTask).create(task)));
+        app.status = ApplicationStatus.HIRED; app.hiredUserId = user.id; app.updatedAt = nextRevision(app.updatedAt);
+        await manager.getRepository(Application).save(app);
+        return {
+          receipt: { success: true, alreadyHired: false, hiredUserId: user.id, email: user.email, fullName: user.fullName, onboardingTasksCount: defaultOnboardingTasks.length },
+          notification: { userId: user.id, fullName: user.fullName, email: user.email, jobTitle: user.jobTitle, departmentName: job.department.name, tempPassword },
+        };
+      });
+    } catch (error) {
+      if (error?.driverError?.code === 'ER_DUP_ENTRY' || error?.code === 'ER_DUP_ENTRY') throw new ConflictException('Email này vừa được dùng cho tài khoản khác. Hồ sơ chưa đổi trạng thái; hãy tải lại để kiểm tra.');
+      throw error;
     }
-
-    // 6. Kích hoạt Webhook n8n gửi email chào mừng & thông tin tài khoản
-    const departmentName = app.job?.department?.name || 'Phòng Phát Triển Công Nghệ Số';
-    await this.n8n.triggerEmployeeHired({
-      userId: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      jobTitle: user.jobTitle || 'Chuyên viên',
-      departmentName,
-      tempPassword,
-    });
-
-    return {
-      success: true,
-      hiredUserId: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      tempPassword,
-      onboardingTasksCount: 5,
-      message: 'Tuyển dụng nhân sự mới & bàn giao quy trình Onboarding thành công.',
-    };
+    let welcomeEmailStatus: 'DISPATCHED_UNVERIFIED' | 'FAILED' | 'NOT_RETRIED' = 'NOT_RETRIED';
+    if (provisioned.notification) {
+      try { welcomeEmailStatus = await this.n8n.triggerEmployeeHired(provisioned.notification) ? 'DISPATCHED_UNVERIFIED' : 'FAILED'; }
+      catch { welcomeEmailStatus = 'FAILED'; this.logger.warn('Không khởi chạy được thư chào mừng sau khi tuyển dụng.'); }
+    }
+    // A true from the lead dispatcher is asynchronous, not proof of email delivery.
+    // Passwords stay in the dispatcher payload and never appear in an ATS response.
+    return { ...provisioned.receipt, welcomeEmailStatus };
   }
+
 }

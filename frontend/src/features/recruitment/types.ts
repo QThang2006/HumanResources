@@ -13,6 +13,7 @@ export interface Interview {
   id: number; applicationId: number; interviewerId: number; interviewerName: string; round: number;
   scheduledAt: string; meetingLink: string | null; questions: string[]; score: number | null;
   feedback: string | null; result: InterviewResult; updatedAt: string;
+  automation?: { status: 'UNVERIFIED' | 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'UNKNOWN'; calendarStatus: string; emailStatus: string; failureStage: string | null; updatedAt: string | null };
 }
 export interface Candidate {
   id: number; jobId: number; jobTitle: string; candidateName: string; candidateEmail: string; candidatePhone: string | null;
@@ -32,5 +33,9 @@ export interface InterviewScheduleQuery {
   page?: number; pageSize?: number;
 }
 export interface Capabilities { jd: boolean; score: boolean; questions: boolean; hire: boolean; notice: string }
+export interface HireReceipt {
+  success: boolean; hiredUserId: number; alreadyHired: boolean; onboardingTasksCount: number;
+  welcomeEmailStatus: 'DISPATCHED_UNVERIFIED' | 'FAILED' | 'NOT_RETRIED'; email: string; fullName: string;
+}
 export interface AiResult<T> { mode: 'LIVE' | 'MOCK'; data: T; saved?: boolean }
 export const statusLabels: Record<ApplicationStatus, string> = { APPLIED: 'Mới nộp', INTERVIEWING: 'Đang phỏng vấn', OFFERED: 'Đề xuất nhận việc', HIRED: 'Đã nhận việc', REJECTED: 'Đã từ chối' };

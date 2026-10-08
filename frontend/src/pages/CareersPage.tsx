@@ -1,123 +1,255 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Briefcase, MapPin, DollarSign, ArrowRight, UserPlus, Code2 } from 'lucide-react';
-import type { Job } from '../types';
+import { ArrowRight, Briefcase, ChevronLeft, ChevronRight, DollarSign, MapPin } from 'lucide-react';
+import { jobsApi } from '../api/jobs.api';
+import type { JobFilters, JobPage } from '../api/jobs.api';
 
-export const mockJobs: Job[] = [
-  {
-    id: 1,
-    title: 'Senior Backend Developer (NestJS & MySQL)',
-    departmentId: 1,
-    departmentName: 'Phòng Kỹ thuật Phần mềm (TECH)',
-    location: 'Hà Nội (Hybrid)',
-    salaryRange: '25 - 35 Triệu VNĐ',
-    description: 'Thiết kế kiến trúc hệ thống backend microservices, tối ưu cơ sở dữ liệu MySQL và xây dựng RESTful API.',
-    requirements: 'Tối thiểu 3 năm kinh nghiệm với Node.js/NestJS, thành thạo MySQL, Docker.',
-    status: 'OPEN',
-    createdAt: '2026-09-20',
-    applicationCount: 4,
-  },
-  {
-    id: 2,
-    title: 'Frontend React Engineer (TypeScript & Tailwind)',
-    departmentId: 1,
-    departmentName: 'Phòng Kỹ thuật Phần mềm (TECH)',
-    location: 'Hà Nội / Remote',
-    salaryRange: '18 - 25 Triệu VNĐ',
-    description: 'Phát triển giao diện web cho hệ sinh thái HR Tech, tối ưu hóa trải nghiệm người dùng với Tailwind CSS.',
-    requirements: '2+ năm kinh nghiệm React, TypeScript, Responsive Design.',
-    status: 'OPEN',
-    createdAt: '2026-09-22',
-    applicationCount: 2,
-  },
-];
+const PAGE_SIZE = 6;
 
-export const CareersPage: React.FC = () => {
+type JobsState =
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; data: JobPage };
+
+type FiltersState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | ({ status: 'ready' } & JobFilters);
+
+export function CareersPage() {
+  const [state, setState] = useState<JobsState>({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
+  const [query, setQuery] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [location, setLocation] = useState('');
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<FiltersState>({ status: 'loading' });
+  const [filtersAttempt, setFiltersAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    jobsApi.getFilters(controller.signal)
+      .then(data => {
+        if (!controller.signal.aborted) setFilters({ status: 'ready', departments: data.departments, locations: data.locations });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setFilters({ status: 'error' });
+      });
+    return () => controller.abort();
+  }, [filtersAttempt]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => jobsApi.getPage(controller.signal, page, PAGE_SIZE, query.trim(), departmentId ? Number(departmentId) : undefined, location)
+      .then(data => {
+        if (controller.signal.aborted) return;
+        const lastPage = Math.max(1, Math.ceil(data.total / data.pageSize));
+        if (page > lastPage) {
+          setState({ status: 'loading' });
+          setPage(lastPage);
+          return;
+        }
+        setState({ status: 'ready', data });
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setState({
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Không tải được danh sách tuyển dụng.',
+          });
+        }
+      }), 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [query, departmentId, location, page, attempt]);
+
+  function search(value: string) {
+    setQuery(value);
+    setPage(1);
+    setState({ status: 'loading' });
+  }
+
+  function changePage(value: number) {
+    setPage(value);
+    setState({ status: 'loading' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function retry() {
+    setState({ status: 'loading' });
+    setAttempt(value => value + 1);
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Khung hướng dẫn kỹ thuật cho Thành viên 2 */}
-      <div className="mb-8 p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 flex items-start gap-3">
-        <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-sm">
-          <Code2 className="w-5 h-5" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded-full">
-              Khung Sườn Chờ Code • Sprint 2
-            </span>
-            <span className="text-xs font-bold text-indigo-900">
-              Phân hệ Cổng Việc Làm Công Khai (Public Careers)
-            </span>
-          </div>
-          <p className="text-xs text-indigo-700/90 mt-1">
-            📌 <strong>Phân công: Thành viên 2</strong> sẽ kết nối API <code className="bg-white/80 px-1 rounded">GET /api/jobs</code>, xây dựng thanh tìm kiếm từ khóa, bộ lọc phòng ban và danh sách tin tuyển dụng tại đây.
-          </p>
-        </div>
-      </div>
-
-      {/* Tiêu đề Cổng Tuyển Dụng */}
-      <div className="text-center max-w-2xl mx-auto mb-10">
+      <header className="text-center max-w-2xl mx-auto mb-10">
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
           Cơ Hội Nghề Nghiệp Tại Công Ty
         </h1>
         <p className="text-sm text-slate-500 mt-2">
-          Gia nhập đội ngũ phát triển sản phẩm công nghệ tiên phong cùng môi trường làm việc cởi mở.
+          Khám phá các vị trí đang tuyển và tìm cơ hội phù hợp với bạn.
         </p>
-      </div>
+      </header>
 
-      {/* Danh sách thẻ việc làm mẫu (Starter Cards) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {mockJobs.map((job) => (
-          <div
-            key={job.id}
-            className="p-6 bg-white rounded-2xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                  {job.departmentName}
-                </span>
-                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  Đang Mở Tuyển
-                </span>
-              </div>
-              <h2 className="text-lg font-bold text-slate-900 hover:text-indigo-600 transition-colors">
-                <Link to={`/careers/${job.id}`}>{job.title}</Link>
-              </h2>
-              <p className="text-xs text-slate-600 mt-2 line-clamp-2">{job.description}</p>
-              
-              <div className="flex flex-wrap gap-4 mt-4 text-xs font-medium text-slate-500">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  {job.location}
-                </span>
-                <span className="flex items-center gap-1">
-                  <DollarSign className="w-3.5 h-3.5 text-slate-400" />
-                  {job.salaryRange}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <UserPlus className="w-3.5 h-3.5" /> {job.applicationCount} ứng viên đã nộp
-              </span>
-              <Link
-                to={`/careers/${job.id}`}
-                className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700"
-              >
-                Xem chi tiết & Ứng tuyển <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
+      <section aria-label="Tìm kiếm vị trí tuyển dụng" className="mb-6 rounded-2xl border border-slate-200 bg-white p-5">
+        <label htmlFor="job-search" className="mb-2 block text-sm font-semibold text-slate-700">Tìm theo tên công việc</label>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            id="job-search"
+            type="search"
+            maxLength={150}
+            value={query}
+            onChange={event => search(event.target.value)}
+            placeholder="Ví dụ: Backend, Kế toán..."
+            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          {query && <button type="button" onClick={() => search('')} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Xóa tìm kiếm</button>}
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="min-w-0">
+            <label htmlFor="job-department" className="mb-2 block text-sm font-semibold text-slate-700">Phòng ban</label>
+            <select
+              id="job-department"
+              value={departmentId}
+              disabled={filters.status !== 'ready' || filters.departments.length === 0}
+              onChange={event => { setDepartmentId(event.target.value); setPage(1); setState({ status: 'loading' }); }}
+              className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+            >
+              <option value="">Tất cả phòng ban</option>
+              {filters.status === 'ready' && filters.departments.map(department => (
+                <option key={department.id} value={department.id}>{department.name}</option>
+              ))}
+            </select>
+            {filters.status === 'ready' && filters.departments.length === 0 && <p className="mt-2 text-sm text-slate-500">Chưa có phòng ban đang tuyển.</p>}
           </div>
-        ))}
-      </div>
+          <div className="min-w-0">
+            <label htmlFor="job-location" className="mb-2 block text-sm font-semibold text-slate-700">Địa điểm</label>
+            <select
+              id="job-location"
+              value={location}
+              disabled={filters.status !== 'ready' || filters.locations.length === 0}
+              onChange={event => { setLocation(event.target.value); setPage(1); setState({ status: 'loading' }); }}
+              className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+            >
+              <option value="">Tất cả địa điểm</option>
+              {filters.status === 'ready' && filters.locations.map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+            {filters.status === 'ready' && filters.locations.length === 0 && <p className="mt-2 text-sm text-slate-500">Chưa có địa điểm đang tuyển.</p>}
+          </div>
+        </div>
+        <div>
+          {filters.status === 'loading' && <p role="status" className="mt-2 text-sm text-slate-500">Đang tải phòng ban và địa điểm...</p>}
+          {filters.status === 'error' && (
+            <div role="alert" className="mt-2 text-sm text-amber-800">
+              <p>Không tải được danh sách phòng ban và địa điểm.</p>
+              <button
+                type="button"
+                onClick={() => { setFilters({ status: 'loading' }); setFiltersAttempt(value => value + 1); }}
+                className="mt-2 rounded-lg border border-amber-300 px-3 py-2 font-semibold hover:bg-amber-50"
+              >Thử lại bộ lọc</button>
+            </div>
+          )}
+        </div>
+      </section>
 
-      {/* Khung Placeholder chờ Thành viên 2 mở rộng */}
-      <div className="mt-8 border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center text-slate-400">
-        <Briefcase className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-        <p className="text-xs font-medium">Khung sườn đã dựng sẵn • Thành viên 2 sẽ bổ sung các bộ lọc & phân trang tại đây</p>
-      </div>
+      {state.status === 'loading' && (
+        <p role="status" className="py-12 text-center text-sm text-slate-500">
+          Đang tải vị trí tuyển dụng...
+        </p>
+      )}
+
+      {state.status === 'error' && (
+        <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+          <p className="text-sm text-amber-900">{state.message}</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 focus-visible:outline-indigo-600"
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
+
+      {state.status === 'ready' && (
+        state.data.items.length === 0 ? (
+          <div role="status" className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center">
+            <Briefcase aria-hidden="true" className="w-8 h-8 mx-auto mb-3 text-slate-400" />
+            <p className="text-sm text-slate-600">{departmentId || location ? 'Không tìm thấy vị trí phù hợp với bộ lọc đã chọn.' : query.trim() ? 'Không tìm thấy vị trí phù hợp với từ khóa.' : 'Hiện chưa có vị trí đang tuyển. Vui lòng quay lại sau.'}</p>
+          </div>
+        ) : (
+          <>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+            <p><strong className="text-slate-900">{state.data.total}</strong> vị trí phù hợp</p>
+            <p>Trang {state.data.page}/{Math.max(1, Math.ceil(state.data.total / state.data.pageSize))}</p>
+          </div>
+          <section aria-label="Vị trí đang tuyển" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {state.data.items.map(job => (
+              <article
+                key={job.id}
+                className="min-w-0 p-6 bg-white rounded-2xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                      {job.departmentName}
+                    </span>
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      Đang mở tuyển
+                    </span>
+                  </div>
+                  <h2 className="break-words text-lg font-bold text-slate-900 hover:text-indigo-600">
+                    <Link to={'/careers/' + job.id}>{job.title}</Link>
+                  </h2>
+                  <p className="break-words whitespace-pre-line text-sm text-slate-600 mt-2 line-clamp-2">
+                    {job.description}
+                  </p>
+                  <div className="flex flex-wrap gap-4 mt-4 text-xs font-medium text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <MapPin aria-hidden="true" className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                      {job.location}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <DollarSign aria-hidden="true" className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                      {job.salaryRange}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-6 pt-4 border-t border-slate-100">
+                  <Link
+                    to={'/careers/' + job.id}
+                    className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-700"
+                    aria-label={'Xem chi tiết: ' + job.title}
+                  >
+                    Xem chi tiết <ArrowRight aria-hidden="true" className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </section>
+          {state.data.total > state.data.pageSize && (
+            <nav aria-label="Phân trang vị trí tuyển dụng" className="mt-8 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={state.data.page <= 1}
+                onClick={() => changePage(state.data.page - 1)}
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft aria-hidden="true" className="h-4 w-4" /> Trang trước
+              </button>
+              <span className="min-w-20 text-center text-sm font-semibold text-slate-700">{state.data.page} / {Math.ceil(state.data.total / state.data.pageSize)}</span>
+              <button
+                type="button"
+                disabled={state.data.page >= Math.ceil(state.data.total / state.data.pageSize)}
+                onClick={() => changePage(state.data.page + 1)}
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Trang sau <ChevronRight aria-hidden="true" className="h-4 w-4" />
+              </button>
+            </nav>
+          )}
+          </>
+        )
+      )}
     </div>
   );
-};
+}

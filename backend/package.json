@@ -13,6 +13,9 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "seed:knowledge": "node scripts/seed_knowledge_base.js"
+    "seed:recruitment": "node dist/seeds/recruitment-demo.cli.js",
+    "demo:recruitment": "node test/recruitment-demo.cjs",
+    "test:recruitment-seed": "node --test test/recruitment-demo-seed.test.cjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

@@ -54,6 +54,6 @@ export const onboardingApi = {
   },
 
   chatWithCopilot: async (message: string): Promise<ChatCopilotResponse> => {
-    return apiClient.post('/onboarding/chat', { message });
+    return apiClient.post('/onboarding/chat', { message }, { timeout: 90000 });
   },
 };

@@ -17,7 +17,7 @@ export class DocumentsService {
         private readonly chunkRepository: Repository<DocumentChunk>,
 
         private readonly vectorService: VectorService,
-    ) {}
+    ) { }
 
     async findAll() {
         const documents = await this.documentRepository.find({
@@ -129,11 +129,12 @@ export class DocumentsService {
             queryEmbedding,
             readyChunks,
             Math.max(topK * 3, topK),
-            0.1,
+            0.05,
+            query,
         );
 
-// Loại bỏ các chunk có nội dung trùng nhau,
-// ví dụ cùng một PDF vô tình được upload nhiều lần.
+        // Loại bỏ các chunk có nội dung trùng nhau,
+        // ví dụ cùng một PDF vô tình được upload nhiều lần.
         const seenContents = new Set<string>();
 
         const uniqueResults = results

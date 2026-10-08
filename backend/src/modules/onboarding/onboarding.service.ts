@@ -7,6 +7,7 @@ import { Document } from '../../entities/document.entity';
 import { EmployeeTraining } from '../../entities/employee-training.entity';
 import { User } from '../../entities/user.entity';
 import { GeminiService } from '../core/ai/gemini.service';
+import { VectorService } from '../core/ai/vector.service';
 import { N8nService } from '../core/automation/n8n.service';
 
 /**
@@ -31,8 +32,9 @@ export class OnboardingService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly geminiService: GeminiService,
+    private readonly vectorService: VectorService,
     private readonly n8nService: N8nService,
-  ) {}
+  ) { }
 
   // ────────────────────────────────────────────────────────────────────
   // THÀNH VIÊN 3: LỘ TRÌNH THỬ VIỆC 30 NGÀY (Bước 2)
@@ -440,19 +442,69 @@ export class OnboardingService {
     const documents = await this.docRepository.find({
       where: { status: 'READY' as any },
       relations: ['chunks'],
-      take: 10,
+      take: 20,
       order: { createdAt: 'DESC' },
     });
 
     const docTitles = documents.map((d) => d.title);
-    
-    // Tổng hợp nội dung các chunks thành bộ cơ sở tri thức phong phú
+
+    // Thu thập toàn bộ chunks và liên kết thông tin document
+    const allChunks: any[] = [];
+    for (const doc of documents) {
+      if (doc.chunks && doc.chunks.length > 0) {
+        for (const chunk of doc.chunks) {
+          chunk.document = doc;
+          allChunks.push(chunk);
+        }
+      }
+    }
+
+    let sourceDocuments: string[] = [];
     let docContext = '';
-    if (documents.length > 0) {
+
+    if (allChunks.length > 0) {
+      let queryEmbedding: number[] = [];
+      try {
+        queryEmbedding = await this.vectorService.generateEmbedding(message);
+      } catch (err: any) {
+        this.logger.warn(`Lỗi tạo embedding câu hỏi Copilot: ${err.message}`);
+      }
+
+      // Tìm top 4 chunks sát nhất bằng hybrid search (vector cosine + BM25 keyword matching)
+      const relevantResults = this.vectorService.findSimilar(
+        queryEmbedding,
+        allChunks,
+        4,
+        0.05,
+        message,
+      );
+
+      if (relevantResults.length > 0) {
+        const foundDocTitles = new Set<string>();
+        relevantResults.forEach((r) => {
+          if (r.chunk?.document?.title) {
+            foundDocTitles.add(r.chunk.document.title);
+          }
+        });
+        sourceDocuments = Array.from(foundDocTitles);
+
+        docContext = relevantResults
+          .map(
+            (r, idx) =>
+              `=== [TRÍCH ĐOẠN ${idx + 1} - NGUỒN: ${r.chunk?.document?.title || 'Tài liệu nội bộ'} (Độ khớp: ${Math.round(r.similarity * 100)}%)] ===\n${r.chunk.content}`,
+          )
+          .join('\n\n------------------------------------\n\n');
+      }
+    }
+
+    // Fallback nếu không có chunk nào khớp tiêu chí tìm kiếm
+    if (!docContext && documents.length > 0) {
+      sourceDocuments = docTitles.slice(0, 3);
       docContext = documents
+        .slice(0, 3)
         .map((d) => {
           const chunksText = (d.chunks || [])
-            .sort((a, b) => a.chunkIndex - b.chunkIndex)
+            .slice(0, 2)
             .map((c) => c.content)
             .join('\n\n');
           return `=== [TÀI LIỆU NỘI BỘ: ${d.title}] ===\n${chunksText}`;
@@ -466,7 +518,7 @@ export class OnboardingService {
       return {
         userId,
         reply: this.getFallbackReply(message),
-        sourceDocuments: docTitles,
+        sourceDocuments: sourceDocuments.length > 0 ? sourceDocuments : docTitles.slice(0, 3),
         toolActionExecuted: null,
       };
     }
@@ -494,22 +546,28 @@ CÂU HỎI CỦA NHÂN VIÊN:
 Hãy dựa vào quy chế nội bộ trên để giải thích và trả lời cặn kẽ, cụ thể cho bạn ${user?.fullName || 'Nhân sự'}.`;
 
     try {
-      const reply = await this.geminiService.generateText(prompt, systemInstruction);
+      let reply = await this.geminiService.generateText(prompt, systemInstruction);
 
-      this.logger.log(`🤖 AI Copilot: userId=${userId}, question="${message.substring(0, 50)}...", gemini=OK`);
+      if (!reply || reply.trim().length === 0 || reply.includes('sự cố kết nối')) {
+        reply = `Chào bạn ${user?.fullName || 'Nhân sự'},\n\nDựa trên các quy chế và tài liệu nội bộ đã được phê duyệt (${sourceDocuments.join(', ')}):\n\n${docContext}`;
+      }
+
+      this.logger.log(`🤖 AI Copilot: userId=${userId}, question="${message.substring(0, 50)}...", gemini=OK, sources=${sourceDocuments.join(', ')}`);
 
       return {
         userId,
         reply,
-        sourceDocuments: docTitles,
+        sourceDocuments: sourceDocuments.length > 0 ? sourceDocuments : docTitles.slice(0, 3),
         toolActionExecuted: null,
       };
     } catch (error: any) {
       this.logger.error(`AI Copilot error: ${error.message}`);
       return {
         userId,
-        reply: 'Xin lỗi, trợ lý AI đang gặp sự cố. Vui lòng thử lại sau hoặc liên hệ phòng HR.',
-        sourceDocuments: docTitles,
+        reply: docContext
+          ? `Chào bạn ${user?.fullName || 'Nhân sự'},\n\nDựa trên các quy chế nội bộ (${sourceDocuments.join(', ')}):\n\n${docContext}`
+          : 'Xin lỗi, trợ lý AI đang gặp sự cố. Vui lòng thử lại sau hoặc liên hệ phòng HR.',
+        sourceDocuments: sourceDocuments.length > 0 ? sourceDocuments : docTitles.slice(0, 3),
         toolActionExecuted: null,
       };
     }

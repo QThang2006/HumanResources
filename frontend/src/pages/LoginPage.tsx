@@ -20,7 +20,6 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await authApi.login({ email: targetEmail, password: targetPass });
       setAuthSession(res.user, res.accessToken);
-      
       if (res.user.role === 'EMPLOYEE') {
         navigate('/employee/workspace');
       } else if (res.user.role === 'SUPERADMIN') {

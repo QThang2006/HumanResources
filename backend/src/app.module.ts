@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
+import { DocumentsModule } from './modules/documents/documents.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { SystemConfigModule } from './modules/system-config/system-config.module';
+import { TrainingModule } from './modules/training/training.module';
 import {
   Department,
   User,
@@ -78,6 +81,9 @@ import { InterviewDelivery } from './modules/applications/interview-delivery.ent
     JobsModule,
     ApplicationsModule,
     OnboardingModule,
+    SystemConfigModule,
+    DocumentsModule,
+    TrainingModule,
   ],
 })
 export class AppModule {}

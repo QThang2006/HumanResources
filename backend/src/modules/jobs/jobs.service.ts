@@ -15,6 +15,7 @@ import { RecruitmentAiService } from './recruitment-ai.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { ChangeJobStatusDto } from './dto/change-job-status.dto';
+import { CreateDepartmentDto } from './dto/create-department.dto';
 
 type JobsActor = Pick<User, 'id' | 'role' | 'departmentId'>;
 
@@ -126,6 +127,25 @@ export class JobsService {
     return rows.map((row) =>
       jobView(Object.assign(row, { applicationCount: byJob.get(row.id) || 0 })),
     );
+  }
+
+  async createDepartment(input: CreateDepartmentDto) {
+    const name = input.name.trim();
+    const code = input.code.trim().toUpperCase();
+    const existing = await this.departments.findOne({
+      where: [{ name }, { code }],
+    });
+    if (existing) {
+      throw new ConflictException('Tên hoặc mã phòng ban đã tồn tại.');
+    }
+    const department = await this.departments.save(
+      this.departments.create({
+        name,
+        code,
+        description: input.description?.trim() || '',
+      }),
+    );
+    return { id: department.id, name: department.name, code: department.code };
   }
 
   async departmentLookup() {

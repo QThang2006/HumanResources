@@ -43,6 +43,8 @@ export const recruitmentApi = {
   job: (id: number, signal?: AbortSignal) => get<Job>('/jobs/' + id, undefined, signal),
   filters: () => get<{ departments: Lookup[]; locations: string[] }>('/jobs/filters'),
   departments: () => get<Lookup[]>('/jobs/departments'),
+  createDepartment: (input: { name: string; code: string; description?: string }) =>
+    post<Lookup & { code: string }>('/jobs/departments', input),
   capabilities: () => get<Capabilities>('/jobs/capabilities'),
   createJob: (input: JobInput) => post<Job>('/jobs', input),
   updateJob: (job: Job, input: JobInput) =>

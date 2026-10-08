@@ -512,7 +512,12 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
           </div>
         ) : view === 'calendar' ? (
           <>
-            <div className="overflow-x-auto">
+            <div
+              className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600 lg:max-h-[65vh] lg:overflow-auto"
+              role="region"
+              aria-label="Lịch phỏng vấn dạng lịch"
+              tabIndex={0}
+            >
               <div className="min-w-[900px]">
                 <div className="grid grid-cols-7 border-b bg-slate-50">
                   {weekdayLabels.map((day) => (
@@ -554,7 +559,9 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                             {period === 'month' ? Number(key.slice(8)) : shortDateLabel(key)}
                           </span>
                           {events.length > 0 && (
-                            <span className="text-[11px] text-slate-400">{events.length} buổi</span>
+                            <span className="text-[11px] text-slate-400">
+                              {events.length} buổi
+                            </span>
                           )}
                         </div>
                         <div className="space-y-2">
@@ -613,7 +620,12 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
             </p>
           </>
         ) : rows.length ? (
-          <div className="divide-y divide-slate-100">
+          <div
+            className="divide-y divide-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600 lg:max-h-[65vh] lg:overflow-y-auto"
+            role="region"
+            aria-label="Danh sách lịch phỏng vấn"
+            tabIndex={0}
+          >
             {range.days
               .filter((key) => grouped.has(key))
               .map((key) => (

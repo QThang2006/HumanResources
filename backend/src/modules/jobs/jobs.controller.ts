@@ -22,6 +22,7 @@ import { GenerateJdDto } from './dto/generate-jd.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { ChangeJobStatusDto } from './dto/change-job-status.dto';
 import { ListJobsQueryDto } from './dto/list-jobs-query.dto';
+import { CreateDepartmentDto } from './dto/create-department.dto';
 
 @Controller('jobs')
 export class JobsController {
@@ -75,6 +76,13 @@ export class JobsController {
   @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
   internalDetail(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
     return this.jobs.findById(id, user);
+  }
+
+  @Post('departments')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  createDepartment(@Body() input: CreateDepartmentDto) {
+    return this.jobs.createDepartment(input);
   }
 
   @Get('departments')

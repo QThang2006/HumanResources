@@ -39,6 +39,9 @@ export function JobEditor({
   const [busy, setBusy] = useState(false);
   const [lookupError, setLookupError] = useState('');
   const [lookupAttempt, setLookupAttempt] = useState(0);
+  const [departmentFormOpen, setDepartmentFormOpen] = useState(false);
+  const [departmentInput, setDepartmentInput] = useState({ name: '', code: '', description: '' });
+  const [departmentBusy, setDepartmentBusy] = useState(false);
   const [preview, setPreview] = useState<{
     mode: string;
     data: { description: string; requirements: string; benefits: string };
@@ -62,6 +65,22 @@ export function JobEditor({
   }, [lookupAttempt]);
   const field = (key: keyof JobInput, value: string | number) =>
     setInput((current) => ({ ...current, [key]: value }));
+  async function createDepartment() {
+    if (departmentBusy) return;
+    setDepartmentBusy(true);
+    setError('');
+    try {
+      const created = await api.createDepartment(departmentInput);
+      setDepartments((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
+      field('departmentId', created.id);
+      setDepartmentInput({ name: '', code: '', description: '' });
+      setDepartmentFormOpen(false);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setDepartmentBusy(false);
+    }
+  }
   async function generate() {
     setBusy(true);
     setError('');
@@ -124,20 +143,71 @@ export function JobEditor({
             />
           </Field>
           <Field label="Phòng ban">
-            <select
-              required
-              className={inputClass}
-              value={input.departmentId || ''}
-              onChange={(e) => field('departmentId', Number(e.target.value))}
-            >
-              <option value="">Chọn phòng ban</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                required
+                className={inputClass}
+                value={input.departmentId || ''}
+                onChange={(e) => field('departmentId', Number(e.target.value))}
+              >
+                <option value="">Chọn phòng ban</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+              {!job && (
+                <button
+                  type="button"
+                  className={secondaryClass}
+                  onClick={() => setDepartmentFormOpen((open) => !open)}
+                >
+                  {departmentFormOpen ? 'Đóng' : '+ Tạo'}
+                </button>
+              )}
+            </div>
           </Field>
+          {departmentFormOpen && !job && (
+            <div className="space-y-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+              <p className="text-sm font-semibold text-indigo-900">Tạo phòng ban mới</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                  required
+                  maxLength={100}
+                  className={inputClass}
+                  placeholder="Tên phòng ban"
+                  value={departmentInput.name}
+                  onChange={(e) => setDepartmentInput((value) => ({ ...value, name: e.target.value }))}
+                />
+                <input
+                  required
+                  maxLength={20}
+                  className={inputClass}
+                  placeholder="Mã phòng ban (VD: TECH)"
+                  value={departmentInput.code}
+                  onChange={(e) => setDepartmentInput((value) => ({ ...value, code: e.target.value }))}
+                />
+              </div>
+              <input
+                maxLength={2000}
+                className={inputClass}
+                placeholder="Mô tả (không bắt buộc)"
+                value={departmentInput.description}
+                onChange={(e) =>
+                  setDepartmentInput((value) => ({ ...value, description: e.target.value }))
+                }
+              />
+              <button
+                type="button"
+                className={buttonClass}
+                disabled={departmentBusy}
+                onClick={createDepartment}
+              >
+                {departmentBusy ? 'Đang tạo...' : 'Lưu phòng ban'}
+              </button>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Địa điểm">
               <input

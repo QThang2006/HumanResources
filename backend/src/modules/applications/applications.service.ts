@@ -17,19 +17,23 @@ import { deliveryView, InterviewDeliveryService } from './interview-delivery.ser
 import { ConfigService } from '@nestjs/config';
 
 function interviewView(row: Interview) {
-  return { id: row.id, applicationId: row.applicationId, interviewerId: row.interviewerId,
+  return {
+    id: row.id, applicationId: row.applicationId, interviewerId: row.interviewerId,
     interviewerName: row.interviewer?.fullName || '', round: row.round, scheduledAt: row.scheduledAt,
     meetingLink: row.meetingLink || null, questions: row.aiSuggestedQuestions || [],
-    score: row.score, feedback: row.interviewerFeedback, result: row.result, updatedAt: row.updatedAt };
+    score: row.score, feedback: row.interviewerFeedback, result: row.result, updatedAt: row.updatedAt
+  };
 }
 export function applicationView(row: Application) {
-  return { id: row.id, jobId: row.jobId, jobTitle: row.job?.title || '', candidateName: row.candidateName,
+  return {
+    id: row.id, jobId: row.jobId, jobTitle: row.job?.title || '', candidateName: row.candidateName,
     candidateEmail: row.candidateEmail, candidatePhone: row.candidatePhone, status: row.status,
     matchScore: row.matchScore === null ? null : Number(row.matchScore), aiSummary: row.aiSummary,
     aiRecommendation: row.aiRecommendation, skillsDetected: row.skillsDetected || [], hiredUserId: row.hiredUserId,
     createdAt: row.createdAt, updatedAt: row.updatedAt,
     hasCv: /^[a-f0-9-]{36}\.pdf$/.test(row.cvFileUrl || ''), hasCvText: Boolean(row.rawCvText?.trim()),
-    interviews: (row.interviews || []).sort((a, b) => b.round - a.round).map(interviewView) };
+    interviews: (row.interviews || []).sort((a, b) => b.round - a.round).map(interviewView)
+  };
 }
 @Injectable()
 export class ApplicationsService {
@@ -38,7 +42,7 @@ export class ApplicationsService {
   constructor(@InjectRepository(Application) private readonly applications: Repository<Application>,
     private readonly db: DataSource, private readonly files: CvStorageService,
     private readonly ai: RecruitmentAiService, private readonly n8n: N8nService,
-    private readonly delivery: InterviewDeliveryService, private readonly config: ConfigService) {}
+    private readonly delivery: InterviewDeliveryService, private readonly config: ConfigService) { }
 
   private async scopedJob(id: number, actor: Actor) {
     const job = await this.db.getRepository(Job).findOneBy({ id });
@@ -67,8 +71,10 @@ export class ApplicationsService {
     const counts = await qb.clone().select('app.status', 'status').addSelect('COUNT(*)', 'count').groupBy('app.status').getRawMany();
     const [rows, total] = await qb.orderBy('app.createdAt', 'DESC').addOrderBy('app.id', 'DESC')
       .skip((query.page - 1) * query.pageSize).take(query.pageSize).getManyAndCount();
-    return { items: rows.map(applicationView), total, page: query.page, pageSize: query.pageSize,
-      counts: Object.fromEntries(counts.map(row => [row.status, Number(row.count)])) };
+    return {
+      items: rows.map(applicationView), total, page: query.page, pageSize: query.pageSize,
+      counts: Object.fromEntries(counts.map(row => [row.status, Number(row.count)]))
+    };
   }
   async detail(id: number, actor: Actor) {
     const view = applicationView(await this.row(id, actor));
@@ -91,9 +97,11 @@ export class ApplicationsService {
           cvFileUrl: key, rawCvText, status: ApplicationStatus.APPLIED,
         }));
       });
-      return { applicationId: app.id, submittedAt: app.createdAt, message: 'Hồ sơ đã được lưu. HR sẽ xem xét CV của bạn.',
-        warning: rawCvText ? null : 'PDF không có văn bản trích xuất. HR có thể tải CV để xem trực tiếp.' };
-    } catch (error) {
+      return {
+        applicationId: app.id, submittedAt: app.createdAt, message: 'Hồ sơ đã được lưu. HR sẽ xem xét CV của bạn.',
+        warning: rawCvText ? null : 'PDF không có văn bản trích xuất. HR có thể tải CV để xem trực tiếp.'
+      };
+    } catch (error: any) {
       await this.files.remove(key);
       if (error?.driverError?.code === 'ER_DUP_ENTRY' || error?.code === 'ER_DUP_ENTRY') throw new ConflictException('Email này đã ứng tuyển vị trí này.');
       throw error;
@@ -145,8 +153,10 @@ export class ApplicationsService {
   async interviewers(jobId: number, actor: Actor) {
     assertOperator(actor);
     const job = await this.scopedJob(jobId, actor);
-    return this.db.getRepository(User).find({ where: { departmentId: job.departmentId, role: UserRole.MANAGER, isActive: true },
-      select: { id: true, fullName: true }, order: { fullName: 'ASC' } });
+    return this.db.getRepository(User).find({
+      where: { departmentId: job.departmentId, role: UserRole.MANAGER, isActive: true },
+      select: { id: true, fullName: true }, order: { fullName: 'ASC' }
+    });
   }
   async schedule(id: number, input: ScheduleInput, actor: Actor) {
     assertOperator(actor);
@@ -191,11 +201,13 @@ export class ApplicationsService {
       if (dispatch === 'FAILED') await this.delivery.dispatchFailed(result.interview.id);
     }
     const interview = (await this.detail(id, actor)).interviews.find(i => i.id === result.interview.id);
-    return { interview, dispatch, message: dispatch === 'FAILED'
-      ? 'Đã lưu lịch nhưng chưa gửi được yêu cầu tạo Meet và thư mời. Hãy kiểm tra workflow.'
-      : result.created && result.payload.delivery
-        ? 'Đã lưu lịch. Đang chờ kết quả tạo Google Meet và gửi thư mời.'
-        : 'Đã lưu lịch. Chưa xác nhận email/Google Meet; hãy kiểm tra workflow.' };
+    return {
+      interview, dispatch, message: dispatch === 'FAILED'
+        ? 'Đã lưu lịch nhưng chưa gửi được yêu cầu tạo Meet và thư mời. Hãy kiểm tra workflow.'
+        : result.created && result.payload.delivery
+          ? 'Đã lưu lịch. Đang chờ kết quả tạo Google Meet và gửi thư mời.'
+          : 'Đã lưu lịch. Chưa xác nhận email/Google Meet; hãy kiểm tra workflow.'
+    };
   }
   async result(interviewId: number, input: ResultInput, actor: Actor) {
     if (actor.role !== UserRole.MANAGER) throw new ForbiddenException('Chỉ Manager được phân công mới chấm phỏng vấn.');
@@ -275,43 +287,43 @@ export class ApplicationsService {
           passwordHash, role: UserRole.EMPLOYEE, departmentId: job.departmentId,
           jobTitle: job.title.slice(0, 100), isActive: true,
         }));
-      const defaultOnboardingTasks = [
-        {
-          userId: user.id,
-          title: 'Nộp hồ sơ nhân sự & Ký hợp đồng lao động',
-          description: 'Nộp bản sao CCCD, bằng cấp chuyên môn và hoàn tất ký hợp đồng thử việc tại phòng HR.',
-          category: TaskCategory.PAPERWORK,
-          dueDay: 1,
-        },
-        {
-          userId: user.id,
-          title: 'Nhận máy tính làm việc & Cài đặt môi trường dự án',
-          description: 'Gặp bộ phận IT Helpdesk nhận laptop công ty, cài đặt môi trường phát triển và kết nối mạng nội bộ.',
-          category: TaskCategory.EQUIPMENT,
-          dueDay: 2,
-        },
-        {
-          userId: user.id,
-          title: 'Gặp gỡ Quản lý trực tiếp & Phân công Buddy hướng dẫn',
-          description: 'Buổi họp chào mừng định hướng mục tiêu công việc thử việc và nhận phân công người kèm cặp (Buddy).',
-          category: TaskCategory.MEETING,
-          dueDay: 3,
-        },
-        {
-          userId: user.id,
-          title: 'Hoàn thành khóa học hội nhập văn hóa & An toàn thông tin',
-          description: 'Đọc kỹ sổ tay nhân viên 2026, hoàn thành bài kiểm tra quy chế bảo mật thông tin nội bộ.',
-          category: TaskCategory.TRAINING,
-          dueDay: 7,
-        },
-        {
-          userId: user.id,
-          title: 'Đánh giá tổng kết thử việc 30 ngày cùng Manager',
-          description: 'Họp 1-on-1 cùng Trưởng phòng để tổng kết đánh giá kết quả hòa nhập và kế hoạch mục tiêu quý.',
-          category: TaskCategory.MEETING,
-          dueDay: 30,
-        },
-      ];
+        const defaultOnboardingTasks = [
+          {
+            userId: user.id,
+            title: 'Nộp hồ sơ nhân sự & Ký hợp đồng lao động',
+            description: 'Nộp bản sao CCCD, bằng cấp chuyên môn và hoàn tất ký hợp đồng thử việc tại phòng HR.',
+            category: TaskCategory.PAPERWORK,
+            dueDay: 1,
+          },
+          {
+            userId: user.id,
+            title: 'Nhận máy tính làm việc & Cài đặt môi trường dự án',
+            description: 'Gặp bộ phận IT Helpdesk nhận laptop công ty, cài đặt môi trường phát triển và kết nối mạng nội bộ.',
+            category: TaskCategory.EQUIPMENT,
+            dueDay: 2,
+          },
+          {
+            userId: user.id,
+            title: 'Gặp gỡ Quản lý trực tiếp & Phân công Buddy hướng dẫn',
+            description: 'Buổi họp chào mừng định hướng mục tiêu công việc thử việc và nhận phân công người kèm cặp (Buddy).',
+            category: TaskCategory.MEETING,
+            dueDay: 3,
+          },
+          {
+            userId: user.id,
+            title: 'Hoàn thành khóa học hội nhập văn hóa & An toàn thông tin',
+            description: 'Đọc kỹ sổ tay nhân viên 2026, hoàn thành bài kiểm tra quy chế bảo mật thông tin nội bộ.',
+            category: TaskCategory.TRAINING,
+            dueDay: 7,
+          },
+          {
+            userId: user.id,
+            title: 'Đánh giá tổng kết thử việc 30 ngày cùng Manager',
+            description: 'Họp 1-on-1 cùng Trưởng phòng để tổng kết đánh giá kết quả hòa nhập và kế hoạch mục tiêu quý.',
+            category: TaskCategory.MEETING,
+            dueDay: 30,
+          },
+        ];
         await manager.getRepository(OnboardingTask).save(defaultOnboardingTasks.map(task => manager.getRepository(OnboardingTask).create(task)));
         app.status = ApplicationStatus.HIRED; app.hiredUserId = user.id; app.updatedAt = nextRevision(app.updatedAt);
         await manager.getRepository(Application).save(app);
@@ -320,7 +332,7 @@ export class ApplicationsService {
           notification: { userId: user.id, fullName: user.fullName, email: user.email, jobTitle: user.jobTitle, departmentName: job.department.name, tempPassword },
         };
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error?.driverError?.code === 'ER_DUP_ENTRY' || error?.code === 'ER_DUP_ENTRY') throw new ConflictException('Email này vừa được dùng cho tài khoản khác. Hồ sơ chưa đổi trạng thái; hãy tải lại để kiểm tra.');
       throw error;
     }

@@ -94,7 +94,8 @@ export class UsersService {
               code: 'HR',
               name: 'Nhân Sự & Đào Tạo',
               description: 'Quản trị nhân tài và văn hóa',
-          })      );
+          })      
+      );
     }
 
     // 2. Hash mật khẩu mặc định "admin123"

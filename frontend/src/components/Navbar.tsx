@@ -20,15 +20,15 @@ export const Navbar: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const handleRoleSwitch = (targetRole: UserRole) => {
-    login(targetRole);
-
+  const handleRoleSwitch = async (targetRole: UserRole) => {
+    await login(targetRole);
+    // Tự động chuyển hướng đến màn hình chính tương ứng với Role
     if (targetRole === 'SUPERADMIN') {
       navigate('/admin/settings');
     } else if (targetRole === 'HR') {
       navigate('/admin/recruitment');
     } else if (targetRole === 'MANAGER') {
-      navigate('/admin/recruitment');
+      navigate('/employee/workspace');
     } else {
       navigate('/employee/workspace');
     }

@@ -61,9 +61,9 @@
         },
         "start": "={{ ($json.body && $json.body.scheduledAt ? $json.body.scheduledAt : ($json.body && $json.body.data && $json.body.data.scheduledAt ? $json.body.data.scheduledAt : ($json.scheduledAt || ($json.data && $json.data.scheduledAt)))) }}",
         "end": "={{ new Date(new Date(($json.body && $json.body.scheduledAt ? $json.body.scheduledAt : ($json.body && $json.body.data && $json.body.data.scheduledAt ? $json.body.data.scheduledAt : ($json.scheduledAt || ($json.data && $json.data.scheduledAt))))).getTime() + 45 * 60000).toISOString() }}",
-        "summary": "={{ 'Phỏng vấn Vòng ' + ($json.body ? ($json.body.round || ($json.body.data && $json.body.data.round) || 1) : ($json.round || 1)) + ': ' + ($json.body ? ($json.body.candidateName || ($json.body.data && $json.body.data.candidateName) || 'Ứng viên') : ($json.candidateName || 'Ứng viên')) + ' - HR Enterprise' }}",
-        "description": "={{ 'Buổi phỏng vấn trực tuyến với ứng viên ' + ($json.body ? ($json.body.candidateName || ($json.body.data && $json.body.data.candidateName) || 'Ứng viên') : ($json.candidateName || 'Ứng viên')) }}",
         "additionalFields": {
+          "summary": "={{ 'Phỏng vấn Vòng ' + ($json.body ? ($json.body.round || ($json.body.data && $json.body.data.round) || 1) : ($json.round || 1)) + ': ' + ($json.body ? ($json.body.candidateName || ($json.body.data && $json.body.data.candidateName) || 'Ứng viên') : ($json.candidateName || 'Ứng viên')) + ' - HR Enterprise' }}",
+          "description": "={{ 'Buổi phỏng vấn trực tuyến với ứng viên ' + ($json.body ? ($json.body.candidateName || ($json.body.data && $json.body.data.candidateName) || 'Ứng viên') : ($json.candidateName || 'Ứng viên')) }}",
           "conferenceDataUi": {
             "conferenceDataValues": {
               "conferenceSolution": "hangoutsMeet"

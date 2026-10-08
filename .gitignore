@@ -51,3 +51,7 @@ tmp/
 uploads/
 **/uploads/*
 !**/uploads/.gitkeep
+
+# CV riêng tư của phân hệ ATS
+.ats-private/
+**/.ats-private/

@@ -26,6 +26,7 @@ import { UsersModule } from './modules/users/users.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ApplicationsModule } from './modules/applications/applications.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { InterviewDelivery } from './modules/applications/interview-delivery.entity';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
           Job,
           Application,
           Interview,
+          InterviewDelivery,
           OnboardingTask,
           Document,
           DocumentChunk,

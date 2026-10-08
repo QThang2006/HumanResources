@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, In } from 'typeorm';
 import { OnboardingTask } from '../../entities/onboarding-task.entity';
 import { EmployeeMood, MoodType } from '../../entities/employee-mood.entity';
 import { Document } from '../../entities/document.entity';
 import { EmployeeTraining } from '../../entities/employee-training.entity';
+import { User } from '../../entities/user.entity';
 import { GeminiService } from '../core/ai/gemini.service';
 import { N8nService } from '../core/automation/n8n.service';
 
@@ -16,6 +17,8 @@ import { N8nService } from '../core/automation/n8n.service';
  */
 @Injectable()
 export class OnboardingService {
+  private readonly logger = new Logger(OnboardingService.name);
+
   constructor(
     @InjectRepository(OnboardingTask)
     private readonly taskRepository: Repository<OnboardingTask>,
@@ -25,56 +28,387 @@ export class OnboardingService {
     private readonly docRepository: Repository<Document>,
     @InjectRepository(EmployeeTraining)
     private readonly trainingRepository: Repository<EmployeeTraining>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly geminiService: GeminiService,
     private readonly n8nService: N8nService,
   ) {}
 
-  // TODO: Thành viên 4 sẽ hoàn thiện truy vấn checklist 30 ngày của nhân viên
+  // ────────────────────────────────────────────────────────────────────
+  // THÀNH VIÊN 3: LỘ TRÌNH THỬ VIỆC 30 NGÀY (Bước 2)
+  // ────────────────────────────────────────────────────────────────────
+
+  /**
+   * Lấy danh sách nhiệm vụ onboarding + tính phần trăm hoàn thành.
+   * progressPercent = (số task isCompleted / tổng số task) * 100, làm tròn.
+   */
   async getTasks(userId: number) {
     const tasks = await this.taskRepository.find({
       where: { userId },
       order: { dueDay: 'ASC' },
     });
+
+    const total = tasks.length;
+    const completed = tasks.filter((t) => t.isCompleted).length;
+    const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
     return {
       userId,
-      progressPercent: 0,
+      progressPercent,
+      totalTasks: total,
+      completedTasks: completed,
       tasks,
-      message: 'Khung sườn đã sẵn sàng. Thành viên 4 sẽ hoàn thiện logic gán task tại đây.',
+      message: total === 0
+        ? 'Chưa có nhiệm vụ onboarding nào. Vui lòng liên hệ HR.'
+        : `Lộ trình thử việc: ${completed}/${total} nhiệm vụ hoàn thành (${progressPercent}%).`,
     };
   }
 
-  // TODO: Thành viên 4 sẽ hoàn thiện toggle hoàn thành nhiệm vụ
+  /**
+   * Toggle trạng thái hoàn thành nhiệm vụ.
+   * - Nếu chưa hoàn thành → đánh dấu hoàn thành + ghi completedAt
+   * - Nếu đã hoàn thành → bỏ đánh dấu + xóa completedAt
+   * Trả về task đã cập nhật + progress mới.
+   */
   async toggleTask(taskId: number, userId: number) {
+    const task = await this.taskRepository.findOne({
+      where: { id: taskId, userId },
+    });
+
+    if (!task) {
+      throw new NotFoundException(
+        `Không tìm thấy nhiệm vụ #${taskId} thuộc về người dùng #${userId}.`,
+      );
+    }
+
+    // Toggle trạng thái
+    task.isCompleted = !task.isCompleted;
+    task.completedAt = task.isCompleted ? new Date() : null;
+
+    const saved = await this.taskRepository.save(task);
+
+    this.logger.log(
+      `📋 Task toggled: taskId=${taskId}, userId=${userId}, isCompleted=${saved.isCompleted}`,
+    );
+
+    // Tính lại progress sau khi toggle
+    const allTasks = await this.taskRepository.find({ where: { userId } });
+    const total = allTasks.length;
+    const completed = allTasks.filter((t) => t.isCompleted).length;
+    const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
     return {
-      taskId,
-      userId,
-      message: 'Khung sườn đã sẵn sàng. Thành viên 4 sẽ hoàn thiện toggle task tại đây.',
+      task: saved,
+      progressPercent,
+      totalTasks: total,
+      completedTasks: completed,
+      message: saved.isCompleted
+        ? `✅ Đã hoàn thành: "${saved.title}"`
+        : `↩️ Đã bỏ đánh dấu: "${saved.title}"`,
     };
   }
 
-  // TODO: Thành viên 3 & 4 sẽ hoàn thiện check-in cảm xúc & gọi this.n8nService.triggerBurnoutAlert nếu stress
+  // ────────────────────────────────────────────────────────────────────
+  // THÀNH VIÊN 3: CHECK-IN CẢM XÚC HÀNG NGÀY & BURNOUT DETECTION
+  // ────────────────────────────────────────────────────────────────────
+
+  /**
+   * Kiểm tra nhân viên đã check-in cảm xúc hôm nay chưa.
+   * Trả về bản ghi mood nếu đã check-in, hoặc null nếu chưa.
+   */
+  async getTodayMood(userId: number): Promise<EmployeeMood | null> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const todayMood = await this.moodRepository.findOne({
+      where: {
+        userId,
+        createdAt: Between(startOfDay, endOfDay),
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    return todayMood || null;
+  }
+
+  /**
+   * Lấy lịch sử cảm xúc N ngày gần nhất (mặc định 7 ngày).
+   * Frontend dùng để hiển thị dãy chấm tròn mood history.
+   */
+  async getMoodHistory(userId: number, days: number = 7): Promise<EmployeeMood[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - (days - 1));
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    return this.moodRepository.find({
+      where: {
+        userId,
+        createdAt: Between(startDate, endDate),
+      },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  /**
+   * Ghi nhận cảm xúc hàng ngày + Phát hiện kiệt sức tự động (Burnout Detection).
+   *
+   * Luồng xử lý:
+   *   1. Chặn trùng: Mỗi nhân viên chỉ được check-in 1 lần/ngày.
+   *   2. Tạo bản ghi EmployeeMood mới trong DB.
+   *   3. Nếu mood = STRESSED → đếm chuỗi ngày STRESSED liên tiếp gần nhất.
+   *   4. Nếu chuỗi ≥ 3 ngày → đánh cờ isBurnoutRisk = true
+   *      → gọi n8nService.triggerBurnoutAlert() bắn Telegram/Email cho HR & Manager.
+   *
+   * Tham khảo thiết kế: Lattice (1 lần/ngày), 15Five (ngưỡng 3 tuần), WHO Burnout Framework.
+   */
   async recordMood(userId: number, mood: MoodType, feedbackText?: string) {
-    return {
+    // ── Bước 1: Chặn check-in trùng (1 lần/ngày) ──
+    const existing = await this.getTodayMood(userId);
+    if (existing) {
+      throw new ConflictException(
+        'Bạn đã chia sẻ cảm xúc hôm nay rồi. Hẹn gặp lại ngày mai!',
+      );
+    }
+
+    // ── Bước 2: Tạo bản ghi mood mới ──
+    const newMood = this.moodRepository.create({
       userId,
       mood,
-      feedbackText,
-      message: 'Khung sườn đã sẵn sàng. Thành viên 3 & 4 sẽ hoàn thiện ghi nhận cảm xúc tại đây.',
+      feedbackText: feedbackText || null,
+    });
+
+    // ── Bước 3: Burnout Detection (chỉ khi STRESSED) ──
+    if (mood === MoodType.STRESSED) {
+      // Lấy 5 bản ghi mood gần nhất (trước hôm nay) để đếm chuỗi stress liên tiếp
+      const recentMoods = await this.moodRepository.find({
+        where: { userId },
+        order: { createdAt: 'DESC' },
+        take: 5,
+      });
+
+      // Đếm chuỗi STRESSED liên tiếp — dừng ngay khi gặp ngày không STRESSED
+      let consecutiveStressBefore = 0;
+      for (const record of recentMoods) {
+        if (record.mood === MoodType.STRESSED) {
+          consecutiveStressBefore++;
+        } else {
+          break;
+        }
+      }
+
+      // Tổng cộng = chuỗi trước đó + 1 (hôm nay). Ngưỡng cảnh báo: ≥ 3 ngày
+      const totalStressDays = consecutiveStressBefore + 1;
+
+      if (totalStressDays >= 3) {
+        newMood.isBurnoutRisk = true;
+
+        this.logger.warn(
+          `🔴 BURNOUT DETECTED: userId=${userId} — ${totalStressDays} ngày STRESSED liên tiếp!`,
+        );
+
+        // Lấy thông tin nhân viên để gửi cảnh báo có tên và phòng ban
+        const user = await this.userRepository.findOne({
+          where: { id: userId },
+          relations: ['department'],
+        });
+
+        // Bắn webhook n8n → Telegram Bot / Email cho HR & Manager
+        await this.n8nService.triggerBurnoutAlert({
+          userId,
+          employeeName: user?.fullName || 'Nhân viên',
+          departmentName: user?.department?.name || 'Chưa xác định',
+          stressDays: totalStressDays,
+          latestFeedback: feedbackText,
+        });
+      }
+    }
+
+    // ── Bước 4: Lưu vào MySQL và trả kết quả ──
+    const saved = await this.moodRepository.save(newMood);
+
+    this.logger.log(
+      `✅ Mood check-in: userId=${userId}, mood=${mood}, burnoutRisk=${saved.isBurnoutRisk}`,
+    );
+
+    return saved;
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  // THÀNH VIÊN 3: GIÁM SÁT TEAM MOOD & CAN THIỆP BURNOUT (Bước 3)
+  // ────────────────────────────────────────────────────────────────────
+
+  /**
+   * Lấy danh sách cảnh báo kiệt sức (burnout) chưa được xử lý.
+   * JOIN user để lấy fullName, department.
+   * Chỉ HR và SUPERADMIN được xem (controller đã guard).
+   */
+  async getBurnoutAlerts() {
+    const alerts = await this.moodRepository.find({
+      where: {
+        isBurnoutRisk: true,
+        isResolved: false,
+      },
+      relations: ['user', 'user.department'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return alerts.map((alert) => ({
+      id: alert.id,
+      userId: alert.userId,
+      employeeName: alert.user?.fullName || 'Không xác định',
+      departmentName: alert.user?.department?.name || 'Chưa phân phòng',
+      mood: alert.mood,
+      feedbackText: alert.feedbackText,
+      isBurnoutRisk: alert.isBurnoutRisk,
+      isResolved: alert.isResolved,
+      createdAt: alert.createdAt,
+    }));
+  }
+
+  /**
+   * Manager/HR can thiệp xử lý cảnh báo kiệt sức.
+   * Đánh dấu isResolved = true, ghi lại resolvedById + resolvedNote.
+   */
+  async resolveBurnout(id: number, managerId: number, note?: string) {
+    const mood = await this.moodRepository.findOne({
+      where: { id },
+      relations: ['user', 'user.department'],
+    });
+
+    if (!mood) {
+      throw new NotFoundException(`Không tìm thấy bản ghi mood #${id}.`);
+    }
+
+    if (mood.isResolved) {
+      return {
+        id: mood.id,
+        isResolved: true,
+        message: 'Cảnh báo này đã được xử lý trước đó.',
+      };
+    }
+
+    mood.isResolved = true;
+    mood.resolvedById = managerId;
+    mood.resolvedNote = note || 'Đã hẹn 1-on-1 gỡ rối với nhân viên.';
+
+    const saved = await this.moodRepository.save(mood);
+
+    this.logger.log(
+      `🟢 Burnout resolved: moodId=${id}, resolvedBy=managerId#${managerId}`,
+    );
+
+    return {
+      id: saved.id,
+      userId: saved.userId,
+      employeeName: saved.user?.fullName || 'Không xác định',
+      isResolved: saved.isResolved,
+      resolvedById: saved.resolvedById,
+      resolvedNote: saved.resolvedNote,
+      message: `✅ Đã can thiệp thành công cho nhân viên ${saved.user?.fullName || '#' + saved.userId}.`,
     };
   }
 
-  // TODO: Thành viên 3 & HR sẽ hoàn thiện danh sách cảnh báo kiệt sức
-  async getBurnoutAlerts() {
-    return [];
-  }
+  /**
+   * Lấy mood hôm nay của toàn bộ nhân viên trong phòng ban mà Manager quản lý.
+   * Dùng cho Dashboard Team Mood (Bước 3 Frontend).
+   */
+  async getTeamMood(managerId: number) {
+    // Tìm manager và department của manager
+    const manager = await this.userRepository.findOne({
+      where: { id: managerId },
+      relations: ['department'],
+    });
 
-  // TODO: Thành viên 3 sẽ hoàn thiện API can thiệp 1-on-1 đóng cảnh báo kiệt sức
-  async resolveBurnout(id: number, managerId: number, note?: string) {
+    if (!manager || !manager.departmentId) {
+      throw new ForbiddenException('Bạn chưa được gán vào phòng ban nào.');
+    }
+
+    // Lấy danh sách nhân viên cùng phòng ban (trừ chính manager)
+    const teamMembers = await this.userRepository.find({
+      where: { departmentId: manager.departmentId, isActive: true },
+    });
+
+    const today = new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Lấy mood hôm nay của tất cả thành viên trong phòng
+    const memberIds = teamMembers.map((m) => m.id);
+    let todayMoods: EmployeeMood[] = [];
+
+    if (memberIds.length > 0) {
+      todayMoods = await this.moodRepository.find({
+        where: {
+          userId: In(memberIds),
+          createdAt: Between(startOfDay, endOfDay),
+        },
+        relations: ['user'],
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    // Lấy danh sách burnout chưa resolve trong phòng
+    let unresolvedBurnouts: EmployeeMood[] = [];
+    if (memberIds.length > 0) {
+      unresolvedBurnouts = await this.moodRepository.find({
+        where: {
+          userId: In(memberIds),
+          isBurnoutRisk: true,
+          isResolved: false,
+        },
+        relations: ['user'],
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    // Map mood hôm nay theo userId để dễ tra cứu
+    const moodMap = new Map(todayMoods.map((m) => [m.userId, m]));
+
+    const teamOverview = teamMembers.map((member) => {
+      const todayMood = moodMap.get(member.id);
+      return {
+        userId: member.id,
+        fullName: member.fullName,
+        jobTitle: member.jobTitle,
+        hasCheckedIn: !!todayMood,
+        mood: todayMood?.mood || null,
+        feedbackText: todayMood?.feedbackText || null,
+        isBurnoutRisk: todayMood?.isBurnoutRisk || false,
+      };
+    });
+
+    // Thống kê nhanh
+    const checkedInCount = teamOverview.filter((m) => m.hasCheckedIn).length;
+    const stressedCount = teamOverview.filter((m) => m.mood === 'STRESSED').length;
+    const greatCount = teamOverview.filter((m) => m.mood === 'GREAT').length;
+
     return {
-      id,
+      departmentName: manager.department?.name || 'Phòng ban',
       managerId,
-      note,
-      isResolved: true,
-      message: 'Khung sườn đã sẵn sàng. Thành viên 3 sẽ hoàn thiện đóng cảnh báo burnout tại đây.',
+      totalMembers: teamMembers.length,
+      checkedInCount,
+      stats: {
+        great: greatCount,
+        normal: checkedInCount - stressedCount - greatCount,
+        stressed: stressedCount,
+      },
+      teamOverview,
+      burnoutAlerts: unresolvedBurnouts.map((b) => ({
+        id: b.id,
+        userId: b.userId,
+        employeeName: b.user?.fullName || 'Không xác định',
+        mood: b.mood,
+        feedbackText: b.feedbackText,
+        createdAt: b.createdAt,
+      })),
     };
   }
 
@@ -83,13 +417,229 @@ export class OnboardingService {
     return [];
   }
 
-  // TODO: Thành viên 4 sẽ gọi this.geminiService.generateText(...) để làm Trợ lý Sổ tay RAG
+  // ────────────────────────────────────────────────────────────────────
+  // THÀNH VIÊN 3: TRỢ LÝ SỔ TAY AI COPILOT (Bước 4)
+  // ────────────────────────────────────────────────────────────────────
+
+  /**
+   * Trợ lý Sổ tay AI Copilot — RAG-based chatbot.
+   * Luồng xử lý:
+   *   1. Lấy danh sách documents từ DB (sổ tay nhân viên, quy trình nội bộ)
+   *   2. Nhúng context documents vào prompt
+   *   3. Gọi GeminiService.generateText() để trả lời
+   *   4. Nếu Gemini offline → trả fallback message
+   */
   async chatWithCopilot(userId: number, message: string) {
+    // Lấy thông tin user để personalize response
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['department'],
+    });
+
+    // Lấy documents có sẵn (sổ tay, tài liệu nội bộ) kèm các Chunks nội dung để làm RAG context
+    const documents = await this.docRepository.find({
+      where: { status: 'READY' as any },
+      relations: ['chunks'],
+      take: 10,
+      order: { createdAt: 'DESC' },
+    });
+
+    const docTitles = documents.map((d) => d.title);
+    
+    // Tổng hợp nội dung các chunks thành bộ cơ sở tri thức phong phú
+    let docContext = '';
+    if (documents.length > 0) {
+      docContext = documents
+        .map((d) => {
+          const chunksText = (d.chunks || [])
+            .sort((a, b) => a.chunkIndex - b.chunkIndex)
+            .map((c) => c.content)
+            .join('\n\n');
+          return `=== [TÀI LIỆU NỘI BỘ: ${d.title}] ===\n${chunksText}`;
+        })
+        .join('\n\n------------------------------------\n\n');
+    }
+
+    // Kiểm tra Gemini có sẵn sàng không
+    if (!this.geminiService.isAvailable()) {
+      this.logger.warn('Gemini AI chưa cấu hình — trả fallback cho chatWithCopilot.');
+      return {
+        userId,
+        reply: this.getFallbackReply(message),
+        sourceDocuments: docTitles,
+        toolActionExecuted: null,
+      };
+    }
+
+    // Xây dựng prompt RAG với system instruction chuyên sâu
+    const systemInstruction = `Bạn là Trợ lý Sổ tay Nhân viên AI (HR Copilot) chính thức của công ty Enterprise HR Tech Corporation.
+Nhiệm vụ: Trả lời chính xác, tận tình, đầy đủ và thân thiện các câu hỏi của nhân viên về quy trình nội bộ, chính sách thử việc, ngày phép, giờ giấc làm việc, chế độ đãi ngộ, bảo hiểm, thiết bị, và văn hóa công ty.
+Nguyên tắc trả lời:
+1. Sử dụng trực tiếp thông tin từ các tài liệu nội bộ và quy chế công ty được cung cấp dưới đây để trả lời câu hỏi một cách chi tiết, cụ thể (nêu rõ số ngày phép, con số %, khung giờ, quyền lợi, thiết bị, quy trình đánh giá, v.v.).
+2. Tuyệt đối KHÔNG đùn đẩy hoặc trả lời qua loa bảo nhân viên "liên hệ phòng HR" khi thông tin đã có trong quy chế. Hãy giải thích cặn kẽ và giải đáp thoả đáng trước; chỉ gợi ý liên hệ HR khi nhân viên cần làm thủ tục giấy tờ nộp đơn hoặc trường hợp đặc biệt ngoài quy chế.
+3. Luôn xưng hô thân thiện, lịch sự bằng tiếng Việt ("Chào bạn [Tên]", "Chúc bạn làm việc hiệu quả").
+4. Định dạng câu trả lời rõ ràng bằng gạch đầu dòng Markdown dễ đọc.`;
+
+    const prompt = `THÔNG TIN NHÂN SỰ ĐANG HỎI:
+- Họ và tên: ${user?.fullName || 'Nhân viên'}
+- Vị trí công tác: ${user?.jobTitle || 'Nhân sự mới'}
+- Phòng ban: ${user?.department?.name || 'N/A'}
+
+CƠ SỞ TRI THỨC VÀ QUY CHẾ CÔNG TY ĐÃ ĐƯỢC PHÊ DUYỆT (KNOWLEDGE BASE):
+${docContext}
+
+CÂU HỎI CỦA NHÂN VIÊN:
+"${message}"
+
+Hãy dựa vào quy chế nội bộ trên để giải thích và trả lời cặn kẽ, cụ thể cho bạn ${user?.fullName || 'Nhân sự'}.`;
+
+    try {
+      const reply = await this.geminiService.generateText(prompt, systemInstruction);
+
+      this.logger.log(`🤖 AI Copilot: userId=${userId}, question="${message.substring(0, 50)}...", gemini=OK`);
+
+      return {
+        userId,
+        reply,
+        sourceDocuments: docTitles,
+        toolActionExecuted: null,
+      };
+    } catch (error: any) {
+      this.logger.error(`AI Copilot error: ${error.message}`);
+      return {
+        userId,
+        reply: 'Xin lỗi, trợ lý AI đang gặp sự cố. Vui lòng thử lại sau hoặc liên hệ phòng HR.',
+        sourceDocuments: docTitles,
+        toolActionExecuted: null,
+      };
+    }
+  }
+
+  /**
+   * Fallback reply khi Gemini AI không khả dụng.
+   * Trả lời dựa trên keyword matching đơn giản.
+   */
+  private getFallbackReply(message: string): string {
+    const lowerMsg = message.toLowerCase();
+
+    if (lowerMsg.includes('nghỉ phép') || lowerMsg.includes('ngày phép')) {
+      return '📅 Theo chính sách công ty, nhân viên chính thức được hưởng 12 ngày phép năm. Nhân viên thử việc được hưởng 1 ngày/tháng. Vui lòng liên hệ HR để biết thêm chi tiết.';
+    }
+    if (lowerMsg.includes('lương') || lowerMsg.includes('thanh toán')) {
+      return '💰 Lương được thanh toán vào ngày 5 hàng tháng qua tài khoản ngân hàng đã đăng ký. Nếu có thắc mắc về bảng lương, vui lòng liên hệ phòng HR.';
+    }
+    if (lowerMsg.includes('bảo hiểm')) {
+      return '🏥 Công ty đóng đầy đủ BHXH, BHYT, BHTN cho nhân viên theo quy định pháp luật. Ngoài ra có gói bảo hiểm sức khỏe bổ sung. Liên hệ HR để biết thêm.';
+    }
+    if (lowerMsg.includes('onboarding') || lowerMsg.includes('thử việc')) {
+      return '🚀 Giai đoạn thử việc kéo dài 60 ngày. Hãy hoàn thành checklist onboarding trong tab "Lộ trình 30 ngày" để được đánh giá tốt nhất!';
+    }
+    if (lowerMsg.includes('wifi') || lowerMsg.includes('wi-fi') || lowerMsg.includes('mạng') || lowerMsg.includes('password') || lowerMsg.includes('mật khẩu')) {
+      return '📶 Thông tin WiFi văn phòng: Tên mạng "Company-Wifi", mật khẩu liên hệ IT Support. Nếu cần hỗ trợ kỹ thuật, gửi ticket qua hệ thống IT Helpdesk.';
+    }
+
+    return '🤖 Cảm ơn bạn đã hỏi! Hiện tại trợ lý AI đang ở chế độ offline. Vui lòng liên hệ phòng HR (hr@company.com) hoặc hỏi lại khi Gemini AI được kích hoạt.';
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  // SEED DATA: ONBOARDING TASKS MẪU (10 nhiệm vụ onboarding)
+  // ────────────────────────────────────────────────────────────────────
+
+  /**
+   * Tạo 10 nhiệm vụ onboarding mẫu cho userId chỉ định.
+   * Chỉ seed khi chưa có task nào cho user đó.
+   */
+  async seedOnboardingTasks(userId: number) {
+    const existingCount = await this.taskRepository.count({ where: { userId } });
+    if (existingCount > 0) {
+      return {
+        message: `User #${userId} đã có ${existingCount} nhiệm vụ onboarding, không cần seed lại.`,
+        seeded: false,
+      };
+    }
+
+    const sampleTasks = [
+      {
+        userId,
+        title: 'Ký hợp đồng lao động & NDA',
+        description: 'Hoàn tất ký kết hợp đồng lao động thử việc và thỏa thuận bảo mật thông tin (NDA) với phòng HR.',
+        category: 'PAPERWORK' as any,
+        dueDay: 1,
+      },
+      {
+        userId,
+        title: 'Nộp hồ sơ nhân sự đầy đủ',
+        description: 'Nộp CMND/CCCD, bằng cấp, sơ yếu lý lịch, ảnh 3x4, giấy khám sức khỏe cho phòng HR.',
+        category: 'PAPERWORK' as any,
+        dueDay: 2,
+      },
+      {
+        userId,
+        title: 'Nhận laptop & thiết bị làm việc',
+        description: 'Liên hệ phòng IT để nhận laptop, chuột, bàn phím, tai nghe và badge ra vào văn phòng.',
+        category: 'EQUIPMENT' as any,
+        dueDay: 1,
+      },
+      {
+        userId,
+        title: 'Cài đặt môi trường làm việc',
+        description: 'Cài đặt các phần mềm cần thiết: IDE, Git, Docker, Slack, Google Workspace, VPN công ty.',
+        category: 'EQUIPMENT' as any,
+        dueDay: 3,
+      },
+      {
+        userId,
+        title: 'Hoàn thành khóa học Văn hóa Công ty',
+        description: 'Xem video giới thiệu văn hóa, giá trị cốt lõi, quy tắc ứng xử và chính sách nội bộ công ty.',
+        category: 'TRAINING' as any,
+        dueDay: 5,
+      },
+      {
+        userId,
+        title: 'Hoàn thành khóa An toàn Thông tin',
+        description: 'Tham gia khóa đào tạo bắt buộc về bảo mật thông tin, phishing awareness và password policy.',
+        category: 'TRAINING' as any,
+        dueDay: 7,
+      },
+      {
+        userId,
+        title: 'Gặp gỡ Trưởng phòng (1-on-1)',
+        description: 'Buổi họp 1-on-1 với Trưởng phòng để trao đổi về kỳ vọng, OKRs, và lộ trình phát triển.',
+        category: 'MEETING' as any,
+        dueDay: 3,
+      },
+      {
+        userId,
+        title: 'Tham dự buổi Welcome Lunch Team',
+        description: 'Tham gia bữa trưa chào mừng với toàn bộ team để làm quen và xây dựng kết nối.',
+        category: 'MEETING' as any,
+        dueDay: 5,
+      },
+      {
+        userId,
+        title: 'Hoàn thành dự án thử thách tuần 2',
+        description: 'Thực hiện mini-project được giao trong tuần 2 để đánh giá năng lực kỹ thuật ban đầu.',
+        category: 'TRAINING' as any,
+        dueDay: 14,
+      },
+      {
+        userId,
+        title: 'Buổi đánh giá giữa kỳ thử việc',
+        description: 'Tham gia buổi review giữa kỳ thử việc (ngày 30) với Manager và HR để nhận feedback.',
+        category: 'MEETING' as any,
+        dueDay: 30,
+      },
+    ];
+
+    const tasks = sampleTasks.map((t) => this.taskRepository.create(t));
+    await this.taskRepository.save(tasks);
+
+    this.logger.log(`🌱 Seeded ${tasks.length} onboarding tasks for userId=${userId}`);
+
     return {
-      userId,
-      reply: `[Khung Sườn AI Copilot] Đã nhận: "${message}". (Gemini Status: ${this.geminiService.isAvailable() ? 'ONLINE' : 'OFFLINE'}). Thành viên 4 sẽ hoàn thiện prompt RAG tại đây.`,
-      sourceDocuments: [],
-      toolActionExecuted: null,
+      message: `Đã tạo ${tasks.length} nhiệm vụ onboarding mẫu cho user #${userId}.`,
+      seeded: true,
+      count: tasks.length,
     };
   }
 }

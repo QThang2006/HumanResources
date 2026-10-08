@@ -1,0 +1,371 @@
+{
+  "name": "[TV3] WF-02: Daily Mood Pulse & Morning Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000001",
+      "name": "Schedule 09:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-02 | Ngu canh ngay & cau hinh (Ho tro ca Cron 09:00 AM & Lenh test cURL)\nconst CONFIG = {\n  TELEGRAM_CHAT_ID: '6331216556',\n  WORKSPACE_URL: 'http://localhost:5173/workspace'\n};\ntry {\n  const input = $input.first()?.json || {};\n  const payload = input.body || input;\n  \n  // Cho phep truyen thu trong tuan de test: 1 (T2), 2 (T3), 3 (T4), 4 (T5), 5 (T6)\n  const rawW = payload.weekday ? parseInt(payload.weekday, 10) : $now.weekday;\n  const w = (rawW >= 1 && rawW <= 7) ? rawW : $now.weekday;\n\n  const map = {\n    1: { vn: 'Thứ Hai', tone: 'khởi động tuần mới tràn đầy năng lượng', emoji: '🚀' },\n    2: { vn: 'Thứ Ba', tone: 'tăng tốc công việc hiệu quả', emoji: '⚡' },\n    3: { vn: 'Thứ Tư', tone: 'giữ vững nhịp độ giữa tuần', emoji: '🎯' },\n    4: { vn: 'Thứ Năm', tone: 'chạy nước rút hoàn thành mục tiêu', emoji: '🔥' },\n    5: { vn: 'Thứ Sáu', tone: 'tổng kết tuần và đón cuối tuần thảnh thơi', emoji: '🎉' }\n  };\n  const ctx = map[w] || { vn: 'Hôm nay', tone: 'ngày mới tốt lành', emoji: '☀️' };\n\n  return [{ json: {\n    currentDate: $now.toFormat('yyyy-MM-dd'),\n    dayName: ctx.vn,\n    dayTone: ctx.tone,\n    dayEmoji: ctx.emoji,\n    telegramChatId: CONFIG.TELEGRAM_CHAT_ID,\n    workspaceUrl: CONFIG.WORKSPACE_URL,\n    timestamp: new Date().toISOString(),\n    forceUserId: payload.forceUserId ? parseInt(payload.forceUserId, 10) : null\n  } }];\n} catch (err) {\n  return [{ json: {\n    currentDate: new Date().toISOString().slice(0, 10),\n    dayName: 'Hôm nay',\n    dayTone: 'ngày mới tốt lành',\n    dayEmoji: '☀️',\n    telegramChatId: CONFIG.TELEGRAM_CHAT_ID,\n    workspaceUrl: CONFIG.WORKSPACE_URL,\n    timestamp: new Date().toISOString(),\n    forceUserId: null\n  } }];\n}"
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000002",
+      "name": "Weekday Context & Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('Weekday Context & Config').first().json.forceUserId ? \"SELECT u.id, u.full_name, u.email, u.job_title, d.name AS dept_name FROM users u LEFT JOIN departments d ON u.department_id = d.id WHERE u.id = \" + $('Weekday Context & Config').first().json.forceUserId : \"SELECT u.id, u.full_name, u.email, u.job_title, d.name AS dept_name FROM users u LEFT JOIN departments d ON u.department_id = d.id WHERE u.role = 'EMPLOYEE' AND u.is_active = 1 AND NOT EXISTS (SELECT 1 FROM employee_moods em WHERE em.user_id = u.id AND em.created_at >= CURDATE())\" }}",
+        "options": {}
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000003",
+      "name": "MySQL Unchecked Users",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        300
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "hVFuUZOZqBxSICn4",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000004",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT u.id, u.full_name, u.job_title, d.name AS dept_name, (SELECT COUNT(DISTINCT DATE(em.created_at)) FROM employee_moods em WHERE em.user_id = u.id AND em.created_at >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)) AS checkin_days, (SELECT DATEDIFF(CURDATE(), MAX(DATE(em2.created_at))) FROM employee_moods em2 WHERE em2.user_id = u.id) AS days_since_last FROM users u LEFT JOIN departments d ON u.department_id = d.id WHERE u.id = {{ $json.id }};",
+        "options": {}
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000005",
+      "name": "MySQL User Streak",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        1120,
+        220
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "hVFuUZOZqBxSICn4",
+          "name": "MySQL account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Bạn là HR Culture Bot thân thiện của công ty. Viết đúng 2 câu chúc buổi sáng ấm áp, dí dỏm, truyền cảm hứng cho nhân viên sau:\n- Tên: {{ $json.full_name }}\n- Vị trí: {{ $json.job_title || 'Nhân viên' }}\n- Phòng ban: {{ $json.dept_name || 'HR Tech' }}\n- Hôm nay: {{ $('Weekday Context & Config').first().json.dayName }} ({{ $('Weekday Context & Config').first().json.dayTone }})\n- Số ngày check-in trong 14 ngày qua: {{ $json.checkin_days || 0 }}\n- Số ngày kể từ lần check-in gần nhất: {{ $json.days_since_last ?? 'chưa từng check-in' }}\n\nNếu đã lâu chưa check-in, giọng văn nhẹ nhàng quan tâm, không trách móc. Cuối câu thứ hai khuyến khích dành 10 giây chia sẻ cảm xúc hôm nay.\nChỉ trả về văn bản thuần (KHÔNG HTML, KHÔNG Markdown, KHÔNG emoji, KHÔNG dùng tên người khác)."
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000006",
+      "name": "AI Morning Greeting Agent",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        1340,
+        220
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000007",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        440
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "5sjnywIBZlOvIRb3",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-02 | Dựng tin nhắn Telegram (HTML) cho từng nhân viên\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst ctx = $('Weekday Context & Config').first().json;\ntry {\n  const u = $('MySQL User Streak').first().json;\n  const aiRaw = String($input.first().json.text || '').trim() || 'Chúc bạn một ngày làm việc thật nhiều năng lượng!';\n  const days = u.checkin_days || 0;\n  const url = ctx.workspaceUrl || '';\n  // Telegram không mở được link localhost trên điện thoại -> hiển thị dạng văn bản\n  const link = /localhost|127\\.0\\.0\\.1/.test(url)\n    ? '📱 Check-in tại: <code>' + esc(url) + '</code>'\n    : '<a href=\"' + esc(url) + '\">📱 Bấm vào đây để check-in ngay</a>';\n\n  const msg = ctx.dayEmoji + ' <b>CHÀO BUỔI SÁNG ' + esc(ctx.dayName).toUpperCase() + '!</b>\\n\\n'\n    + esc(aiRaw.slice(0, 600)) + '\\n\\n'\n    + '👤 <b>Nhân viên:</b> ' + esc(u.full_name) + ' (' + esc(u.dept_name || 'HR Tech') + ')\\n'\n    + '🔥 <b>Số ngày check-in trong 14 ngày qua:</b> ' + days + ' ngày\\n\\n'\n    + '👉 <b>Dành 10 giây chia sẻ cảm xúc hôm nay:</b>\\n' + link;\n\n  return [{ json: { userId: u.id, fullName: u.full_name, message: msg.substring(0, 4000), prepared: true } }];\n} catch (err) {\n  return [{ json: { userId: null, fullName: '', prepared: false,\n    message: '☀️ Chào buổi sáng! Hãy dành 10 giây check-in cảm xúc hôm nay nhé: ' + esc(ctx.workspaceUrl) } }];\n}"
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000008",
+      "name": "Format & HTML Escape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Weekday Context & Config').first().json.telegramChatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000009",
+      "name": "Telegram Send Reminder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1780,
+        220
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "nEgzOjvRL1PL6URH",
+          "name": "Telegram account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 4,
+        "unit": "seconds"
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000010",
+      "name": "Wait 4s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-02 | Tổng kết lượt chạy (chạy khi vòng lặp kết thúc)\ntry {\n  const ctx = $('Weekday Context & Config').first().json;\n  const candidates = $('MySQL Unchecked Users').all().filter(i => i.json.id).length;\n  return [{ json: {\n    success: true, workflow: 'WF-02 Daily Mood Pulse',\n    executionDate: ctx.currentDate, dayName: ctx.dayName,\n    usersReminded: candidates,\n    completedAt: new Date().toISOString(), status: 'BATCH_COMPLETED'\n  } }];\n} catch (err) {\n  return [{ json: { success: false, workflow: 'WF-02 Daily Mood Pulse', error: err.message, completedAt: new Date().toISOString() } }];\n}"
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000011",
+      "name": "Summary Logger",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "daily-mood-reminder",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000012",
+      "name": "Test Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        480
+      ],
+      "webhookId": "daily-mood-reminder"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule 09:00 AM": {
+      "main": [
+        [
+          {
+            "node": "Weekday Context & Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekday Context & Config": {
+      "main": [
+        [
+          {
+            "node": "MySQL Unchecked Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MySQL Unchecked Users": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "Summary Logger",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MySQL User Streak",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MySQL User Streak": {
+      "main": [
+        [
+          {
+            "node": "AI Morning Greeting Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Morning Greeting Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Morning Greeting Agent": {
+      "main": [
+        [
+          {
+            "node": "Format & HTML Escape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & HTML Escape": {
+      "main": [
+        [
+          {
+            "node": "Telegram Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Send Reminder": {
+      "main": [
+        [
+          {
+            "node": "Wait 4s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 4s": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Weekday Context & Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "versionId": "v4-final-02",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "hr-tech-n8n-tv3"
+  },
+  "id": "wf-02-daily-mood",
+  "tags": [
+    {
+      "name": "TV3-Onboarding"
+    },
+    {
+      "name": "AI-Agent"
+    },
+    {
+      "name": "Scheduled"
+    }
+  ]
+}

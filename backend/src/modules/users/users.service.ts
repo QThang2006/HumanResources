@@ -79,14 +79,14 @@ export class UsersService {
     let techDept = await this.deptRepository.findOne({ where: { name: 'Kỹ Thuật & AI' } });
     if (!techDept) {
       techDept = await this.deptRepository.save(
-        this.deptRepository.create({ name: 'Kỹ Thuật & AI', description: 'Phát triển sản phẩm và ứng dụng AI' }),
+        this.deptRepository.create({ name: 'Kỹ Thuật & AI', code: 'TECH', description: 'Phát triển sản phẩm và ứng dụng AI' }),
       );
     }
 
     let hrDept = await this.deptRepository.findOne({ where: { name: 'Nhân Sự & Đào Tạo' } });
     if (!hrDept) {
       hrDept = await this.deptRepository.save(
-        this.deptRepository.create({ name: 'Nhân Sự & Đào Tạo', description: 'Quản trị nhân tài và văn hóa' }),
+        this.deptRepository.create({ name: 'Nhân Sự & Đào Tạo', code: 'HR', description: 'Quản trị nhân tài và văn hóa' }),
       );
     }
 

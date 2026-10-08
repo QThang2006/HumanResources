@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, FindManyOptions, Raw, Repository } from 'typeorm';
 import { Job, JobStatus } from '../../entities/job.entity';
@@ -48,7 +54,15 @@ export class JobsService {
     }
   }
 
-  async findAll(actor?: JobsActor, q = '', departmentId?: number, location = '', page?: number, pageSize?: number, status?: JobStatus) {
+  async findAll(
+    actor?: JobsActor,
+    q = '',
+    departmentId?: number,
+    location = '',
+    page?: number,
+    pageSize?: number,
+    status?: JobStatus,
+  ) {
     const where = !actor
       ? { status: JobStatus.OPEN }
       : actor.role === UserRole.MANAGER
@@ -56,19 +70,33 @@ export class JobsService {
         : {};
     if (actor && actor.role !== UserRole.MANAGER) this.assertScope(actor, 0);
     // A requested department can narrow a Manager's scope, never replace it.
-    if (actor?.role === UserRole.MANAGER && departmentId !== undefined && departmentId !== actor.departmentId) {
-      return page !== undefined && pageSize !== undefined ? { items: [], total: 0, page, pageSize } : [];
+    if (
+      actor?.role === UserRole.MANAGER &&
+      departmentId !== undefined &&
+      departmentId !== actor.departmentId
+    ) {
+      return page !== undefined && pageSize !== undefined
+        ? { items: [], total: 0, page, pageSize }
+        : [];
     }
     const departmentFilter = departmentId === undefined ? {} : { departmentId };
     const locationFilter = location ? { location } : {};
     // Bind the keyword and treat LIKE wildcards as literal search characters.
-    const titleFilter = q ? {
-      title: Raw(alias => `${alias} LIKE :searchTerm ESCAPE '!'`, {
-        searchTerm: '%' + q.replace(/[!%_]/g, '!$&') + '%',
-      }),
-    } : {};
+    const titleFilter = q
+      ? {
+          title: Raw((alias) => `${alias} LIKE :searchTerm ESCAPE '!'`, {
+            searchTerm: '%' + q.replace(/[!%_]/g, '!$&') + '%',
+          }),
+        }
+      : {};
     const options: FindManyOptions<Job> = {
-      where: { ...where, ...(actor && status ? { status } : {}), ...titleFilter, ...departmentFilter, ...locationFilter },
+      where: {
+        ...where,
+        ...(actor && status ? { status } : {}),
+        ...titleFilter,
+        ...departmentFilter,
+        ...locationFilter,
+      },
       relations: ['department'],
       order: { createdAt: 'DESC', id: 'DESC' },
     };
@@ -86,20 +114,30 @@ export class JobsService {
 
   private async views(rows: Job[], actor?: JobsActor) {
     if (!actor || !rows.length) return rows.map(jobView);
-    const counts = await this.db.getRepository(Application).createQueryBuilder('application')
-      .select('application.jobId', 'jobId').addSelect('COUNT(*)', 'count')
-      .where('application.jobId IN (:...ids)', { ids: rows.map(row => row.id) })
-      .groupBy('application.jobId').getRawMany<{ jobId: number; count: string }>();
-    const byJob = new Map(counts.map(row => [Number(row.jobId), Number(row.count)]));
-    return rows.map(row => jobView(Object.assign(row, { applicationCount: byJob.get(row.id) || 0 })));
+    const counts = await this.db
+      .getRepository(Application)
+      .createQueryBuilder('application')
+      .select('application.jobId', 'jobId')
+      .addSelect('COUNT(*)', 'count')
+      .where('application.jobId IN (:...ids)', { ids: rows.map((row) => row.id) })
+      .groupBy('application.jobId')
+      .getRawMany<{ jobId: number; count: string }>();
+    const byJob = new Map(counts.map((row) => [Number(row.jobId), Number(row.count)]));
+    return rows.map((row) =>
+      jobView(Object.assign(row, { applicationCount: byJob.get(row.id) || 0 })),
+    );
   }
 
   async departmentLookup() {
-    return this.departments.find({ select: { id: true, name: true, code: true }, order: { name: 'ASC' } });
+    return this.departments.find({
+      select: { id: true, name: true, code: true },
+      order: { name: 'ASC' },
+    });
   }
 
   async filters() {
-    const departments = await this.departments.createQueryBuilder('department')
+    const departments = await this.departments
+      .createQueryBuilder('department')
       .innerJoin('department.jobs', 'job', 'job.status = :status', { status: JobStatus.OPEN })
       .select('department.id', 'id')
       .addSelect('department.name', 'name')
@@ -107,14 +145,15 @@ export class JobsService {
       .orderBy('department.name', 'ASC')
       .addOrderBy('department.id', 'ASC')
       .getRawMany<{ id: number; name: string }>();
-    const locations = await this.jobs.createQueryBuilder('job')
+    const locations = await this.jobs
+      .createQueryBuilder('job')
       .select('job.location', 'location')
       .where('job.status = :status', { status: JobStatus.OPEN })
       .andWhere("TRIM(job.location) <> ''")
       .distinct(true)
       .orderBy('job.location', 'ASC')
       .getRawMany<{ location: string }>();
-    return { departments, locations: locations.map(row => row.location) };
+    return { departments, locations: locations.map((row) => row.location) };
   }
 
   async findById(id: number, actor?: JobsActor) {
@@ -127,19 +166,21 @@ export class JobsService {
   }
 
   async create(input: CreateJobDto, userId: number) {
-    if (!await this.departments.existsBy({ id: input.departmentId })) {
+    if (!(await this.departments.existsBy({ id: input.departmentId }))) {
       throw new BadRequestException('Phòng ban không tồn tại.');
     }
-    const job = await this.jobs.save(this.jobs.create({
-      title: input.title,
-      departmentId: input.departmentId,
-      location: input.location,
-      salaryRange: input.salaryRange,
-      description: input.description,
-      requirements: input.requirements,
-      createdBy: userId,
-      status: JobStatus.OPEN,
-    }));
+    const job = await this.jobs.save(
+      this.jobs.create({
+        title: input.title,
+        departmentId: input.departmentId,
+        location: input.location,
+        salaryRange: input.salaryRange,
+        description: input.description,
+        requirements: input.requirements,
+        createdBy: userId,
+        status: JobStatus.OPEN,
+      }),
+    );
     return this.savedJob(job.id);
   }
 
@@ -160,16 +201,18 @@ export class JobsService {
   }
 
   async update(id: number, input: UpdateJobDto) {
-    if (!await this.departments.existsBy({ id: input.departmentId })) {
+    if (!(await this.departments.existsBy({ id: input.departmentId }))) {
       throw new BadRequestException('Phòng ban không tồn tại.');
     }
-    await this.db.transaction(async manager => {
+    await this.db.transaction(async (manager) => {
       const repository = manager.getRepository(Job);
       const job = await repository.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
       if (!job) throw new NotFoundException('Không tìm thấy vị trí tuyển dụng.');
       this.checkRevision(job, input.expectedUpdatedAt);
-      if (job.departmentId !== input.departmentId &&
-          await manager.getRepository(Application).existsBy({ jobId: id })) {
+      if (
+        job.departmentId !== input.departmentId &&
+        (await manager.getRepository(Application).existsBy({ jobId: id }))
+      ) {
         throw new BadRequestException('Không chuyển phòng ban khi tin đã có hồ sơ.');
       }
       job.title = input.title;
@@ -185,7 +228,7 @@ export class JobsService {
   }
 
   async changeStatus(id: number, input: ChangeJobStatusDto) {
-    await this.db.transaction(async manager => {
+    await this.db.transaction(async (manager) => {
       const repository = manager.getRepository(Job);
       const job = await repository.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
       if (!job) throw new NotFoundException('Không tìm thấy vị trí tuyển dụng.');

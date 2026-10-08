@@ -1,10 +1,23 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEmail, IsEnum, IsInt, IsISO8601, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsInt,
+  IsISO8601,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { JobStatus } from '../../entities/job.entity';
 import { ApplicationStatus } from '../../entities/application.entity';
 import { InterviewResult } from '../../entities/interview.entity';
 
-export const Trim = () => Transform(({ value }) => typeof value === 'string' ? value.trim() : value);
+export const Trim = () =>
+  Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
 
 export class PageQuery {
   @Type(() => Number) @IsInt() @Min(1) page = 1;
@@ -21,8 +34,18 @@ export class JobInput {
   @Type(() => Number) @IsInt() @Min(1) departmentId: number;
   @Trim() @IsString() @IsNotEmpty() @MaxLength(20000) description: string;
   @Trim() @IsString() @IsNotEmpty() @MaxLength(20000) requirements: string;
-  @ValidateIf((_, value) => value !== undefined) @Trim() @IsString() @IsNotEmpty() @MaxLength(150) location?: string;
-  @ValidateIf((_, value) => value !== undefined) @Trim() @IsString() @IsNotEmpty() @MaxLength(100) salaryRange?: string;
+  @ValidateIf((_, value) => value !== undefined)
+  @Trim()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  location?: string;
+  @ValidateIf((_, value) => value !== undefined)
+  @Trim()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  salaryRange?: string;
 }
 export class JobStateInput {
   @IsEnum(JobStatus) status: JobStatus;
@@ -47,8 +70,10 @@ export class JobIdQuery {
 export class SubmitInput {
   @Type(() => Number) @IsInt() @Min(1) jobId: number;
   @Trim() @IsString() @IsNotEmpty() @MaxLength(150) candidateName: string;
-  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
-  @IsEmail() @MaxLength(255) candidateEmail: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @IsEmail()
+  @MaxLength(255)
+  candidateEmail: string;
   @IsOptional() @Trim() @IsString() @MaxLength(20) candidatePhone?: string;
 }
 export class StateInput {

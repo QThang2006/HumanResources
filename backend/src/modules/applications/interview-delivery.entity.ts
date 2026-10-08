@@ -1,4 +1,12 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  OneToOne,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Interview } from '../../entities/interview.entity';
 
 // TV2 owns delivery tracking; shared Interview keeps its existing Meet fields.
@@ -6,10 +14,14 @@ import { Interview } from '../../entities/interview.entity';
 export class InterviewDelivery {
   @PrimaryColumn({ name: 'interview_id', type: 'int' }) interviewId: number;
   @OneToOne(() => Interview, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'interview_id' }) interview: Interview;
+  @JoinColumn({ name: 'interview_id' })
+  interview: Interview;
   @Column({ name: 'request_id', length: 36, unique: true }) requestId: string;
   @Column({ name: 'token_hash', length: 64, nullable: true, select: false }) tokenHash: string;
-  @Column({ name: 'payload_snapshot', type: 'json', select: false }) payloadSnapshot: Record<string, unknown>;
+  @Column({ name: 'payload_snapshot', type: 'json', select: false }) payloadSnapshot: Record<
+    string,
+    unknown
+  >;
   @Column({ name: 'expected_event_id', length: 64 }) expectedEventId: string;
   @Column({ length: 20, default: 'PENDING' }) status: string;
   @Column({ name: 'calendar_status', length: 20, default: 'PENDING' }) calendarStatus: string;

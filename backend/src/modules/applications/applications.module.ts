@@ -14,7 +14,10 @@ import { CvStorageService } from './cv-storage.service';
 import { SubmitRateGuard } from './submit-rate.guard';
 import { InterviewDelivery } from './interview-delivery.entity';
 import { InterviewDeliveryService } from './interview-delivery.service';
-import { InterviewScheduleController, InterviewScheduleService } from './interview-schedule.controller';
+import {
+  InterviewScheduleController,
+  InterviewScheduleService,
+} from './interview-schedule.controller';
 
 @Module({
   imports: [
@@ -31,7 +34,13 @@ import { InterviewScheduleController, InterviewScheduleService } from './intervi
     ]),
   ],
   controllers: [ApplicationsController, InterviewScheduleController],
-  providers: [ApplicationsService, CvStorageService, SubmitRateGuard, InterviewDeliveryService, InterviewScheduleService],
+  providers: [
+    ApplicationsService,
+    CvStorageService,
+    SubmitRateGuard,
+    InterviewDeliveryService,
+    InterviewScheduleService,
+  ],
   exports: [ApplicationsService],
 })
 export class ApplicationsModule {}

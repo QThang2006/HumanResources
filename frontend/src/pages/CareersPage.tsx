@@ -28,9 +28,11 @@ export function CareersPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    jobsApi.getFilters(controller.signal)
-      .then(data => {
-        if (!controller.signal.aborted) setFilters({ status: 'ready', departments: data.departments, locations: data.locations });
+    jobsApi
+      .getFilters(controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted)
+          setFilters({ status: 'ready', departments: data.departments, locations: data.locations });
       })
       .catch(() => {
         if (!controller.signal.aborted) setFilters({ status: 'error' });
@@ -40,26 +42,42 @@ export function CareersPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const timer = setTimeout(() => jobsApi.getPage(controller.signal, page, PAGE_SIZE, query.trim(), departmentId ? Number(departmentId) : undefined, location)
-      .then(data => {
-        if (controller.signal.aborted) return;
-        const lastPage = Math.max(1, Math.ceil(data.total / data.pageSize));
-        if (page > lastPage) {
-          setState({ status: 'loading' });
-          setPage(lastPage);
-          return;
-        }
-        setState({ status: 'ready', data });
-      })
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) {
-          setState({
-            status: 'error',
-            message: error instanceof Error ? error.message : 'Không tải được danh sách tuyển dụng.',
-          });
-        }
-      }), 250);
-    return () => { clearTimeout(timer); controller.abort(); };
+    const timer = setTimeout(
+      () =>
+        jobsApi
+          .getPage(
+            controller.signal,
+            page,
+            PAGE_SIZE,
+            query.trim(),
+            departmentId ? Number(departmentId) : undefined,
+            location,
+          )
+          .then((data) => {
+            if (controller.signal.aborted) return;
+            const lastPage = Math.max(1, Math.ceil(data.total / data.pageSize));
+            if (page > lastPage) {
+              setState({ status: 'loading' });
+              setPage(lastPage);
+              return;
+            }
+            setState({ status: 'ready', data });
+          })
+          .catch((error: unknown) => {
+            if (!controller.signal.aborted) {
+              setState({
+                status: 'error',
+                message:
+                  error instanceof Error ? error.message : 'Không tải được danh sách tuyển dụng.',
+              });
+            }
+          }),
+      250,
+    );
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query, departmentId, location, page, attempt]);
 
   function search(value: string) {
@@ -76,7 +94,7 @@ export function CareersPage() {
 
   function retry() {
     setState({ status: 'loading' });
-    setAttempt(value => value + 1);
+    setAttempt((value) => value + 1);
   }
 
   return (
@@ -90,62 +108,114 @@ export function CareersPage() {
         </p>
       </header>
 
-      <section aria-label="Tìm kiếm vị trí tuyển dụng" className="mb-6 rounded-2xl border border-slate-200 bg-white p-5">
-        <label htmlFor="job-search" className="mb-2 block text-sm font-semibold text-slate-700">Tìm theo tên công việc</label>
+      <section
+        aria-label="Tìm kiếm vị trí tuyển dụng"
+        className="mb-6 rounded-2xl border border-slate-200 bg-white p-5"
+      >
+        <label htmlFor="job-search" className="mb-2 block text-sm font-semibold text-slate-700">
+          Tìm theo tên công việc
+        </label>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             id="job-search"
             type="search"
             maxLength={150}
             value={query}
-            onChange={event => search(event.target.value)}
+            onChange={(event) => search(event.target.value)}
             placeholder="Ví dụ: Backend, Kế toán..."
             className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          {query && <button type="button" onClick={() => search('')} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Xóa tìm kiếm</button>}
+          {query && (
+            <button
+              type="button"
+              onClick={() => search('')}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Xóa tìm kiếm
+            </button>
+          )}
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="min-w-0">
-            <label htmlFor="job-department" className="mb-2 block text-sm font-semibold text-slate-700">Phòng ban</label>
+            <label
+              htmlFor="job-department"
+              className="mb-2 block text-sm font-semibold text-slate-700"
+            >
+              Phòng ban
+            </label>
             <select
               id="job-department"
               value={departmentId}
               disabled={filters.status !== 'ready' || filters.departments.length === 0}
-              onChange={event => { setDepartmentId(event.target.value); setPage(1); setState({ status: 'loading' }); }}
+              onChange={(event) => {
+                setDepartmentId(event.target.value);
+                setPage(1);
+                setState({ status: 'loading' });
+              }}
               className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
             >
               <option value="">Tất cả phòng ban</option>
-              {filters.status === 'ready' && filters.departments.map(department => (
-                <option key={department.id} value={department.id}>{department.name}</option>
-              ))}
+              {filters.status === 'ready' &&
+                filters.departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
             </select>
-            {filters.status === 'ready' && filters.departments.length === 0 && <p className="mt-2 text-sm text-slate-500">Chưa có phòng ban đang tuyển.</p>}
+            {filters.status === 'ready' && filters.departments.length === 0 && (
+              <p className="mt-2 text-sm text-slate-500">Chưa có phòng ban đang tuyển.</p>
+            )}
           </div>
           <div className="min-w-0">
-            <label htmlFor="job-location" className="mb-2 block text-sm font-semibold text-slate-700">Địa điểm</label>
+            <label
+              htmlFor="job-location"
+              className="mb-2 block text-sm font-semibold text-slate-700"
+            >
+              Địa điểm
+            </label>
             <select
               id="job-location"
               value={location}
               disabled={filters.status !== 'ready' || filters.locations.length === 0}
-              onChange={event => { setLocation(event.target.value); setPage(1); setState({ status: 'loading' }); }}
+              onChange={(event) => {
+                setLocation(event.target.value);
+                setPage(1);
+                setState({ status: 'loading' });
+              }}
               className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
             >
               <option value="">Tất cả địa điểm</option>
-              {filters.status === 'ready' && filters.locations.map(value => <option key={value} value={value}>{value}</option>)}
+              {filters.status === 'ready' &&
+                filters.locations.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
             </select>
-            {filters.status === 'ready' && filters.locations.length === 0 && <p className="mt-2 text-sm text-slate-500">Chưa có địa điểm đang tuyển.</p>}
+            {filters.status === 'ready' && filters.locations.length === 0 && (
+              <p className="mt-2 text-sm text-slate-500">Chưa có địa điểm đang tuyển.</p>
+            )}
           </div>
         </div>
         <div>
-          {filters.status === 'loading' && <p role="status" className="mt-2 text-sm text-slate-500">Đang tải phòng ban và địa điểm...</p>}
+          {filters.status === 'loading' && (
+            <p role="status" className="mt-2 text-sm text-slate-500">
+              Đang tải phòng ban và địa điểm...
+            </p>
+          )}
           {filters.status === 'error' && (
             <div role="alert" className="mt-2 text-sm text-amber-800">
               <p>Không tải được danh sách phòng ban và địa điểm.</p>
               <button
                 type="button"
-                onClick={() => { setFilters({ status: 'loading' }); setFiltersAttempt(value => value + 1); }}
+                onClick={() => {
+                  setFilters({ status: 'loading' });
+                  setFiltersAttempt((value) => value + 1);
+                }}
                 className="mt-2 rounded-lg border border-amber-300 px-3 py-2 font-semibold hover:bg-amber-50"
-              >Thử lại bộ lọc</button>
+              >
+                Thử lại bộ lọc
+              </button>
             </div>
           )}
         </div>
@@ -158,7 +228,10 @@ export function CareersPage() {
       )}
 
       {state.status === 'error' && (
-        <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+        <div
+          role="alert"
+          className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center"
+        >
           <p className="text-sm text-amber-900">{state.message}</p>
           <button
             type="button"
@@ -170,86 +243,113 @@ export function CareersPage() {
         </div>
       )}
 
-      {state.status === 'ready' && (
-        state.data.items.length === 0 ? (
-          <div role="status" className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center">
+      {state.status === 'ready' &&
+        (state.data.items.length === 0 ? (
+          <div
+            role="status"
+            className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center"
+          >
             <Briefcase aria-hidden="true" className="w-8 h-8 mx-auto mb-3 text-slate-400" />
-            <p className="text-sm text-slate-600">{departmentId || location ? 'Không tìm thấy vị trí phù hợp với bộ lọc đã chọn.' : query.trim() ? 'Không tìm thấy vị trí phù hợp với từ khóa.' : 'Hiện chưa có vị trí đang tuyển. Vui lòng quay lại sau.'}</p>
+            <p className="text-sm text-slate-600">
+              {departmentId || location
+                ? 'Không tìm thấy vị trí phù hợp với bộ lọc đã chọn.'
+                : query.trim()
+                  ? 'Không tìm thấy vị trí phù hợp với từ khóa.'
+                  : 'Hiện chưa có vị trí đang tuyển. Vui lòng quay lại sau.'}
+            </p>
           </div>
         ) : (
           <>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
-            <p><strong className="text-slate-900">{state.data.total}</strong> vị trí phù hợp</p>
-            <p>Trang {state.data.page}/{Math.max(1, Math.ceil(state.data.total / state.data.pageSize))}</p>
-          </div>
-          <section aria-label="Vị trí đang tuyển" className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {state.data.items.map(job => (
-              <article
-                key={job.id}
-                className="min-w-0 p-6 bg-white rounded-2xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                      {job.departmentName}
-                    </span>
-                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                      Đang mở tuyển
-                    </span>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+              <p>
+                <strong className="text-slate-900">{state.data.total}</strong> vị trí phù hợp
+              </p>
+              <p>
+                Trang {state.data.page}/
+                {Math.max(1, Math.ceil(state.data.total / state.data.pageSize))}
+              </p>
+            </div>
+            <section
+              aria-label="Vị trí đang tuyển"
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            >
+              {state.data.items.map((job) => (
+                <article
+                  key={job.id}
+                  className="min-w-0 p-6 bg-white rounded-2xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                        {job.departmentName}
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        Đang mở tuyển
+                      </span>
+                    </div>
+                    <h2 className="break-words text-lg font-bold text-slate-900 hover:text-indigo-600">
+                      <Link to={'/careers/' + job.id}>{job.title}</Link>
+                    </h2>
+                    <p className="break-words whitespace-pre-line text-sm text-slate-600 mt-2 line-clamp-2">
+                      {job.description}
+                    </p>
+                    <div className="flex flex-wrap gap-4 mt-4 text-xs font-medium text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <MapPin
+                          aria-hidden="true"
+                          className="w-3.5 h-3.5 shrink-0 text-slate-400"
+                        />
+                        {job.location}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <DollarSign
+                          aria-hidden="true"
+                          className="w-3.5 h-3.5 shrink-0 text-slate-400"
+                        />
+                        {job.salaryRange}
+                      </span>
+                    </div>
                   </div>
-                  <h2 className="break-words text-lg font-bold text-slate-900 hover:text-indigo-600">
-                    <Link to={'/careers/' + job.id}>{job.title}</Link>
-                  </h2>
-                  <p className="break-words whitespace-pre-line text-sm text-slate-600 mt-2 line-clamp-2">
-                    {job.description}
-                  </p>
-                  <div className="flex flex-wrap gap-4 mt-4 text-xs font-medium text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <MapPin aria-hidden="true" className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-                      {job.location}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <DollarSign aria-hidden="true" className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-                      {job.salaryRange}
-                    </span>
+                  <div className="mt-6 pt-4 border-t border-slate-100">
+                    <Link
+                      to={'/careers/' + job.id}
+                      className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-700"
+                      aria-label={'Xem chi tiết: ' + job.title}
+                    >
+                      Xem chi tiết <ArrowRight aria-hidden="true" className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
-                </div>
-                <div className="mt-6 pt-4 border-t border-slate-100">
-                  <Link
-                    to={'/careers/' + job.id}
-                    className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-700"
-                    aria-label={'Xem chi tiết: ' + job.title}
-                  >
-                    Xem chi tiết <ArrowRight aria-hidden="true" className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </section>
-          {state.data.total > state.data.pageSize && (
-            <nav aria-label="Phân trang vị trí tuyển dụng" className="mt-8 flex items-center justify-center gap-3">
-              <button
-                type="button"
-                disabled={state.data.page <= 1}
-                onClick={() => changePage(state.data.page - 1)}
-                className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                </article>
+              ))}
+            </section>
+            {state.data.total > state.data.pageSize && (
+              <nav
+                aria-label="Phân trang vị trí tuyển dụng"
+                className="mt-8 flex items-center justify-center gap-3"
               >
-                <ChevronLeft aria-hidden="true" className="h-4 w-4" /> Trang trước
-              </button>
-              <span className="min-w-20 text-center text-sm font-semibold text-slate-700">{state.data.page} / {Math.ceil(state.data.total / state.data.pageSize)}</span>
-              <button
-                type="button"
-                disabled={state.data.page >= Math.ceil(state.data.total / state.data.pageSize)}
-                onClick={() => changePage(state.data.page + 1)}
-                className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Trang sau <ChevronRight aria-hidden="true" className="h-4 w-4" />
-              </button>
-            </nav>
-          )}
+                <button
+                  type="button"
+                  disabled={state.data.page <= 1}
+                  onClick={() => changePage(state.data.page - 1)}
+                  className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft aria-hidden="true" className="h-4 w-4" /> Trang trước
+                </button>
+                <span className="min-w-20 text-center text-sm font-semibold text-slate-700">
+                  {state.data.page} / {Math.ceil(state.data.total / state.data.pageSize)}
+                </span>
+                <button
+                  type="button"
+                  disabled={state.data.page >= Math.ceil(state.data.total / state.data.pageSize)}
+                  onClick={() => changePage(state.data.page + 1)}
+                  className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Trang sau <ChevronRight aria-hidden="true" className="h-4 w-4" />
+                </button>
+              </nav>
+            )}
           </>
-        )
-      )}
+        ))}
     </div>
   );
 }

@@ -1,4 +1,15 @@
-import { BadRequestException, Controller, Get, Post, Patch, Param, Body, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { RecruitmentAiService } from './recruitment-ai.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -14,12 +25,22 @@ import { ListJobsQueryDto } from './dto/list-jobs-query.dto';
 
 @Controller('jobs')
 export class JobsController {
-  constructor(private readonly jobs: JobsService, private readonly ai: RecruitmentAiService) {}
+  constructor(
+    private readonly jobs: JobsService,
+    private readonly ai: RecruitmentAiService,
+  ) {}
 
   @Get()
   list(@Query() query: ListJobsQueryDto) {
     this.validatePagination(query);
-    return this.jobs.findAll(undefined, query.q, query.departmentId, query.location, query.page, query.pageSize);
+    return this.jobs.findAll(
+      undefined,
+      query.q,
+      query.departmentId,
+      query.location,
+      query.page,
+      query.pageSize,
+    );
   }
 
   @Get('filters')
@@ -32,7 +53,15 @@ export class JobsController {
   @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
   internalList(@CurrentUser() user: User, @Query() query: ListJobsQueryDto) {
     this.validatePagination(query);
-    return this.jobs.findAll(user, query.q, query.departmentId, query.location, query.page, query.pageSize, query.status);
+    return this.jobs.findAll(
+      user,
+      query.q,
+      query.departmentId,
+      query.location,
+      query.page,
+      query.pageSize,
+      query.status,
+    );
   }
 
   private validatePagination(query: ListJobsQueryDto) {
@@ -51,12 +80,16 @@ export class JobsController {
   @Get('departments')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN)
-  departments() { return this.jobs.departmentLookup(); }
+  departments() {
+    return this.jobs.departmentLookup();
+  }
 
   @Get('capabilities')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
-  capabilities() { return this.ai.capabilities(); }
+  capabilities() {
+    return this.ai.capabilities();
+  }
 
   @Get(':id')
   detail(@Param('id', ParseIntPipe) id: number) {

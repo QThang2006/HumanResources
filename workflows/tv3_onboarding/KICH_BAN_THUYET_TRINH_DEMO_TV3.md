@@ -33,14 +33,14 @@
 * **Thao tác thực hiện:**
   1. Đăng nhập vào hệ thống, mở trang Workspace cá nhân.
   2. **Check-in tâm trạng:** Bấm chọn nút **"Căng thẳng" (STRESSED)** (màu đỏ hồng) ➔ Nhập phản hồi: *"Dự án tuần này deadline gấp quá, mình đang bị quá tải task."* ➔ Bấm nút **"Gửi chia sẻ"**. Chỉ nhanh vào dải chấm 7 ngày vừa cập nhật.
-  3. **Checklist 30 ngày:** Cuộn xuống phần Checklist hội nhập ➔ Bấm tick hoàn thành 1 nhiệm vụ để thanh tiến độ % nhảy lên sinh động ➔ Bấm mở rộng xem chi tiết nhiệm vụ.
-  4. **AI Copilot Chatbox:** Bấm vào 1 câu hỏi gợi ý bên cạnh (hoặc gõ *"Chế độ nghỉ phép thử việc thế nào?"*) ➔ Trợ lý AI lập tức trả lời trích xuất từ Sổ tay nhân viên.
-  5. **Điểm nhấn UX/UI:** Nhấn mạnh 2 khung Checklist & Copilot Chat được khóa cố định chiều cao `540px` với thanh cuộn riêng, dù mở rộng nhiệm vụ thì khung chat bên cạnh vẫn đứng yên thẳng thớm, không bị kéo dãn hay tụt nút gửi xuống đáy.
+  3. **Checklist 30 ngày:** Cuộn xuống phần Checklist hội nhập ➔ Bấm tick hoàn thành 1 nhiệm vụ để thanh tiến độ % nhảy lên sinh động ➔ Bấm mở rộng xem chi tiết nhiệm vụ và các mốc thời gian.
+  4. **AI Copilot Chatbox:** Bấm vào 1 câu hỏi gợi ý bên cạnh (hoặc gõ *"Chế độ nghỉ phép thử việc thế nào?"*) ➔ Trợ lý AI lập tức trả lời chi tiết, trích xuất chính xác từ Sổ tay nhân viên.
 * **Lời thoại thuyết trình:**
   > *"Trước hết, ở góc nhìn nhân viên khi bắt đầu ngày làm việc tại Không gian cá nhân:
   > - Phía trên là widget **Mood Check-in**: Nhân viên chỉ mất đúng 5 giây để chia sẻ tâm trạng và phản hồi tâm tư mỗi ngày, theo dõi dải chấm 7 ngày qua.
-  > - Phía dưới là bộ đôi cốt lõi hỗ trợ hội nhập: **Checklist 30 ngày** (lộ trình thử việc tự động cập nhật tiến độ %) và **Trợ lý AI Copilot** (giải đáp chính sách công ty 24/7).
-  > - Đặc biệt về mặt trải nghiệm UX, em đã tối ưu **cố định chiều cao 540px với thanh cuộn độc lập cho cả 2 khung**, giúp giao diện luôn cân đối hoàn hảo, khi mở rộng danh sách nhiệm vụ thì khung chat bên cạnh hoàn toàn không bị xô lệch layout."*
+  > - Phía dưới là bộ đôi cốt lõi hỗ trợ hội nhập:
+  >   + **Checklist 30 ngày**: Cung cấp lộ trình thử việc rõ ràng với các mốc nhiệm vụ chuẩn hóa (nhận việc, học nội quy, gặp quản lý 1-on-1, đánh giá thử việc), tự động tính toán % tiến độ hoàn thành, giúp nhân viên mới luôn nắm rõ việc cần làm mà không bị bỡ ngỡ.
+  >   + **Trợ lý AI Copilot**: Trợ lý ảo hỗ trợ 24/7 ứng dụng RAG đọc trực tiếp từ Sổ tay công ty, nhân viên có thể hỏi bất kỳ thắc mắc nào về chính sách, ngày phép, bảo hiểm và nhận câu trả lời chính xác ngay lập tức."*
 
 ---
 

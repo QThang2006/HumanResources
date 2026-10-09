@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { UserRole } from '../types';
@@ -17,11 +17,23 @@ export const Navbar: React.FC = () => {
   const { user, login, logout, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState('');
 
   const isActive = (path: string) => location.pathname === path;
 
   const handleRoleSwitch = async (targetRole: UserRole) => {
-    await login(targetRole);
+    if (switching || targetRole === user?.role) return;
+    setSwitching(true);
+    setSwitchError('');
+    try {
+      await login(targetRole);
+    } catch {
+      setSwitchError('Không chuyển được tài khoản demo. Hãy đăng nhập bằng email và mật khẩu của bạn.');
+      return;
+    } finally {
+      setSwitching(false);
+    }
     // Tự động chuyển hướng đến màn hình chính tương ứng với Role
     if (targetRole === 'SUPERADMIN') {
       navigate('/admin/recruitment');
@@ -165,6 +177,7 @@ export const Navbar: React.FC = () => {
                       key={role}
                       type="button"
                       onClick={() => handleRoleSwitch(role)}
+                      disabled={switching}
                       title={`Chuyển sang góc nhìn ${role}`}
                       className={`rounded-[10px] px-2 py-1 text-[11px] font-black transition-all ${
                         user?.role === role
@@ -212,6 +225,11 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       </div>
+      {switchError && (
+        <p role="alert" className="px-4 pb-2 text-sm text-red-700">
+          {switchError} <Link to="/login" className="underline">Đăng nhập</Link>
+        </p>
+      )}
     </header>
   );
 };

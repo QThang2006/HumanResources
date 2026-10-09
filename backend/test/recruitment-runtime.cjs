@@ -123,7 +123,7 @@ const { ConfigService } = require('@nestjs/config');
     const questions = await aiRequest(
       'questions',
       '/applications/interviews/' + interview.id + '/questions',
-      { method: 'POST', who: 'hr' },
+      { method: 'POST', who: 'manager' },
     );
     assert.equal(questions.status, 201);
     assert.equal(questions.data.saved, questions.data.mode === 'LIVE');

@@ -108,8 +108,7 @@ export class ApplicationsController {
   }
 
   @Post('interviews/:id/questions')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  @UseGuards(JwtAuthGuard)
   questions(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: Actor) {
     return this.service.questions(id, actor);
   }

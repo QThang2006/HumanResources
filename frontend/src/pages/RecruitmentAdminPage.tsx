@@ -273,7 +273,11 @@ function RecruitmentBoard() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-indigo-600">
-            {operator ? 'Bàn tuyển dụng HR' : 'Không gian phỏng vấn Manager'}
+            {user?.role === 'SUPERADMIN'
+              ? 'Bàn tuyển dụng Admin'
+              : operator
+                ? 'Bàn tuyển dụng HR'
+                : 'Không gian phỏng vấn Manager'}
           </p>
           <h1 className="mt-1 text-3xl font-bold">Quản lý tuyển dụng</h1>
         </div>

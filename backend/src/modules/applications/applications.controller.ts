@@ -89,8 +89,7 @@ export class ApplicationsController {
   }
 
   @Patch('interviews/:id/result')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.MANAGER)
+  @UseGuards(JwtAuthGuard)
   result(
     @Param('id', ParseIntPipe) id: number,
     @Body() input: ResultInput,

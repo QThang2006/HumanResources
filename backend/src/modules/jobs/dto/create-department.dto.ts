@@ -1,5 +1,5 @@
-import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 const Trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
 
@@ -21,4 +21,10 @@ export class CreateDepartmentDto {
   @IsString()
   @MaxLength(2000)
   description?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'Manager phải là số nguyên.' })
+  @Min(1)
+  managerId?: number | null;
 }

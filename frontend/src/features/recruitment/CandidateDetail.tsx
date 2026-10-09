@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { recruitmentApi as api } from './api';
-import type { Candidate, Capabilities, Interview } from './types';
+import type { Candidate, Capabilities, DepartmentManager, Interview } from './types';
 import { statusLabels } from './types';
 import { Alert, Dialog, Field, buttonClass, errorText, inputClass, secondaryClass } from './ui';
 
@@ -89,7 +89,7 @@ export function CandidateDetail({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const [interviewers, setInterviewers] = useState<{ id: number; fullName: string }[]>([]);
+  const [interviewers, setInterviewers] = useState<DepartmentManager[]>([]);
   const [interviewerId, setInterviewer] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [scorePreview, setScorePreview] = useState<string>('');
@@ -318,7 +318,7 @@ export function CandidateDetail({
                   Xếp lịch vòng {Math.max(0, ...candidate.interviews.map((i) => i.round)) + 1}
                 </h3>
                 <fieldset disabled={busy} className="space-y-3">
-                  <Field label="Manager cùng phòng ban">
+                  <Field label="Người phỏng vấn">
                     <select
                       ref={scheduleSelect}
                       required
@@ -329,7 +329,7 @@ export function CandidateDetail({
                       <option value="">Chọn người phỏng vấn</option>
                       {interviewers.map((i) => (
                         <option key={i.id} value={i.id}>
-                          {i.fullName}
+                          {i.fullName} · {i.jobTitle || 'Chưa có chức danh'} · {i.role}
                         </option>
                       ))}
                     </select>
@@ -342,13 +342,14 @@ export function CandidateDetail({
                         className={secondaryClass}
                         onClick={() => setPeopleAttempt((value) => value + 1)}
                       >
-                        Tải lại Manager
+                        Tải lại danh sách
                       </button>
                     </Alert>
                   ) : (
                     !interviewers.length && (
                       <p className="text-sm text-amber-700">
-                        Chưa có Manager đang hoạt động trong phòng ban này.
+                        Chưa có người phỏng vấn phù hợp. Nếu phòng ban chưa có Manager, HR hoặc SuperAdmin
+                        có thể được chọn làm người phỏng vấn.
                       </p>
                     )
                   )}
@@ -473,8 +474,7 @@ export function CandidateDetail({
                       Gợi ý câu hỏi AI
                     </button>
                   )}
-                  {!operator &&
-                    interview.interviewerId === user?.id &&
+                  {interview.interviewerId === user?.id &&
                     candidate.status === 'INTERVIEWING' && (
                       <ResultForm
                         key={interview.updatedAt}

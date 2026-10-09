@@ -1,5 +1,5 @@
 import React from 'react';
-import type { TeamMemberOverview } from '../types';
+import type { TeamMemberOverview, MemberHistoryDay } from '../types';
 import { MoodBadge } from './MoodBadge';
 
 interface TeamOverviewTableProps {
@@ -20,6 +20,42 @@ const CheckInStatus: React.FC<{ checkedIn: boolean }> = ({ checkedIn }) =>
       Chưa check-in
     </span>
   );
+
+const SevenDayHistoryDots: React.FC<{ history?: MemberHistoryDay[] }> = ({ history }) => {
+  if (!history || history.length === 0) {
+    return <span className="text-xs text-slate-400">—</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-1.5" title="Nhịp cảm xúc 7 ngày qua">
+      {history.map((day) => {
+        let dotStyle = 'border border-slate-300 bg-slate-100';
+        let label = 'Chưa check-in';
+        if (day.mood === 'GREAT') {
+          dotStyle = 'bg-emerald-500 shadow-xs';
+          label = 'Tuyệt vời';
+        } else if (day.mood === 'NORMAL') {
+          dotStyle = 'bg-amber-400 shadow-xs';
+          label = 'Bình thường';
+        } else if (day.mood === 'STRESSED') {
+          dotStyle = 'bg-rose-500 shadow-xs ring-2 ring-rose-200';
+          label = 'Căng thẳng';
+        }
+
+        return (
+          <div key={day.date} className="group relative flex flex-col items-center">
+            <span
+              className={`h-2.5 w-2.5 rounded-full transition-transform group-hover:scale-125 ${dotStyle} ${
+                day.isToday ? 'ring-1 ring-offset-1 ring-indigo-500' : ''
+              }`}
+              title={`${day.dayName} (${day.date.slice(5)}): ${label}${day.isToday ? ' (Hôm nay)' : ''}`}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const MoodCell: React.FC<{ member: TeamMemberOverview; needsAttention: boolean }> = ({
   member,
@@ -64,7 +100,8 @@ export const TeamOverviewTable: React.FC<TeamOverviewTableProps> = ({ members, a
           <tr className="text-xs font-medium uppercase tracking-wide text-slate-500">
             <th scope="col" className="px-4 py-3 font-medium">Nhân sự</th>
             <th scope="col" className="px-4 py-3 font-medium">Check-in</th>
-            <th scope="col" className="px-4 py-3 font-medium">Tâm trạng</th>
+            <th scope="col" className="px-4 py-3 font-medium">Tâm trạng hôm nay</th>
+            <th scope="col" className="px-4 py-3 font-medium">Nhịp cảm xúc (7 ngày)</th>
             <th scope="col" className="px-4 py-3 font-medium">Chia sẻ trong ngày</th>
           </tr>
         </thead>
@@ -80,6 +117,9 @@ export const TeamOverviewTable: React.FC<TeamOverviewTableProps> = ({ members, a
               </td>
               <td className="px-4 py-3">
                 <MoodCell member={m} needsAttention={attentionUserIds.has(m.userId)} />
+              </td>
+              <td className="whitespace-nowrap px-4 py-3">
+                <SevenDayHistoryDots history={m.history7Days} />
               </td>
               <td className="max-w-md px-4 py-3">
                 <Feedback text={m.feedbackText} />
@@ -103,8 +143,9 @@ export const TeamOverviewTable: React.FC<TeamOverviewTableProps> = ({ members, a
               <CheckInStatus checkedIn={m.hasCheckedIn} />
             </div>
           </div>
-          <div className="mt-3">
+          <div className="mt-3 flex items-center justify-between gap-2">
             <MoodCell member={m} needsAttention={attentionUserIds.has(m.userId)} />
+            <SevenDayHistoryDots history={m.history7Days} />
           </div>
           <div className="mt-3 border-t border-slate-100 pt-3">
             <Feedback text={m.feedbackText} />

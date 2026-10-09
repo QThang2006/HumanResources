@@ -6,6 +6,7 @@ interface TeamMoodHeaderProps {
   departmentName?: string;
   departmentId?: number;
   departments?: DepartmentItem[];
+  canSwitchDepartment?: boolean;
   onSelectDepartment?: (deptId: number) => void;
   lastUpdated: Date | null;
   isRefreshing: boolean;
@@ -17,6 +18,7 @@ export const TeamMoodHeader: React.FC<TeamMoodHeaderProps> = ({
   departmentName,
   departmentId,
   departments,
+  canSwitchDepartment = true,
   onSelectDepartment,
   lastUpdated,
   isRefreshing,
@@ -27,6 +29,8 @@ export const TeamMoodHeader: React.FC<TeamMoodHeaderProps> = ({
     ? lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : null;
 
+  const showDropdown = canSwitchDepartment && departments && departments.length > 1;
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
@@ -34,7 +38,7 @@ export const TeamMoodHeader: React.FC<TeamMoodHeaderProps> = ({
           <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
             Team Mood
           </h2>
-          {departments && departments.length > 0 ? (
+          {showDropdown ? (
             <div className="relative inline-flex items-center">
               <label htmlFor="team-mood-dept-select" className="sr-only">
                 Lọc theo phòng ban
@@ -56,11 +60,13 @@ export const TeamMoodHeader: React.FC<TeamMoodHeaderProps> = ({
                 </select>
               </div>
             </div>
-          ) : departmentName ? (
-            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600 shadow-sm">
-              {departmentName}
-            </span>
-          ) : null}
+          ) : (
+            <div className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50/70 px-3 py-1 text-xs font-semibold text-indigo-800 shadow-xs">
+              <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+              <span>{departmentName || (departments && departments[0]?.name) || 'Đội ngũ trực thuộc'}</span>
+              <span className="ml-1 rounded bg-indigo-200/60 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">Đội ngũ của bạn</span>
+            </div>
+          )}
         </div>
         <p className="mt-1 text-xs text-slate-500 sm:text-sm">
           Theo dõi nhịp năng lượng đội ngũ hôm nay theo từng ban

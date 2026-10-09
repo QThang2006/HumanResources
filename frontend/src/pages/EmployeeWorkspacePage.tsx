@@ -702,8 +702,8 @@ export const EmployeeWorkspacePage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [moodHistory, setMoodHistory] = useState<EmployeeMood[]>([]);
 
-  // ── State: Tab quản lý (ONBOARDING tracker hoặc MOOD) ──
-  const [managerActiveTab, setManagerActiveTab] = useState<'ONBOARDING' | 'MOOD'>('ONBOARDING');
+  // ── State: Tab quản lý (ONBOARDING tracker, MOOD, hoặc MY_CHECKLIST) ──
+  const [managerActiveTab, setManagerActiveTab] = useState<'ONBOARDING' | 'MOOD' | 'MY_CHECKLIST'>('ONBOARDING');
 
   // ── Helpers: Lời chào cá nhân hóa (tham khảo Notion, Slack, Lattice) ──
   const getGreeting = () => {
@@ -1214,6 +1214,18 @@ export const EmployeeWorkspacePage: React.FC = () => {
                   <Activity className="w-4 h-4 text-emerald-500" />
                   Nhịp Năng Lượng Đội Ngũ (Team Mood)
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setManagerActiveTab('MY_CHECKLIST')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                    managerActiveTab === 'MY_CHECKLIST'
+                      ? 'bg-white text-purple-700 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4 text-purple-600" />
+                  Checklist 30 Ngày (Cá Nhân & Copilot)
+                </button>
               </div>
 
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-white/80 border border-slate-200/60 rounded-xl text-[11px] font-semibold text-slate-500">
@@ -1223,10 +1235,17 @@ export const EmployeeWorkspacePage: React.FC = () => {
             </div>
 
             {/* Nội dung Tab Quản Lý */}
-            {managerActiveTab === 'ONBOARDING' ? (
-              <ManagerTeamOnboardingWidget />
-            ) : (
-              <ManagerTeamMoodWidget />
+            {managerActiveTab === 'ONBOARDING' && <ManagerTeamOnboardingWidget />}
+            {managerActiveTab === 'MOOD' && <ManagerTeamMoodWidget />}
+            {managerActiveTab === 'MY_CHECKLIST' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div className="lg:col-span-2">
+                  <OnboardingChecklistWidget />
+                </div>
+                <div className="lg:col-span-1">
+                  <CopilotChatWidget />
+                </div>
+              </div>
             )}
           </div>
         )}

@@ -8,6 +8,7 @@ import { TeamMoodMetrics } from './components/TeamMoodMetrics';
 import { AttentionQueue } from './components/AttentionQueue';
 import { TeamOverviewTable } from './components/TeamOverviewTable';
 import { InterventionModal } from './components/InterventionModal';
+import { WeeklyMoodAnalyticsWidget } from './components/WeeklyMoodAnalyticsWidget';
 import { TeamMoodSkeleton, TeamMoodEmptyState, TeamMoodErrorState } from './components/TeamMoodStates';
 
 type LoadMode = 'initial' | 'refresh' | 'silent';
@@ -153,6 +154,7 @@ export const ManagerTeamMoodWidget: React.FC = () => {
         departmentName={data?.departmentName}
         departmentId={data?.departmentId ?? selectedDeptId}
         departments={data?.departments}
+        canSwitchDepartment={data?.canSwitchDepartment}
         onSelectDepartment={handleSelectDepartment}
         lastUpdated={lastUpdated}
         isRefreshing={isRefreshing}
@@ -183,6 +185,9 @@ export const ManagerTeamMoodWidget: React.FC = () => {
           ) : (
             <>
               <TeamMoodMetrics data={data} />
+              {data.weeklySummary && (
+                <WeeklyMoodAnalyticsWidget weeklySummary={data.weeklySummary} />
+              )}
               <AttentionQueue
                 alerts={data.burnoutAlerts}
                 todayStressed={data.todayStressed}

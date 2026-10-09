@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AiModule } from '../core/ai/ai.module';
 
 import { TrainingCourse } from '../../entities/training-course.entity';
 import { EmployeeTraining } from '../../entities/employee-training.entity';
@@ -15,6 +16,7 @@ import { TrainingController } from './training.controller';
             EmployeeTraining,
             User,
         ]),
+        AiModule,
     ],
     controllers: [TrainingController],
     providers: [TrainingService],

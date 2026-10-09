@@ -68,7 +68,7 @@
 * **Cấp bậc tương đương (Equivalence):** Vị trí `Staff Engineer` hoặc `Principal Engineer` có dải lương, phúc lợi và tầm ảnh hưởng kiến trúc ngang hàng với `Engineering Manager` và `Director`.
 
 ### Điều 8: Ngân sách Học tập (L&D Budget) & Đổi mới Sáng tạo 10% (Innovation Time)
-* **Ngân sách đào tạo cá nhân (Learning & Development Budget):** Hỗ trợ **15.000.000 VNĐ/năm/nhân viên** để thi các chứng chỉ quốc tế (AWS Certified Solutions Architect, Google Cloud Professional, CKA, PMP, Scrum Master...) hoặc tham gia các khóa học chuyên ngành cấp cao.
+* **Ngân sách Đào tạo & Phát triển cá nhân:** Hỗ trợ **15.000.000 VNĐ/năm/nhân viên** để thi các chứng chỉ quốc tế (AWS Certified Solutions Architect, Google Cloud Professional, CKA, PMP, Scrum Master...) hoặc tham gia các khóa học chuyên ngành cấp cao.
 * **Ngày đổi mới sáng tạo (Innovation Day / 10% Time - Chuẩn Google 20% Rule):** Nhân viên kỹ thuật được dành **01 ngày mỗi tháng** để nghiên cứu các công nghệ AI mới, thử nghiệm mã nguồn mở hoặc xây dựng các sản phẩm nội bộ tự do sáng tạo.
 * **Thưởng Bằng sáng chế & Bài báo quốc tế:** Thưởng nóng từ **20.000.000 đến 50.000.000 VNĐ** cho mỗi bằng sáng chế công nghệ hoặc công bố khoa học quốc tế được chấp thuận.
 

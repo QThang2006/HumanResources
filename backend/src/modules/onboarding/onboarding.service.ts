@@ -1,11 +1,18 @@
-import { Injectable, ConflictException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException,BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In } from 'typeorm';
 import { OnboardingTask } from '../../entities/onboarding-task.entity';
 import { EmployeeMood, MoodType } from '../../entities/employee-mood.entity';
 import { Document } from '../../entities/document.entity';
-import { EmployeeTraining } from '../../entities/employee-training.entity';
-import { User } from '../../entities/user.entity';
+import {
+  EmployeeTraining,
+  TrainingStatus,
+} from '../../entities/employee-training.entity';
+import {
+  TrainingCourse,
+  TrainingCourseType,
+} from '../../entities/training-course.entity';
+import { User, UserRole } from '../../entities/user.entity';
 import { GeminiService } from '../core/ai/gemini.service';
 import { N8nService } from '../core/automation/n8n.service';
 
@@ -28,6 +35,8 @@ export class OnboardingService {
     private readonly docRepository: Repository<Document>,
     @InjectRepository(EmployeeTraining)
     private readonly trainingRepository: Repository<EmployeeTraining>,
+    @InjectRepository(TrainingCourse)
+    private readonly courseRepository: Repository<TrainingCourse>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly geminiService: GeminiService,
@@ -412,9 +421,115 @@ export class OnboardingService {
     };
   }
 
-  // TODO: Thành viên 4 sẽ hoàn thiện truy vấn khóa đào tạo AI chỉ định
+  // TODO: Thành viên 4 sẽ hoàn thiện truy vấn khóa đào tạo AI gợi ý
   async getTrainings(userId: number) {
-    return [];
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy nhân viên.');
+    }
+
+    // Chỉ Employee mới được tự động gán bù các khóa học bắt buộc.
+    if (user.role === UserRole.EMPLOYEE) {
+      const mandatoryCourses = await this.courseRepository.find({
+        where: { type: TrainingCourseType.MANDATORY },
+      });
+
+      if (mandatoryCourses.length > 0) {
+        const existingAssignments = await this.trainingRepository.find({
+          where: { userId },
+        });
+
+        const assignedCourseIds = new Set(
+            existingAssignments.map((item) => item.courseId),
+        );
+
+        const missingCourses = mandatoryCourses.filter(
+            (course) => !assignedCourseIds.has(course.id),
+        );
+
+        if (missingCourses.length > 0) {
+          const assignments = missingCourses.map((course) =>
+              this.trainingRepository.create({
+                userId,
+                courseId: course.id,
+                progressPercent: 0,
+                assignedByAi: false,
+                aiReason: null,
+                status: TrainingStatus.ASSIGNED,
+              }),
+          );
+
+          await this.trainingRepository.save(assignments);
+        }
+      }
+    }
+
+    const trainings = await this.trainingRepository.find({
+      where: { userId },
+      relations: ['course'],
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    return trainings.map((training) => ({
+      id: training.id,
+      courseId: training.courseId,
+      title: training.course?.title ?? 'Khóa học đào tạo',
+      type: training.course?.type ?? TrainingCourseType.MANDATORY,
+      skillsProvided: training.course?.skillsProvided ?? [],
+      courseUrl: training.course?.courseUrl ?? null,
+      durationHours: training.course?.durationHours ?? 10,
+      progressPercent: training.progressPercent,
+      status: training.status,
+      assignedByAi: training.assignedByAi,
+      aiReason: training.aiReason,
+      completedAt: training.completedAt,
+      createdAt: training.createdAt,
+    }));
+  }
+  async updateTrainingProgress(
+      assignmentId: number,
+      userId: number,
+      progressPercent: number,
+  ) {
+    if (progressPercent < 0 || progressPercent > 100) {
+      throw new BadRequestException(
+          'Tiến độ phải nằm trong khoảng từ 0 đến 100.',
+      );
+    }
+
+    const assignment = await this.trainingRepository.findOne({
+      where: {
+        id: assignmentId,
+        userId,
+      },
+      relations: ['course'],
+    });
+
+    if (!assignment) {
+      throw new NotFoundException(
+          'Không tìm thấy khóa học được gán cho nhân viên này.',
+      );
+    }
+
+    assignment.progressPercent = progressPercent;
+
+    if (progressPercent === 100) {
+      assignment.status = TrainingStatus.COMPLETED;
+      assignment.completedAt = new Date();
+    } else if (progressPercent > 0) {
+      assignment.status = TrainingStatus.IN_PROGRESS;
+      assignment.completedAt = null;
+    } else {
+      assignment.status = TrainingStatus.ASSIGNED;
+      assignment.completedAt = null;
+    }
+
+    return this.trainingRepository.save(assignment);
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -485,7 +600,7 @@ Nguyên tắc trả lời:
 - Vị trí công tác: ${user?.jobTitle || 'Nhân sự mới'}
 - Phòng ban: ${user?.department?.name || 'N/A'}
 
-CƠ SỞ TRI THỨC VÀ QUY CHẾ CÔNG TY ĐÃ ĐƯỢC PHÊ DUYỆT (KNOWLEDGE BASE):
+CƠ SỞ TRI THỨC VÀ QUY CHẾ CÔNG TY ĐÃ ĐƯỢC PHÊ DUYỆT (Kho tri thức):
 ${docContext}
 
 CÂU HỎI CỦA NHÂN VIÊN:

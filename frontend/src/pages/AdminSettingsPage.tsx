@@ -3,7 +3,6 @@ import {
   AlertCircle,
   Bot,
   BriefcaseBusiness,
-  Building2,
   CheckCircle2,
   Database,
   GraduationCap,
@@ -16,6 +15,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Users,
   Workflow,
 } from 'lucide-react';
@@ -36,6 +36,12 @@ interface UserWithDept extends User {
   };
   isActive?: boolean;
   joinedDate?: string;
+}
+interface DepartmentOption {
+  id: number;
+  name: string;
+  code?: string;
+  description?: string;
 }
 
 type AdminTab = 'rbac' | 'api' | 'rag' | 'courses';
@@ -64,10 +70,10 @@ const NAV_ITEMS: Array<{
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { id: 'rbac', label: 'People & Access', icon: ShieldCheck },
-  { id: 'api', label: 'Integrations', icon: Workflow },
-  { id: 'rag', label: 'Knowledge', icon: Database },
-  { id: 'courses', label: 'Learning', icon: GraduationCap },
+  { id: 'rbac', label: 'Người dùng & Phân quyền', icon: ShieldCheck },
+  { id: 'api', label: 'Tích hợp', icon: Workflow },
+  { id: 'rag', label: 'Kho tri thức', icon: Database },
+  { id: 'courses', label: 'Đào tạo & Phát triển', icon: GraduationCap },
 ];
 
 const getInitials = (name?: string) => {
@@ -111,9 +117,29 @@ const ConnectionStatus: React.FC<{
 
 const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
   const [users, setUsers] = useState<UserWithDept[]>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [showDepartmentForm, setShowDepartmentForm] = useState(false);
+  const [departmentName, setDepartmentName] = useState('');
+  const [departmentCode, setDepartmentCode] = useState('');
+  const [departmentDescription, setDepartmentDescription] = useState('');
+  const [creatingDepartment, setCreatingDepartment] = useState(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    phone: '',
+    jobTitle: '',
+    departmentId: '',
+    role: 'EMPLOYEE' as UserRole,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [editingJobTitleId, setEditingJobTitleId] = useState<number | null>(null);
+  const [jobTitleDraft, setJobTitleDraft] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | UserRole>('ALL');
   const [toast, setToast] = useState<{
@@ -131,8 +157,13 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
     setError(null);
 
     try {
-      const data = await usersApi.getAll();
-      setUsers(data as UserWithDept[]);
+      const [userData, departmentData] = await Promise.all([
+        usersApi.getAll(),
+        usersApi.getDepartments(),
+      ]);
+
+      setUsers(userData as UserWithDept[]);
+      setDepartments(departmentData);
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -176,7 +207,283 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
       setUpdatingId(null);
     }
   };
+  const handleDepartmentChange = async (
+      targetUser: UserWithDept,
+      departmentId: number,
+  ) => {
+    if (targetUser.department?.id === departmentId) return;
 
+    const selectedDepartment = departments.find(
+        department => department.id === departmentId,
+    );
+
+    if (!selectedDepartment) return;
+
+    setUpdatingId(targetUser.id);
+
+    try {
+      const result = await usersApi.updateUser(targetUser.id, {
+        departmentId,
+      });
+
+      setUsers(prev =>
+          prev.map(item =>
+              item.id === targetUser.id
+                  ? {
+                    ...item,
+                    department: {
+                      id: selectedDepartment.id,
+                      name: selectedDepartment.name,
+                      description: selectedDepartment.description,
+                    },
+                  }
+                  : item,
+          ),
+      );
+
+      showToast(
+          'success',
+          result.message ||
+          `Đã cập nhật phòng ban của ${targetUser.fullName}.`,
+      );
+    } catch (err: unknown) {
+      showToast(
+          'error',
+          err instanceof Error
+              ? err.message
+              : 'Không thể cập nhật phòng ban.',
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+  const handleSaveJobTitle = async (targetUser: UserWithDept) => {
+    const newJobTitle = jobTitleDraft.trim();
+
+    if (newJobTitle === (targetUser.jobTitle || '')) {
+      setEditingJobTitleId(null);
+      return;
+    }
+
+    setUpdatingId(targetUser.id);
+
+    try {
+      const result = await usersApi.updateUser(targetUser.id, {
+        jobTitle: newJobTitle,
+      });
+
+      setUsers(prev =>
+          prev.map(item =>
+              item.id === targetUser.id
+                  ? { ...item, jobTitle: newJobTitle }
+                  : item,
+          ),
+      );
+
+      showToast(
+          'success',
+          result.message || `Đã cập nhật chức danh của ${targetUser.fullName}.`,
+      );
+
+      setEditingJobTitleId(null);
+    } catch (err: unknown) {
+      showToast(
+          'error',
+          err instanceof Error
+              ? err.message
+              : 'Không thể cập nhật chức danh.',
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+  const handleStatusChange = async (
+      targetUser: UserWithDept,
+      isActive: boolean,
+  ) => {
+    const currentStatus = targetUser.isActive !== false;
+
+    if (currentStatus === isActive) return;
+
+    setUpdatingId(targetUser.id);
+
+    try {
+      const result = await usersApi.updateUser(targetUser.id, {
+        isActive,
+      });
+
+      setUsers(prev =>
+          prev.map(item =>
+              item.id === targetUser.id
+                  ? { ...item, isActive }
+                  : item,
+          ),
+      );
+
+      showToast(
+          'success',
+          result.message ||
+          `Đã cập nhật trạng thái của ${targetUser.fullName}.`,
+      );
+    } catch (err: unknown) {
+      showToast(
+          'error',
+          err instanceof Error
+              ? err.message
+              : 'Không thể cập nhật trạng thái.',
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+  const handleDeleteUser = async (targetUser: UserWithDept) => {
+    const confirmed = window.confirm(
+        `Bạn có chắc muốn xóa vĩnh viễn "${targetUser.fullName}"?\n\nHành động này không thể hoàn tác.`,
+    );
+
+    if (!confirmed) return;
+
+    setUpdatingId(targetUser.id);
+
+    try {
+      const result = await usersApi.deleteUser(targetUser.id);
+
+      setUsers(prev =>
+          prev.filter(item => item.id !== targetUser.id),
+      );
+
+      showToast(
+          'success',
+          result.message ||
+          `Đã xóa vĩnh viễn ${targetUser.fullName}.`,
+      );
+    } catch (err: unknown) {
+      showToast(
+          'error',
+          err instanceof Error
+              ? err.message
+              : 'Không thể xóa người dùng.',
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+  const handleCreateDepartment = async () => {
+    const name = departmentName.trim();
+    const code = departmentCode.trim();
+
+    if (!name || !code) {
+      showToast('error', 'Vui lòng nhập tên và mã phòng ban.');
+      return;
+    }
+
+    setCreatingDepartment(true);
+
+    try {
+      const result = await usersApi.createDepartment({
+        name,
+        code,
+        description: departmentDescription.trim() || undefined,
+      });
+
+      setDepartments(prev =>
+          [...prev, result.department].sort((a, b) =>
+              a.name.localeCompare(b.name),
+          ),
+      );
+
+      setDepartmentName('');
+      setDepartmentCode('');
+      setDepartmentDescription('');
+      setShowDepartmentForm(false);
+
+      showToast(
+          'success',
+          result.message || `Đã tạo phòng ban "${name}".`,
+      );
+    } catch (err: unknown) {
+      showToast(
+          'error',
+          err instanceof Error
+              ? err.message
+              : 'Không thể tạo phòng ban.',
+      );
+    } finally {
+      setCreatingDepartment(false);
+    }
+  };
+  const resetCreateUserForm = () => {
+    setNewUserForm({
+      fullName: '',
+      email: '',
+      password: '',
+      phone: '',
+      jobTitle: '',
+      departmentId: '',
+      role: 'EMPLOYEE',
+    });
+  };
+
+  const handleCreateUser = async () => {
+    const fullName = newUserForm.fullName.trim();
+    const email = newUserForm.email.trim();
+    const password = newUserForm.password;
+
+    if (!fullName || !email || !password) {
+      showToast(
+          'error',
+          'Vui lòng nhập đầy đủ họ tên, email và mật khẩu.',
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      showToast(
+          'error',
+          'Mật khẩu phải có ít nhất 6 ký tự.',
+      );
+      return;
+    }
+
+    setCreatingUser(true);
+
+    try {
+      const result = await usersApi.createUser({
+        fullName,
+        email,
+        password,
+        phone: newUserForm.phone.trim() || undefined,
+        jobTitle: newUserForm.jobTitle.trim() || undefined,
+        departmentId: newUserForm.departmentId
+            ? Number(newUserForm.departmentId)
+            : undefined,
+        role: newUserForm.role,
+      });
+
+      setUsers(prev =>
+          [...prev, result.user as UserWithDept].sort(
+              (a, b) => a.id - b.id,
+          ),
+      );
+
+      resetCreateUserForm();
+      setShowCreateUserModal(false);
+
+      showToast(
+          'success',
+          result.message || `Đã tạo người dùng "${fullName}".`,
+      );
+    } catch (err: unknown) {
+      showToast(
+          'error',
+          err instanceof Error
+              ? err.message
+              : 'Không thể tạo người dùng.',
+      );
+    } finally {
+      setCreatingUser(false);
+    }
+  };
   const getDeptName = (item: UserWithDept) =>
     item.department?.name || item.departmentName || 'Chưa phân phòng';
 
@@ -228,18 +535,251 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
           <span className="leading-5">{toast.message}</span>
         </div>
       )}
+      {showCreateUserModal && (
+          <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/25 px-4 py-6 backdrop-blur-[1px]"
+              onMouseDown={() => {
+                if (!creatingUser) {
+                  setShowCreateUserModal(false);
+                }
+              }}
+          >
+            <div
+                className="w-full max-w-2xl overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_24px_80px_rgba(32,25,22,0.18)]"
+                onMouseDown={event => event.stopPropagation()}
+            >
+              {/* HEADER */}
+              <div className="flex items-center justify-between border-b border-[#E8EAEC] px-6 py-5">
+                <div>
+                  <h3 className="text-xl font-black tracking-tight text-[#1D2023]">
+                    Tạo người dùng mới
+                  </h3>
+
+                  <p className="mt-1 text-xs text-[#7F868B]">
+                    Tạo tài khoản và phân quyền truy cập hệ thống.
+                  </p>
+                </div>
+
+                <button
+                    type="button"
+                    disabled={creatingUser}
+                    onClick={() => setShowCreateUserModal(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl text-xl font-medium text-[#7F868B] transition hover:bg-[#F2F4F4] hover:text-[#303438] disabled:opacity-50"
+                    aria-label="Đóng"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* FORM */}
+              <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
+                <label className="block">
+          <span className="text-xs font-black text-[#565C61]">
+            Họ và tên *
+          </span>
+
+                  <input
+                      value={newUserForm.fullName}
+                      onChange={event =>
+                          setNewUserForm(prev => ({
+                            ...prev,
+                            fullName: event.target.value,
+                          }))
+                      }
+                      placeholder="Nguyễn Văn A"
+                      className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-sm text-[#303438] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
+                  />
+                </label>
+
+                <label className="block">
+          <span className="text-xs font-black text-[#565C61]">
+            Email *
+          </span>
+
+                  <input
+                      type="email"
+                      value={newUserForm.email}
+                      onChange={event =>
+                          setNewUserForm(prev => ({
+                            ...prev,
+                            email: event.target.value,
+                          }))
+                      }
+                      placeholder="name@company.com"
+                      className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-sm text-[#303438] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
+                  />
+                </label>
+
+                <label className="block">
+  <span className="text-xs font-black text-[#565C61]">
+    Mật khẩu tạm *
+  </span>
+
+                  <div className="relative mt-2">
+                    <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={newUserForm.password}
+                        onChange={event =>
+                            setNewUserForm(prev => ({
+                              ...prev,
+                              password: event.target.value,
+                            }))
+                        }
+                        placeholder="Tối thiểu 6 ký tự"
+                        className="h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] pl-3 pr-24 text-sm text-[#303438] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
+                    />
+
+                    <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                      <button
+                          type="button"
+                          onClick={() => setShowPassword(prev => !prev)}
+                          className="rounded-lg px-2 py-1 text-xs font-bold text-[#6F3042] hover:bg-[#F4E7EB]"
+                      >
+                        {showPassword ? 'Ẩn' : 'Hiện'}
+                      </button>
+
+                      <button
+                          type="button"
+                          disabled={!newUserForm.password}
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(newUserForm.password);
+                            showToast('success', 'Đã sao chép mật khẩu tạm.');
+                          }}
+                          className="rounded-lg px-2 py-1 text-xs font-bold text-[#6F3042] hover:bg-[#F4E7EB] disabled:opacity-40"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </label>
+
+                <label className="block">
+          <span className="text-xs font-black text-[#565C61]">
+            Số điện thoại
+          </span>
+
+                  <input
+                      type="tel"
+                      value={newUserForm.phone}
+                      onChange={event =>
+                          setNewUserForm(prev => ({
+                            ...prev,
+                            phone: event.target.value,
+                          }))
+                      }
+                      placeholder="0901234567"
+                      className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-sm text-[#303438] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
+                  />
+                </label>
+
+                <label className="block">
+          <span className="text-xs font-black text-[#565C61]">
+            Phòng ban
+          </span>
+
+                  <select
+                      value={newUserForm.departmentId}
+                      onChange={event =>
+                          setNewUserForm(prev => ({
+                            ...prev,
+                            departmentId: event.target.value,
+                          }))
+                      }
+                      className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-sm font-semibold text-[#52585D] outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10"
+                  >
+                    <option value="">Chưa phân phòng</option>
+
+                    {departments.map(department => (
+                        <option key={department.id} value={department.id}>
+                          {department.name}
+                        </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+          <span className="text-xs font-black text-[#565C61]">
+            Chức danh
+          </span>
+
+                  <input
+                      value={newUserForm.jobTitle}
+                      onChange={event =>
+                          setNewUserForm(prev => ({
+                            ...prev,
+                            jobTitle: event.target.value,
+                          }))
+                      }
+                      placeholder="Ví dụ: Kỹ sư phần mềm"
+                      className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-sm text-[#303438] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
+                  />
+                </label>
+
+                <label className="block sm:col-span-2">
+          <span className="text-xs font-black text-[#565C61]">
+            Vai trò
+          </span>
+
+                  <select
+                      value={newUserForm.role}
+                      onChange={event =>
+                          setNewUserForm(prev => ({
+                            ...prev,
+                            role: event.target.value as UserRole,
+                          }))
+                      }
+                      className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-sm font-semibold text-[#52585D] outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10"
+                  >
+                    {ALL_ROLES.map(role => (
+                        <option key={role} value={role}>
+                          {ROLE_LABELS[role]}
+                        </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {/* FOOTER */}
+              <div className="flex items-center justify-end gap-2 border-t border-[#E8EAEC] bg-[#FAFAFA] px-6 py-4">
+                <button
+                    type="button"
+                    disabled={creatingUser}
+                    onClick={() => {
+                      resetCreateUserForm();
+                      setShowCreateUserModal(false);
+                    }}
+                    className="h-10 rounded-xl border border-[#D8DCDE] bg-white px-5 text-xs font-black text-[#636A70] transition hover:bg-[#F2F4F4] disabled:opacity-50"
+                >
+                  Hủy
+                </button>
+
+                <button
+                    type="button"
+                    disabled={creatingUser}
+                    onClick={handleCreateUser}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#6F3042] px-5 text-xs font-black text-white transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {creatingUser && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+
+                  {creatingUser ? 'Đang tạo...' : 'Tạo người dùng'}
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
 
       <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
-                People & access
+                Người dùng & Phân quyền
               </h2>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="relative sm:w-72">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">              <div className="relative h-11 sm:w-72">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#989FA4]" />
                 <input
                   value={searchTerm}
@@ -275,26 +815,96 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 />
                 Làm mới
               </button>
+              <div className="flex min-w-[170px] flex-col gap-2">
+                <button
+                    type="button"
+                    onClick={() => setShowDepartmentForm(prev => !prev)}
+                    className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#D8C7CC] bg-white px-4 text-sm font-black whitespace-nowrap text-[#6F3042] transition hover:bg-[#F8F3F5]"                >
+                  + Thêm phòng ban
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setShowCreateUserModal(true)}
+                    className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#D8C7CC] bg-white px-4 text-sm font-black whitespace-nowrap text-[#6F3042] transition hover:bg-[#F8F3F5]"
+                >
+                  + Tạo người dùng
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          {/* FORM THÊM PHÒNG BAN */}
+          {showDepartmentForm && (
+              <div className="mt-5 rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] p-4">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <input
+                      value={departmentName}
+                      onChange={event => setDepartmentName(event.target.value)}
+                      placeholder="Tên phòng ban"
+                      className="h-11 rounded-xl border border-[#D8DCDE] bg-white px-3 text-sm outline-none focus:border-[#8A4153]"
+                  />
+
+                  <input
+                      value={departmentCode}
+                      onChange={event => setDepartmentCode(event.target.value)}
+                      placeholder="Mã phòng ban, ví dụ: IT"
+                      className="h-11 rounded-xl border border-[#D8DCDE] bg-white px-3 text-sm outline-none focus:border-[#8A4153]"
+                  />
+
+                  <input
+                      value={departmentDescription}
+                      onChange={event => setDepartmentDescription(event.target.value)}
+                      placeholder="Mô tả (không bắt buộc)"
+                      className="h-11 rounded-xl border border-[#D8DCDE] bg-white px-3 text-sm outline-none focus:border-[#8A4153]"
+                  />
+                </div>
+
+                <div className="mt-3 flex justify-end gap-2">
+                  <button
+                      type="button"
+                      onClick={() => setShowDepartmentForm(false)}
+                      disabled={creatingDepartment}
+                      className="h-10 rounded-xl border border-[#D8DCDE] bg-white px-4 text-xs font-bold text-[#636A70]"
+                  >
+                    Hủy
+                  </button>
+
+                  <button
+                      type="button"
+                      onClick={handleCreateDepartment}
+                      disabled={creatingDepartment}
+                      className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#6F3042] px-4 text-xs font-black text-white disabled:opacity-50"
+                  >
+                    {creatingDepartment && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    )}
+
+                    {creatingDepartment ? 'Đang tạo...' : 'Tạo phòng ban'}
+                  </button>
+                </div>
+              </div>
+          )}
+
+          {/* THỐNG KÊ + BỘ LỌC VAI TRÒ */}
+          <div className="mt-5 flex flex-wrap items-center gap-2">
             <div className="rounded-full bg-[#202326] px-3 py-1.5 text-xs font-bold text-white">
               {users.length} nhân sự
             </div>
+
             {ALL_ROLES.map(role => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setRoleFilter(role)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                  roleFilter === role
-                    ? 'border-[#8A4153] bg-[#F6E9ED] text-[#6F3042]'
-                    : 'border-[#E2E5E7] bg-white text-[#72797E] hover:bg-[#F8F9F9]'
-                }`}
-              >
-                {ROLE_LABELS[role]} · {roleCounts[role] || 0}
-              </button>
+                <button
+                    key={role}
+                    type="button"
+                    onClick={() => setRoleFilter(role)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                        roleFilter === role
+                            ? 'border-[#8A4153] bg-[#F6E9ED] text-[#6F3042]'
+                            : 'border-[#E2E5E7] bg-white text-[#72797E] hover:bg-[#F8F9F9]'
+                    }`}
+                >
+                  {ROLE_LABELS[role]} · {roleCounts[role] || 0}
+                </button>
             ))}
           </div>
         </div>
@@ -343,27 +953,48 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
 
         {!loading && !error && filteredUsers.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px]">
-              <thead>
-                <tr className="border-b border-[#E8EAEC] bg-[#F8F9F9]">
-                  {[
-                    'Nhân sự',
-                    'Phòng ban',
-                    'Chức danh',
-                    'Vai trò',
-                    'Trạng thái',
-                    'Quyền truy cập',
-                  ].map(column => (
-                    <th
-                      key={column}
-                      className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7"
-                    >
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
+            <table className="w-full min-w-[1500px] table-fixed">
+              <colgroup>
+                <col style={{ width: '320px' }} />
+                <col style={{ width: '250px' }} />
+                <col style={{ width: '280px' }} />
+                <col style={{ width: '160px' }} />
+                <col style={{ width: '170px' }} />
+                <col style={{ width: '190px' }} />
+                <col style={{ width: '130px' }} />
+              </colgroup>
 
+              <thead>
+              <tr className="border-b border-[#E8EAEC] bg-[#F8F9F9]">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                  Nhân sự
+                </th>
+
+                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                  Phòng ban
+                </th>
+
+                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                  Chức danh
+                </th>
+
+                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                  Vai trò
+                </th>
+
+                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                  Trạng thái
+                </th>
+
+                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                  Quyền truy cập
+                </th>
+
+                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                  Thao tác
+                </th>
+              </tr>
+              </thead>
               <tbody className="divide-y divide-[#E9ECEC]">
                 {filteredUsers.map(item => {
                   const isRootAdmin = item.id === 1;
@@ -400,45 +1031,100 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">
-                        <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#636A70]">
-                          <Building2 className="h-3.5 w-3.5 text-[#9DA4A9]" />
-                          {getDeptName(item)}
-                        </div>
+                        <select
+                            value={item.department?.id ?? ''}
+                            disabled={!canEdit || isUpdating}
+                            onChange={event =>
+                                handleDepartmentChange(
+                                    item,
+                                    Number(event.target.value),
+                                )
+                            }
+                            className="h-9 min-w-[170px] rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-xs font-bold text-[#53595E] outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="" disabled>
+                            Chưa phân phòng
+                          </option>
+
+                          {departments.map(department => (
+                              <option key={department.id} value={department.id}>
+                                {department.name}
+                              </option>
+                          ))}
+                        </select>
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">
-                        <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#636A70]">
-                          <BriefcaseBusiness className="h-3.5 w-3.5 text-[#9DA4A9]" />
-                          {item.jobTitle || 'Chưa cập nhật'}
-                        </div>
+                        {editingJobTitleId === item.id ? (
+                            <div className="flex min-w-[220px] items-center gap-2">
+                              <input
+                                  value={jobTitleDraft}
+                                  onChange={event => setJobTitleDraft(event.target.value)}
+                                  onKeyDown={event => {
+                                    if (event.key === 'Enter') {
+                                      handleSaveJobTitle(item);
+                                    }
+
+                                    if (event.key === 'Escape') {
+                                      setEditingJobTitleId(null);
+                                    }
+                                  }}
+                                  autoFocus
+                                  className="h-9 w-full rounded-xl border border-[#D8DCDE] bg-white px-3 text-xs font-semibold text-[#53595E] outline-none focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10"
+                              />
+
+                              <button
+                                  type="button"
+                                  disabled={isUpdating}
+                                  onClick={() => handleSaveJobTitle(item)}
+                                  className="h-9 rounded-xl bg-[#6F3042] px-3 text-xs font-bold text-white disabled:opacity-50"
+                              >
+                                Lưu
+                              </button>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                disabled={!canEdit}
+                                onClick={() => {
+                                  setEditingJobTitleId(item.id);
+                                  setJobTitleDraft(item.jobTitle || '');
+                                }}
+                                className="inline-flex items-center gap-2 whitespace-nowrap text-left text-xs font-semibold text-[#636A70] disabled:cursor-not-allowed disabled:opacity-60"                            >
+                              <BriefcaseBusiness className="h-3.5 w-3.5 text-[#9DA4A9]" />
+                              {item.jobTitle || 'Chưa cập nhật'}
+                            </button>
+                        )}
                       </td>
 
-                      <td className="px-5 py-4 sm:px-7">
+                      <td className="whitespace-nowrap px-5 py-4 sm:px-7">
                         <Badge
-                          variant={ROLE_BADGE_VARIANT[item.role]}
-                          size="sm"
+                            variant={ROLE_BADGE_VARIANT[item.role]}
+                            size="sm"
                         >
                           {ROLE_LABELS[item.role]}
                         </Badge>
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                            item.isActive === false
-                              ? 'bg-[#ECEEEE] text-[#7C746D]'
-                              : 'bg-[#EFF7F1] text-[#2F6B4F]'
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              item.isActive === false
-                                ? 'bg-[#90979C]'
-                                : 'bg-[#4C8C6A]'
+                        <select
+                            value={item.isActive === false ? 'INACTIVE' : 'ACTIVE'}
+                            disabled={!canEdit || isUpdating}
+                            onChange={event =>
+                                handleStatusChange(
+                                    item,
+                                    event.target.value === 'ACTIVE',
+                                )
+                            }
+                            className={`h-9 rounded-xl border px-3 text-xs font-bold outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10 disabled:cursor-not-allowed disabled:opacity-50 ${
+                                item.isActive === false
+                                    ? 'border-[#D8DCDE] bg-[#ECEEEE] text-[#7C746D]'
+                                    : 'border-[#CDE3D6] bg-[#EFF7F1] text-[#2F6B4F]'
                             }`}
-                          />
-                          {item.isActive === false ? 'Tạm khóa' : 'Hoạt động'}
-                        </span>
+                        >
+                          <option value="ACTIVE">Hoạt động</option>
+                          <option value="INACTIVE">Tạm khóa</option>
+                        </select>
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">
@@ -476,6 +1162,29 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                           </select>
                         )}
                       </td>
+                      <td className="px-5 py-4 sm:px-7">
+                        {isRootAdmin ? (
+                            <span />
+                        ) : isSelf ? (
+                            <span className="text-xs font-semibold text-[#90979C]">
+      Tài khoản hiện tại
+    </span>
+                        ) : (
+                            <button
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={() => handleDeleteUser(item)}
+                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[#EDC7CC] bg-[#FBF1F2] px-3 text-xs font-black text-[#9D4150] transition hover:bg-[#F7E4E7] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {isUpdating ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                              Xóa
+                            </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -509,7 +1218,7 @@ const IntegrationsPanel: React.FC<{
     <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
       <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
         <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
-          Integrations
+          Tích hợp
         </h2>
       </div>
 

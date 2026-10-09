@@ -60,7 +60,7 @@ export const KnowledgeBasePanel: React.FC = () => {
       console.error(error);
       setMessage({
         type: 'error',
-        text: 'Không thể tải danh sách tài liệu Knowledge Base.',
+        text: 'Không thể tải danh sách tài liệu Kho tri thức.',
       });
     } finally {
       setLoading(false);
@@ -173,7 +173,7 @@ export const KnowledgeBasePanel: React.FC = () => {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
-                Knowledge base
+                Kho tri thức
               </h2>
             </div>
 

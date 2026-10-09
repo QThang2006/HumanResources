@@ -6,6 +6,7 @@ import { OnboardingTask } from '../../entities/onboarding-task.entity';
 import { EmployeeMood } from '../../entities/employee-mood.entity';
 import { Document } from '../../entities/document.entity';
 import { EmployeeTraining } from '../../entities/employee-training.entity';
+import { TrainingCourse } from '../../entities/training-course.entity';
 import { User } from '../../entities/user.entity';
 
 @Module({
@@ -15,6 +16,7 @@ import { User } from '../../entities/user.entity';
       EmployeeMood,
       Document,
       EmployeeTraining,
+      TrainingCourse,
       User,
     ]),
   ],

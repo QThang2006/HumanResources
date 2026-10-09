@@ -3,9 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { onboardingApi } from '../api/onboarding.api';
 import { ManagerTeamMoodWidget } from '../features/team-mood/ManagerTeamMoodWidget';
 import type { EmployeeMood, OnboardingTask, TaskCategory } from '../types';
+import { EmployeeTrainingsWidget } from '../components/EmployeeTrainingsWidget';
 import {
   Users,
-  BookOpen,
   Sun,
   CloudSun,
   CloudRain,
@@ -1169,16 +1169,8 @@ export const EmployeeWorkspacePage: React.FC = () => {
               {/* KHÓA HỌC L&D (col-span-3) — Placeholder TV4          */}
               {/* ══════════════════════════════════════════════════════ */}
               <div className="lg:col-span-3">
-                <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-6 shadow-sm">
-                  <h3 className="text-sm font-bold text-slate-900 mb-1 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-indigo-600" /> Khóa Học AI Chỉ Định (L&D)
-                  </h3>
-                  <div className="border-2 border-dashed border-slate-200/60 rounded-2xl p-6 text-center text-slate-400 text-xs bg-white/30">
-                    <BookOpen className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-                    Khung sườn Khóa học &amp; Thanh tiến độ % • Thành viên 4 sẽ kết nối API tại đây
-                  </div>
-                </div>
-              </div>
+  <EmployeeTrainingsWidget />
+</div>
             </div>
           </div>
         )}

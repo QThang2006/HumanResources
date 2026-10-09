@@ -52,6 +52,15 @@ export const onboardingApi = {
   getTrainings: async (): Promise<any[]> => {
     return apiClient.get('/onboarding/trainings');
   },
+updateTrainingProgress: async (
+  assignmentId: number,
+  progressPercent: number,
+): Promise<any> => {
+  return apiClient.patch(
+    `/onboarding/trainings/${assignmentId}/progress`,
+    { progressPercent },
+  );
+},
 
   chatWithCopilot: async (message: string): Promise<ChatCopilotResponse> => {
     return apiClient.post('/onboarding/chat', { message });

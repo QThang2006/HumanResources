@@ -88,6 +88,19 @@ export class OnboardingController {
   async getTrainings(@CurrentUser('id') userId: number) {
     return this.onboardingService.getTrainings(userId);
   }
+  @UseGuards(JwtAuthGuard)
+@Patch('trainings/:id/progress')
+async updateTrainingProgress(
+  @Param('id', ParseIntPipe) id: number,
+  @CurrentUser('id') userId: number,
+  @Body('progressPercent', ParseIntPipe) progressPercent: number,
+) {
+  return this.onboardingService.updateTrainingProgress(
+    id,
+    userId,
+    progressPercent,
+  );
+}
 
   // Trợ lý Sổ tay Onboarding 24/7 (RAG Chatbot + Function Calling tự tích checklist)
   @UseGuards(JwtAuthGuard)

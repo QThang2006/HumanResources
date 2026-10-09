@@ -1,0 +1,154 @@
+{
+  "name": "TV4 - 01 Knowledge RAG Search",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tv4-knowledge-rag",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6e18e5b8-e30f-495b-95f4-dc03c8b05e68",
+      "name": "Webhook - TV4 Knowledge RAG",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "a4843f21-bac8-43f6-8a41-6afea021d6fe"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst headers = $json.headers ?? {};\nconst query = String(body.query ?? '').trim();\nconst requestedTopK = Number(body.topK ?? 3);\nconst topK = Math.min(Math.max(Number.isFinite(requestedTopK) ? requestedTopK : 3, 1), 10);\nconst authorization = headers.authorization ?? headers.Authorization ?? body.authorization ?? '';\nif (!query) throw new Error('query is required');\nif (!authorization) throw new Error('Authorization header is required');\nreturn [{ json: { query, topK, authorization } }];"
+      },
+      "id": "0ae5f22a-6d64-4de9-9d2d-d94eab3bc911",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/api/documents/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authorization }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ query: $json.query, topK: $json.topK }) }}",
+        "options": {}
+      },
+      "id": "586170ac-186f-47bd-a89c-eac5cfe6877c",
+      "name": "Search Knowledge Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        512,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $json.data ?? [];\n\nreturn [\n  {\n    json: {\n      success: true,\n      workflow: 'TV4 - Knowledge RAG Search',\n      resultCount: results.length,\n      results: results.map(item => ({\n        chunkId: item.chunkId,\n        documentId: item.documentId,\n        documentTitle: item.documentTitle,\n        chunkIndex: item.chunkIndex,\n        content: item.content,\n        similarity: item.similarity,\n      })),\n    },\n  },\n];"
+      },
+      "id": "ac7095a7-7247-4f29-ac00-3ffca49f65fc",
+      "name": "Format RAG Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "2c160c66-cf3c-4d07-b27f-daa9575d9873",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1024,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - TV4 Knowledge RAG": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Search Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Format RAG Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format RAG Result": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8f6cbeef-7586-441d-a75a-1d87aeeca925",
+  "meta": {
+    "instanceId": "be7227bc03e89227b5400c3d777f6233d8a6e50ee64f64e697cf2fa2325853b1"
+  },
+  "nodeGroups": [],
+  "id": "vZ1EsDDIxzj42d3L",
+  "tags": []
+}

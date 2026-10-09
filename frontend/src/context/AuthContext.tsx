@@ -10,47 +10,11 @@ interface AuthContextType {
   isAuthenticated: boolean;
 }
 
-const DEMO_CREDENTIALS: Record<UserRole, { email: string; pass: string }> = {
-  SUPERADMIN: { email: 'superadmin@company.com', pass: 'admin123' },
-  HR: { email: 'hr@company.com', pass: 'admin123' },
-  MANAGER: { email: 'manager@company.com', pass: 'admin123' },
-  EMPLOYEE: { email: 'employee@company.com', pass: 'admin123' },
-};
-
-const mockUsers: Record<UserRole, User> = {
-  SUPERADMIN: {
-    id: 1,
-    fullName: 'Nguyễn Văn Quản Trị',
-    email: 'superadmin@company.com',
-    role: 'SUPERADMIN',
-    jobTitle: 'Hệ Thống Trưởng',
-  },
-  HR: {
-    id: 2,
-    fullName: 'Lê Thị Thu Thảo',
-    email: 'hr@company.com',
-    role: 'HR',
-    departmentName: 'Nhân Sự & Đào Tạo',
-    jobTitle: 'Trưởng Nhóm Tuyển Dụng',
-  },
-  MANAGER: {
-    id: 3,
-    fullName: 'Trần Văn Minh',
-    email: 'manager@company.com',
-    role: 'MANAGER',
-    departmentId: 1,
-    departmentName: 'Kỹ Thuật & AI',
-    jobTitle: 'Trưởng Phòng Kỹ Thuật',
-  },
-  EMPLOYEE: {
-    id: 4,
-    fullName: 'Phạm Hồng Quân',
-    email: 'employee@company.com',
-    role: 'EMPLOYEE',
-    departmentId: 1,
-    departmentName: 'Kỹ Thuật & AI',
-    jobTitle: 'Kỹ Sư Phần Mềm Mới',
-  },
+const demoEmails: Record<UserRole, string> = {
+  SUPERADMIN: 'superadmin@company.com',
+  HR: 'hr@company.com',
+  MANAGER: 'manager@company.com',
+  EMPLOYEE: 'employee@company.com',
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -61,7 +25,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem('hr_current_user');
       const token = localStorage.getItem('hr_access_token');
       if (saved && token) {
-        return JSON.parse(saved);
+        const storedUser = JSON.parse(saved) as User;
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        // Reject sessions left inconsistent by the old UI-only role switch.
+        if (Number(payload.sub) === Number(storedUser.id) && payload.role === storedUser.role)
+          return storedUser;
       }
     } catch (e) {
       // Ignore parse error
@@ -76,21 +44,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (role: UserRole) => {
-    const cred = DEMO_CREDENTIALS[role];
-    if (cred) {
-      try {
-        const res = await authApi.login({ email: cred.email, password: cred.pass });
-        setAuthSession(res.user, res.accessToken);
-        return;
-      } catch (err) {
-        console.warn('Cannot switch role via authApi.login, fallback to mock user:', err);
-      }
-    }
-    const selected = mockUsers[role];
-    if (selected) {
-      setUser(selected);
-      localStorage.setItem('hr_current_user', JSON.stringify(selected));
-    }
+    const session = await authApi.login({ email: demoEmails[role], password: 'admin123' });
+    setAuthSession(session.user, session.accessToken);
   };
 
   const logout = () => {

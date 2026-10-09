@@ -91,7 +91,7 @@ export class ApplicationsService {
     private readonly n8n: N8nService,
     private readonly delivery: InterviewDeliveryService,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
 
   private async scopedJob(id: number, actor: Actor) {
     const job = await this.db.getRepository(Job).findOneBy({ id });
@@ -264,10 +264,10 @@ export class ApplicationsService {
       const result = app.rawCvText?.trim()
         ? await this.ai.score(app.rawCvText, jd)
         : await this.ai.scoreFile(
-            await this.files.read(app.cvFileUrl),
-            this.files.mimeType(app.cvFileUrl) || 'application/pdf',
-            jd,
-          );
+          await this.files.read(app.cvFileUrl),
+          this.files.mimeType(app.cvFileUrl) || 'application/pdf',
+          jd,
+        );
       // Shared schema has no provider-mode field: mock output is preview-only.
       if (result.mode === 'MOCK') return { ...result, saved: false };
       await this.db.transaction(async (manager) => {
@@ -680,5 +680,17 @@ export class ApplicationsService {
     // A true from the lead dispatcher is asynchronous, not proof of email delivery.
     // Passwords stay in the dispatcher payload and never appear in an ATS response.
     return { ...provisioned.receipt, welcomeEmailStatus };
+  }
+
+  async updateMeetingLink(interviewId: number, meetingLink: string, eventId?: string) {
+    const interview = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
+    if (!interview) throw new NotFoundException('Không tìm thấy buổi phỏng vấn.');
+    interview.meetingLink = meetingLink;
+    if (eventId) {
+      interview.googleCalendarEventId = eventId;
+    }
+    await this.db.getRepository(Interview).save(interview);
+    this.logger.log(`✅ [n8n Callback] Đã lưu Google Meet link cho interview #${interviewId}: ${meetingLink}`);
+    return { success: true, interviewId, meetingLink, eventId };
   }
 }

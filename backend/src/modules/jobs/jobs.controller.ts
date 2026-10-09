@@ -22,6 +22,8 @@ import { GenerateJdDto } from './dto/generate-jd.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { ChangeJobStatusDto } from './dto/change-job-status.dto';
 import { ListJobsQueryDto } from './dto/list-jobs-query.dto';
+import { CreateDepartmentDto } from './dto/create-department.dto';
+import { AssignDepartmentManagerDto } from './dto/assign-department-manager.dto';
 
 @Controller('jobs')
 export class JobsController {
@@ -77,11 +79,35 @@ export class JobsController {
     return this.jobs.findById(id, user);
   }
 
+  @Post('departments')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  createDepartment(@Body() input: CreateDepartmentDto) {
+    return this.jobs.createDepartment(input);
+  }
+
   @Get('departments')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN)
   departments() {
     return this.jobs.departmentLookup();
+  }
+
+  @Get('departments/managers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  departmentManagers() {
+    return this.jobs.departmentManagers();
+  }
+
+  @Patch('departments/:id/manager')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  assignDepartmentManager(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() input: AssignDepartmentManagerDto,
+  ) {
+    return this.jobs.assignDepartmentManager(id, input.managerId ?? null);
   }
 
   @Get('capabilities')

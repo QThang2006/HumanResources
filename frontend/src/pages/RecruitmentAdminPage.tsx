@@ -273,7 +273,11 @@ function RecruitmentBoard() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-indigo-600">
-            {operator ? 'Bàn tuyển dụng HR' : 'Không gian phỏng vấn Manager'}
+            {user?.role === 'SUPERADMIN'
+              ? 'Bàn tuyển dụng Admin'
+              : operator
+                ? 'Bàn tuyển dụng HR'
+                : 'Không gian phỏng vấn Manager'}
           </p>
           <h1 className="mt-1 text-3xl font-bold">Quản lý tuyển dụng</h1>
         </div>
@@ -322,8 +326,8 @@ function RecruitmentBoard() {
           }}
         />
       ) : (
-        <div className="grid items-start gap-6 xl:grid-cols-[280px_1fr]">
-          <aside className="space-y-3 rounded-2xl border bg-white p-4">
+        <div className="grid items-start gap-6 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="flex min-h-0 flex-col gap-3 rounded-2xl border bg-white p-4 lg:h-[65vh] lg:overflow-hidden">
             <h2 className="font-bold">Vị trí tuyển dụng</h2>
             <input
               aria-label="Tìm vị trí tuyển dụng"
@@ -357,33 +361,40 @@ function RecruitmentBoard() {
                 </button>
               </Alert>
             )}
-            {jobLoading ? (
-              <p role="status" className="text-sm">
-                Đang tải vị trí...
-              </p>
-            ) : jobs.items.length ? (
-              jobs.items.map((job) => (
-                <button
-                  key={job.id}
-                  onClick={() => choose(job)}
-                  aria-pressed={selected?.id === job.id}
-                  className={
-                    'block w-full rounded-xl border p-3 text-left ' +
-                    (selected?.id === job.id
-                      ? 'border-indigo-400 bg-indigo-50'
-                      : 'border-slate-200 hover:bg-slate-50')
-                  }
-                >
-                  <span className="block font-semibold">{job.title}</span>
-                  <span className="mt-1 block text-xs text-slate-500">
-                    {job.departmentName} · {job.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'} ·{' '}
-                    {job.applicationCount} hồ sơ
-                  </span>
-                </button>
-              ))
-            ) : (
-              <p className="text-sm text-slate-500">Chưa có vị trí phù hợp.</p>
-            )}
+            <div
+              role="region"
+              aria-label="Danh sách vị trí tuyển dụng"
+              tabIndex={0}
+              className="min-h-0 space-y-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 lg:flex-1 lg:overflow-y-auto lg:pr-1"
+            >
+              {jobLoading ? (
+                <p role="status" className="text-sm">
+                  Đang tải vị trí...
+                </p>
+              ) : jobs.items.length ? (
+                jobs.items.map((job) => (
+                  <button
+                    key={job.id}
+                    onClick={() => choose(job)}
+                    aria-pressed={selected?.id === job.id}
+                    className={
+                      'block w-full rounded-xl border p-3 text-left ' +
+                      (selected?.id === job.id
+                        ? 'border-indigo-400 bg-indigo-50'
+                        : 'border-slate-200 hover:bg-slate-50')
+                    }
+                  >
+                    <span className="block font-semibold">{job.title}</span>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {job.departmentName} · {job.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'} ·{' '}
+                      {job.applicationCount} hồ sơ
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">Chưa có vị trí phù hợp.</p>
+              )}
+            </div>
             <Pagination page={jobPage} total={jobs.total} pageSize={10} change={setJobPage} />
           </aside>
           <section className="min-w-0 space-y-4">
@@ -462,6 +473,9 @@ function RecruitmentBoard() {
                   </Alert>
                 )}
                 {boardNotice && <Alert>{boardNotice}</Alert>}
+                <p className="text-xs text-slate-500">
+                  Ưu tiên điểm AI cao → thấp; bằng điểm thì hồ sơ mới hơn trước. Hồ sơ chưa chấm nằm cuối.
+                </p>
                 {loading || (!error && loadedJobId !== jobId) ? (
                   <p role="status">Đang tải hồ sơ...</p>
                 ) : (
@@ -481,11 +495,11 @@ function RecruitmentBoard() {
                               event.preventDefault();
                               dropCandidate(column.statuses[0]);
                             }}
-                            className="min-w-0 rounded-2xl border bg-slate-50 p-3"
+                            className="flex min-h-0 min-w-0 flex-col rounded-2xl border bg-slate-50 p-3 lg:h-[62vh] lg:overflow-hidden"
                           >
                             <h3
                               className={
-                                'mb-3 rounded-xl px-3 py-2 text-sm font-bold ' + column.color
+                                'mb-3 shrink-0 rounded-xl px-3 py-2 text-sm font-bold ' + column.color
                               }
                             >
                               {column.title} ·{' '}
@@ -495,7 +509,12 @@ function RecruitmentBoard() {
                                 0,
                               )}
                             </h3>
-                            <div className="space-y-3">
+                            <div
+                              role="region"
+                              aria-label={'Danh sách ứng viên: ' + column.title}
+                              tabIndex={0}
+                              className="min-h-0 space-y-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 lg:flex-1 lg:overflow-y-auto lg:pr-1"
+                            >
                               {data.items
                                 .filter((c) => column.statuses.includes(c.status))
                                 .map((candidate) => (

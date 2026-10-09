@@ -58,12 +58,12 @@ function JobDetail({ id }: { id: number }) {
     setFileError('');
     if (!next) return;
     if (
-      !/\.pdf$/i.test(next.name) ||
-      next.type !== 'application/pdf' ||
+      !/\.(pdf|png|jpe?g|webp)$/i.test(next.name) ||
+      !['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(next.type) ||
       !next.size ||
       next.size > 5 * 1024 * 1024
     ) {
-      setFileError('Chọn PDF từ 1 byte đến 5 MiB.');
+      setFileError('Chọn PDF, PNG, JPG hoặc WEBP từ 1 byte đến 5 MiB.');
       return;
     }
     setFile(next);
@@ -178,12 +178,12 @@ function JobDetail({ id }: { id: number }) {
                     }}
                     className="rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-5"
                   >
-                    <Field label="CV PDF · tối đa 5 MiB">
+                    <Field label="CV PDF hoặc ảnh · tối đa 5 MiB">
                       <input
                         ref={fileInput}
                         aria-describedby="cv-help"
                         type="file"
-                        accept=".pdf,application/pdf"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
                         disabled={busy}
                         onChange={(e) => chooseFile(e.target.files?.[0])}
                         className="block w-full text-sm"
@@ -192,7 +192,7 @@ function JobDetail({ id }: { id: number }) {
                     <p id="cv-help" className="mt-3 break-words text-xs text-slate-600">
                       {file
                         ? file.name + ' · ' + Math.ceil(file.size / 1024) + ' KB'
-                        : 'Kéo thả hoặc chọn file. PDF có văn bản giúp HR đánh giá hồ sơ; PDF scan vẫn có thể xem thủ công.'}
+                        : 'Kéo thả hoặc chọn file. AI có thể đọc PDF có chữ, PDF scan và ảnh CV.'}
                     </p>
                     {file && (
                       <button

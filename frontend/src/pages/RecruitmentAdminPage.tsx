@@ -469,6 +469,9 @@ function RecruitmentBoard() {
                   </Alert>
                 )}
                 {boardNotice && <Alert>{boardNotice}</Alert>}
+                <p className="text-xs text-slate-500">
+                  Ưu tiên điểm AI cao → thấp; bằng điểm thì hồ sơ mới hơn trước. Hồ sơ chưa chấm nằm cuối.
+                </p>
                 {loading || (!error && loadedJobId !== jobId) ? (
                   <p role="status">Đang tải hồ sơ...</p>
                 ) : (

@@ -72,7 +72,7 @@ export function applicationView(row: Application) {
     hiredUserId: row.hiredUserId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    hasCv: /^[a-f0-9-]{36}\.pdf$/.test(row.cvFileUrl || ''),
+    hasCv: /^[a-f0-9-]{36}\.(pdf|png|jpe?g|webp)$/.test(row.cvFileUrl || ''),
     hasCvText: Boolean(row.rawCvText?.trim()),
     interviews: (row.interviews || []).sort((a, b) => b.round - a.round).map(interviewView),
   };
@@ -140,7 +140,10 @@ export class ApplicationsService {
       .groupBy('app.status')
       .getRawMany();
     const [rows, total] = await qb
-      .orderBy('app.createdAt', 'DESC')
+      // Scored candidates first, highest score first, unscored NULL values last.
+      // MySQL places NULL after numeric scores in descending order, including a score of zero.
+      .orderBy('app.matchScore', 'DESC')
+      .addOrderBy('app.createdAt', 'DESC')
       .addOrderBy('app.id', 'DESC')
       .skip((query.page - 1) * query.pageSize)
       .take(query.pageSize)
@@ -169,6 +172,11 @@ export class ApplicationsService {
   async download(id: number, actor: Actor) {
     const app = await this.row(id, actor);
     return this.files.read(app.cvFileUrl);
+  }
+
+  async cvMimeType(id: number, actor: Actor) {
+    const app = await this.row(id, actor);
+    return this.files.mimeType(app.cvFileUrl) || 'application/pdf';
   }
 
   async apply(input: SubmitInput, file: Express.Multer.File) {
@@ -201,7 +209,7 @@ export class ApplicationsService {
         message: 'Hồ sơ đã được lưu. HR sẽ xem xét CV của bạn.',
         warning: rawCvText
           ? null
-          : 'PDF không có văn bản trích xuất. HR có thể tải CV để xem trực tiếp.',
+          : 'CV không có lớp văn bản trích xuất. AI Vision có thể đọc trực tiếp ảnh hoặc PDF scan khi HR chấm điểm.',
       };
     } catch (error: any) {
       await this.files.remove(key);
@@ -241,10 +249,14 @@ export class ApplicationsService {
       const app = await this.row(id, actor);
       if ([ApplicationStatus.HIRED, ApplicationStatus.REJECTED].includes(app.status))
         throw new ConflictException('Hồ sơ đã kết thúc quy trình.');
-      if (!app.rawCvText)
-        throw new BadRequestException('CV chưa có văn bản. Hãy tải file để xem trực tiếp.');
       const jd = app.job.description + '\n' + app.job.requirements;
-      const result = await this.ai.score(app.rawCvText, jd);
+      const result = app.rawCvText?.trim()
+        ? await this.ai.score(app.rawCvText, jd)
+        : await this.ai.scoreFile(
+            await this.files.read(app.cvFileUrl),
+            this.files.mimeType(app.cvFileUrl) || 'application/pdf',
+            jd,
+          );
       // Shared schema has no provider-mode field: mock output is preview-only.
       if (result.mode === 'MOCK') return { ...result, saved: false };
       await this.db.transaction(async (manager) => {
@@ -255,6 +267,8 @@ export class ApplicationsService {
           .findOne({ where: { id: app.jobId }, lock: { mode: 'pessimistic_read' } });
         if (job.description + '\n' + job.requirements !== jd)
           throw new ConflictException('JD đã đổi trong lúc chấm. Hãy thử lại.');
+        if ('extractedText' in result.data && typeof result.data.extractedText === 'string')
+          current.rawCvText = result.data.extractedText;
         current.matchScore = result.data.matchScore;
         current.aiSummary = result.data.summary;
         current.skillsDetected = result.data.skillsDetected;

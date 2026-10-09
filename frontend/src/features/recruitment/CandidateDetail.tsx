@@ -186,7 +186,8 @@ export function CandidateDetail({
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'CV-' + id + '.pdf';
+      const extension = blob.type === 'application/pdf' ? 'pdf' : blob.type.split('/')[1] || 'bin';
+      link.download = 'CV-' + id + '.' + extension;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
@@ -236,7 +237,7 @@ export function CandidateDetail({
                 disabled={busy || !candidate.hasCv}
                 onClick={download}
               >
-                Tải CV PDF
+                Tải CV
               </button>
               <button
                 className={secondaryClass}
@@ -252,7 +253,7 @@ export function CandidateDetail({
               </button>
             </div>
             {!candidate.hasCvText && (
-              <Alert>CV không có văn bản để AI đọc. Hãy tải PDF và đánh giá thủ công.</Alert>
+              <Alert>CV không có lớp văn bản. AI Vision sẽ đọc trực tiếp PDF scan hoặc ảnh khi bạn bấm chấm điểm.</Alert>
             )}
             <section className="space-y-3 rounded-xl bg-slate-50 p-4">
               <h3 className="font-bold">Đánh giá CV</h3>
@@ -271,7 +272,7 @@ export function CandidateDetail({
               {operator && (
                 <button
                   className={secondaryClass}
-                  disabled={busy || !capabilities?.score || !candidate.hasCvText || !!terminal}
+                  disabled={busy || !capabilities?.score || !candidate.hasCv || !!terminal}
                   onClick={() =>
                     act(async () => {
                       const result = await api.score(id);

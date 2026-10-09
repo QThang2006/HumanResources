@@ -115,9 +115,11 @@ export class ApplicationsController {
     @Res() response: Response,
   ) {
     const buffer = await this.service.download(id, actor);
+    const contentType = await this.service.cvMimeType(id, actor);
+    const extension = contentType === 'application/pdf' ? 'pdf' : contentType.split('/')[1];
     response.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename="cv-' + id + '.pdf"',
+      'Content-Type': contentType,
+      'Content-Disposition': 'attachment; filename="cv-' + id + '.' + extension + '"',
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
     });

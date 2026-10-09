@@ -27,19 +27,20 @@
 
 ## 🎬 PHẦN 2: KỊCH BẢN LIVE DEMO CHI TIẾT TỪNG BƯỚC (Khoảng 2.5 phút)
 
-### 🔹 BƯỚC 1: Góc nhìn Nhân viên — Check-in cảm xúc & Xem lịch sử cá nhân
+### 🔹 BƯỚC 1: Góc nhìn Nhân viên — Check-in cảm xúc, Checklist 30 ngày & AI Copilot
 * **Tài khoản:** `quan.pham@company.com` | `password123`
 * **Màn hình:** Không gian làm việc cá nhân (`http://localhost:5173/workspace`)
 * **Thao tác thực hiện:**
-  1. Đăng nhập vào hệ thống, mở trang Workspace.
-  2. Chỉ vào lời chào cá nhân hóa: *"Chào buổi sáng/buổi chiều, Quân 👋"*.
-  3. Chọn tâm trạng: Bấm vào nút **"Căng thẳng" (STRESSED)** (màu đỏ hồng).
-  4. Nhập vào ô phản hồi: *"Dự án tuần này deadline gấp quá, mình đang bị quá tải task."*
-  5. Bấm nút **"Gửi chia sẻ"**.
+  1. Đăng nhập vào hệ thống, mở trang Workspace cá nhân.
+  2. **Check-in tâm trạng:** Bấm chọn nút **"Căng thẳng" (STRESSED)** (màu đỏ hồng) ➔ Nhập phản hồi: *"Dự án tuần này deadline gấp quá, mình đang bị quá tải task."* ➔ Bấm nút **"Gửi chia sẻ"**. Chỉ nhanh vào dải chấm 7 ngày vừa cập nhật.
+  3. **Checklist 30 ngày:** Cuộn xuống phần Checklist hội nhập ➔ Bấm tick hoàn thành 1 nhiệm vụ để thanh tiến độ % nhảy lên sinh động ➔ Bấm mở rộng xem chi tiết nhiệm vụ.
+  4. **AI Copilot Chatbox:** Bấm vào 1 câu hỏi gợi ý bên cạnh (hoặc gõ *"Chế độ nghỉ phép thử việc thế nào?"*) ➔ Trợ lý AI lập tức trả lời trích xuất từ Sổ tay nhân viên.
+  5. **Điểm nhấn UX/UI:** Nhấn mạnh 2 khung Checklist & Copilot Chat được khóa cố định chiều cao `540px` với thanh cuộn riêng, dù mở rộng nhiệm vụ thì khung chat bên cạnh vẫn đứng yên thẳng thớm, không bị kéo dãn hay tụt nút gửi xuống đáy.
 * **Lời thoại thuyết trình:**
-  > *"Trước hết, ở góc nhìn nhân viên khi bắt đầu ngày làm việc. Tại trang Workspace, hệ thống chào đón bằng lời chào cá nhân hóa theo thời gian thực.
-  > Ngay góc trên là widget **Mood Check-in**. Nhân viên chỉ mất đúng 5 giây để chọn 1 trong 3 trạng thái: **Tuyệt vời**, **Bình thường** hoặc **Căng thẳng**, kèm theo một dòng chia sẻ tâm tư nếu muốn.
-  > Ngay khi gửi, thẻ chuyển sang trạng thái đã ghi nhận và hiển thị **Dải chấm nhịp cảm xúc 7 ngày gần nhất**. Điều này giúp nhân viên tự quan sát được trạng thái tinh thần của chính mình theo thời gian."*
+  > *"Trước hết, ở góc nhìn nhân viên khi bắt đầu ngày làm việc tại Không gian cá nhân:
+  > - Phía trên là widget **Mood Check-in**: Nhân viên chỉ mất đúng 5 giây để chia sẻ tâm trạng và phản hồi tâm tư mỗi ngày, theo dõi dải chấm 7 ngày qua.
+  > - Phía dưới là bộ đôi cốt lõi hỗ trợ hội nhập: **Checklist 30 ngày** (lộ trình thử việc tự động cập nhật tiến độ %) và **Trợ lý AI Copilot** (giải đáp chính sách công ty 24/7).
+  > - Đặc biệt về mặt trải nghiệm UX, em đã tối ưu **cố định chiều cao 540px với thanh cuộn độc lập cho cả 2 khung**, giúp giao diện luôn cân đối hoàn hảo, khi mở rộng danh sách nhiệm vụ thì khung chat bên cạnh hoàn toàn không bị xô lệch layout."*
 
 ---
 

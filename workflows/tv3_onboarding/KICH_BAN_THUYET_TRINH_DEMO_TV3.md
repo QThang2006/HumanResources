@@ -15,18 +15,13 @@
 
 ---
 
-## 📑 PHẦN 1: MỞ ĐẦU & ĐẶT VẤN ĐỀ THỰC TẾ (Khoảng 45 giây)
+## 📑 PHẦN 1: MỞ ĐẦU & ĐẶT VẤN ĐỀ (Khoảng 20 giây — Ngắn gọn, súc tích)
 
 > **Lời thoại thuyết trình:**
 > 
-> *"Kính thưa Thầy/Cô và các bạn, trong quản trị doanh nghiệp hiện đại, **tuyển dụng được nhân tài đã khó, nhưng giữ chân được họ còn khó hơn gấp bội**. Một trong những nguyên nhân hàng đầu khiến nhân sự nghỉ việc đột ngột chính là hiện tượng **'Kiệt sức thầm lặng' (Silent Burnout)** — nhân viên bị quá tải, áp lực nhưng cấp quản lý không hề hay biết do thiếu kênh chia sẻ kịp thời.*
->
-> *Là **Thành viên 3** của dự án, em đảm nhiệm phân hệ **Giữ chân nhân tài & Sức khỏe tinh thần (Employee Well-being & Team Mood)**, kết hợp cùng **Hệ thống tự động hóa n8n**. Phân hệ này giải quyết 3 bài toán lớn:
-> 1. Cung cấp kênh an toàn, thân thiện để nhân viên chia sẻ cảm xúc mỗi ngày.
-> 2. Giúp Quản lý nắm bắt ngay nhịp năng lượng của đội ngũ theo thời gian thực và phân theo từng phòng ban.
-> 3. Tự động hóa phản ứng khẩn cấp qua n8n (bắn Telegram, Email) để can thiệp bảo vệ nhân viên trước khi quá muộn.*
->
-> *Sau đây, em xin phép demo trực tiếp luồng vận hành thực tế của phân hệ."*
+> *"Kính thưa Thầy/Cô, là **Thành viên 3**, em phụ trách phân hệ **Giữ chân nhân tài, Sức khỏe tinh thần (Team Mood)** kết hợp **Tự động hóa n8n**. 
+> Phân hệ này giúp giải quyết bài toán: **Theo dõi nhịp cảm xúc nhân viên mỗi ngày**, **phát hiện sớm nguy cơ kiệt sức (Burnout)** và **tự động kích hoạt thông báo khẩn qua Telegram/Email** để Quản lý kịp thời can thiệp, giữ chân nhân tài.
+> Sau đây, em xin phép demo trực tiếp luồng hoạt động."*
 
 ---
 

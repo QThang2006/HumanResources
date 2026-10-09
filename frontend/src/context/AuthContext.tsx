@@ -1,47 +1,55 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { User, UserRole } from '../types';
+import { authApi } from '../api/auth.api';
 
 interface AuthContextType {
   user: User | null;
-  login: (role: UserRole) => void;
+  login: (role: UserRole) => Promise<void>;
   setAuthSession: (user: User, token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
+const DEMO_CREDENTIALS: Record<UserRole, { email: string; pass: string }> = {
+  SUPERADMIN: { email: 'superadmin@company.com', pass: 'admin123' },
+  HR: { email: 'hr@company.com', pass: 'admin123' },
+  MANAGER: { email: 'manager@company.com', pass: 'admin123' },
+  EMPLOYEE: { email: 'employee@company.com', pass: 'admin123' },
+};
+
 const mockUsers: Record<UserRole, User> = {
   SUPERADMIN: {
     id: 1,
-    fullName: 'Hoàng Minh Admin (IT Director)',
-    email: 'admin@fpt.edu.vn',
+    fullName: 'Nguyễn Văn Quản Trị',
+    email: 'superadmin@company.com',
     role: 'SUPERADMIN',
-    jobTitle: 'Giám đốc Công nghệ',
+    jobTitle: 'Hệ Thống Trưởng',
   },
   HR: {
     id: 2,
-    fullName: 'Nguyễn Thị Thu HR (Talent Lead)',
-    email: 'hr@fpt.edu.vn',
+    fullName: 'Lê Thị Thu Thảo',
+    email: 'hr@company.com',
     role: 'HR',
-    departmentName: 'Phòng Nhân sự',
-    jobTitle: 'Trưởng nhóm Tuyển dụng',
+    departmentName: 'Nhân Sự & Đào Tạo',
+    jobTitle: 'Trưởng Nhóm Tuyển Dụng',
   },
   MANAGER: {
     id: 3,
-    fullName: 'Trần Văn Minh (Tech Lead)',
-    email: 'manager.it@fpt.edu.vn',
+    fullName: 'Trần Văn Minh',
+    email: 'manager@company.com',
     role: 'MANAGER',
     departmentId: 1,
-    departmentName: 'Phòng Kỹ thuật Phần mềm (TECH)',
-    jobTitle: 'Trưởng phòng Kỹ thuật',
+    departmentName: 'Kỹ Thuật & AI',
+    jobTitle: 'Trưởng Phòng Kỹ Thuật',
   },
   EMPLOYEE: {
     id: 4,
-    fullName: 'Phạm Hồng Quân (New Hire)',
-    email: 'quan.pham@fpt.edu.vn',
+    fullName: 'Phạm Hồng Quân',
+    email: 'employee@company.com',
     role: 'EMPLOYEE',
     departmentId: 1,
-    departmentName: 'Phòng Kỹ thuật Phần mềm (TECH)',
-    jobTitle: 'Backend Developer',
+    departmentName: 'Kỹ Thuật & AI',
+    jobTitle: 'Kỹ Sư Phần Mềm Mới',
   },
 };
 
@@ -67,7 +75,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(newUser);
   };
 
-  const login = (role: UserRole) => {
+  const login = async (role: UserRole) => {
+    const cred = DEMO_CREDENTIALS[role];
+    if (cred) {
+      try {
+        const res = await authApi.login({ email: cred.email, password: cred.pass });
+        setAuthSession(res.user, res.accessToken);
+        return;
+      } catch (err) {
+        console.warn('Cannot switch role via authApi.login, fallback to mock user:', err);
+      }
+    }
     const selected = mockUsers[role];
     if (selected) {
       setUser(selected);

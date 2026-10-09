@@ -59,7 +59,48 @@ export const onboardingApi = {
     return apiClient.patch(`/onboarding/trainings/${assignmentId}/progress`, { progressPercent });
   },
 
+  getTeamOnboarding: async (departmentId?: number): Promise<TeamOnboardingResponse> => {
+    return apiClient.get('/onboarding/team-onboarding', {
+      params: departmentId ? { departmentId } : undefined,
+    });
+  },
+
   chatWithCopilot: async (message: string): Promise<ChatCopilotResponse> => {
     return apiClient.post('/onboarding/chat', { message }, { timeout: 90000 });
   },
 };
+
+export interface TeamOnboardingTaskItem {
+  id: number;
+  title: string;
+  description?: string;
+  category: string;
+  dueDay: number;
+  isCompleted: boolean;
+  completedAt?: string | null;
+}
+
+export interface TeamOnboardingEmployee {
+  userId: number;
+  fullName: string;
+  email: string;
+  jobTitle?: string | null;
+  phone?: string | null;
+  totalTasks: number;
+  completedTasks: number;
+  progressPercent: number;
+  tasks: TeamOnboardingTaskItem[];
+}
+
+export interface TeamOnboardingResponse {
+  departmentId?: number;
+  departmentName: string;
+  departments: Array<{ id: number; name: string; code?: string }>;
+  summary: {
+    totalEmployees: number;
+    completedAllCount: number;
+    inProgressCount: number;
+    averageProgress: number;
+  };
+  employees: TeamOnboardingEmployee[];
+}

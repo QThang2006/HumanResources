@@ -87,15 +87,27 @@ export class OnboardingService {
    * - Nếu đã hoàn thành → bỏ đánh dấu + xóa completedAt
    * Trả về task đã cập nhật + progress mới.
    */
-  async toggleTask(taskId: number, userId: number) {
+  async toggleTask(taskId: number, userId: number, userRole?: UserRole) {
     const task = await this.taskRepository.findOne({
-      where: { id: taskId, userId },
+      where: { id: taskId },
     });
 
     if (!task) {
-      throw new NotFoundException(
-        `Không tìm thấy nhiệm vụ #${taskId} thuộc về người dùng #${userId}.`,
-      );
+      throw new NotFoundException(`Không tìm thấy nhiệm vụ #${taskId}.`);
+    }
+
+    // Nếu không phải chính chủ, kiểm tra quyền MANAGER, HR hoặc SUPERADMIN
+    if (task.userId !== userId) {
+      if (
+        !userRole ||
+        (userRole !== UserRole.MANAGER &&
+          userRole !== UserRole.HR &&
+          userRole !== UserRole.SUPERADMIN)
+      ) {
+        throw new ForbiddenException(
+          'Bạn không có quyền thao tác trên nhiệm vụ của nhân viên khác.',
+        );
+      }
     }
 
     // Toggle trạng thái
@@ -103,13 +115,14 @@ export class OnboardingService {
     task.completedAt = task.isCompleted ? new Date() : null;
 
     const saved = await this.taskRepository.save(task);
+    const taskOwnerId = task.userId;
 
     this.logger.log(
-      `📋 Task toggled: taskId=${taskId}, userId=${userId}, isCompleted=${saved.isCompleted}`,
+      `📋 Task toggled: taskId=${taskId}, targetUserId=${taskOwnerId}, byUserId=${userId}, isCompleted=${saved.isCompleted}`,
     );
 
-    // Tính lại progress sau khi toggle
-    const allTasks = await this.taskRepository.find({ where: { userId } });
+    // Tính lại progress của nhân viên sở hữu task sau khi toggle
+    const allTasks = await this.taskRepository.find({ where: { userId: taskOwnerId } });
     const total = allTasks.length;
     const completed = allTasks.filter((t) => t.isCompleted).length;
     const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -582,6 +595,124 @@ export class OnboardingService {
     const saved = await this.trainingRepository.save(assignment);
     this.logger.log(`🎓 Training progress updated: assignmentId=${assignmentId}, userId=${userId}, progress=${validProgress}%`);
     return saved;
+  }
+
+  /**
+   * Giám sát tiến độ thử việc & onboarding của nhân viên theo từng phòng ban.
+   * - Hỗ trợ Manager, HR, SuperAdmin.
+   * - Tự động đối soát và nạp đủ 10 task onboarding cho nhân viên nếu chưa có.
+   * - Tính toán completedTasks, totalTasks, progressPercent cho từng nhân sự.
+   */
+  async getTeamOnboarding(userId: number, userRole?: UserRole, departmentId?: number) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['department'],
+    });
+
+    const allDepartments = await this.departmentRepository.find({
+      order: { name: 'ASC' },
+    });
+
+    let targetDeptId = departmentId;
+    if (!targetDeptId) {
+      if (user?.departmentId) {
+        targetDeptId = user.departmentId;
+      } else if (allDepartments.length > 0) {
+        targetDeptId = allDepartments[0].id;
+      }
+    }
+
+    const currentDept = allDepartments.find((d) => d.id === targetDeptId) || user?.department;
+    const departmentName = currentDept?.name || 'Toàn công ty';
+
+    let teamMembers: User[] = [];
+    if (targetDeptId) {
+      teamMembers = await this.userRepository.find({
+        where: {
+          departmentId: targetDeptId,
+          role: UserRole.EMPLOYEE,
+          isActive: true,
+          id: Not(userId),
+        },
+        order: { fullName: 'ASC' },
+      });
+    }
+
+    // 1. Tự động đảm bảo mọi nhân viên đều có đủ 10 task onboarding chuẩn hóa
+    for (const member of teamMembers) {
+      const taskCount = await this.taskRepository.count({ where: { userId: member.id } });
+      if (taskCount === 0) {
+        await this.seedOnboardingTasks(member.id);
+      }
+    }
+
+    // 2. Lấy toàn bộ tasks của tất cả nhân viên trong ban
+    const memberIds = teamMembers.map((m) => m.id);
+    let memberTasks: OnboardingTask[] = [];
+    if (memberIds.length > 0) {
+      memberTasks = await this.taskRepository.find({
+        where: { userId: In(memberIds) },
+        order: { dueDay: 'ASC', id: 'ASC' },
+      });
+    }
+
+    // Nhóm tasks theo userId
+    const taskMap = new Map<number, OnboardingTask[]>();
+    for (const t of memberTasks) {
+      const list = taskMap.get(t.userId) || [];
+      list.push(t);
+      taskMap.set(t.userId, list);
+    }
+
+    const employees = teamMembers.map((emp) => {
+      const tasks = taskMap.get(emp.id) || [];
+      const total = tasks.length;
+      const completed = tasks.filter((t) => t.isCompleted).length;
+      const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      return {
+        userId: emp.id,
+        fullName: emp.fullName,
+        email: emp.email,
+        jobTitle: emp.jobTitle || 'Nhân viên mới',
+        phone: emp.phone || null,
+        totalTasks: total,
+        completedTasks: completed,
+        progressPercent,
+        tasks: tasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          category: t.category,
+          dueDay: t.dueDay,
+          isCompleted: t.isCompleted,
+          completedAt: t.completedAt,
+        })),
+      };
+    });
+
+    const totalEmployees = employees.length;
+    const completedAllCount = employees.filter((e) => e.progressPercent === 100).length;
+    const averageProgress = totalEmployees > 0
+      ? Math.round(employees.reduce((acc, cur) => acc + cur.progressPercent, 0) / totalEmployees)
+      : 0;
+
+    return {
+      departmentId: targetDeptId,
+      departmentName,
+      departments: allDepartments.map((d) => ({
+        id: d.id,
+        name: d.name,
+        code: d.code,
+      })),
+      summary: {
+        totalEmployees,
+        completedAllCount,
+        inProgressCount: totalEmployees - completedAllCount,
+        averageProgress,
+      },
+      employees,
+    };
   }
 
   // ────────────────────────────────────────────────────────────────────

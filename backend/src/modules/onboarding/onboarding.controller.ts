@@ -26,8 +26,9 @@ export class OnboardingController {
   async toggleTask(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('id') userId: number,
+    @CurrentUser('role') userRole: UserRole,
   ) {
-    return this.onboardingService.toggleTask(id, userId);
+    return this.onboardingService.toggleTask(id, userId, userRole);
   }
 
   // Kiểm tra đã check-in cảm xúc hôm nay chưa (Frontend dùng để hiện trạng thái)
@@ -65,6 +66,23 @@ export class OnboardingController {
   ) {
     const parsedDeptId = departmentId ? parseInt(departmentId, 10) : undefined;
     return this.onboardingService.getTeamMood(
+      userId,
+      userRole,
+      isNaN(parsedDeptId as any) ? undefined : parsedDeptId,
+    );
+  }
+
+  // Dashboard Giám sát Onboarding thử việc đội ngũ theo từng phòng ban (Manager, HR, SuperAdmin)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MANAGER, UserRole.HR, UserRole.SUPERADMIN)
+  @Get('team-onboarding')
+  async getTeamOnboarding(
+    @CurrentUser('id') userId: number,
+    @CurrentUser('role') userRole: UserRole,
+    @Query('departmentId') departmentId?: string,
+  ) {
+    const parsedDeptId = departmentId ? parseInt(departmentId, 10) : undefined;
+    return this.onboardingService.getTeamOnboarding(
       userId,
       userRole,
       isNaN(parsedDeptId as any) ? undefined : parsedDeptId,

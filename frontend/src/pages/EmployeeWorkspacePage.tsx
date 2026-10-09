@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useId } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { onboardingApi } from '../api/onboarding.api';
 import { ManagerTeamMoodWidget } from '../features/team-mood/ManagerTeamMoodWidget';
+import { ManagerTeamOnboardingWidget } from '../features/team-onboarding/ManagerTeamOnboardingWidget';
 import type { EmployeeMood, OnboardingTask, TaskCategory } from '../types';
 import {
   BookOpen,
@@ -16,6 +17,8 @@ import {
   Sparkles,
   ExternalLink,
   CheckCircle,
+  Activity,
+  ListTodo,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -903,6 +906,9 @@ export const EmployeeWorkspacePage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [moodHistory, setMoodHistory] = useState<EmployeeMood[]>([]);
 
+  // ── State: Tab quản lý (ONBOARDING tracker hoặc MOOD) ──
+  const [managerActiveTab, setManagerActiveTab] = useState<'ONBOARDING' | 'MOOD'>('ONBOARDING');
+
   // ── Helpers: Lời chào cá nhân hóa (tham khảo Notion, Slack, Lattice) ──
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -1381,10 +1387,52 @@ export const EmployeeWorkspacePage: React.FC = () => {
         )}
 
         {/* ══════════════════════════════════════════════════════════ */}
-        {/* 2. GÓC NHÌN QUẢN LÝ (MANAGER, HR, SUPERADMIN) — TEAM MOOD */}
+        {/* 2. GÓC NHÌN QUẢN LÝ (MANAGER, HR, SUPERADMIN)             */}
         {/* ══════════════════════════════════════════════════════════ */}
         {(user?.role === 'MANAGER' || user?.role === 'HR' || user?.role === 'SUPERADMIN') && (
-          <ManagerTeamMoodWidget />
+          <div className="space-y-6">
+            {/* Thanh Tab Chuyển Đổi Nhanh Dành Cho Quản Lý */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white/60 backdrop-blur-md p-2 rounded-2xl border border-white/60 shadow-xs">
+              <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setManagerActiveTab('ONBOARDING')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                    managerActiveTab === 'ONBOARDING'
+                      ? 'bg-white text-indigo-700 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ListTodo className="w-4 h-4 text-indigo-600" />
+                  Tiến Độ Thử Việc Đội Ngũ (30 Ngày)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManagerActiveTab('MOOD')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                    managerActiveTab === 'MOOD'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Activity className="w-4 h-4 text-emerald-500" />
+                  Nhịp Năng Lượng Đội Ngũ (Team Mood)
+                </button>
+              </div>
+
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-white/80 border border-slate-200/60 rounded-xl text-[11px] font-semibold text-slate-500">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Bàn Điều Hành Quản Lý Đội Ngũ</span>
+              </div>
+            </div>
+
+            {/* Nội dung Tab Quản Lý */}
+            {managerActiveTab === 'ONBOARDING' ? (
+              <ManagerTeamOnboardingWidget />
+            ) : (
+              <ManagerTeamMoodWidget />
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -16,7 +16,7 @@ import {
     TrainingStatus,
 } from '../../entities/employee-training.entity';
 
-import { User } from '../../entities/user.entity';
+import { User, UserRole } from '../../entities/user.entity';
 
 @Injectable()
 export class TrainingService {
@@ -67,7 +67,32 @@ export class TrainingService {
             durationHours: data.durationHours ?? 10,
         });
 
-        return this.courseRepository.save(course);
+        const savedCourse = await this.courseRepository.save(course);
+
+        // Nếu là khóa học bắt buộc (MANDATORY), tự động gán cho toàn bộ nhân viên (EMPLOYEE)
+        if (data.type === TrainingCourseType.MANDATORY) {
+            try {
+                const employees = await this.userRepository.find({
+                    where: { role: UserRole.EMPLOYEE },
+                });
+                const assignments = employees.map((emp) =>
+                    this.employeeTrainingRepository.create({
+                        userId: emp.id,
+                        courseId: savedCourse.id,
+                        progressPercent: 0,
+                        assignedByAi: false,
+                        status: TrainingStatus.ASSIGNED,
+                    }),
+                );
+                if (assignments.length > 0) {
+                    await this.employeeTrainingRepository.save(assignments);
+                }
+            } catch (err) {
+                // Tiếp tục trả về savedCourse nếu gán hàng loạt gặp lỗi cục bộ
+            }
+        }
+
+        return savedCourse;
     }
     async assignCourse(data: {
         userId: number;

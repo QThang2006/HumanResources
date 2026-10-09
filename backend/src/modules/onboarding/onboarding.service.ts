@@ -5,6 +5,7 @@ import { OnboardingTask } from '../../entities/onboarding-task.entity';
 import { EmployeeMood, MoodType } from '../../entities/employee-mood.entity';
 import { Document } from '../../entities/document.entity';
 import { EmployeeTraining, TrainingStatus } from '../../entities/employee-training.entity';
+import { TrainingCourse, TrainingCourseType } from '../../entities/training-course.entity';
 import { User, UserRole } from '../../entities/user.entity';
 import { Department } from '../../entities/department.entity';
 import { GeminiService } from '../core/ai/gemini.service';
@@ -30,6 +31,8 @@ export class OnboardingService {
     private readonly docRepository: Repository<Document>,
     @InjectRepository(EmployeeTraining)
     private readonly trainingRepository: Repository<EmployeeTraining>,
+    @InjectRepository(TrainingCourse)
+    private readonly courseRepository: Repository<TrainingCourse>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Department)
@@ -495,6 +498,38 @@ export class OnboardingService {
    * Truy vấn từ bảng employee_trainings kết hợp training_courses.
    */
   async getTrainings(userId: number) {
+    // 1. Tự động kiểm tra và liên kết các khóa học bắt buộc (MANDATORY) chưa gán cho nhân viên này
+    try {
+      const mandatoryCourses = await this.courseRepository.find({
+        where: { type: TrainingCourseType.MANDATORY },
+      });
+
+      if (mandatoryCourses.length > 0) {
+        const existingAssignments = await this.trainingRepository.find({
+          where: { userId },
+          select: ['courseId'],
+        });
+        const assignedCourseIds = new Set(existingAssignments.map((a) => a.courseId));
+
+        const unassigned = mandatoryCourses.filter((c) => !assignedCourseIds.has(c.id));
+        if (unassigned.length > 0) {
+          const newAssignments = unassigned.map((c) =>
+            this.trainingRepository.create({
+              userId,
+              courseId: c.id,
+              progressPercent: 0,
+              assignedByAi: false,
+              status: TrainingStatus.ASSIGNED,
+            }),
+          );
+          await this.trainingRepository.save(newAssignments);
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`Không thể tự động đồng bộ khóa học bắt buộc cho user ${userId}: ${(err as Error).message}`);
+    }
+
+    // 2. Truy vấn danh sách khóa học thực tế
     const trainings = await this.trainingRepository.find({
       where: { userId },
       relations: ['course'],

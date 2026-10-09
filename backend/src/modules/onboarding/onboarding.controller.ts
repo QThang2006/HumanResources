@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -26,8 +26,9 @@ export class OnboardingController {
   async toggleTask(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('id') userId: number,
+    @CurrentUser('role') userRole: UserRole,
   ) {
-    return this.onboardingService.toggleTask(id, userId);
+    return this.onboardingService.toggleTask(id, userId, userRole);
   }
 
   // Kiểm tra đã check-in cảm xúc hôm nay chưa (Frontend dùng để hiện trạng thái)
@@ -54,12 +55,38 @@ export class OnboardingController {
     return this.onboardingService.recordMood(userId, dto.mood, dto.feedbackText);
   }
 
-  // Dashboard Team Mood cho Trưởng phòng (Manager giám sát mood toàn phòng ban)
+  // Dashboard Team Mood (Manager, HR, SuperAdmin giám sát mood theo từng phòng ban)
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.MANAGER)
+  @Roles(UserRole.MANAGER, UserRole.HR, UserRole.SUPERADMIN)
   @Get('team-mood')
-  async getTeamMood(@CurrentUser('id') userId: number) {
-    return this.onboardingService.getTeamMood(userId);
+  async getTeamMood(
+    @CurrentUser('id') userId: number,
+    @CurrentUser('role') userRole: UserRole,
+    @Query('departmentId') departmentId?: string,
+  ) {
+    const parsedDeptId = departmentId ? parseInt(departmentId, 10) : undefined;
+    return this.onboardingService.getTeamMood(
+      userId,
+      userRole,
+      isNaN(parsedDeptId as any) ? undefined : parsedDeptId,
+    );
+  }
+
+  // Dashboard Giám sát Onboarding thử việc đội ngũ theo từng phòng ban (Manager, HR, SuperAdmin)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MANAGER, UserRole.HR, UserRole.SUPERADMIN)
+  @Get('team-onboarding')
+  async getTeamOnboarding(
+    @CurrentUser('id') userId: number,
+    @CurrentUser('role') userRole: UserRole,
+    @Query('departmentId') departmentId?: string,
+  ) {
+    const parsedDeptId = departmentId ? parseInt(departmentId, 10) : undefined;
+    return this.onboardingService.getTeamOnboarding(
+      userId,
+      userRole,
+      isNaN(parsedDeptId as any) ? undefined : parsedDeptId,
+    );
   }
 
   // Danh sách cảnh báo kiệt sức Burnout (HR & SUPERADMIN)
@@ -82,25 +109,23 @@ export class OnboardingController {
     return this.onboardingService.resolveBurnout(id, userId, dto.note);
   }
 
-  // Lấy danh sách khóa học AI gợi ý
+  // Lấy danh sách khóa học đào tạo (L&D) được gán cho nhân viên
   @UseGuards(JwtAuthGuard)
   @Get('trainings')
   async getTrainings(@CurrentUser('id') userId: number) {
     return this.onboardingService.getTrainings(userId);
   }
+
+  // Cập nhật tiến độ học tập khóa đào tạo
   @UseGuards(JwtAuthGuard)
-@Patch('trainings/:id/progress')
-async updateTrainingProgress(
-  @Param('id', ParseIntPipe) id: number,
-  @CurrentUser('id') userId: number,
-  @Body('progressPercent', ParseIntPipe) progressPercent: number,
-) {
-  return this.onboardingService.updateTrainingProgress(
-    id,
-    userId,
-    progressPercent,
-  );
-}
+  @Patch('trainings/:id/progress')
+  async updateTrainingProgress(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('id') userId: number,
+    @Body('progressPercent', ParseIntPipe) progressPercent: number,
+  ) {
+    return this.onboardingService.updateTrainingProgress(id, userId, progressPercent);
+  }
 
   // Trợ lý Sổ tay Onboarding 24/7 (RAG Chatbot + Function Calling tự tích checklist)
   @UseGuards(JwtAuthGuard)

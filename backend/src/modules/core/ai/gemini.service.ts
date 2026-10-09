@@ -191,39 +191,61 @@ export class GeminiService {
   }
 
   /**
+   * Danh sách candidate models theo thứ tự ưu tiên:
+   * 1. gemini-flash-lite-latest  (~664ms) ← Nhanh nhất, dùng cho câu trả lời đơn giản
+   * 2. gemini-3.1-flash-lite     (~838ms) ← Dự phòng lite
+   * 3. gemini-3.5-flash          (~6.5s)  ← Mạnh hơn, dùng khi lite không đủ
+   * 4. Model chính từ .env       (fallback cuối)
+   */
+  private getCandidateModels(): string[] {
+    const fastModels = [
+      'gemini-flash-lite-latest',
+      'gemini-3.1-flash-lite',
+      'gemini-3.5-flash',
+    ];
+    // Thêm model chính (từ .env) vào cuối nếu chưa có trong danh sách
+    return Array.from(new Set([...fastModels, this.selectedModel]));
+  }
+
+  /**
    * Gọi Gemini AI với đầu ra ép buộc định dạng JSON thuần túy
    */
   async generateJson<T>(prompt: string, systemInstruction?: string): Promise<T | null> {
-    if (!this.model) {
+    if (!this.genAI) {
       if (this.strictLive) {
         throw new Error(`[STRICT LIVE ERROR] Gemini AI chưa được khởi tạo. Vui lòng cấu hình GEMINI_API_KEY.`);
       }
       return null;
     }
 
-    try {
-      const chatModel = this.genAI!.getGenerativeModel({
-        model: this.selectedModel,
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.2,
-        },
-        systemInstruction: systemInstruction || undefined,
-      });
+    const candidateModels = this.getCandidateModels();
+    let lastError: any = null;
 
-      const response = await this.retryOperation(
-        () => chatModel.generateContent(prompt),
-        `generateJson [${this.selectedModel}]`,
-      );
-      const rawText = response.response.text();
-      return JSON.parse(rawText) as T;
-    } catch (error: any) {
-      this.logger.error(`Lỗi khi gọi Gemini generateJson [${this.selectedModel}]: ${error.message}`);
-      if (this.strictLive) {
-        throw new Error(`[STRICT LIVE ERROR] Gọi Gemini AI thất bại: ${error.message}`);
+    for (const modelName of candidateModels) {
+      try {
+        const chatModel = this.genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.2,
+          },
+          systemInstruction: systemInstruction || undefined,
+        });
+
+        const response = await chatModel.generateContent(prompt);
+        const rawText = response.response.text();
+        return JSON.parse(rawText) as T;
+      } catch (error: any) {
+        lastError = error;
+        this.logger.warn(`Gemini generateJson [${modelName}] gặp lỗi (${error.message?.substring(0, 80)}...). Thử model kế tiếp...`);
       }
-      return null;
     }
+
+    this.logger.error(`Lỗi khi gọi Gemini generateJson qua tất cả candidate models: ${lastError?.message}`);
+    if (this.strictLive) {
+      throw new Error(`[STRICT LIVE ERROR] Gọi Gemini AI thất bại: ${lastError?.message}`);
+    }
+    return null;
   }
 
   /**
@@ -234,70 +256,83 @@ export class GeminiService {
     part: { inlineData: { data: string; mimeType: string } },
     systemInstruction?: string,
   ): Promise<T | null> {
-    if (!this.model) {
+    if (!this.genAI) {
       if (this.strictLive) {
         throw new Error(`[STRICT LIVE ERROR] Gemini AI chưa được khởi tạo. Vui lòng cấu hình GEMINI_API_KEY.`);
       }
       return null;
     }
 
-    try {
-      const chatModel = this.genAI!.getGenerativeModel({
-        model: this.selectedModel,
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.2,
-        },
-        systemInstruction: systemInstruction || undefined,
-      });
+    const candidateModels = this.getCandidateModels();
+    let lastError: any = null;
 
-      const response = await this.retryOperation(
-        () => chatModel.generateContent([prompt, part]),
-        `generateJsonWithPart [${this.selectedModel}]`,
-      );
-      const rawText = response.response.text();
-      return JSON.parse(rawText) as T;
-    } catch (error: any) {
-      this.logger.error(`Lỗi khi gọi Gemini generateJsonWithPart [${this.selectedModel}]: ${error.message}`);
-      if (this.strictLive) {
-        throw new Error(`[STRICT LIVE ERROR] Gọi Gemini AI thất bại: ${error.message}`);
+    for (const modelName of candidateModels) {
+      try {
+        const chatModel = this.genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.2,
+          },
+          systemInstruction: systemInstruction || undefined,
+        });
+
+        const response = await chatModel.generateContent([prompt, part]);
+        const rawText = response.response.text();
+        return JSON.parse(rawText) as T;
+      } catch (error: any) {
+        lastError = error;
+        this.logger.warn(`Gemini generateJsonWithPart [${modelName}] gặp lỗi (${error.message?.substring(0, 80)}...). Thử model kế tiếp...`);
       }
-      return null;
     }
+
+    this.logger.error(`Lỗi khi gọi Gemini generateJsonWithPart qua tất cả candidate models: ${lastError?.message}`);
+    if (this.strictLive) {
+      throw new Error(`[STRICT LIVE ERROR] Gọi Gemini AI thất bại: ${lastError?.message}`);
+    }
+    return null;
   }
 
   /**
    * Gọi Gemini AI với đầu ra dạng văn bản tự nhiên (Dùng cho Copilot RAG)
    */
   async generateText(prompt: string, systemInstruction?: string): Promise<string> {
-    if (!this.model) {
+    if (!this.genAI) {
       if (this.strictLive) {
         throw new Error(`[STRICT LIVE ERROR] Gemini AI chưa được khởi tạo. Vui lòng cấu hình GEMINI_API_KEY.`);
       }
       return 'Dịch vụ Trí tuệ nhân tạo Gemini hiện chưa được cấu hình API Key. Đang hoạt động ở chế độ mô phỏng.';
     }
 
-    try {
-      const chatModel = this.genAI!.getGenerativeModel({
-        model: this.selectedModel,
-        generationConfig: {
-          temperature: 0.3,
-        },
-        systemInstruction: systemInstruction || undefined,
-      });
+    const candidateModels = this.getCandidateModels();
+    let lastError: any = null;
 
-      const response = await this.retryOperation(
-        () => chatModel.generateContent(prompt),
-        `generateText [${this.selectedModel}]`,
-      );
-      return response.response.text();
-    } catch (error: any) {
-      this.logger.error(`Lỗi khi gọi Gemini generateText [${this.selectedModel}]: ${error.message}`);
-      if (this.strictLive) {
-        throw new Error(`[STRICT LIVE ERROR] Gọi Gemini AI thất bại: ${error.message}`);
+    for (const modelName of candidateModels) {
+      try {
+        const chatModel = this.genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            temperature: 0.3,
+          },
+          systemInstruction: systemInstruction || undefined,
+        });
+
+        const response = await chatModel.generateContent(prompt);
+        const replyText = response.response.text();
+        if (replyText && replyText.trim().length > 0) {
+          return replyText;
+        }
+      } catch (error: any) {
+        lastError = error;
+        this.logger.warn(`Gemini generateText [${modelName}] gặp lỗi (${error.message?.substring(0, 80)}...). Thử model kế tiếp...`);
       }
-      return 'Xin lỗi, trợ lý AI đang gặp sự cố kết nối tạm thời. Vui lòng thử lại sau.';
     }
+
+    this.logger.error(`Lỗi khi gọi Gemini generateText qua tất cả candidate models: ${lastError?.message}`);
+    if (this.strictLive) {
+      throw new Error(`[STRICT LIVE ERROR] Gọi Gemini AI thất bại: ${lastError?.message}`);
+    }
+    return '';
   }
 
   // =========================================================================
@@ -636,36 +671,36 @@ BẮT BUỘC TRẢ VỀ ĐỊNH DẠNG JSON SAU:
       summary: `Chúng tôi đang tìm kiếm một vị trí ${title} (${level}) xuất sắc gia nhập ${departmentName} để trực tiếp xây dựng và mở rộng hệ thống phần mềm cốt lõi của công ty.`,
       responsibilities: isBackend
         ? [
-            'Thiết kế, xây dựng và tối ưu hóa hệ thống Backend RESTful API và Microservices trên nền tảng NestJS / NodeJS.',
-            'Thiết kế và chuẩn hóa cơ sở dữ liệu MySQL, tối ưu truy vấn Indexing và đảm bảo toàn vẹn dữ liệu.',
-            'Tích hợp các dịch vụ bên thứ ba (Google AI Gemini, n8n Automation Engine, Webhooks).',
-            'Tham gia rà soát mã nguồn (Code Review), xây dựng chuẩn kỹ thuật và tài liệu hóa kiến trúc.',
-            'Giám sát hiệu năng hệ thống, phát hiện và xử lý sự cố kỹ thuật kịp thời.',
-          ]
+          'Thiết kế, xây dựng và tối ưu hóa hệ thống Backend RESTful API và Microservices trên nền tảng NestJS / NodeJS.',
+          'Thiết kế và chuẩn hóa cơ sở dữ liệu MySQL, tối ưu truy vấn Indexing và đảm bảo toàn vẹn dữ liệu.',
+          'Tích hợp các dịch vụ bên thứ ba (Google AI Gemini, n8n Automation Engine, Webhooks).',
+          'Tham gia rà soát mã nguồn (Code Review), xây dựng chuẩn kỹ thuật và tài liệu hóa kiến trúc.',
+          'Giám sát hiệu năng hệ thống, phát hiện và xử lý sự cố kỹ thuật kịp thời.',
+        ]
         : isFrontend
-        ? [
+          ? [
             'Phát triển giao diện ứng dụng web hiện đại, chuẩn Responsive bằng React 18, TypeScript và Tailwind CSS.',
             'Tối ưu hóa trải nghiệm người dùng (UX/UI), tốc độ tải trang và độ mượt mà của các thành phần tương tác.',
             'Kết nối trơn tru với hệ thống Backend API thông qua Axios Interceptor và quản lý trạng thái an toàn.',
             'Tham gia định hình Design System và xây dựng các UI Atoms tái sử dụng trong toàn bộ hệ thống.',
           ]
-        : [
+          : [
             `Chịu trách nhiệm thực hiện các mục tiêu nghiệp vụ chính của vị trí ${title}.`,
             'Phối hợp nhịp nhàng giữa các phòng ban để đảm bảo tiến độ và chất lượng dự án.',
             'Chủ động đề xuất các giải pháp tự động hóa và ứng dụng AI nhằm nâng cao năng suất công việc.',
           ],
       requirements: isBackend
         ? [
-            'Có từ 2-4 năm kinh nghiệm làm việc với NodeJS / TypeScript (ưu tiên thành thạo NestJS).',
-            'Nắm vững kiến trúc cơ sở dữ liệu quan hệ (MySQL / PostgreSQL), hiểu sâu về 3NF, Transaction, Indexing.',
-            'Có kinh nghiệm làm việc với Docker, Git Flow và triển khai hệ thống an toàn.',
-            'Tư duy giải quyết vấn đề tốt, trách nhiệm cao và khả năng làm việc nhóm hiệu quả.',
-          ]
+          'Có từ 2-4 năm kinh nghiệm làm việc với NodeJS / TypeScript (ưu tiên thành thạo NestJS).',
+          'Nắm vững kiến trúc cơ sở dữ liệu quan hệ (MySQL / PostgreSQL), hiểu sâu về 3NF, Transaction, Indexing.',
+          'Có kinh nghiệm làm việc với Docker, Git Flow và triển khai hệ thống an toàn.',
+          'Tư duy giải quyết vấn đề tốt, trách nhiệm cao và khả năng làm việc nhóm hiệu quả.',
+        ]
         : [
-            'Có từ 2-3 năm kinh nghiệm lập trình giao diện với React, TypeScript và Tailwind CSS.',
-            'Hiểu sâu về React Lifecycle, Hooks, State Management và tối ưu hiệu năng render.',
-            'Khả năng chuyển đổi thiết kế Figma thành giao diện web pixel-perfect.',
-          ],
+          'Có từ 2-3 năm kinh nghiệm lập trình giao diện với React, TypeScript và Tailwind CSS.',
+          'Hiểu sâu về React Lifecycle, Hooks, State Management và tối ưu hiệu năng render.',
+          'Khả năng chuyển đổi thiết kế Figma thành giao diện web pixel-perfect.',
+        ],
       niceToHave: [
         'Có hiểu biết hoặc kinh nghiệm thực tế về AI LLM (Gemini, OpenAI) hoặc các công cụ tự động hóa quy trình (n8n).',
         'Có kinh nghiệm làm việc trong môi trường Agile/Scrum và kiến trúc Microservices.',

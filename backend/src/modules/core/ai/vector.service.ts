@@ -11,8 +11,8 @@ export interface ChunkSearchResult<T = any> {
 export class VectorService {
   private readonly logger = new Logger(VectorService.name);
   private genAI: GoogleGenerativeAI | null = null;
-  private readonly embeddingModelName = 'text-embedding-004';
-  private readonly vectorDimension = 768; // Gemini text-embedding-004 dimension
+  private readonly embeddingModelName = 'gemini-embedding-001';
+  private readonly vectorDimension = 768; // Gemini embedding dimension
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -34,7 +34,7 @@ export class VectorService {
 
   /**
    * 1. Sinh Vector Embedding (768 chiều) từ nội dung văn bản
-   * Hỗ trợ Google text-embedding-004 và Fallback Mock Vector thông minh nếu offline.
+   * Hỗ trợ Google gemini-embedding-001 và Fallback Mock Vector thông minh nếu offline.
    */
   async generateEmbedding(text: string): Promise<number[]> {
     const cleanText = text.trim();
@@ -45,12 +45,15 @@ export class VectorService {
     if (this.genAI) {
       try {
         const model = this.genAI.getGenerativeModel({ model: this.embeddingModelName });
-        const result = await model.embedContent(cleanText);
+        const result = await model.embedContent({
+          content: { role: 'user', parts: [{ text: cleanText }] },
+          outputDimensionality: this.vectorDimension,
+        } as any);
         if (result?.embedding?.values && result.embedding.values.length > 0) {
           return result.embedding.values;
         }
       } catch (error: any) {
-        this.logger.warn(`Lỗi khi gọi Google text-embedding-004: ${error.message}. Chuyển sang Fallback Mock Vector.`);
+        this.logger.warn(`Lỗi khi gọi Google ${this.embeddingModelName}: ${error.message}. Chuyển sang Fallback Mock Vector.`);
       }
     }
 
@@ -143,21 +146,55 @@ export class VectorService {
   /**
    * 4. Tìm kiếm ngữ nghĩa Top-K Chunks tương đồng nhất với vector câu hỏi
    */
-  findSimilar<T extends { embedding: number[] }>(
+  findSimilar<T extends { embedding: number[]; content?: string }>(
     queryEmbedding: number[],
     chunks: T[],
     topK: number = 3,
-    minSimilarity: number = 0.1,
+    minSimilarity: number = 0.05,
+    queryText?: string,
   ): ChunkSearchResult<T>[] {
     if (!chunks || chunks.length === 0) {
       return [];
     }
 
     const scored = chunks
-      .map((chunk) => ({
-        chunk,
-        similarity: this.cosineSimilarity(queryEmbedding, chunk.embedding),
-      }))
+      .map((chunk) => {
+        let chunkVec = chunk.embedding;
+        if ((!chunkVec || !Array.isArray(chunkVec) || chunkVec.length === 0) && chunk.content) {
+          chunkVec = this.generateDeterministicMockEmbedding(chunk.content);
+        }
+
+        let similarity = this.cosineSimilarity(queryEmbedding, chunkVec);
+
+        if (queryText && chunk.content) {
+          const qWords = queryText
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .split(/\W+/)
+            .filter((w) => w.length > 1);
+          const cWords = new Set(
+            chunk.content
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .split(/\W+/),
+          );
+          let matchCount = 0;
+          for (const w of qWords) {
+            if (cWords.has(w)) matchCount++;
+          }
+          if (qWords.length > 0 && matchCount > 0) {
+            const keywordScore = matchCount / qWords.length;
+            similarity = similarity * 0.6 + keywordScore * 0.4;
+          }
+        }
+
+        return {
+          chunk,
+          similarity: Number(similarity.toFixed(4)),
+        };
+      })
       .filter((item) => item.similarity >= minSimilarity)
       .sort((a, b) => b.similarity - a.similarity);
 
@@ -170,7 +207,7 @@ export class VectorService {
    * Các câu có từ khóa tương đồng (ví dụ: "chế độ bảo hiểm", "nghỉ phép", "lương thưởng")
    * sẽ sinh ra vector có góc cosine gần nhau, đảm bảo RAG chạy mượt 100% trong bài kiểm thử / demo giảng viên.
    */
-  private generateDeterministicMockEmbedding(text: string): number[] {
+  generateDeterministicMockEmbedding(text: string): number[] {
     const vector = new Array(this.vectorDimension).fill(0);
     const normalized = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const tokens = normalized.split(/\W+/).filter(t => t.length > 1);

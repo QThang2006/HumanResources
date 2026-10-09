@@ -38,15 +38,31 @@ export interface JobPage {
 }
 
 export const jobsApi = {
-  getAll: async (all: boolean = false, signal?: AbortSignal, q?: string, departmentId?: number, location?: string): Promise<Job[]> => {
-    return apiClient.get<unknown, Job[]>(all ? '/jobs/admin' : '/jobs', { signal, params: { q: q || undefined, departmentId, location: location || undefined } });
+  getAll: async (
+    all: boolean = false,
+    signal?: AbortSignal,
+    q?: string,
+    departmentId?: number,
+    location?: string,
+  ): Promise<Job[]> => {
+    return apiClient.get<unknown, Job[]>(all ? '/jobs/admin' : '/jobs', {
+      signal,
+      params: { q: q || undefined, departmentId, location: location || undefined },
+    });
   },
 
   getFilters: async (signal?: AbortSignal): Promise<JobFilters> => {
     return apiClient.get<unknown, JobFilters>('/jobs/filters', { signal });
   },
 
-  getPage: async (signal: AbortSignal, page: number, pageSize: number, q?: string, departmentId?: number, location?: string): Promise<JobPage> => {
+  getPage: async (
+    signal: AbortSignal,
+    page: number,
+    pageSize: number,
+    q?: string,
+    departmentId?: number,
+    location?: string,
+  ): Promise<JobPage> => {
     return apiClient.get<unknown, JobPage>('/jobs', {
       signal,
       params: { q: q || undefined, departmentId, location: location || undefined, page, pageSize },

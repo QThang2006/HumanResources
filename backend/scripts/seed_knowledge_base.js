@@ -125,6 +125,28 @@ const KNOWLEDGE_DOCUMENTS = [
   }
 ];
 
+function generateMockEmbedding(text) {
+  const dim = 768;
+  const vector = new Array(dim).fill(0);
+  const normalized = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const tokens = normalized.split(/\W+/).filter(t => t.length > 1);
+  if (tokens.length === 0) { vector[0] = 1.0; return vector; }
+  tokens.forEach((token, tokenIdx) => {
+    let hash = 0;
+    for (let i = 0; i < token.length; i++) hash = (hash * 31 + token.charCodeAt(i)) >>> 0;
+    const primaryIdx = hash % dim;
+    const secondaryIdx = (hash * 17 + tokenIdx * 13) % dim;
+    const weight = 1.0 / Math.sqrt(tokens.length);
+    vector[primaryIdx] += weight;
+    vector[secondaryIdx] += weight * 0.5;
+  });
+  let sumSq = 0;
+  for (let i = 0; i < dim; i++) sumSq += vector[i] * vector[i];
+  const norm = Math.sqrt(sumSq) || 1;
+  for (let i = 0; i < dim; i++) vector[i] = Number((vector[i] / norm).toFixed(6));
+  return vector;
+}
+
 async function run() {
   const dbHost = process.env.DB_HOST || 'localhost';
   const dbPort = parseInt(process.env.DB_PORT || '3306', 10);
@@ -164,11 +186,12 @@ async function run() {
 
       // Nạp các đoạn Chunks
       for (const chunk of doc.chunks) {
+        const embedding = generateMockEmbedding(chunk.content);
         await conn.query(
-          `INSERT INTO document_chunks (document_id, chunk_index, content, embedding) VALUES (?, ?, ?, '[]')`,
-          [docId, chunk.index, chunk.content]
+          `INSERT INTO document_chunks (document_id, chunk_index, content, embedding) VALUES (?, ?, ?, ?)`,
+          [docId, chunk.index, chunk.content, JSON.stringify(embedding)]
         );
-        console.log(`   ✅ Đã nạp Chunk #${chunk.index} (${chunk.content.substring(0, 42)}...)`);
+        console.log(`   ✅ Đã nạp Chunk #${chunk.index} (${chunk.content.substring(0, 42)}...) [Vector 768d]`);
       }
     }
 

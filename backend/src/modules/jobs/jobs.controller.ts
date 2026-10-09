@@ -1,4 +1,15 @@
-import { BadRequestException, Controller, Get, Post, Patch, Param, Body, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { RecruitmentAiService } from './recruitment-ai.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -11,15 +22,27 @@ import { GenerateJdDto } from './dto/generate-jd.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { ChangeJobStatusDto } from './dto/change-job-status.dto';
 import { ListJobsQueryDto } from './dto/list-jobs-query.dto';
+import { CreateDepartmentDto } from './dto/create-department.dto';
+import { AssignDepartmentManagerDto } from './dto/assign-department-manager.dto';
 
 @Controller('jobs')
 export class JobsController {
-  constructor(private readonly jobs: JobsService, private readonly ai: RecruitmentAiService) {}
+  constructor(
+    private readonly jobs: JobsService,
+    private readonly ai: RecruitmentAiService,
+  ) {}
 
   @Get()
   list(@Query() query: ListJobsQueryDto) {
     this.validatePagination(query);
-    return this.jobs.findAll(undefined, query.q, query.departmentId, query.location, query.page, query.pageSize);
+    return this.jobs.findAll(
+      undefined,
+      query.q,
+      query.departmentId,
+      query.location,
+      query.page,
+      query.pageSize,
+    );
   }
 
   @Get('filters')
@@ -32,7 +55,15 @@ export class JobsController {
   @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
   internalList(@CurrentUser() user: User, @Query() query: ListJobsQueryDto) {
     this.validatePagination(query);
-    return this.jobs.findAll(user, query.q, query.departmentId, query.location, query.page, query.pageSize, query.status);
+    return this.jobs.findAll(
+      user,
+      query.q,
+      query.departmentId,
+      query.location,
+      query.page,
+      query.pageSize,
+      query.status,
+    );
   }
 
   private validatePagination(query: ListJobsQueryDto) {
@@ -48,15 +79,43 @@ export class JobsController {
     return this.jobs.findById(id, user);
   }
 
+  @Post('departments')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  createDepartment(@Body() input: CreateDepartmentDto) {
+    return this.jobs.createDepartment(input);
+  }
+
   @Get('departments')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN)
-  departments() { return this.jobs.departmentLookup(); }
+  departments() {
+    return this.jobs.departmentLookup();
+  }
+
+  @Get('departments/managers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  departmentManagers() {
+    return this.jobs.departmentManagers();
+  }
+
+  @Patch('departments/:id/manager')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  assignDepartmentManager(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() input: AssignDepartmentManagerDto,
+  ) {
+    return this.jobs.assignDepartmentManager(id, input.managerId ?? null);
+  }
 
   @Get('capabilities')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
-  capabilities() { return this.ai.capabilities(); }
+  capabilities() {
+    return this.ai.capabilities();
+  }
 
   @Get(':id')
   detail(@Param('id', ParseIntPipe) id: number) {

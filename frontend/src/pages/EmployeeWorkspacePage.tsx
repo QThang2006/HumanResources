@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback, useRef, useId } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { onboardingApi } from '../api/onboarding.api';
 import { ManagerTeamMoodWidget } from '../features/team-mood/ManagerTeamMoodWidget';
+import { ManagerTeamOnboardingWidget } from '../features/team-onboarding/ManagerTeamOnboardingWidget';
 import type { EmployeeMood, OnboardingTask, TaskCategory } from '../types';
 import { EmployeeTrainingsWidget } from '../components/EmployeeTrainingsWidget';
 import {
-  Users,
   Sun,
   CloudSun,
   CloudRain,
@@ -15,6 +15,8 @@ import {
   Heart,
   Calendar,
   Sparkles,
+  Activity,
+  ListTodo,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -370,71 +372,73 @@ const OnboardingChecklistWidget: React.FC = () => {
   return (
     <section
       aria-labelledby="onboarding-checklist-title"
-      className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm"
+      className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col h-[540px]"
     >
-      <h3 id="onboarding-checklist-title" className="text-sm font-bold text-slate-900">
-        Checklist Hội Nhập 30 Ngày
-      </h3>
-      <p className="text-xs text-slate-500 mt-1">Hoàn thành các mốc quan trọng trong tháng đầu tiên</p>
+      <div className="shrink-0 mb-3">
+        <h3 id="onboarding-checklist-title" className="text-sm font-bold text-slate-900">
+          Checklist Hội Nhập 30 Ngày
+        </h3>
+        <p className="text-xs text-slate-500 mt-1">Hoàn thành các mốc quan trọng trong tháng đầu tiên</p>
 
-      {/* Tiến độ */}
-      {!loading && !loadError && hasTasks && (
-        <div className="mt-4">
-          <div className="flex items-baseline justify-between gap-3 mb-2">
-            <p className="text-xs text-slate-600">
-              {progress.completedTasks} / {progress.totalTasks} nhiệm vụ hoàn thành
-              {isAllDone && <span className="ml-2 font-semibold text-emerald-700">Đã hoàn thành onboarding</span>}
-            </p>
-            <p className="text-sm font-bold text-slate-900 tabular-nums">{progress.progressPercent}%</p>
-          </div>
-          <div
-            className="h-2 bg-slate-100 rounded-full overflow-hidden"
-            role="progressbar"
-            aria-label="Tiến độ onboarding"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progress.progressPercent}
-          >
+        {/* Tiến độ */}
+        {!loading && !loadError && hasTasks && (
+          <div className="mt-3">
+            <div className="flex items-baseline justify-between gap-3 mb-1.5">
+              <p className="text-xs text-slate-600">
+                {progress.completedTasks} / {progress.totalTasks} nhiệm vụ hoàn thành
+                {isAllDone && <span className="ml-2 font-semibold text-emerald-700">Đã hoàn thành onboarding</span>}
+              </p>
+              <p className="text-sm font-bold text-slate-900 tabular-nums">{progress.progressPercent}%</p>
+            </div>
             <div
-              className={`h-full rounded-full transition-all duration-300 ease-out ${
-                isAllDone ? 'bg-emerald-600' : 'bg-indigo-600'
-              }`}
-              style={{ width: `${progress.progressPercent}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Bộ lọc danh mục */}
-      {!loading && !loadError && hasTasks && (
-        <div className="mt-4 flex flex-wrap gap-1" role="group" aria-label="Lọc nhiệm vụ theo danh mục">
-          {CATEGORY_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setActiveCategory(f.value)}
-              aria-pressed={activeCategory === f.value}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-200
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2
-                ${
-                  activeCategory === f.value
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-                }`}
+              className="h-2 bg-slate-100 rounded-full overflow-hidden"
+              role="progressbar"
+              aria-label="Tiến độ onboarding"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress.progressPercent}
             >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      )}
+              <div
+                className={`h-full rounded-full transition-all duration-300 ease-out ${
+                  isAllDone ? 'bg-emerald-600' : 'bg-indigo-600'
+                }`}
+                style={{ width: `${progress.progressPercent}%` }}
+              />
+            </div>
+          </div>
+        )}
 
-      {actionError && (
-        <div role="alert" className="mt-4 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg">
-          <p className="text-xs text-rose-700">{actionError}</p>
-        </div>
-      )}
+        {/* Bộ lọc danh mục */}
+        {!loading && !loadError && hasTasks && (
+          <div className="mt-3 flex flex-wrap gap-1" role="group" aria-label="Lọc nhiệm vụ theo danh mục">
+            {CATEGORY_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => setActiveCategory(f.value)}
+                aria-pressed={activeCategory === f.value}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-200
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2
+                  ${
+                    activeCategory === f.value
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
 
-      <div className="mt-4">{renderBody()}</div>
+        {actionError && (
+          <div role="alert" className="mt-2 px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg">
+            <p className="text-xs text-rose-700">{actionError}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1">{renderBody()}</div>
     </section>
   );
 };
@@ -581,13 +585,13 @@ const CopilotChatWidget: React.FC = () => {
   return (
     <section
       aria-labelledby="copilot-title"
-      className="h-[520px] lg:h-auto lg:absolute lg:inset-0 flex flex-col bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"
+      className="h-[540px] flex flex-col bg-white border border-slate-200 rounded-3xl p-5 shadow-sm"
     >
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="shrink-0 flex items-start justify-between gap-3 mb-1">
         <div>
           <h3 id="copilot-title" className="text-sm font-bold text-slate-900">AI Copilot</h3>
-          <p className="text-xs text-slate-500">Trợ lý sổ tay nhân viên</p>
+          <p className="text-xs text-slate-500">Trợ lý sổ tay nhân viên 24/7</p>
         </div>
         <span className="text-[11px] font-medium text-slate-500">{isLoading ? 'Đang xử lý' : 'Sẵn sàng'}</span>
       </div>
@@ -650,7 +654,7 @@ const CopilotChatWidget: React.FC = () => {
 
       {/* Composer */}
       <form
-        className="mt-3 pt-3 border-t border-slate-200 flex items-end gap-2"
+        className="shrink-0 mt-3 pt-3 border-t border-slate-200 flex items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           submitMessage(input);
@@ -697,6 +701,9 @@ export const EmployeeWorkspacePage: React.FC = () => {
   const [isLoadingMood, setIsLoadingMood] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [moodHistory, setMoodHistory] = useState<EmployeeMood[]>([]);
+
+  // ── State: Tab quản lý (ONBOARDING tracker hoặc MOOD) ──
+  const [managerActiveTab, setManagerActiveTab] = useState<'ONBOARDING' | 'MOOD'>('ONBOARDING');
 
   // ── Helpers: Lời chào cá nhân hóa (tham khảo Notion, Slack, Lattice) ──
   const getGreeting = () => {
@@ -1161,36 +1168,66 @@ export const EmployeeWorkspacePage: React.FC = () => {
               {/* ══════════════════════════════════════════════════════ */}
               {/* AI COPILOT CHAT (col-span-1)                          */}
               {/* ══════════════════════════════════════════════════════ */}
-              <div className="lg:col-span-1 relative lg:min-h-[480px]">
+              <div className="lg:col-span-1">
                 <CopilotChatWidget />
               </div>
 
               {/* ══════════════════════════════════════════════════════ */}
-              {/* KHÓA HỌC L&D (col-span-3) — Placeholder TV4          */}
+              {/* KHÓA HỌC L&D (col-span-3)                             */}
               {/* ══════════════════════════════════════════════════════ */}
               <div className="lg:col-span-3">
-  <EmployeeTrainingsWidget />
-</div>
+                <EmployeeTrainingsWidget />
+              </div>
             </div>
           </div>
         )}
 
         {/* ══════════════════════════════════════════════════════════ */}
-        {/* 2. GÓC NHÌN MANAGER — GIÁM SÁT SỨC KHỎE TINH THẦN      */}
+        {/* 2. GÓC NHÌN QUẢN LÝ (MANAGER, HR, SUPERADMIN)             */}
         {/* ══════════════════════════════════════════════════════════ */}
-        {user?.role === 'MANAGER' && <ManagerTeamMoodWidget />}
+        {(user?.role === 'MANAGER' || user?.role === 'HR' || user?.role === 'SUPERADMIN') && (
+          <div className="space-y-6">
+            {/* Thanh Tab Chuyển Đổi Nhanh Dành Cho Quản Lý */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white/60 backdrop-blur-md p-2 rounded-2xl border border-white/60 shadow-xs">
+              <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setManagerActiveTab('ONBOARDING')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                    managerActiveTab === 'ONBOARDING'
+                      ? 'bg-white text-indigo-700 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ListTodo className="w-4 h-4 text-indigo-600" />
+                  Tiến Độ Thử Việc Đội Ngũ (30 Ngày)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManagerActiveTab('MOOD')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                    managerActiveTab === 'MOOD'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Activity className="w-4 h-4 text-emerald-500" />
+                  Nhịp Năng Lượng Đội Ngũ (Team Mood)
+                </button>
+              </div>
 
-        {/* ══════════════════════════════════════════════════════════ */}
-        {/* 3. GÓC NHÌN KHÁC (HR / SUPERADMIN)                       */}
-        {/* ══════════════════════════════════════════════════════════ */}
-        {(user?.role === 'HR' || user?.role === 'SUPERADMIN') && (
-          <div className="bg-white/70 backdrop-blur-xl border border-white/40 p-8 rounded-3xl shadow-sm text-center text-slate-600">
-            <Users className="w-10 h-10 mx-auto mb-2 text-indigo-600" />
-            <h2 className="text-base font-bold text-slate-900">Không Gian Làm Việc Nhân Viên</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Vui lòng sử dụng bộ chuyển Role trên thanh điều hướng để trải nghiệm góc nhìn của{' '}
-              <strong>EMPLOYEE</strong> hoặc <strong>MANAGER</strong>.
-            </p>
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-white/80 border border-slate-200/60 rounded-xl text-[11px] font-semibold text-slate-500">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Bàn Điều Hành Quản Lý Đội Ngũ</span>
+              </div>
+            </div>
+
+            {/* Nội dung Tab Quản Lý */}
+            {managerActiveTab === 'ONBOARDING' ? (
+              <ManagerTeamOnboardingWidget />
+            ) : (
+              <ManagerTeamMoodWidget />
+            )}
           </div>
         )}
       </div>

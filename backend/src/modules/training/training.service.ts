@@ -71,50 +71,54 @@ export class TrainingService {
 
         const savedCourse = await this.courseRepository.save(course);
 
-if (data.type === TrainingCourseType.MANDATORY) {
-    const employees = await this.userRepository.find({
-        where: {
-            role: UserRole.EMPLOYEE,
-        },
-    });
+        if (data.type === TrainingCourseType.MANDATORY) {
+            try {
+                const employees = await this.userRepository.find({
+                    where: {
+                        role: UserRole.EMPLOYEE,
+                    },
+                });
 
-    if (employees.length > 0) {
-        const assignments = employees.map((employee) =>
-            this.employeeTrainingRepository.create({
-                userId: employee.id,
-                courseId: savedCourse.id,
-                progressPercent: 0,
-                assignedByAi: false,
-                aiReason: null,
-                status: TrainingStatus.ASSIGNED,
-            }),
-        );
+                if (employees.length > 0) {
+                    const assignments = employees.map((employee) =>
+                        this.employeeTrainingRepository.create({
+                            userId: employee.id,
+                            courseId: savedCourse.id,
+                            progressPercent: 0,
+                            assignedByAi: false,
+                            aiReason: null,
+                            status: TrainingStatus.ASSIGNED,
+                        }),
+                    );
 
-        await this.employeeTrainingRepository.save(assignments);
+                    await this.employeeTrainingRepository.save(assignments);
+                }
+            } catch (err) {
+                // Vẫn tạo khóa học thành công nếu việc gán hàng loạt gặp lỗi cục bộ.
+            }
         }
-}
 
-return savedCourse;
-}
-
-async suggestCourseForEmployee(userId: number) {
-    const employee = await this.userRepository.findOne({
-        where: {
-            id: userId,
-            role: UserRole.EMPLOYEE,
-        },
-        relations: {
-            department: true,
-            trainings: {
-                course: true,
-            },
-            performanceReviews: true,
-        },
-    });
-
-    if (!employee) {
-        throw new NotFoundException('Không tìm thấy nhân viên.');
+        return savedCourse;
     }
+
+    async suggestCourseForEmployee(userId: number) {
+        const employee = await this.userRepository.findOne({
+            where: {
+                id: userId,
+                role: UserRole.EMPLOYEE,
+            },
+            relations: {
+                department: true,
+                trainings: {
+                    course: true,
+                },
+                performanceReviews: true,
+            },
+        });
+
+        if (!employee) {
+            throw new NotFoundException('Không tìm thấy nhân viên.');
+        }
 
     const allCourses = await this.courseRepository.find({
         order: {

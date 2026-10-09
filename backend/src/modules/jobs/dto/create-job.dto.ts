@@ -1,7 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsString, MaxLength, Min, ValidateIf } from 'class-validator';
 
-const Trim = () => Transform(({ value }) => typeof value === 'string' ? value.trim() : value);
+const Trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
 
 export class CreateJobDto {
   @Trim()

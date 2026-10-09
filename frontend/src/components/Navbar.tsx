@@ -15,9 +15,7 @@ export const Navbar: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-
   const isActive = (path: string) => location.pathname === path;
-
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -60,8 +58,6 @@ export const Navbar: React.FC = () => {
 
           {/* Navigation */}
           <nav className="hidden items-center gap-1 md:flex">
-            {/* SUPERADMIN deliberately has no duplicate /admin/settings link here. */}
-
             {isAuthenticated && user?.role === 'HR' && (
               <>
                 <Link to="/admin/recruitment" className={navLinkClass('/admin/recruitment')}>
@@ -72,6 +68,25 @@ export const Navbar: React.FC = () => {
                 <Link to="/admin/settings" className={navLinkClass('/admin/settings')}>
                   <Settings className="h-4 w-4" />
                   Kho Tri Thức & Sổ Tay RAG
+                </Link>
+
+                <Link to="/careers" className={navLinkClass('/careers')}>
+                  <Briefcase className="h-4 w-4" />
+                  Cổng Việc Làm
+                </Link>
+              </>
+            )}
+
+            {isAuthenticated && user?.role === 'SUPERADMIN' && (
+              <>
+                <Link to="/admin/recruitment" className={navLinkClass('/admin/recruitment')}>
+                  <ClipboardCheck className="h-4 w-4" />
+                  Góc Phỏng Vấn & Tuyển Dụng
+                </Link>
+
+                <Link to="/admin/settings" className={navLinkClass('/admin/settings')}>
+                  <Settings className="h-4 w-4" />
+                  Cài Đặt Hệ Thống
                 </Link>
 
                 <Link to="/careers" className={navLinkClass('/careers')}>

@@ -8,7 +8,7 @@ const API_BASE_URL =
  */
 export const apiClient = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 15000,
+    timeout: 60000,
 });
 
 // 1. Request Interceptor: Tự động đính kèm JWT Token vào Header của mọi request

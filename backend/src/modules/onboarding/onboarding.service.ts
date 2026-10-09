@@ -462,6 +462,12 @@ export class OnboardingService {
     // Phân bổ mood 7 ngày theo từng ngày (Day-by-Day Trend)
     const daysTrend = [];
     const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const formatLocalDate = (dt: Date): string => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
 
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
@@ -493,7 +499,7 @@ export class OnboardingService {
       const dayLabel = i === 0 ? 'Hôm nay' : `${dayNames[dayIndex]} (${dateFormatted})`;
 
       daysTrend.push({
-        date: d.toISOString().split('T')[0],
+        date: formatLocalDate(d),
         dayLabel,
         dayName: dayNames[dayIndex],
         isToday: i === 0,
@@ -595,7 +601,7 @@ export class OnboardingService {
         });
 
         history7Days.push({
-          date: d.toISOString().split('T')[0],
+          date: formatLocalDate(d),
           dayName: dayNames[d.getDay()],
           isToday: i === 0,
           mood: found?.mood || null,

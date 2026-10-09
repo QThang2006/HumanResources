@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, FindManyOptions, Raw, Repository } from 'typeorm';
+import { DataSource, EntityManager, FindManyOptions, Raw, Repository } from 'typeorm';
 import { Job, JobStatus } from '../../entities/job.entity';
 import { Department } from '../../entities/department.entity';
 import { Application } from '../../entities/application.entity';
@@ -15,6 +15,7 @@ import { RecruitmentAiService } from './recruitment-ai.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { ChangeJobStatusDto } from './dto/change-job-status.dto';
+import { CreateDepartmentDto } from './dto/create-department.dto';
 
 type JobsActor = Pick<User, 'id' | 'role' | 'departmentId'>;
 
@@ -128,9 +129,120 @@ export class JobsService {
     );
   }
 
+  private async applyDepartmentManager(
+    manager: EntityManager,
+    department: Department,
+    managerId: number | null,
+  ) {
+    if (managerId === null) {
+      department.managerId = null;
+      return;
+    }
+    const user = await manager.getRepository(User).findOne({
+      where: { id: managerId, isActive: true },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!user || ![UserRole.EMPLOYEE, UserRole.MANAGER, UserRole.HR].includes(user.role))
+      throw new BadRequestException(
+        'Chỉ có nhân sự EMPLOYEE, MANAGER hoặc HR đang hoạt động được bổ nhiệm.',
+      );
+
+    // A person can own one department at a time. Clear the old reverse link first.
+    await manager
+      .getRepository(Department)
+      .createQueryBuilder()
+      .update(Department)
+      .set({ managerId: null })
+      .where('manager_id = :managerId', { managerId })
+      .andWhere('id != :departmentId', { departmentId: department.id })
+      .execute();
+    user.departmentId = department.id;
+    if (user.role === UserRole.EMPLOYEE) {
+      user.role = UserRole.MANAGER;
+      user.jobTitle = 'Manager';
+    }
+    await manager.getRepository(User).save(user);
+    department.managerId = user.id;
+  }
+
+  private departmentView(department: Department) {
+    return {
+      id: department.id,
+      name: department.name,
+      code: department.code,
+      managerId: department.managerId || null,
+    };
+  }
+
+  async createDepartment(input: CreateDepartmentDto) {
+    const name = input.name.trim();
+    const code = input.code.trim().toUpperCase();
+    const existing = await this.departments.findOne({
+      where: [{ name }, { code }],
+    });
+    if (existing) {
+      throw new ConflictException('Tên hoặc mã phòng ban đã tồn tại.');
+    }
+    const department = await this.db.transaction(async (manager) => {
+      const created = await manager.getRepository(Department).save(
+        manager.getRepository(Department).create({
+          name,
+          code,
+          description: input.description?.trim() || '',
+          managerId: null,
+        }),
+      );
+      await this.applyDepartmentManager(manager, created, input.managerId ?? null);
+      return manager.getRepository(Department).save(created);
+    });
+    return this.departmentView(department);
+  }
+
+  async assignDepartmentManager(departmentId: number, managerId: number | null) {
+    const department = await this.db.transaction(async (manager) => {
+      const current = await manager.getRepository(Department).findOne({
+        where: { id: departmentId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!current) throw new NotFoundException('Không tìm thấy phòng ban.');
+      await this.applyDepartmentManager(manager, current, managerId);
+      return manager.getRepository(Department).save(current);
+    });
+    return this.departmentView(department);
+  }
+
+  async departmentManagers() {
+    const users = await this.db.getRepository(User).find({
+      where: [
+        { isActive: true, role: UserRole.EMPLOYEE },
+        { isActive: true, role: UserRole.MANAGER },
+        { isActive: true, role: UserRole.HR },
+      ],
+      relations: ['department'],
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        jobTitle: true,
+        role: true,
+        departmentId: true,
+      },
+      order: { fullName: 'ASC', id: 'ASC' },
+    });
+    return users.map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      jobTitle: user.jobTitle || '',
+      role: user.role,
+      departmentId: user.departmentId || null,
+      departmentName: user.department?.name || '',
+    }));
+  }
+
   async departmentLookup() {
     return this.departments.find({
-      select: { id: true, name: true, code: true },
+      select: { id: true, name: true, code: true, managerId: true },
       order: { name: 'ASC' },
     });
   }

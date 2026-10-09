@@ -82,7 +82,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const calendarItem = $input.first().json;\nlet webhookRaw;\ntry {\n  webhookRaw = $('Webhook: Xếp lịch phỏng vấn').first().json;\n} catch (e) {\n  webhookRaw = calendarItem;\n}\n\n// Bóc tách payload dù n8n bọc trong body, data hay ở root\nconst rawBody = webhookRaw.body || webhookRaw;\nconst payload = rawBody.data || rawBody;\n\nconst candidateName = payload.candidateName || payload.fullName || 'Ứng viên';\nconst candidateEmail = payload.candidateEmail || payload.email || 'quocthangngo2006@gmail.com';\nconst interviewerName = payload.interviewerName || 'Hội đồng Tuyển dụng';\nconst interviewerEmail = payload.interviewerEmail || '';\nconst round = payload.round || 1;\nconst fromEmail = payload.fromEmail || 'quocthangngo2006@gmail.com';\n\nconst scheduledDate = new Date(payload.scheduledAt || Date.now());\nconst formattedTime = scheduledDate.toLocaleString('vi-VN', {\n  timeZone: 'Asia/Ho_Chi_Minh',\n  hour: '2-digit',\n  minute: '2-digit',\n  day: '2-digit',\n  month: '2-digit',\n  year: 'numeric',\n  weekday: 'long'\n});\n\n// Link Google Meet thật do Google Calendar API sinh ra\nconst googleMeetUrl = calendarItem.hangoutLink || payload.googleMeetUrl || 'https://meet.google.com/new';\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }\n    .header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #ffffff; padding: 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 22px; font-weight: 600; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .info-card { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }\n    .info-item { margin: 8px 0; font-size: 15px; }\n    .btn { display: inline-block; background: #2563eb; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0; }\n    .tips { background: #fefce8; border: 1px solid #fef08a; padding: 15px; border-radius: 8px; font-size: 14px; color: #713f12; margin-top: 20px; }\n    .footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>THƯ MỜI PHỎNG VẤN TRỰC TUYẾN</h1>\n      <p style=\"margin: 5px 0 0 0; opacity: 0.9;\">Enterprise HR & Talent Ecosystem</p>\n    </div>\n    <div class=\"content\">\n      <p>Kính gửi <strong>${candidateName}</strong>,</p>\n      <p>Cảm ơn bạn đã quan tâm và ứng tuyển vào đội ngũ công nghệ của chúng tôi. Hội đồng tuyển dụng trân trọng kính mời bạn tham dự buổi phỏng vấn Vòng ${round} với thông tin chi tiết dưới đây:</p>\n      \n      <div class=\"info-card\">\n        <div class=\"info-item\">⏰ <strong>Thời gian:</strong> ${formattedTime}</div>\n        <div class=\"info-item\">🎯 <strong>Vòng phỏng vấn:</strong> Vòng ${round} (Chuyên môn Kỹ thuật)</div>\n        <div class=\"info-item\">👤 <strong>Người phỏng vấn:</strong> ${interviewerName} ${interviewerEmail ? '(' + interviewerEmail + ')' : ''}</div>\n        <div class=\"info-item\">💻 <strong>Hình thức:</strong> Trực tuyến qua Google Meet</div>\n      </div>\n\n      <div style=\"text-align: center;\">\n        <a href=\"${googleMeetUrl}\" class=\"btn\" target=\"_blank\">👉 Tham Gia Google Meet Ngay</a>\n      </div>\n\n      <div class=\"tips\">\n        💡 <strong>Lưu ý chuẩn bị:</strong>\n        <ul style=\"margin: 5px 0 0 0; padding-left: 20px;\">\n          <li>Vui lòng kiểm tra camera và microphone trước giờ phỏng vấn 10 phút.</li>\n          <li>Chuẩn bị sẵn không gian yên tĩnh và các tài liệu/dự án tiêu biểu đã thực hiện.</li>\n        </ul>\n      </div>\n\n      <p style=\"margin-top: 25px;\">Chúc bạn có một buổi phỏng vấn thành công tốt đẹp!</p>\n      <p>Trân trọng,<br><strong>Phòng Thu Hút Nhân Tài (Talent Acquisition Team)</strong></p>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Lịch phỏng vấn được tạo tự động bởi n8n & Google Calendar.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    candidateName: candidateName,\n    candidateEmail: candidateEmail,\n    interviewerName: interviewerName,\n    interviewerEmail: interviewerEmail,\n    round: round,\n    formattedTime: formattedTime,\n    googleMeetUrl: googleMeetUrl,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[Enterprise Corp] Thư mời phỏng vấn Vòng ${round} - Ứng viên ${candidateName}`,\n    emailHtml: htmlTemplate,\n    telegramAlert: `📅 <b>LỊCH PHỎNG VẤN MỚI</b>\\n• Ứng viên: <b>${candidateName}</b>\\n• Vòng: <b>Vòng ${round}</b>\\n• Người PV: <b>${interviewerName}</b>\\n• Thời gian: <code>${formattedTime}</code>\\n• Google Meet: <a href=\"${googleMeetUrl}\">${googleMeetUrl}</a>`\n  }\n};"
+        "jsCode": "const calendarItem = $input.first().json;\nlet webhookRaw;\ntry {\n  webhookRaw = $('Webhook: Xếp lịch phỏng vấn').first().json;\n} catch (e) {\n  webhookRaw = calendarItem;\n}\n\n// Bóc tách payload dù n8n bọc trong body, data hay ở root\nconst rawBody = webhookRaw.body || webhookRaw;\nconst payload = rawBody.data || rawBody;\n\nconst candidateName = payload.candidateName || payload.fullName || 'Ứng viên';\nconst candidateEmail = payload.candidateEmail || payload.email || 'quocthangngo2006@gmail.com';\nconst interviewerName = payload.interviewerName || 'Hội đồng Tuyển dụng';\nconst interviewerEmail = payload.interviewerEmail || '';\nconst round = payload.round || 1;\nconst fromEmail = payload.fromEmail || 'quocthangngo2006@gmail.com';\n\nconst scheduledDate = new Date(payload.scheduledAt || Date.now());\nconst formattedTime = scheduledDate.toLocaleString('vi-VN', {\n  timeZone: 'Asia/Ho_Chi_Minh',\n  hour: '2-digit',\n  minute: '2-digit',\n  day: '2-digit',\n  month: '2-digit',\n  year: 'numeric',\n  weekday: 'long'\n});\n\n// Link Google Meet thật do Google Calendar API sinh ra\nconst googleMeetUrl = calendarItem.hangoutLink || payload.googleMeetUrl || 'https://meet.google.com/new';\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }\n    .header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #ffffff; padding: 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 22px; font-weight: 600; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .info-card { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }\n    .info-item { margin: 8px 0; font-size: 15px; }\n    .btn { display: inline-block; background: #2563eb; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0; }\n    .tips { background: #fefce8; border: 1px solid #fef08a; padding: 15px; border-radius: 8px; font-size: 14px; color: #713f12; margin-top: 20px; }\n    .footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>THƯ MỜI PHỎNG VẤN TRỰC TUYẾN</h1>\n      <p style=\"margin: 5px 0 0 0; opacity: 0.9;\">Enterprise HR & Talent Ecosystem</p>\n    </div>\n    <div class=\"content\">\n      <p>Kính gửi <strong>${candidateName}</strong>,</p>\n      <p>Cảm ơn bạn đã quan tâm và ứng tuyển vào đội ngũ công nghệ của chúng tôi. Hội đồng tuyển dụng trân trọng kính mời bạn tham dự buổi phỏng vấn Vòng ${round} với thông tin chi tiết dưới đây:</p>\n      \n      <div class=\"info-card\">\n        <div class=\"info-item\">⏰ <strong>Thời gian:</strong> ${formattedTime}</div>\n        <div class=\"info-item\">🎯 <strong>Vòng phỏng vấn:</strong> Vòng ${round} (Chuyên môn Kỹ thuật)</div>\n        <div class=\"info-item\">👤 <strong>Người phỏng vấn:</strong> ${interviewerName} ${interviewerEmail ? '(' + interviewerEmail + ')' : ''}</div>\n        <div class=\"info-item\">💻 <strong>Hình thức:</strong> Trực tuyến qua Google Meet</div>\n      </div>\n\n      <div style=\"text-align: center;\">\n        <a href=\"${googleMeetUrl}\" class=\"btn\" target=\"_blank\">👉 Tham Gia Google Meet Ngay</a>\n      </div>\n\n      <div class=\"tips\">\n        💡 <strong>Lưu ý chuẩn bị:</strong>\n        <ul style=\"margin: 5px 0 0 0; padding-left: 20px;\">\n          <li>Vui lòng kiểm tra camera và microphone trước giờ phỏng vấn 10 phút.</li>\n          <li>Chuẩn bị sẵn không gian yên tĩnh và các tài liệu/dự án tiêu biểu đã thực hiện.</li>\n        </ul>\n      </div>\n\n      <p style=\"margin-top: 25px;\">Chúc bạn có một buổi phỏng vấn thành công tốt đẹp!</p>\n      <p>Trân trọng,<br><strong>Phòng Thu Hút Nhân Tài (Talent Acquisition Team)</strong></p>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Lịch phỏng vấn được tạo tự động bởi n8n & Google Calendar.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    interviewId: payload.interviewId || payload.id,\n    eventId: calendarItem.id || payload.eventId || \"\",\n    fromEmail: fromEmail,\n    candidateName: candidateName,\n    candidateEmail: candidateEmail,\n    interviewerName: interviewerName,\n    interviewerEmail: interviewerEmail,\n    round: round,\n    formattedTime: formattedTime,\n    googleMeetUrl: googleMeetUrl,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[Enterprise Corp] Thư mời phỏng vấn Vòng ${round} - Ứng viên ${candidateName}`,\n    emailHtml: htmlTemplate,\n    telegramAlert: `📅 <b>LỊCH PHỎNG VẤN MỚI</b>\\n• Ứng viên: <b>${candidateName}</b>\\n• Vòng: <b>Vòng ${round}</b>\\n• Người PV: <b>${interviewerName}</b>\\n• Thời gian: <code>${formattedTime}</code>\\n• Google Meet: <a href=\"${googleMeetUrl}\">${googleMeetUrl}</a>`\n  }\n};"
       },
       "id": "code-format-interview",
       "name": "Tạo Link Meet & Template Email",
@@ -317,6 +317,30 @@
         2640,
         780
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/api/applications/interviews/{{ $json.interviewId }}/meeting-link",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"meetingLink\": \"{{ $json.googleMeetUrl }}\",\n  \"eventId\": \"{{ $json.eventId }}\"\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "http-save-meet-db",
+      "name": "Cập nhật Meet vào Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        980,
+        340
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
     }
   ],
   "connections": {
@@ -357,6 +381,11 @@
           },
           {
             "node": "Bắn Tin Nhắn Telegram HR",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cập nhật Meet vào Database",
             "type": "main",
             "index": 0
           }
@@ -428,7 +457,7 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   }

@@ -5,6 +5,19 @@ export interface Lookup {
   id: number;
   name: string;
 }
+export interface DepartmentLookup extends Lookup {
+  code: string;
+  managerId: number | null;
+}
+export interface DepartmentManager {
+  id: number;
+  fullName: string;
+  email: string;
+  jobTitle: string;
+  role: 'EMPLOYEE' | 'MANAGER' | 'HR' | 'SUPERADMIN';
+  departmentId?: number | null;
+  departmentName?: string;
+}
 export interface Page<T> {
   items: T[];
   total: number;

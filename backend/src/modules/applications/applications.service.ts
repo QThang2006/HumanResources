@@ -19,6 +19,7 @@ import {
 import { Job, JobStatus } from '../../entities/job.entity';
 import { Interview, InterviewResult } from '../../entities/interview.entity';
 import { User, UserRole } from '../../entities/user.entity';
+import { Department } from '../../entities/department.entity';
 import { RecruitmentAiService } from '../jobs/recruitment-ai.service';
 import {
   Actor,
@@ -72,7 +73,7 @@ export function applicationView(row: Application) {
     hiredUserId: row.hiredUserId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    hasCv: /^[a-f0-9-]{36}\.pdf$/.test(row.cvFileUrl || ''),
+    hasCv: /^[a-f0-9-]{36}\.(pdf|png|jpe?g|webp)$/.test(row.cvFileUrl || ''),
     hasCvText: Boolean(row.rawCvText?.trim()),
     interviews: (row.interviews || []).sort((a, b) => b.round - a.round).map(interviewView),
   };
@@ -90,7 +91,7 @@ export class ApplicationsService {
     private readonly n8n: N8nService,
     private readonly delivery: InterviewDeliveryService,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
 
   private async scopedJob(id: number, actor: Actor) {
     const job = await this.db.getRepository(Job).findOneBy({ id });
@@ -99,23 +100,33 @@ export class ApplicationsService {
     return job;
   }
 
-  private async row(id: number, actor: Actor) {
+  private async row(id: number, actor: Actor, allowAssignedInterviewer = false) {
     const app = await this.applications.findOne({
       where: { id },
       relations: ['job', 'interviews', 'interviews.interviewer'],
     });
     if (!app) throw new NotFoundException('Không tìm thấy hồ sơ.');
-    assertScope(actor, app.job.departmentId);
+    if (
+      !allowAssignedInterviewer ||
+      !app.interviews?.some((interview) => interview.interviewerId === actor.id)
+    ) {
+      assertScope(actor, app.job.departmentId);
+    }
     return app;
   }
 
-  private async locked(manager: EntityManager, id: number, actor: Actor) {
+  private async locked(
+    manager: EntityManager,
+    id: number,
+    actor: Actor,
+    allowAssignedInterviewer = false,
+  ) {
     const app = await manager
       .getRepository(Application)
       .findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
     if (!app) throw new NotFoundException('Không tìm thấy hồ sơ.');
     const job = await manager.getRepository(Job).findOneBy({ id: app.jobId });
-    assertScope(actor, job.departmentId);
+    if (!allowAssignedInterviewer) assertScope(actor, job.departmentId);
     return app;
   }
 
@@ -140,7 +151,10 @@ export class ApplicationsService {
       .groupBy('app.status')
       .getRawMany();
     const [rows, total] = await qb
-      .orderBy('app.createdAt', 'DESC')
+      // Scored candidates first, highest score first, unscored NULL values last.
+      // MySQL places NULL after numeric scores in descending order, including a score of zero.
+      .orderBy('app.matchScore', 'DESC')
+      .addOrderBy('app.createdAt', 'DESC')
       .addOrderBy('app.id', 'DESC')
       .skip((query.page - 1) * query.pageSize)
       .take(query.pageSize)
@@ -154,8 +168,8 @@ export class ApplicationsService {
     };
   }
 
-  async detail(id: number, actor: Actor) {
-    const view = applicationView(await this.row(id, actor));
+  async detail(id: number, actor: Actor, allowAssignedInterviewer = false) {
+    const view = applicationView(await this.row(id, actor, allowAssignedInterviewer));
     const deliveries = await this.delivery.views(view.interviews.map((i) => i.id));
     return {
       ...view,
@@ -169,6 +183,11 @@ export class ApplicationsService {
   async download(id: number, actor: Actor) {
     const app = await this.row(id, actor);
     return this.files.read(app.cvFileUrl);
+  }
+
+  async cvMimeType(id: number, actor: Actor) {
+    const app = await this.row(id, actor);
+    return this.files.mimeType(app.cvFileUrl) || 'application/pdf';
   }
 
   async apply(input: SubmitInput, file: Express.Multer.File) {
@@ -201,7 +220,7 @@ export class ApplicationsService {
         message: 'Hồ sơ đã được lưu. HR sẽ xem xét CV của bạn.',
         warning: rawCvText
           ? null
-          : 'PDF không có văn bản trích xuất. HR có thể tải CV để xem trực tiếp.',
+          : 'CV không có lớp văn bản trích xuất. AI Vision có thể đọc trực tiếp ảnh hoặc PDF scan khi HR chấm điểm.',
       };
     } catch (error: any) {
       await this.files.remove(key);
@@ -241,10 +260,14 @@ export class ApplicationsService {
       const app = await this.row(id, actor);
       if ([ApplicationStatus.HIRED, ApplicationStatus.REJECTED].includes(app.status))
         throw new ConflictException('Hồ sơ đã kết thúc quy trình.');
-      if (!app.rawCvText)
-        throw new BadRequestException('CV chưa có văn bản. Hãy tải file để xem trực tiếp.');
       const jd = app.job.description + '\n' + app.job.requirements;
-      const result = await this.ai.score(app.rawCvText, jd);
+      const result = app.rawCvText?.trim()
+        ? await this.ai.score(app.rawCvText, jd)
+        : await this.ai.scoreFile(
+          await this.files.read(app.cvFileUrl),
+          this.files.mimeType(app.cvFileUrl) || 'application/pdf',
+          jd,
+        );
       // Shared schema has no provider-mode field: mock output is preview-only.
       if (result.mode === 'MOCK') return { ...result, saved: false };
       await this.db.transaction(async (manager) => {
@@ -255,6 +278,8 @@ export class ApplicationsService {
           .findOne({ where: { id: app.jobId }, lock: { mode: 'pessimistic_read' } });
         if (job.description + '\n' + job.requirements !== jd)
           throw new ConflictException('JD đã đổi trong lúc chấm. Hãy thử lại.');
+        if ('extractedText' in result.data && typeof result.data.extractedText === 'string')
+          current.rawCvText = result.data.extractedText;
         current.matchScore = result.data.matchScore;
         current.aiSummary = result.data.summary;
         current.skillsDetected = result.data.skillsDetected;
@@ -278,11 +303,31 @@ export class ApplicationsService {
   async interviewers(jobId: number, actor: Actor) {
     assertOperator(actor);
     const job = await this.scopedJob(jobId, actor);
-    return this.db.getRepository(User).find({
+    const department = await this.db.getRepository(Department).findOneBy({ id: job.departmentId });
+    const managers = await this.db.getRepository(User).find({
       where: { departmentId: job.departmentId, role: UserRole.MANAGER, isActive: true },
-      select: { id: true, fullName: true },
-      order: { fullName: 'ASC' },
+      select: { id: true, fullName: true, email: true, jobTitle: true, role: true },
+      order: { fullName: 'ASC', id: 'ASC' },
     });
+    if (!department) throw new NotFoundException('Không tìm thấy phòng ban.');
+    if (department.managerId) {
+      // The designated manager can be an HR user as well, so resolve the
+      // department's explicit manager instead of filtering only by role.
+      const designated = await this.db.getRepository(User).findOne({
+        where: { id: department.managerId, isActive: true },
+        select: { id: true, fullName: true, email: true, jobTitle: true, role: true },
+      });
+      return designated ? [designated] : [];
+    }
+    const fallback = await this.db.getRepository(User).find({
+      where: [
+        { role: UserRole.HR, isActive: true },
+        { role: UserRole.SUPERADMIN, isActive: true },
+      ],
+      select: { id: true, fullName: true, email: true, jobTitle: true, role: true },
+      order: { fullName: 'ASC', id: 'ASC' },
+    });
+    return [...managers, ...fallback];
   }
 
   async schedule(id: number, input: ScheduleInput, actor: Actor) {
@@ -299,16 +344,27 @@ export class ApplicationsService {
       const app = await this.locked(manager, id, actor);
       if (![ApplicationStatus.APPLIED, ApplicationStatus.INTERVIEWING].includes(app.status))
         throw new ConflictException('Hồ sơ không còn được xếp lịch.');
-      const job = await manager.getRepository(Job).findOneBy({ id: app.jobId });
+      const job = await manager.getRepository(Job).findOne({
+        where: { id: app.jobId },
+        relations: ['department'],
+      });
+      if (!job?.department) throw new NotFoundException('Không tìm thấy phòng ban tuyển dụng.');
       const interviewer = await manager.getRepository(User).findOneBy({
         id: input.interviewerId,
-        role: UserRole.MANAGER,
         isActive: true,
-        departmentId: job.departmentId,
       });
-      if (!interviewer)
+      const fallbackAllowed =
+        !job.department.managerId &&
+        interviewer && [UserRole.HR, UserRole.SUPERADMIN].includes(interviewer.role);
+      const designatedManager =
+        job.department.managerId && interviewer?.id === job.department.managerId;
+      const sameDepartmentManager =
+        !job.department.managerId &&
+        interviewer?.role === UserRole.MANAGER &&
+        interviewer.departmentId === job.departmentId;
+      if (!interviewer || (!designatedManager && !sameDepartmentManager && !fallbackAllowed))
         throw new BadRequestException(
-          'Người phỏng vấn phải là Manager đang hoạt động của phòng ban này.',
+          'Người phỏng vấn phải là Manager của phòng ban hoặc HR/SuperAdmin khi phòng ban chưa có Manager.',
         );
       const existing = await manager
         .getRepository(Interview)
@@ -379,14 +435,12 @@ export class ApplicationsService {
   }
 
   async result(interviewId: number, input: ResultInput, actor: Actor) {
-    if (actor.role !== UserRole.MANAGER)
-      throw new ForbiddenException('Chỉ Manager được phân công mới chấm phỏng vấn.');
     if (input.result === InterviewResult.PENDING)
       throw new BadRequestException('Chọn Đạt hoặc Chưa đạt.');
     const record = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
     if (!record) throw new NotFoundException('Không tìm thấy lịch.');
     await this.db.transaction(async (manager) => {
-      const app = await this.locked(manager, record.applicationId, actor);
+      const app = await this.locked(manager, record.applicationId, actor, true);
       const interview = await manager
         .getRepository(Interview)
         .findOne({ where: { id: interviewId }, lock: { mode: 'pessimistic_write' } });
@@ -403,7 +457,7 @@ export class ApplicationsService {
       interview.updatedAt = nextRevision(interview.updatedAt);
       await manager.getRepository(Interview).save(interview);
     });
-    return this.detail(record.applicationId, actor);
+    return this.detail(record.applicationId, actor, true);
   }
 
   async questions(interviewId: number, actor: Actor) {
@@ -626,5 +680,17 @@ export class ApplicationsService {
     // A true from the lead dispatcher is asynchronous, not proof of email delivery.
     // Passwords stay in the dispatcher payload and never appear in an ATS response.
     return { ...provisioned.receipt, welcomeEmailStatus };
+  }
+
+  async updateMeetingLink(interviewId: number, meetingLink: string, eventId?: string) {
+    const interview = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
+    if (!interview) throw new NotFoundException('Không tìm thấy buổi phỏng vấn.');
+    interview.meetingLink = meetingLink;
+    if (eventId) {
+      interview.googleCalendarEventId = eventId;
+    }
+    await this.db.getRepository(Interview).save(interview);
+    this.logger.log(`✅ [n8n Callback] Đã lưu Google Meet link cho interview #${interviewId}: ${meetingLink}`);
+    return { success: true, interviewId, meetingLink, eventId };
   }
 }

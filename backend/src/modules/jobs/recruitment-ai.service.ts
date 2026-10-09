@@ -33,7 +33,10 @@ export class RecruitmentAiService {
     const sdk = this.gemini as unknown as Sdk;
     return {
       jd: typeof sdk.generateJobDescription === 'function',
-      score: typeof sdk.scoreResume === 'function',
+      score:
+        typeof sdk.scoreResume === 'function' ||
+        typeof (this.gemini as unknown as { scoreResumeFile?: unknown }).scoreResumeFile ===
+          'function',
       questions: typeof sdk.generateInterviewQuestions === 'function',
       hire: true,
       notice:
@@ -128,6 +131,50 @@ export class RecruitmentAiService {
         skillsDetected: skills as string[],
       },
     };
+  }
+
+  async scoreFile(file: Buffer, mimeType: string, jd: string): Promise<AiResult<ScoreData & { extractedText: string }>> {
+    if (typeof (this.gemini as unknown as { scoreResumeFile?: unknown }).scoreResumeFile !== 'function')
+      throw new ServiceUnavailableException('Lead chưa bàn giao SDK phân tích CV dạng file.');
+    let timer: ReturnType<typeof setTimeout>;
+    try {
+      const result = await Promise.race([
+        this.gemini.scoreResumeFile(file, mimeType, jd),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new ServiceUnavailableException('AI quá thời gian chờ. Hồ sơ vẫn được giữ.')),
+            45000,
+          );
+        }),
+      ]);
+      // The shared SDK can invent fallback OCR text. Never present or store it as a reading of this CV.
+      if (result.aiGenerated !== true)
+        throw new ServiceUnavailableException('AI Vision chưa đọc được CV thật. Kiểm tra cấu hình Gemini và thử lại.');
+      const mode = 'LIVE' as const;
+      if (typeof result.extractedText !== 'string' || !result.extractedText.trim())
+        throw new BadGatewayException('AI không bóc tách được văn bản trong CV.');
+      const score = result.matchScore;
+      if (typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > 100)
+        throw new BadGatewayException('Điểm AI phải là số từ 0 đến 100.');
+      const skills = result.matchedSkills || [];
+      if (!Array.isArray(skills) || skills.length > 100 || skills.some((s) => typeof s !== 'string' || s.length > 150))
+        throw new BadGatewayException('Kỹ năng AI trả về không hợp lệ.');
+      return {
+        mode,
+        data: {
+          extractedText: text(result.extractedText, 60000),
+          matchScore: score,
+          summary: text(result.summary, 10000),
+          skillsDetected: skills,
+        },
+      };
+    } catch (error) {
+      if (error instanceof BadGatewayException || error instanceof ServiceUnavailableException)
+        throw error;
+      throw new BadGatewayException('Không nhận được kết quả Vision từ AI. Hãy thử lại sau.');
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async questions(cv: string, requirements: string) {

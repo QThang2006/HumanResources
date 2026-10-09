@@ -5,6 +5,8 @@ import type {
   Candidate,
   CandidatePage,
   Capabilities,
+  DepartmentLookup,
+  DepartmentManager,
   HireReceipt,
   Interview,
   InterviewResult,
@@ -42,7 +44,13 @@ export const recruitmentApi = {
     ),
   job: (id: number, signal?: AbortSignal) => get<Job>('/jobs/' + id, undefined, signal),
   filters: () => get<{ departments: Lookup[]; locations: string[] }>('/jobs/filters'),
-  departments: () => get<Lookup[]>('/jobs/departments'),
+  departments: () => get<DepartmentLookup[]>('/jobs/departments'),
+  createDepartment: (input: { name: string; code: string; description?: string; managerId?: number }) =>
+    post<DepartmentLookup>('/jobs/departments', input),
+  assignDepartmentManager: (id: number, managerId: number | null) =>
+    patch<DepartmentLookup>('/jobs/departments/' + id + '/manager', { managerId }),
+  departmentManagers: () =>
+    get<DepartmentManager[]>('/jobs/departments/managers'),
   capabilities: () => get<Capabilities>('/jobs/capabilities'),
   createJob: (input: JobInput) => post<Job>('/jobs', input),
   updateJob: (job: Job, input: JobInput) =>
@@ -86,7 +94,7 @@ export const recruitmentApi = {
       '/applications/' + id + '/score',
     ),
   interviewers: (jobId: number) =>
-    get<{ id: number; fullName: string }[]>('/applications/interviewers', { jobId }),
+    get<DepartmentManager[]>('/applications/interviewers', { jobId }),
   schedule: (id: number, input: { interviewerId: number; scheduledAt: string; round: number }) =>
     post<{ interview: Interview; dispatch: string; message: string }>(
       '/applications/' + id + '/interview',

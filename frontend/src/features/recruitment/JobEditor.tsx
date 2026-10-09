@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { recruitmentApi as api } from './api';
-import type { Capabilities, Job, JobInput, Lookup } from './types';
+import type { Capabilities, DepartmentManager, Job, JobInput, Lookup } from './types';
 import { Alert, Dialog, Field, buttonClass, errorText, inputClass, secondaryClass } from './ui';
 
 export function JobEditor({
@@ -39,6 +39,18 @@ export function JobEditor({
   const [busy, setBusy] = useState(false);
   const [lookupError, setLookupError] = useState('');
   const [lookupAttempt, setLookupAttempt] = useState(0);
+  const [departmentFormOpen, setDepartmentFormOpen] = useState(false);
+  const [departmentInput, setDepartmentInput] = useState({
+    name: '',
+    code: '',
+    description: '',
+    managerId: '',
+  });
+  const [departmentManagers, setDepartmentManagers] = useState<DepartmentManager[]>([]);
+  const [managersError, setManagersError] = useState('');
+  const [managersLoading, setManagersLoading] = useState(false);
+  const [managersAttempt, setManagersAttempt] = useState(0);
+  const [departmentBusy, setDepartmentBusy] = useState(false);
   const [preview, setPreview] = useState<{
     mode: string;
     data: { description: string; requirements: string; benefits: string };
@@ -60,8 +72,47 @@ export function JobEditor({
       active = false;
     };
   }, [lookupAttempt]);
+  useEffect(() => {
+    if (!departmentFormOpen) return;
+    let active = true;
+    setManagersLoading(true);
+    setManagersError('');
+    api
+      .departmentManagers()
+      .then((data) => {
+        if (active) setDepartmentManagers(data);
+      })
+      .catch((e) => {
+        if (active) setManagersError(errorText(e));
+      })
+      .finally(() => {
+        if (active) setManagersLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [departmentFormOpen, managersAttempt]);
   const field = (key: keyof JobInput, value: string | number) =>
     setInput((current) => ({ ...current, [key]: value }));
+  async function createDepartment() {
+    if (departmentBusy) return;
+    setDepartmentBusy(true);
+    setError('');
+    try {
+      const created = await api.createDepartment({
+        ...departmentInput,
+        managerId: departmentInput.managerId ? Number(departmentInput.managerId) : undefined,
+      });
+      setDepartments((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
+      field('departmentId', created.id);
+      setDepartmentInput({ name: '', code: '', description: '', managerId: '' });
+      setDepartmentFormOpen(false);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setDepartmentBusy(false);
+    }
+  }
   async function generate() {
     setBusy(true);
     setError('');
@@ -124,20 +175,104 @@ export function JobEditor({
             />
           </Field>
           <Field label="Phòng ban">
-            <select
-              required
-              className={inputClass}
-              value={input.departmentId || ''}
-              onChange={(e) => field('departmentId', Number(e.target.value))}
-            >
-              <option value="">Chọn phòng ban</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                required
+                className={inputClass}
+                value={input.departmentId || ''}
+                onChange={(e) => field('departmentId', Number(e.target.value))}
+              >
+                <option value="">Chọn phòng ban</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+              {!job && (
+                <button
+                  type="button"
+                  className={secondaryClass}
+                  onClick={() => setDepartmentFormOpen((open) => !open)}
+                >
+                  {departmentFormOpen ? 'Đóng' : '+ Tạo'}
+                </button>
+              )}
+            </div>
           </Field>
+          {departmentFormOpen && !job && (
+            <div className="space-y-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+              <p className="text-sm font-semibold text-indigo-900">Tạo phòng ban mới</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                  required
+                  maxLength={100}
+                  className={inputClass}
+                  placeholder="Tên phòng ban"
+                  value={departmentInput.name}
+                  onChange={(e) => setDepartmentInput((value) => ({ ...value, name: e.target.value }))}
+                />
+                <input
+                  required
+                  maxLength={20}
+                  className={inputClass}
+                  placeholder="Mã phòng ban (VD: TECH)"
+                  value={departmentInput.code}
+                  onChange={(e) => setDepartmentInput((value) => ({ ...value, code: e.target.value }))}
+                />
+              </div>
+              <input
+                maxLength={2000}
+                className={inputClass}
+                placeholder="Mô tả (không bắt buộc)"
+                value={departmentInput.description}
+                onChange={(e) =>
+                  setDepartmentInput((value) => ({ ...value, description: e.target.value }))
+                }
+              />
+              <label className="block text-sm font-medium text-slate-700">
+                Manager phụ trách (không bắt buộc)
+                <select
+                  className={inputClass + ' mt-1.5'}
+                  value={departmentInput.managerId}
+                  disabled={managersLoading || !!managersError}
+                  onChange={(e) =>
+                    setDepartmentInput((value) => ({ ...value, managerId: e.target.value }))
+                  }
+                >
+                  <option value="">{managersLoading ? 'Đang tải nhân sự...' : 'Chưa bổ nhiệm'}</option>
+                  {departmentManagers.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.fullName} · {person.email} · {person.jobTitle || 'Chưa có chức danh'} · {person.role}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs font-normal text-slate-500">
+                  EMPLOYEE sẽ được nâng thành MANAGER; HR giữ vai trò HR. SuperAdmin không xuất hiện trong danh sách này.
+                </span>
+              </label>
+              {managersError && (
+                <Alert>
+                  Không tải được danh sách nhân sự: {managersError}{' '}
+                  <button
+                    type="button"
+                    className={secondaryClass}
+                    onClick={() => setManagersAttempt((value) => value + 1)}
+                  >
+                    Tải lại
+                  </button>
+                </Alert>
+              )}
+              <button
+                type="button"
+                className={buttonClass}
+                disabled={departmentBusy}
+                onClick={createDepartment}
+              >
+                {departmentBusy ? 'Đang tạo...' : 'Lưu phòng ban'}
+              </button>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Địa điểm">
               <input

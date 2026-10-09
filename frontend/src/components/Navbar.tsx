@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import type { UserRole } from '../types';
 import {
   Briefcase,
   Users,
@@ -9,43 +8,14 @@ import {
   Settings,
   Bot,
   LogOut,
-  Sparkles,
   ClipboardCheck,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { user, login, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [switching, setSwitching] = useState(false);
-  const [switchError, setSwitchError] = useState('');
-
   const isActive = (path: string) => location.pathname === path;
-
-  const handleRoleSwitch = async (targetRole: UserRole) => {
-    if (switching || targetRole === user?.role) return;
-    setSwitching(true);
-    setSwitchError('');
-    try {
-      await login(targetRole);
-    } catch {
-      setSwitchError('Không chuyển được tài khoản demo. Hãy đăng nhập bằng email và mật khẩu của bạn.');
-      return;
-    } finally {
-      setSwitching(false);
-    }
-    // Tự động chuyển hướng đến màn hình chính tương ứng với Role
-    if (targetRole === 'SUPERADMIN') {
-      navigate('/admin/recruitment');
-    } else if (targetRole === 'HR') {
-      navigate('/admin/recruitment');
-    } else if (targetRole === 'MANAGER') {
-      navigate('/employee/workspace');
-    } else {
-      navigate('/employee/workspace');
-    }
-  };
-
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -166,36 +136,6 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-3">
             {isAuthenticated ? (
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="flex items-center gap-1 rounded-[14px] border border-[#DDE0E1] bg-[#F1F3F3] p-1 text-xs">
-                  <span className="hidden items-center gap-1 px-1.5 font-bold text-[#81766E] xl:flex">
-                    <Sparkles className="h-3 w-3 text-[#B48855]" />
-                    Role
-                  </span>
-
-                  {(['SUPERADMIN', 'HR', 'MANAGER', 'EMPLOYEE'] as UserRole[]).map(role => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => handleRoleSwitch(role)}
-                      disabled={switching}
-                      title={`Chuyển sang góc nhìn ${role}`}
-                      className={`rounded-[10px] px-2 py-1 text-[11px] font-black transition-all ${
-                        user?.role === role
-                          ? role === 'SUPERADMIN'
-                            ? 'bg-[#6F3042] text-white shadow-[0_4px_12px_rgba(111,48,66,0.2)]'
-                            : role === 'HR'
-                              ? 'bg-[#B48855] text-white shadow-[0_4px_12px_rgba(180,136,85,0.2)]'
-                              : role === 'MANAGER'
-                                ? 'bg-[#6A5A4E] text-white shadow-[0_4px_12px_rgba(106,90,78,0.2)]'
-                                : 'bg-[#4F765F] text-white shadow-[0_4px_12px_rgba(79,118,95,0.2)]'
-                          : 'text-[#786F68] hover:bg-white hover:text-[#292D30]'
-                      }`}
-                    >
-                      {role === 'SUPERADMIN' ? 'ADMIN' : role}
-                    </button>
-                  ))}
-                </div>
-
                 <div className="hidden text-right sm:block">
                   <span className="block max-w-[120px] truncate text-xs font-black text-[#303438]">
                     {user?.fullName}
@@ -225,11 +165,6 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       </div>
-      {switchError && (
-        <p role="alert" className="px-4 pb-2 text-sm text-red-700">
-          {switchError} <Link to="/login" className="underline">Đăng nhập</Link>
-        </p>
-      )}
     </header>
   );
 };

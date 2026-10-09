@@ -52,12 +52,31 @@ export interface TrainingSummary {
     averageProgress: number;
     completionRate: number;
 }
+export interface TrainingAiSuggestion {
+    employeeId: number;
+    employeeName: string;
+    skillGaps: string[];
+    readinessScore: number;
+    summary: string;
 
+    courseId: number;
+    courseTitle: string;
+    matchedMissingSkills: string[];
+    priority: 'HIGH' | 'MEDIUM' | 'LOW';
+    estimatedTimeToComplete: string;
+
+    reason: string;
+    careerAdvice: string;
+
+    assignedByAi: boolean;
+    aiGenerated: boolean;
+}
 export const trainingApi = {
 
     getCourses: async (): Promise<TrainingCourse[]> => {
         return apiClient.get('/training/courses');
     },
+
 
     createCourse: async (data: {
         title: string;
@@ -71,6 +90,13 @@ export const trainingApi = {
 
     getAssignments: async (): Promise<TrainingAssignment[]> => {
         return apiClient.get('/training/assignments');
+    },
+    aiSuggestCourse: async (
+        userId: number,
+    ): Promise<TrainingAiSuggestion> => {
+        return apiClient.post('/training/ai-suggest', {
+            userId,
+        });
     },
 
     assignCourse: async (data: {

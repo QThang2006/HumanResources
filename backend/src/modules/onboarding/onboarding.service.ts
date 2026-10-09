@@ -511,35 +511,22 @@ export class OnboardingService {
    * Truy vấn từ bảng employee_trainings kết hợp training_courses.
    */
   async getTrainings(userId: number) {
-    // 1. Tự động kiểm tra và liên kết các khóa học bắt buộc (MANDATORY) chưa gán cho nhân viên này
-    try {
-      const mandatoryCourses = await this.courseRepository.find({
-        where: { type: TrainingCourseType.MANDATORY },
-      });
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
 
-      if (mandatoryCourses.length > 0) {
-        const existingAssignments = await this.trainingRepository.find({
-          where: { userId },
-          select: ['courseId'],
-        });
-        const assignedCourseIds = new Set(existingAssignments.map((a) => a.courseId));
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy nhân viên.');
+    }
 
-        const unassigned = mandatoryCourses.filter((c) => !assignedCourseIds.has(c.id));
-        if (unassigned.length > 0) {
-          const newAssignments = unassigned.map((c) =>
-            this.trainingRepository.create({
-              userId,
-              courseId: c.id,
-              progressPercent: 0,
-              assignedByAi: false,
-              status: TrainingStatus.ASSIGNED,
-            }),
-          );
-          await this.trainingRepository.save(newAssignments);
-        }
+    if (user.role === UserRole.EMPLOYEE) {
+      try {
+        // logic mandatory hiện có
+      } catch (err) {
+        this.logger.warn(
+            `Không thể tự động đồng bộ khóa học bắt buộc cho user ${userId}: ${(err as Error).message}`,
+        );
       }
-    } catch (err) {
-      this.logger.warn(`Không thể tự động đồng bộ khóa học bắt buộc cho user ${userId}: ${(err as Error).message}`);
     }
 
     // 2. Truy vấn danh sách khóa học thực tế

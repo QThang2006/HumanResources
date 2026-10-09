@@ -45,6 +45,14 @@ export class TrainingController {
     {
         return this.trainingService.createCourse(body);
     }
+    @Post('ai-suggest')
+    suggestCourseForEmployee(
+        @Body() body: { userId: number },
+    ) {
+        return this.trainingService.suggestCourseForEmployee(
+            body.userId,
+        );
+    }
     @Post('assignments')
     assignCourse(
         @Body()

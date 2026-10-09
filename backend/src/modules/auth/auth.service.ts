@@ -3,35 +3,56 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User, UserRole } from '../../entities/user.entity';
+import { User } from '../../entities/user.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
-    private jwtService: JwtService,
+      @InjectRepository(User)
+      private userRepository: Repository<User>,
+      private jwtService: JwtService,
   ) {}
 
   async validateUser(email: string, pass: string): Promise<User | null> {
-    const lookupEmail = email === 'admin@company.com' ? 'superadmin@company.com' : email;
+    const lookupEmail =
+        email === 'admin@company.com'
+            ? 'superadmin@company.com'
+            : email;
+
     const user = await this.userRepository.findOne({
-      where: { email: lookupEmail, isActive: true },
+      where: { email: lookupEmail },
       relations: ['department'],
     });
 
-    if (!user) return null;
+    // Phải kiểm tra null TRƯỚC khi đọc isActive
+    if (!user) {
+      return null;
+    }
 
     const isMatch = await bcrypt.compare(pass, user.passwordHash);
-    if (!isMatch) return null;
+
+    if (!isMatch) {
+      return null;
+    }
 
     return user;
   }
 
   async login(email: string, pass: string) {
     const user = await this.validateUser(email, pass);
+
+    // Sai email hoặc sai mật khẩu
     if (!user) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không chính xác.');
+      throw new UnauthorizedException(
+          'Email hoặc mật khẩu không chính xác.',
+      );
+    }
+
+    // Đến đây chắc chắn user không còn null
+    if (user.isActive === false) {
+      throw new UnauthorizedException(
+          'Tài khoản đã bị tạm khóa. Vui lòng liên hệ quản trị viên.',
+      );
     }
 
     const payload = {

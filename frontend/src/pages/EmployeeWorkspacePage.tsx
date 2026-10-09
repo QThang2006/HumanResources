@@ -4,8 +4,8 @@ import { onboardingApi } from '../api/onboarding.api';
 import { ManagerTeamMoodWidget } from '../features/team-mood/ManagerTeamMoodWidget';
 import { ManagerTeamOnboardingWidget } from '../features/team-onboarding/ManagerTeamOnboardingWidget';
 import type { EmployeeMood, OnboardingTask, TaskCategory } from '../types';
+import { EmployeeTrainingsWidget } from '../components/EmployeeTrainingsWidget';
 import {
-  BookOpen,
   Sun,
   CloudSun,
   CloudRain,
@@ -15,8 +15,6 @@ import {
   Heart,
   Calendar,
   Sparkles,
-  ExternalLink,
-  CheckCircle,
   Activity,
   ListTodo,
 } from 'lucide-react';
@@ -685,208 +683,6 @@ const CopilotChatWidget: React.FC = () => {
         </button>
       </form>
     </section>
-  );
-};
-
-// ─────────────────────────────────────────────────────────────────────
-// KHÓA ĐÀO TẠO & PHÁT TRIỂN (L&D) — Kết nối luồng đào tạo nhân viên
-// ─────────────────────────────────────────────────────────────────────
-interface EmployeeTrainingItem {
-  id: number;
-  courseId: number;
-  title: string;
-  type: 'MANDATORY' | 'AI_SKILL_GAP' | 'SOFT_SKILL';
-  skillsProvided: string[];
-  courseUrl?: string | null;
-  durationHours: number;
-  progressPercent: number;
-  status: 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
-  assignedByAi: boolean;
-  aiReason?: string | null;
-  completedAt?: string | null;
-  createdAt: string;
-}
-
-const TRAINING_TYPE_BADGE: Record<string, { label: string; className: string }> = {
-  MANDATORY: { label: 'Bắt buộc', className: 'bg-rose-50 text-rose-700 border-rose-200' },
-  AI_SKILL_GAP: { label: 'AI Chỉ Định', className: 'bg-purple-50 text-purple-700 border-purple-200' },
-  SOFT_SKILL: { label: 'Kỹ Năng Mềm', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-};
-
-const EmployeeTrainingsWidget: React.FC = () => {
-  const [trainings, setTrainings] = useState<EmployeeTrainingItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
-
-  const loadTrainings = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await onboardingApi.getTrainings();
-      setTrainings(Array.isArray(data) ? data : []);
-    } catch {
-      // background error
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadTrainings();
-  }, [loadTrainings]);
-
-  const handleUpdateProgress = async (id: number, progressPercent: number) => {
-    try {
-      setUpdatingId(id);
-      await onboardingApi.updateTrainingProgress(id, progressPercent);
-      setTrainings((prev) =>
-        prev.map((t) =>
-          t.id === id
-            ? {
-                ...t,
-                progressPercent,
-                status: progressPercent === 100 ? 'COMPLETED' : progressPercent > 0 ? 'IN_PROGRESS' : 'ASSIGNED',
-              }
-            : t,
-        ),
-      );
-    } catch {
-      // handle error
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  return (
-    <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-indigo-600" />
-            Khóa Học Đào Tạo &amp; Phát Triển (L&D)
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Lộ trình đào tạo chuyên môn và nâng cao năng lực do HR &amp; AI chỉ định
-          </p>
-        </div>
-        {trainings.length > 0 && (
-          <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-            {trainings.filter((t) => t.status === 'COMPLETED').length}/{trainings.length} khóa hoàn thành
-          </span>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-44 bg-slate-100/70 rounded-2xl" />
-          ))}
-        </div>
-      ) : trainings.length === 0 ? (
-        <div className="border border-slate-200/60 rounded-2xl p-8 text-center bg-white/40">
-          <BookOpen className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-          <p className="text-sm font-bold text-slate-800">Chưa có khóa học nào được chỉ định</p>
-          <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-            Phòng Đào tạo (L&D) hoặc Quản lý sẽ sớm phân công các khóa học bắt buộc và chuyên môn phù hợp với vị trí của bạn.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {trainings.map((t) => {
-            const typeBadge = TRAINING_TYPE_BADGE[t.type] || TRAINING_TYPE_BADGE.MANDATORY;
-            const isDone = t.progressPercent === 100 || t.status === 'COMPLETED';
-            const isUpdating = updatingId === t.id;
-
-            return (
-              <div
-                key={t.id}
-                className="flex flex-col justify-between bg-white/90 border border-slate-200/80 rounded-2xl p-5 shadow-xs transition hover:shadow-md hover:border-slate-300"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${typeBadge.className}`}>
-                      {typeBadge.label}
-                    </span>
-                    <span className="text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-                      <Clock className="w-3 h-3" />
-                      {t.durationHours} giờ
-                    </span>
-                  </div>
-
-                  <h4 className="text-sm font-bold text-slate-900 leading-snug line-clamp-2">{t.title}</h4>
-
-                  {t.aiReason && (
-                    <p className="text-[11px] text-purple-700 bg-purple-50/70 p-2 rounded-lg mt-2 border border-purple-100 italic">
-                      ✨ {t.aiReason}
-                    </p>
-                  )}
-
-                  {t.skillsProvided && t.skillsProvided.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2.5">
-                      {t.skillsProvided.slice(0, 3).map((skill, sIdx) => (
-                        <span
-                          key={sIdx}
-                          className="text-[10px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                      {t.skillsProvided.length > 3 && (
-                        <span className="text-[10px] text-slate-400">+{t.skillsProvided.length - 3}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-slate-500 font-medium">Tiến độ</span>
-                    <span className="font-bold tabular-nums text-slate-800">{t.progressPercent}%</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-3">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        isDone ? 'bg-emerald-500' : 'bg-indigo-600'
-                      }`}
-                      style={{ width: `${t.progressPercent}%` }}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    {t.courseUrl ? (
-                      <a
-                        href={t.courseUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline"
-                      >
-                        Vào học <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : (
-                      <span className="text-[11px] text-slate-400">Tài liệu nội bộ</span>
-                    )}
-
-                    {isDone ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
-                        <CheckCircle className="w-3.5 h-3.5" /> Đã xong
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateProgress(t.id, t.progressPercent === 0 ? 50 : 100)}
-                        disabled={isUpdating}
-                        className="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition disabled:opacity-50"
-                      >
-                        {isUpdating ? '...' : t.progressPercent === 0 ? 'Bắt đầu' : 'Hoàn tất'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 };
 

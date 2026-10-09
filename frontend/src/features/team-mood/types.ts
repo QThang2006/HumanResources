@@ -22,8 +22,23 @@ export interface TeamMemberOverview {
   isBurnoutRisk: boolean;
 }
 
+export interface DepartmentItem {
+  id: number;
+  name: string;
+  code?: string;
+}
+
+export interface TodayStressedMember {
+  userId: number;
+  employeeName: string;
+  jobTitle?: string | null;
+  feedbackText?: string | null;
+}
+
 export interface TeamMoodResponse {
+  departmentId?: number;
   departmentName: string;
+  departments?: DepartmentItem[];
   managerId: number;
   totalMembers: number;
   checkedInCount: number;
@@ -34,4 +49,5 @@ export interface TeamMoodResponse {
   };
   teamOverview: TeamMemberOverview[];
   burnoutAlerts: TeamBurnoutAlert[];
+  todayStressed?: TodayStressedMember[];
 }

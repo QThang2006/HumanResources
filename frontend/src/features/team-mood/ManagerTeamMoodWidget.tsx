@@ -34,6 +34,7 @@ export const ManagerTeamMoodWidget: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [intervention, setIntervention] = useState<ActiveIntervention | null>(null);
   const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
+  const [selectedDeptId, setSelectedDeptId] = useState<number | undefined>(undefined);
 
   const latestRequestId = useRef(0);
   const refreshingRef = useRef(false);
@@ -46,7 +47,7 @@ export const ManagerTeamMoodWidget: React.FC = () => {
     };
   }, []);
 
-  const load = useCallback(async (mode: LoadMode) => {
+  const load = useCallback(async (mode: LoadMode, deptId?: number) => {
     if (mode === 'refresh') {
       if (refreshingRef.current) return; // chặn bấm làm mới trùng
       refreshingRef.current = true;
@@ -60,9 +61,14 @@ export const ManagerTeamMoodWidget: React.FC = () => {
 
     const requestId = ++latestRequestId.current;
     try {
-      const raw = (await onboardingApi.getTeamMood()) as Partial<TeamMoodResponse>;
+      const activeDeptId = deptId !== undefined ? deptId : selectedDeptId;
+      const raw = (await onboardingApi.getTeamMood(activeDeptId)) as Partial<TeamMoodResponse>;
       if (!mountedRef.current || requestId !== latestRequestId.current) return; // bỏ response cũ
-      setData(normalizeTeamMood(raw));
+      const normalized = normalizeTeamMood(raw);
+      setData(normalized);
+      if (normalized.departmentId && selectedDeptId === undefined) {
+        setSelectedDeptId(normalized.departmentId);
+      }
       setLastUpdated(new Date());
       setStatus('ready');
       setRefreshFailed(false);
@@ -81,10 +87,15 @@ export const ManagerTeamMoodWidget: React.FC = () => {
         if (mountedRef.current) setIsRefreshing(false);
       }
     }
-  }, []);
+  }, [selectedDeptId]);
 
   useEffect(() => {
     void load('initial');
+  }, [load]);
+
+  const handleSelectDepartment = useCallback((deptId: number) => {
+    setSelectedDeptId(deptId);
+    void load('initial', deptId);
   }, [load]);
 
   // Toast tự tắt
@@ -140,6 +151,9 @@ export const ManagerTeamMoodWidget: React.FC = () => {
     <div className="space-y-8">
       <TeamMoodHeader
         departmentName={data?.departmentName}
+        departmentId={data?.departmentId ?? selectedDeptId}
+        departments={data?.departments}
+        onSelectDepartment={handleSelectDepartment}
         lastUpdated={lastUpdated}
         isRefreshing={isRefreshing}
         isLoading={status === 'loading'}
@@ -171,6 +185,7 @@ export const ManagerTeamMoodWidget: React.FC = () => {
               <TeamMoodMetrics data={data} />
               <AttentionQueue
                 alerts={data.burnoutAlerts}
+                todayStressed={data.todayStressed}
                 jobTitleByUserId={jobTitleByUserId}
                 onOpenIntervention={handleOpenIntervention}
               />

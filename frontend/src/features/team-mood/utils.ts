@@ -72,7 +72,9 @@ export const getErrorMessage = (err: unknown): string => {
 
 export const normalizeTeamMood = (raw?: Partial<TeamMoodResponse>): TeamMoodResponse => {
   return {
+    departmentId: raw?.departmentId,
     departmentName: raw?.departmentName || 'Phòng ban',
+    departments: Array.isArray(raw?.departments) ? raw.departments : [],
     managerId: raw?.managerId ?? 0,
     totalMembers: raw?.totalMembers ?? 0,
     checkedInCount: raw?.checkedInCount ?? 0,
@@ -83,6 +85,7 @@ export const normalizeTeamMood = (raw?: Partial<TeamMoodResponse>): TeamMoodResp
     },
     teamOverview: Array.isArray(raw?.teamOverview) ? raw.teamOverview : [],
     burnoutAlerts: Array.isArray(raw?.burnoutAlerts) ? raw.burnoutAlerts : [],
+    todayStressed: Array.isArray(raw?.todayStressed) ? raw.todayStressed : [],
   };
 };
 

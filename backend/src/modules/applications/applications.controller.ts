@@ -41,7 +41,7 @@ export class ApplicationsController {
   constructor(
     private readonly service: ApplicationsService,
     private readonly delivery: InterviewDeliveryService,
-  ) {}
+  ) { }
 
   // Machine endpoints: a per-interview capability replaces browser JWT here.
   @Post('interviews/:id/delivery/claim')
@@ -60,6 +60,15 @@ export class ApplicationsController {
     @Headers('x-interview-callback-token') token: string,
   ) {
     return this.delivery.callback(id, input, token);
+  }
+
+  // Webhook nhận meeting_link và googleCalendarEventId từ n8n
+  @Post('interviews/:id/meeting-link')
+  updateMeetingLink(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { meetingLink: string; eventId?: string },
+  ) {
+    return this.service.updateMeetingLink(id, body.meetingLink, body.eventId);
   }
 
   @Post('apply')

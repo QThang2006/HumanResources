@@ -374,17 +374,20 @@ export class OnboardingService {
       relations: ['department'],
     });
 
+    const isManagerRole =
+      userRole === UserRole.MANAGER || (!userRole && user?.role === UserRole.MANAGER);
+
     // Lấy tất cả phòng ban hiện có để cung cấp cho bộ lọc (Dropdown Filter)
     const allDepartments = await this.departmentRepository.find({
       order: { name: 'ASC' },
     });
 
-    // Xác định phòng ban mục tiêu:
-    // 1. Ưu tiên departmentId được chỉ định qua filter
-    // 2. Nếu không có, lấy phòng ban của chính người dùng
-    // 3. Nếu người dùng chưa gán phòng ban (như SuperAdmin), lấy phòng ban đầu tiên trong danh sách
+    // 🔒 NGUYÊN TẮC: Nếu là MANAGER, CHỈ ĐƯỢC PHÉP xem phòng ban của chính mình quản lý, không xem phòng khác!
+    // Chỉ có SUPERADMIN và HR mới có quyền chọn phòng ban khác.
     let targetDeptId = departmentId;
-    if (!targetDeptId) {
+    if (isManagerRole) {
+      targetDeptId = user?.departmentId || undefined;
+    } else if (!targetDeptId) {
       if (user?.departmentId) {
         targetDeptId = user.departmentId;
       } else if (allDepartments.length > 0) {
@@ -394,6 +397,15 @@ export class OnboardingService {
 
     const currentDept = allDepartments.find((d) => d.id === targetDeptId) || user?.department;
     const departmentName = currentDept?.name || 'Toàn công ty';
+
+    // Nếu là Manager, chỉ gửi danh sách chứa phòng ban của họ (không cho đổi phòng ban)
+    const accessibleDepartments = isManagerRole
+      ? (currentDept ? [{ id: currentDept.id, name: currentDept.name, code: currentDept.code }] : [])
+      : allDepartments.map((d) => ({
+          id: d.id,
+          name: d.name,
+          code: d.code,
+        }));
 
     // Lấy danh sách nhân viên thuộc phòng ban mục tiêu:
     // CHỈ lấy nhân viên (role = EMPLOYEE), loại trừ tài khoản đang đăng nhập và các Manager/SuperAdmin
@@ -416,7 +428,7 @@ export class OnboardingService {
     const endOfDay = new Date(today);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Lấy mood hôm nay của các thành viên trong phòng ban
+    // ── 1. MOOD HÔM NAY ──
     const memberIds = teamMembers.map((m) => m.id);
     let todayMoods: EmployeeMood[] = [];
 
@@ -431,7 +443,122 @@ export class OnboardingService {
       });
     }
 
-    // Lấy danh sách nguy cơ kiệt sức (Burnout Risk >= 3 ngày) chưa resolve trong phòng
+    // ── 2. TỔNG HỢP MOOD TUẦN (7 NGÀY GẦN NHẤT) ──
+    const past7DaysStart = new Date(today);
+    past7DaysStart.setDate(past7DaysStart.getDate() - 6);
+    past7DaysStart.setHours(0, 0, 0, 0);
+
+    let weekMoods: EmployeeMood[] = [];
+    if (memberIds.length > 0) {
+      weekMoods = await this.moodRepository.find({
+        where: {
+          userId: In(memberIds),
+          createdAt: Between(past7DaysStart, endOfDay),
+        },
+        order: { createdAt: 'ASC' },
+      });
+    }
+
+    // Phân bổ mood 7 ngày theo từng ngày (Day-by-Day Trend)
+    const daysTrend = [];
+    const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dStart = new Date(d);
+      dStart.setHours(0, 0, 0, 0);
+      const dEnd = new Date(d);
+      dEnd.setHours(23, 59, 59, 999);
+
+      const dayRecords = weekMoods.filter((m) => {
+        const time = new Date(m.createdAt).getTime();
+        return time >= dStart.getTime() && time <= dEnd.getTime();
+      });
+
+      const dayGreat = dayRecords.filter((m) => m.mood === MoodType.GREAT).length;
+      const dayNormal = dayRecords.filter((m) => m.mood === MoodType.NORMAL).length;
+      const dayStressed = dayRecords.filter((m) => m.mood === MoodType.STRESSED).length;
+      const dayTotal = dayRecords.length;
+
+      let dominantMood: MoodType | null = null;
+      if (dayTotal > 0) {
+        if (dayGreat >= dayNormal && dayGreat >= dayStressed) dominantMood = MoodType.GREAT;
+        else if (dayStressed >= dayNormal) dominantMood = MoodType.STRESSED;
+        else dominantMood = MoodType.NORMAL;
+      }
+
+      const dayIndex = d.getDay();
+      const dateFormatted = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const dayLabel = i === 0 ? 'Hôm nay' : `${dayNames[dayIndex]} (${dateFormatted})`;
+
+      daysTrend.push({
+        date: d.toISOString().split('T')[0],
+        dayLabel,
+        dayName: dayNames[dayIndex],
+        isToday: i === 0,
+        stats: {
+          great: dayGreat,
+          normal: dayNormal,
+          stressed: dayStressed,
+          total: dayTotal,
+        },
+        dominantMood,
+      });
+    }
+
+    // Tổng hợp chỉ số tuần
+    const totalWeekCheckins = weekMoods.length;
+    const weekGreat = weekMoods.filter((m) => m.mood === MoodType.GREAT).length;
+    const weekNormal = weekMoods.filter((m) => m.mood === MoodType.NORMAL).length;
+    const weekStressed = weekMoods.filter((m) => m.mood === MoodType.STRESSED).length;
+
+    const greatPercent = totalWeekCheckins > 0 ? Math.round((weekGreat / totalWeekCheckins) * 100) : 0;
+    const normalPercent = totalWeekCheckins > 0 ? Math.round((weekNormal / totalWeekCheckins) * 100) : 0;
+    const stressedPercent = totalWeekCheckins > 0 ? Math.round((weekStressed / totalWeekCheckins) * 100) : 0;
+
+    // Chỉ số năng lượng đội ngũ (Morale Score / 100)
+    const moraleScore = totalWeekCheckins > 0
+      ? Math.round(((weekGreat * 100) + (weekNormal * 70) + (weekStressed * 30)) / totalWeekCheckins)
+      : 85;
+
+    let moraleStatus = 'Năng Lượng Tích Cực';
+    let moraleBadgeColor = 'emerald';
+    if (moraleScore < 60) {
+      moraleStatus = 'Cần Giải Tỏa Áp Lực';
+      moraleBadgeColor = 'rose';
+    } else if (moraleScore < 75) {
+      moraleStatus = 'Duy Trì Ổn Định';
+      moraleBadgeColor = 'amber';
+    }
+
+    const weeklySummary = {
+      totalCheckins: totalWeekCheckins,
+      moraleScore,
+      moraleStatus,
+      moraleBadgeColor,
+      stats: {
+        great: weekGreat,
+        normal: weekNormal,
+        stressed: weekStressed,
+      },
+      percentages: {
+        great: greatPercent,
+        normal: normalPercent,
+        stressed: stressedPercent,
+      },
+      daysTrend,
+    };
+
+    // Nhóm weekMoods theo userId để gán lịch sử 7 ngày vào từng thành viên
+    const userWeekMoodsMap = new Map<number, EmployeeMood[]>();
+    for (const m of weekMoods) {
+      const list = userWeekMoodsMap.get(m.userId) || [];
+      list.push(m);
+      userWeekMoodsMap.set(m.userId, list);
+    }
+
+    // ── 3. NGUY CƠ BURNOUT CHƯA RESOLVE ──
     let unresolvedBurnouts: EmployeeMood[] = [];
     if (memberIds.length > 0) {
       unresolvedBurnouts = await this.moodRepository.find({
@@ -450,6 +577,32 @@ export class OnboardingService {
 
     const teamOverview = teamMembers.map((member) => {
       const todayMood = moodMap.get(member.id);
+      const memberWeekMoods = userWeekMoodsMap.get(member.id) || [];
+
+      // Dải 7 chấm tròn cảm xúc của nhân viên này trong 7 ngày
+      const history7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dStart = new Date(d);
+        dStart.setHours(0, 0, 0, 0);
+        const dEnd = new Date(d);
+        dEnd.setHours(23, 59, 59, 999);
+
+        const found = memberWeekMoods.find((m) => {
+          const t = new Date(m.createdAt).getTime();
+          return t >= dStart.getTime() && t <= dEnd.getTime();
+        });
+
+        history7Days.push({
+          date: d.toISOString().split('T')[0],
+          dayName: dayNames[d.getDay()],
+          isToday: i === 0,
+          mood: found?.mood || null,
+          hasCheckedIn: !!found,
+        });
+      }
+
       return {
         userId: member.id,
         fullName: member.fullName,
@@ -458,10 +611,11 @@ export class OnboardingService {
         mood: todayMood?.mood || null,
         feedbackText: todayMood?.feedbackText || null,
         isBurnoutRisk: todayMood?.isBurnoutRisk || false,
+        history7Days,
       };
     });
 
-    // Thống kê nhịp năng lượng
+    // Thống kê nhịp năng lượng hôm nay
     const checkedInCount = teamOverview.filter((m) => m.hasCheckedIn).length;
     const stressedCount = teamOverview.filter((m) => m.mood === 'STRESSED').length;
     const greatCount = teamOverview.filter((m) => m.mood === 'GREAT').length;
@@ -480,11 +634,8 @@ export class OnboardingService {
     return {
       departmentId: targetDeptId,
       departmentName,
-      departments: allDepartments.map((d) => ({
-        id: d.id,
-        name: d.name,
-        code: d.code,
-      })),
+      departments: accessibleDepartments,
+      canSwitchDepartment: !isManagerRole,
       managerId: userId,
       totalMembers: teamMembers.length,
       checkedInCount,
@@ -494,6 +645,7 @@ export class OnboardingService {
         stressed: stressedCount,
       },
       teamOverview,
+      weeklySummary, // 🌟 Bổ sung Tổng Hợp Mood 7 Ngày Gần Nhất
       burnoutAlerts: unresolvedBurnouts.map((b) => ({
         id: b.id,
         userId: b.userId,
@@ -609,12 +761,18 @@ export class OnboardingService {
       relations: ['department'],
     });
 
+    const isManagerRole =
+      userRole === UserRole.MANAGER || (!userRole && user?.role === UserRole.MANAGER);
+
     const allDepartments = await this.departmentRepository.find({
       order: { name: 'ASC' },
     });
 
+    // 🔒 NGUYÊN TẮC: Nếu là MANAGER, chỉ xem phòng ban của chính mình quản lý, không xem phòng khác!
     let targetDeptId = departmentId;
-    if (!targetDeptId) {
+    if (isManagerRole) {
+      targetDeptId = user?.departmentId || undefined;
+    } else if (!targetDeptId) {
       if (user?.departmentId) {
         targetDeptId = user.departmentId;
       } else if (allDepartments.length > 0) {
@@ -624,6 +782,14 @@ export class OnboardingService {
 
     const currentDept = allDepartments.find((d) => d.id === targetDeptId) || user?.department;
     const departmentName = currentDept?.name || 'Toàn công ty';
+
+    const accessibleDepartments = isManagerRole
+      ? (currentDept ? [{ id: currentDept.id, name: currentDept.name, code: currentDept.code }] : [])
+      : allDepartments.map((d) => ({
+          id: d.id,
+          name: d.name,
+          code: d.code,
+        }));
 
     let teamMembers: User[] = [];
     if (targetDeptId) {
@@ -700,11 +866,8 @@ export class OnboardingService {
     return {
       departmentId: targetDeptId,
       departmentName,
-      departments: allDepartments.map((d) => ({
-        id: d.id,
-        name: d.name,
-        code: d.code,
-      })),
+      departments: accessibleDepartments,
+      canSwitchDepartment: !isManagerRole,
       summary: {
         totalEmployees,
         completedAllCount,

@@ -96,6 +96,7 @@ export interface TeamOnboardingResponse {
   departmentId?: number;
   departmentName: string;
   departments: Array<{ id: number; name: string; code?: string }>;
+  canSwitchDepartment?: boolean;
   summary: {
     totalEmployees: number;
     completedAllCount: number;

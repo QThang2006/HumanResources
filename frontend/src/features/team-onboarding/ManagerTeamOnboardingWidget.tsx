@@ -206,27 +206,35 @@ export const ManagerTeamOnboardingWidget: React.FC<ManagerTeamOnboardingWidgetPr
               Tiến Độ Thử Việc Đội Ngũ (30 Ngày)
             </h2>
             {data?.departments && data.departments.length > 0 && (
-              <div className="relative inline-flex items-center">
-                <label htmlFor="team-onboarding-dept-select" className="sr-only">
-                  Lọc theo phòng ban
-                </label>
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 focus-within:ring-2 focus-within:ring-indigo-500">
-                  <Building2 className="h-3.5 w-3.5 text-indigo-500" />
-                  <select
-                    id="team-onboarding-dept-select"
-                    value={selectedDeptId ?? data.departmentId ?? ''}
-                    onChange={(e) => handleSelectDepartment(Number(e.target.value))}
-                    disabled={isRefreshing || loading}
-                    className="bg-transparent font-semibold text-slate-700 outline-none cursor-pointer text-xs"
-                  >
-                    {data.departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </option>
-                    ))}
-                  </select>
+              data.canSwitchDepartment !== false && data.departments.length > 1 ? (
+                <div className="relative inline-flex items-center">
+                  <label htmlFor="team-onboarding-dept-select" className="sr-only">
+                    Lọc theo phòng ban
+                  </label>
+                  <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 focus-within:ring-2 focus-within:ring-indigo-500">
+                    <Building2 className="h-3.5 w-3.5 text-indigo-500" />
+                    <select
+                      id="team-onboarding-dept-select"
+                      value={selectedDeptId ?? data.departmentId ?? ''}
+                      onChange={(e) => handleSelectDepartment(Number(e.target.value))}
+                      disabled={isRefreshing || loading}
+                      className="bg-transparent font-semibold text-slate-700 outline-none cursor-pointer text-xs"
+                    >
+                      {data.departments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50/70 px-3 py-1 text-xs font-semibold text-indigo-800 shadow-xs">
+                  <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+                  <span>{data.departmentName || (data.departments && data.departments[0]?.name) || 'Đội ngũ trực thuộc'}</span>
+                  <span className="ml-1 rounded bg-indigo-200/60 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">Đội ngũ của bạn</span>
+                </div>
+              )
             )}
           </div>
           <p className="mt-1 text-xs text-slate-500">

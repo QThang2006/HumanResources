@@ -1,11 +1,12 @@
 import { Injectable, ConflictException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In } from 'typeorm';
+import { Repository, Between, In, Not } from 'typeorm';
 import { OnboardingTask } from '../../entities/onboarding-task.entity';
 import { EmployeeMood, MoodType } from '../../entities/employee-mood.entity';
 import { Document } from '../../entities/document.entity';
-import { EmployeeTraining } from '../../entities/employee-training.entity';
-import { User } from '../../entities/user.entity';
+import { EmployeeTraining, TrainingStatus } from '../../entities/employee-training.entity';
+import { User, UserRole } from '../../entities/user.entity';
+import { Department } from '../../entities/department.entity';
 import { GeminiService } from '../core/ai/gemini.service';
 import { VectorService } from '../core/ai/vector.service';
 import { N8nService } from '../core/automation/n8n.service';
@@ -31,6 +32,8 @@ export class OnboardingService {
     private readonly trainingRepository: Repository<EmployeeTraining>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Department)
+    private readonly departmentRepository: Repository<Department>,
     private readonly geminiService: GeminiService,
     private readonly vectorService: VectorService,
     private readonly n8nService: N8nService,
@@ -45,10 +48,19 @@ export class OnboardingService {
    * progressPercent = (số task isCompleted / tổng số task) * 100, làm tròn.
    */
   async getTasks(userId: number) {
-    const tasks = await this.taskRepository.find({
+    let tasks = await this.taskRepository.find({
       where: { userId },
       order: { dueDay: 'ASC' },
     });
+
+    // Tự động khởi tạo lộ trình 10 nhiệm vụ mẫu cho nhân viên mới nếu chưa có
+    if (tasks.length === 0) {
+      await this.seedOnboardingTasks(userId);
+      tasks = await this.taskRepository.find({
+        where: { userId },
+        order: { dueDay: 'ASC' },
+      });
+    }
 
     const total = tasks.length;
     const completed = tasks.filter((t) => t.isCompleted).length;
@@ -194,12 +206,29 @@ export class OnboardingService {
         take: 5,
       });
 
-      // Đếm chuỗi STRESSED liên tiếp — dừng ngay khi gặp ngày không STRESSED
+      // Đếm chuỗi STRESSED liên tiếp theo ngày làm việc thực tế (chặn đứt chuỗi nếu khoảng cách > 3 ngày)
       let consecutiveStressBefore = 0;
+      let lastCheckDate = new Date();
+      lastCheckDate.setHours(0, 0, 0, 0);
+
       for (const record of recentMoods) {
-        if (record.mood === MoodType.STRESSED) {
+        if (record.mood !== MoodType.STRESSED) {
+          break;
+        }
+
+        const recordDate = new Date(record.createdAt);
+        recordDate.setHours(0, 0, 0, 0);
+
+        const diffDays = Math.round(
+          (lastCheckDate.getTime() - recordDate.getTime()) / (1000 * 60 * 60 * 24),
+        );
+
+        // Khoảng cách <= 3 ngày (cho phép 2 ngày cuối tuần T7, CN mà không làm đứt chuỗi)
+        if (diffDays >= 1 && diffDays <= 3) {
           consecutiveStressBefore++;
+          lastCheckDate = recordDate;
         } else {
+          // Khoảng cách ngày quá xa (> 3 ngày) -> đứt chuỗi căng thẳng liên tục
           break;
         }
       }
@@ -317,24 +346,53 @@ export class OnboardingService {
   }
 
   /**
-   * Lấy mood hôm nay của toàn bộ nhân viên trong phòng ban mà Manager quản lý.
-   * Dùng cho Dashboard Team Mood (Bước 3 Frontend).
+   * Lấy mood hôm nay của toàn bộ nhân viên theo từng phòng ban.
+   * - Hỗ trợ lọc theo từng ban (departmentId) phù hợp với toàn bộ flow n8n và ATS.
+   * - Hỗ trợ cả MANAGER, HR, SUPERADMIN giám sát.
+   * - QUY TẮC CHUẨN: Chỉ lấy nhân viên (role = EMPLOYEE), loại bỏ SuperAdmin và chính Manager ra khỏi danh sách cấp dưới.
+   * - Tổng hợp cảnh báo sớm nếu có nhân viên check-in Căng thẳng hôm nay.
    */
-  async getTeamMood(managerId: number) {
-    // Tìm manager và department của manager
-    const manager = await this.userRepository.findOne({
-      where: { id: managerId },
+  async getTeamMood(userId: number, userRole?: UserRole, departmentId?: number) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
       relations: ['department'],
     });
 
-    if (!manager || !manager.departmentId) {
-      throw new ForbiddenException('Bạn chưa được gán vào phòng ban nào.');
+    // Lấy tất cả phòng ban hiện có để cung cấp cho bộ lọc (Dropdown Filter)
+    const allDepartments = await this.departmentRepository.find({
+      order: { name: 'ASC' },
+    });
+
+    // Xác định phòng ban mục tiêu:
+    // 1. Ưu tiên departmentId được chỉ định qua filter
+    // 2. Nếu không có, lấy phòng ban của chính người dùng
+    // 3. Nếu người dùng chưa gán phòng ban (như SuperAdmin), lấy phòng ban đầu tiên trong danh sách
+    let targetDeptId = departmentId;
+    if (!targetDeptId) {
+      if (user?.departmentId) {
+        targetDeptId = user.departmentId;
+      } else if (allDepartments.length > 0) {
+        targetDeptId = allDepartments[0].id;
+      }
     }
 
-    // Lấy danh sách nhân viên cùng phòng ban (trừ chính manager)
-    const teamMembers = await this.userRepository.find({
-      where: { departmentId: manager.departmentId, isActive: true },
-    });
+    const currentDept = allDepartments.find((d) => d.id === targetDeptId) || user?.department;
+    const departmentName = currentDept?.name || 'Toàn công ty';
+
+    // Lấy danh sách nhân viên thuộc phòng ban mục tiêu:
+    // CHỈ lấy nhân viên (role = EMPLOYEE), loại trừ tài khoản đang đăng nhập và các Manager/SuperAdmin
+    let teamMembers: User[] = [];
+    if (targetDeptId) {
+      teamMembers = await this.userRepository.find({
+        where: {
+          departmentId: targetDeptId,
+          role: UserRole.EMPLOYEE,
+          isActive: true,
+          id: Not(userId),
+        },
+        order: { fullName: 'ASC' },
+      });
+    }
 
     const today = new Date();
     const startOfDay = new Date(today);
@@ -342,7 +400,7 @@ export class OnboardingService {
     const endOfDay = new Date(today);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Lấy mood hôm nay của tất cả thành viên trong phòng
+    // Lấy mood hôm nay của các thành viên trong phòng ban
     const memberIds = teamMembers.map((m) => m.id);
     let todayMoods: EmployeeMood[] = [];
 
@@ -357,7 +415,7 @@ export class OnboardingService {
       });
     }
 
-    // Lấy danh sách burnout chưa resolve trong phòng
+    // Lấy danh sách nguy cơ kiệt sức (Burnout Risk >= 3 ngày) chưa resolve trong phòng
     let unresolvedBurnouts: EmployeeMood[] = [];
     if (memberIds.length > 0) {
       unresolvedBurnouts = await this.moodRepository.find({
@@ -371,7 +429,7 @@ export class OnboardingService {
       });
     }
 
-    // Map mood hôm nay theo userId để dễ tra cứu
+    // Map mood hôm nay theo userId để tra cứu nhanh
     const moodMap = new Map(todayMoods.map((m) => [m.userId, m]));
 
     const teamOverview = teamMembers.map((member) => {
@@ -387,19 +445,36 @@ export class OnboardingService {
       };
     });
 
-    // Thống kê nhanh
+    // Thống kê nhịp năng lượng
     const checkedInCount = teamOverview.filter((m) => m.hasCheckedIn).length;
     const stressedCount = teamOverview.filter((m) => m.mood === 'STRESSED').length;
     const greatCount = teamOverview.filter((m) => m.mood === 'GREAT').length;
+    const normalCount = teamOverview.filter((m) => m.mood === 'NORMAL').length;
+
+    // Danh sách nhân viên check-in Căng thẳng hôm nay (Cảnh báo sớm trong ngày)
+    const todayStressed = teamOverview
+      .filter((m) => m.mood === 'STRESSED')
+      .map((m) => ({
+        userId: m.userId,
+        employeeName: m.fullName,
+        jobTitle: m.jobTitle,
+        feedbackText: m.feedbackText,
+      }));
 
     return {
-      departmentName: manager.department?.name || 'Phòng ban',
-      managerId,
+      departmentId: targetDeptId,
+      departmentName,
+      departments: allDepartments.map((d) => ({
+        id: d.id,
+        name: d.name,
+        code: d.code,
+      })),
+      managerId: userId,
       totalMembers: teamMembers.length,
       checkedInCount,
       stats: {
         great: greatCount,
-        normal: checkedInCount - stressedCount - greatCount,
+        normal: normalCount,
         stressed: stressedCount,
       },
       teamOverview,
@@ -411,12 +486,67 @@ export class OnboardingService {
         feedbackText: b.feedbackText,
         createdAt: b.createdAt,
       })),
+      todayStressed,
     };
   }
 
-  // TODO: Thành viên 4 sẽ hoàn thiện truy vấn khóa đào tạo AI chỉ định
+  /**
+   * Lấy danh sách khóa đào tạo (L&D) được gán cho nhân viên.
+   * Truy vấn từ bảng employee_trainings kết hợp training_courses.
+   */
   async getTrainings(userId: number) {
-    return [];
+    const trainings = await this.trainingRepository.find({
+      where: { userId },
+      relations: ['course'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return trainings.map((t) => ({
+      id: t.id,
+      courseId: t.courseId,
+      title: t.course?.title || 'Khóa học đào tạo',
+      type: t.course?.type || 'MANDATORY',
+      skillsProvided: t.course?.skillsProvided || [],
+      courseUrl: t.course?.courseUrl || null,
+      durationHours: t.course?.durationHours || 10,
+      progressPercent: t.progressPercent,
+      status: t.status,
+      assignedByAi: t.assignedByAi,
+      aiReason: t.aiReason,
+      completedAt: t.completedAt,
+      createdAt: t.createdAt,
+    }));
+  }
+
+  /**
+   * Cập nhật tiến độ học tập của nhân viên.
+   */
+  async updateTrainingProgress(assignmentId: number, userId: number, progressPercent: number) {
+    const assignment = await this.trainingRepository.findOne({
+      where: { id: assignmentId, userId },
+      relations: ['course'],
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('Không tìm thấy thông tin khóa học được gán cho bạn.');
+    }
+
+    const validProgress = Math.min(100, Math.max(0, progressPercent));
+    assignment.progressPercent = validProgress;
+    if (validProgress === 100) {
+      assignment.status = TrainingStatus.COMPLETED;
+      assignment.completedAt = new Date();
+    } else if (validProgress > 0) {
+      assignment.status = TrainingStatus.IN_PROGRESS;
+      assignment.completedAt = null;
+    } else {
+      assignment.status = TrainingStatus.ASSIGNED;
+      assignment.completedAt = null;
+    }
+
+    const saved = await this.trainingRepository.save(assignment);
+    this.logger.log(`🎓 Training progress updated: assignmentId=${assignmentId}, userId=${userId}, progress=${validProgress}%`);
+    return saved;
   }
 
   // ────────────────────────────────────────────────────────────────────

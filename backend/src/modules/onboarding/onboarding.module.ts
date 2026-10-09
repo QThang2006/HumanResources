@@ -7,6 +7,7 @@ import { EmployeeMood } from '../../entities/employee-mood.entity';
 import { Document } from '../../entities/document.entity';
 import { EmployeeTraining } from '../../entities/employee-training.entity';
 import { User } from '../../entities/user.entity';
+import { Department } from '../../entities/department.entity';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { User } from '../../entities/user.entity';
       Document,
       EmployeeTraining,
       User,
+      Department,
     ]),
   ],
   controllers: [OnboardingController],

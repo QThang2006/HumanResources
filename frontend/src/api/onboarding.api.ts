@@ -41,8 +41,10 @@ export const onboardingApi = {
     return apiClient.get('/onboarding/burnout-alerts');
   },
 
-  getTeamMood: async (): Promise<any> => {
-    return apiClient.get('/onboarding/team-mood');
+  getTeamMood: async (departmentId?: number): Promise<any> => {
+    return apiClient.get('/onboarding/team-mood', {
+      params: departmentId ? { departmentId } : undefined,
+    });
   },
 
   resolveBurnout: async (moodId: number, note?: string): Promise<any> => {
@@ -51,6 +53,10 @@ export const onboardingApi = {
 
   getTrainings: async (): Promise<any[]> => {
     return apiClient.get('/onboarding/trainings');
+  },
+
+  updateTrainingProgress: async (assignmentId: number, progressPercent: number): Promise<any> => {
+    return apiClient.patch(`/onboarding/trainings/${assignmentId}/progress`, { progressPercent });
   },
 
   chatWithCopilot: async (message: string): Promise<ChatCopilotResponse> => {

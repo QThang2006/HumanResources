@@ -68,6 +68,10 @@ export const ManagerTeamOnboardingWidget: React.FC<ManagerTeamOnboardingWidgetPr
       if (res.departmentId && !deptId) {
         setSelectedDeptId(res.departmentId);
       }
+      // Tự động mở rộng xem 10 task cho tất cả nhân viên để Quản lý thấy ngay lập tức
+      if (res.employees && res.employees.length > 0) {
+        setExpandedUserIds(new Set(res.employees.map((e) => e.userId)));
+      }
     } catch (err: any) {
       setError(err?.message || 'Không thể tải tiến độ onboarding của đội ngũ.');
     } finally {

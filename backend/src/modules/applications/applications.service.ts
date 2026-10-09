@@ -461,7 +461,6 @@ export class ApplicationsService {
   }
 
   async questions(interviewId: number, actor: Actor) {
-    assertOperator(actor);
     const key = 'questions:' + interviewId;
     if (this.activeAi.has(key))
       throw new ConflictException('Vòng phỏng vấn đang được tạo câu hỏi.');
@@ -476,7 +475,9 @@ export class ApplicationsService {
   private async generateQuestions(interviewId: number, actor: Actor) {
     const interview = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
     if (!interview) throw new NotFoundException('Không tìm thấy lịch.');
-    const app = await this.row(interview.applicationId, actor);
+    if (interview.interviewerId !== actor.id)
+      throw new ForbiddenException('Chỉ người được phân công vòng này mới được gợi ý câu hỏi.');
+    const app = await this.row(interview.applicationId, actor, true);
     if (
       app.status !== ApplicationStatus.INTERVIEWING ||
       interview.result !== InterviewResult.PENDING
@@ -486,10 +487,12 @@ export class ApplicationsService {
     const result = await this.ai.questions(app.rawCvText, app.job.requirements);
     if (result.mode === 'LIVE')
       await this.db.transaction(async (manager) => {
-        const currentApp = await this.locked(manager, app.id, actor);
+        const currentApp = await this.locked(manager, app.id, actor, true);
         const current = await manager
           .getRepository(Interview)
           .findOne({ where: { id: interviewId }, lock: { mode: 'pessimistic_write' } });
+        if (current.interviewerId !== actor.id)
+          throw new ForbiddenException('Bạn không còn được phân công vòng này.');
         assertFresh(currentApp.updatedAt, app.updatedAt.toISOString());
         assertFresh(current.updatedAt, interview.updatedAt.toISOString());
         if (

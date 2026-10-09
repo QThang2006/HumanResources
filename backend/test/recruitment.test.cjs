@@ -525,6 +525,15 @@ test(
             who: 'hr',
             method: 'POST',
           })
+        ).status,
+        403,
+      );
+      assert.equal(
+        (
+          await req('/applications/interviews/' + interview.id + '/questions', {
+            who: 'manager',
+            method: 'POST',
+          })
         ).data.saved,
         false,
       );
@@ -538,7 +547,7 @@ test(
       assert.equal(
         (
           await req('/applications/interviews/' + interview.id + '/questions', {
-            who: 'hr',
+            who: 'manager',
             method: 'POST',
           })
         ).data.saved,
@@ -561,11 +570,11 @@ test(
           });
         };
         const service = h.app.get(ApplicationsService);
-        const pending = service.questions(interview.id, h.users.hr);
+        const pending = service.questions(interview.id, h.users.manager);
         await started;
         try {
           await assert.rejects(
-            service.questions(interview.id, h.users.hr),
+            service.questions(interview.id, h.users.manager),
             (error) => error.getStatus() === 409,
           );
         } finally {
@@ -576,12 +585,12 @@ test(
           throw new Error('Temporary provider failure');
         };
         await assert.rejects(
-          service.questions(interview.id, h.users.hr),
+          service.questions(interview.id, h.users.manager),
           (error) => error.getStatus() === 502,
         );
         h.sdk.generateInterviewQuestions = async () =>
           envelope({ questions: ['One?', 'Two?', 'Three?'] }, 'MOCK');
-        assert.equal((await service.questions(interview.id, h.users.hr)).saved, false);
+        assert.equal((await service.questions(interview.id, h.users.manager)).saved, false);
       },
     );
     await t.test('late AI questions cannot overwrite revised interview', async () => {
@@ -595,7 +604,7 @@ test(
           release = resolve;
         });
       };
-      const pending = h.app.get(ApplicationsService).questions(interview.id, h.users.hr);
+      const pending = h.app.get(ApplicationsService).questions(interview.id, h.users.manager);
       const rejected = assert.rejects(pending, (error) => error.getStatus() === 409);
       await started;
       await db.getRepository(e.Interview).update(interview.id, {
@@ -668,7 +677,7 @@ test(
         assert.equal(
           (
             await req('/applications/interviews/' + interview.id + '/questions', {
-              who: 'hr',
+              who: 'manager',
               method: 'POST',
             })
           ).status,

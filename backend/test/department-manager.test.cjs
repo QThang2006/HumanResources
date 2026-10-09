@@ -178,7 +178,52 @@ test('assigned interviewer can save regardless of role and get the saved result'
     assert.equal(response.interviews[0].result, 'PASSED');
     assert.equal(f.stores.get(Interview)[0].result, 'PASSED');
     assert.equal(f.stores.get(Interview)[0].score, 85);
+    const saved = response.interviews[0];
+    const correction = { ...input, score: 72, feedback: 'Corrected', result: 'FAILED',
+      expectedResult: saved.result, expectedUpdatedAt: saved.updatedAt.toISOString() };
+    const updated = await f.applications.result(1, correction, { id: 2, role, departmentId: 999 });
+    assert.equal(updated.interviews[0].score, 72);
+    assert.equal(updated.interviews[0].feedback, 'Corrected');
+    assert.equal(updated.interviews[0].result, 'FAILED');
+    await assert.rejects(f.applications.result(1, correction, { id: 2, role, departmentId: 999 }),
+      (error) => error.getStatus() === 409);
   }
+});
+
+test('AI questions belong to the assigned interviewer, including HR, Admin and Manager', async () => {
+  for (const role of ['HR', 'SUPERADMIN', 'MANAGER', 'EMPLOYEE']) {
+    const f = fixture();
+    Object.assign(f.stores.get(Application)[0], { status: 'INTERVIEWING', rawCvText: 'CV text' });
+    const interview = { id: 1, applicationId: 1, interviewerId: 2, result: 'PENDING',
+      updatedAt: new Date('2026-01-01T00:00:00Z') };
+    f.stores.get(Interview).push(interview);
+    let calls = 0;
+    f.applications.ai = { async questions() {
+      calls++;
+      return { mode: 'LIVE', data: ['One?', 'Two?', 'Three?'] };
+    } };
+    await assert.rejects(f.applications.questions(1, { id: 99, role, departmentId: 1 }),
+      (error) => error.getStatus() === 403);
+    assert.equal(calls, 0);
+    const result = await f.applications.questions(1, { id: 2, role, departmentId: 999 });
+    assert.equal(result.saved, true);
+    assert.equal(calls, 1);
+    assert.deepEqual(interview.aiSuggestedQuestions, ['One?', 'Two?', 'Three?']);
+  }
+});
+
+test('reassignment while AI runs prevents saving late questions', async () => {
+  const f = fixture();
+  Object.assign(f.stores.get(Application)[0], { status: 'INTERVIEWING', rawCvText: 'CV text' });
+  const interview = { id: 1, applicationId: 1, interviewerId: 2, result: 'PENDING',
+    updatedAt: new Date('2026-01-01T00:00:00Z') };
+  f.stores.get(Interview).push(interview);
+  f.applications.ai = { async questions() {
+    interview.interviewerId = 3;
+    return { mode: 'LIVE', data: ['Late?'] };
+  } };
+  await assert.rejects(f.applications.questions(1, f.actor), (error) => error.getStatus() === 403);
+  assert.equal(interview.aiSuggestedQuestions, undefined);
 });
 
 test('real MySQL: invalid appointment rolls back new department and protected API filters candidates',

@@ -9,10 +9,12 @@ function ResultForm({
   interview,
   busy,
   save,
+  cancel,
 }: {
   interview: Interview;
   busy: boolean;
   save: (input: { score: number; feedback: string; result: 'PASSED' | 'FAILED' }) => void;
+  cancel?: () => void;
 }) {
   const [score, setScore] = useState(interview.score?.toString() || '');
   const [feedback, setFeedback] = useState(interview.feedback || '');
@@ -62,7 +64,14 @@ function ResultForm({
             className={inputClass}
           />
         </Field>
-        <button className={buttonClass}>Lưu kết quả vòng {interview.round}</button>
+        <div className="flex gap-2">
+          <button className={buttonClass}>Lưu kết quả vòng {interview.round}</button>
+          {cancel && (
+            <button type="button" className={secondaryClass} onClick={cancel}>
+              Hủy chỉnh sửa
+            </button>
+          )}
+        </div>
       </fieldset>
     </form>
   );
@@ -94,6 +103,7 @@ export function CandidateDetail({
   const [scheduledAt, setScheduledAt] = useState('');
   const [scorePreview, setScorePreview] = useState<string>('');
   const [questionPreview, setQuestionPreview] = useState<string[]>([]);
+  const [editingInterviewId, setEditingInterviewId] = useState<number | null>(null);
   const [confirmReject, setConfirmReject] = useState(false);
   const [confirmHire, setConfirmHire] = useState(focusHire);
   const [peopleError, setPeopleError] = useState('');
@@ -162,14 +172,14 @@ export function CandidateDetail({
   useEffect(() => {
     if (focusSchedule && jobId) scheduleSelect.current?.focus();
   }, [focusSchedule, jobId]);
-  async function act(action: () => Promise<string | void>) {
+  async function act(action: () => Promise<string | void>, refresh = true) {
     if (busy) return;
     setBusy(true);
     setError('');
     setNotice('');
     try {
       const message = await action();
-      setCandidate(await api.candidate(id));
+      if (refresh) setCandidate(await api.candidate(id));
       changed();
       if (message) setNotice(message);
     } catch (e) {
@@ -451,7 +461,7 @@ export function CandidateDetail({
                       ))}
                     </ol>
                   )}
-                  {operator && (
+                  {Number(interview.interviewerId) === Number(user?.id) && (
                     <button
                       className={secondaryClass + ' mt-3'}
                       disabled={
@@ -474,19 +484,36 @@ export function CandidateDetail({
                       Gợi ý câu hỏi AI
                     </button>
                   )}
-                  {interview.interviewerId === user?.id &&
-                    candidate.status === 'INTERVIEWING' && (
+                  {Number(interview.interviewerId) === Number(user?.id) &&
+                    candidate.status === 'INTERVIEWING' &&
+                    (interview.result === 'PENDING' || editingInterviewId === interview.id) && (
                       <ResultForm
                         key={interview.updatedAt}
                         interview={interview}
                         busy={busy}
+                        cancel={interview.result !== 'PENDING' ? () => setEditingInterviewId(null) : undefined}
                         save={(input) =>
                           act(async () => {
-                            await api.result(interview, input);
+                            const saved = await api.result(interview, input);
+                            setCandidate(saved);
+                            setEditingInterviewId(null);
                             return 'Đã lưu kết quả phỏng vấn.';
-                          })
+                          }, false)
                         }
                       />
+                    )}
+                  {Number(interview.interviewerId) === Number(user?.id) &&
+                    candidate.status === 'INTERVIEWING' &&
+                    interview.result !== 'PENDING' &&
+                    editingInterviewId !== interview.id && (
+                      <button
+                        type="button"
+                        className={secondaryClass + ' mt-3'}
+                        disabled={busy}
+                        onClick={() => setEditingInterviewId(interview.id)}
+                      >
+                        Chỉnh sửa kết quả
+                      </button>
                     )}
                 </article>
               ))}

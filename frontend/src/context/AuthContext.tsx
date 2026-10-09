@@ -1,48 +1,20 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { User, UserRole } from '../types';
+import { authApi } from '../api/auth.api';
 
 interface AuthContextType {
   user: User | null;
-  login: (role: UserRole) => void;
+  login: (role: UserRole) => Promise<void>;
   setAuthSession: (user: User, token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
-const mockUsers: Record<UserRole, User> = {
-  SUPERADMIN: {
-    id: 1,
-    fullName: 'Hoàng Minh Admin (IT Director)',
-    email: 'admin@fpt.edu.vn',
-    role: 'SUPERADMIN',
-    jobTitle: 'Giám đốc Công nghệ',
-  },
-  HR: {
-    id: 2,
-    fullName: 'Nguyễn Thị Thu HR (Talent Lead)',
-    email: 'hr@fpt.edu.vn',
-    role: 'HR',
-    departmentName: 'Phòng Nhân sự',
-    jobTitle: 'Trưởng nhóm Tuyển dụng',
-  },
-  MANAGER: {
-    id: 3,
-    fullName: 'Trần Văn Minh (Tech Lead)',
-    email: 'manager.it@fpt.edu.vn',
-    role: 'MANAGER',
-    departmentId: 1,
-    departmentName: 'Phòng Kỹ thuật Phần mềm (TECH)',
-    jobTitle: 'Trưởng phòng Kỹ thuật',
-  },
-  EMPLOYEE: {
-    id: 4,
-    fullName: 'Phạm Hồng Quân (New Hire)',
-    email: 'quan.pham@fpt.edu.vn',
-    role: 'EMPLOYEE',
-    departmentId: 1,
-    departmentName: 'Phòng Kỹ thuật Phần mềm (TECH)',
-    jobTitle: 'Backend Developer',
-  },
+const demoEmails: Record<UserRole, string> = {
+  SUPERADMIN: 'superadmin@company.com',
+  HR: 'hr@company.com',
+  MANAGER: 'manager@company.com',
+  EMPLOYEE: 'employee@company.com',
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,7 +25,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem('hr_current_user');
       const token = localStorage.getItem('hr_access_token');
       if (saved && token) {
-        return JSON.parse(saved);
+        const storedUser = JSON.parse(saved) as User;
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        // Reject sessions left inconsistent by the old UI-only role switch.
+        if (Number(payload.sub) === Number(storedUser.id) && payload.role === storedUser.role)
+          return storedUser;
       }
     } catch (e) {
       // Ignore parse error
@@ -67,12 +43,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(newUser);
   };
 
-  const login = (role: UserRole) => {
-    const selected = mockUsers[role];
-    if (selected) {
-      setUser(selected);
-      localStorage.setItem('hr_current_user', JSON.stringify(selected));
-    }
+  const login = async (role: UserRole) => {
+    const session = await authApi.login({ email: demoEmails[role], password: 'admin123' });
+    setAuthSession(session.user, session.accessToken);
   };
 
   const logout = () => {

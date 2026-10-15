@@ -17,6 +17,7 @@ import {
   Sparkles,
   Activity,
   ListTodo,
+  BookOpen,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────

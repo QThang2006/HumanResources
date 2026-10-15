@@ -66,7 +66,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-04 | Phân tích morale tuần (Thứ Hai -> hôm nay), hỗ trợ cả Cron & cURL Test\nconst CONFIG = {\n  TELEGRAM_CHAT_ID: '6331216556',\n  HR_EMAIL: 'hr@company.com',\n  MIN_GROUP_SIZE: 3,\n  HOTSPOT_SCORE: 60,\n  HOTSPOT_STRESSED_PCT: 40,\n  LOW_PARTICIPATION_PCT: 60\n};\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst num = (v) => Number(v) || 0;\nconst pct = (v, t) => t > 0 ? Math.round((v / t) * 100) : 0;\nconst scoreOf = (g, n, s) => { const t = g + n + s; return t > 0 ? Math.round((g * 100 + n * 60 + s * 20) / t) : null; };\n\ntry {\n  let webhookInput = {};\n  try {\n    webhookInput = $('Test Webhook Trigger').first()?.json?.body || $('Test Webhook Trigger').first()?.json || {};\n  } catch (e) {\n    webhookInput = {};\n  }\n\n  const rows = $('MySQL 7-Day Mood Stats').all().map(i => i.json).filter(r => r.dept_name && r.mood);\n  const c = $input.first().json || {};\n\n  const depts = {};\n  let G = 0, N = 0, S = 0;\n\n  if (webhookInput.mockGreat !== undefined || webhookInput.mockStressed !== undefined) {\n    G = num(webhookInput.mockGreat || 12);\n    N = num(webhookInput.mockNormal || 6);\n    S = num(webhookInput.mockStressed || 2);\n    const mockDept = webhookInput.mockDept || 'Kỹ Thuật & AI';\n    depts[mockDept] = { g: G, n: N, s: S };\n    depts['Kinh Doanh & CSKH'] = { g: 8, n: 4, s: 1 };\n  } else {\n    for (const r of rows) {\n      const k = r.dept_name, cnt = num(r.count);\n      depts[k] = depts[k] || { g: 0, n: 0, s: 0 };\n      if (r.mood === 'GREAT') { depts[k].g += cnt; G += cnt; }\n      else if (r.mood === 'NORMAL') { depts[k].n += cnt; N += cnt; }\n      else if (r.mood === 'STRESSED') { depts[k].s += cnt; S += cnt; }\n    }\n  }\n\n  // Fallback mẫu tối thiểu nếu CSDL mới chỉ có 1 vài check-in\n  if (G + N + S === 0) {\n    G = 10; N = 4; S = 1;\n    depts['Kỹ Thuật & AI'] = { g: 6, n: 2, s: 1 };\n    depts['Nhân Sự & Vận Hành'] = { g: 4, n: 2, s: 0 };\n  }\n\n  const total = G + N + S;\n  const hasData = total > 0;\n  const score = scoreOf(G, N, S);\n  const prevScore = webhookInput.mockPrevScore !== undefined ? num(webhookInput.mockPrevScore) : (scoreOf(num(c.prev_great), num(c.prev_normal), num(c.prev_stressed)) || 72);\n  const delta = (score !== null && prevScore !== null) ? score - prevScore : null;\n\n  const active = num(c.active_employees) || 15;\n  const participants = num(c.participants) || total;\n  const participationPct = active > 0 ? Math.min(100, Math.round((participants / active) * 100)) : 85;\n  const overdue = num(c.total_overdue_tasks) || 2;\n  const burnoutFlags = num(c.burnout_flags) || (S > 5 ? 1 : 0);\n\n  const list = Object.keys(depts).map(name => {\n    const d = depts[name], t = d.g + d.n + d.s;\n    return { name, t, score: scoreOf(d.g, d.n, d.s), g: pct(d.g, t), n: pct(d.n, t), s: pct(d.s, t) };\n  }).sort((a, b) => (a.score ?? 101) - (b.score ?? 101));\n\n  const hotspots = [], htmlLines = [], plainLines = [];\n  for (const d of list) {\n    if (d.t < CONFIG.MIN_GROUP_SIZE) {\n      htmlLines.push('• <b>' + esc(d.name) + ':</b> chưa đủ dữ liệu (dưới ' + CONFIG.MIN_GROUP_SIZE + ' lượt check-in, ẩn để bảo mật)');\n      plainLines.push('- ' + d.name + ': chưa đủ dữ liệu');\n      continue;\n    }\n    const hot = d.score < CONFIG.HOTSPOT_SCORE || d.s >= CONFIG.HOTSPOT_STRESSED_PCT;\n    if (hot) hotspots.push(d.name);\n    const detail = 'Morale ' + d.score + '/100 (😊 ' + d.g + '% | 😐 ' + d.n + '% | 😫 ' + d.s + '%)';\n    htmlLines.push('• <b>' + esc(d.name) + ':</b> ' + detail + (hot ? ' ⚠️' : ''));\n    plainLines.push('- ' + d.name + ': Morale ' + d.score + '/100, vui ' + d.g + '%, bình thường ' + d.n + '%, căng thẳng ' + d.s + '%' + (hot ? ' [ĐIỂM NÓNG]' : ''));\n  }\n\n  const lowPart = participationPct !== null && participationPct < CONFIG.LOW_PARTICIPATION_PCT;\n  const weekStart = $now.minus({ days: $now.weekday - 1 }).toFormat('yyyy-MM-dd');\n\n  const aiPrompt = hasData\n    ? [\n      'Bạn là chuyên gia tư vấn quản trị nhân sự & văn hóa doanh nghiệp cấp cao. Dựa trên số liệu tuần này (Thứ Hai đến hôm nay):',\n      '- Điểm Morale toàn công ty: ' + score + '/100' + (prevScore !== null ? ' (tuần trước ' + prevScore + ', thay đổi ' + (delta >= 0 ? '+' : '') + delta + ')' : ''),\n      '- Tỷ lệ cảm xúc: ' + pct(G, total) + '% vui vẻ, ' + pct(N, total) + '% bình thường, ' + pct(S, total) + '% căng thẳng (' + total + ' lượt check-in)',\n      '- Tỷ lệ nhân viên tham gia check-in: ' + participationPct + '% (' + participants + '/' + active + ' nhân sự)',\n      '- Nhiệm vụ onboarding đang quá hạn: ' + overdue,\n      '- Số nhân viên có cờ nguy cơ kiệt sức trong tuần: ' + burnoutFlags,\n      '- Chi tiết phòng ban:', plainLines.join('\\n'), '',\n      'Viết bản tin quản trị bằng tiếng Việt, văn bản thuần (KHÔNG HTML, KHÔNG Markdown, KHÔNG emoji), gồm 4 phần ngắn gọn:',\n      '1) Tóm tắt nhịp đập tinh thần toàn công ty trong 2 câu.',\n      '2) Cảnh báo điểm nóng: phòng ban nào cần lưu ý và vì sao (nếu không có thì ghi rõ không có).',\n      '3) Đề xuất đúng 2 hành động cụ thể cho tuần tới.',\n      '4) Một câu chúc cuối tuần ấm áp.',\n      'Chỉ dùng số liệu được cung cấp, tuyệt đối không bịa thêm số liệu.'\n    ].join('\\n')\n    : 'Chỉ trả lời đúng một câu: Chưa có đủ dữ liệu check-in trong tuần để phân tích.';\n\n  return [{ json: {\n    hasData, weekStart, totalCheckins: total, score, prevScore, delta,\n    greatPct: pct(G, total), normalPct: pct(N, total), stressedPct: pct(S, total),\n    participationPct, participants, activeEmployees: active, lowParticipation: lowPart,\n    overdueTasks: overdue, burnoutFlags, hotspots,\n    deptLinesHtml: htmlLines.join('\\n'), deptLinesPlain: plainLines.join('\\n'),\n    aiPrompt, telegramChatId: CONFIG.TELEGRAM_CHAT_ID, hrEmail: CONFIG.HR_EMAIL\n  } }];\n} catch (err) {\n  throw new Error('[WF-04] Morale analysis error: ' + err.message);\n}"
+        "jsCode": "// WF-04 | Phân tích morale tuần (Thứ Hai -> hôm nay), hỗ trợ cả Cron & cURL Test\nconst CONFIG = {\n  TELEGRAM_CHAT_ID: '6331216556',\n  HR_EMAIL: 'hr@company.com',\n  MIN_GROUP_SIZE: 3,\n  HOTSPOT_SCORE: 60,\n  HOTSPOT_STRESSED_PCT: 40,\n  LOW_PARTICIPATION_PCT: 60\n};\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst num = (v) => Number(v) || 0;\nconst pct = (v, t) => t > 0 ? Math.round((v / t) * 100) : 0;\nconst scoreOf = (g, n, s) => { const t = g + n + s; return t > 0 ? Math.round((g * 100 + n * 60 + s * 20) / t) : null; };\n\ntry {\n  let webhookInput = {};\n  try {\n    webhookInput = $('Test Webhook Trigger').first()?.json?.body || $('Test Webhook Trigger').first()?.json || {};\n  } catch (e) {\n    webhookInput = {};\n  }\n\n  const rows = $('MySQL 7-Day Mood Stats').all().map(i => i.json).filter(r => r.dept_name && r.mood);\n  const c = $input.first().json || {};\n\n  const depts = {};\n  let G = 0, N = 0, S = 0;\n\n  if (webhookInput.mockGreat !== undefined || webhookInput.mockStressed !== undefined) {\n    G = num(webhookInput.mockGreat || 12);\n    N = num(webhookInput.mockNormal || 6);\n    S = num(webhookInput.mockStressed || 2);\n    const mockDept = webhookInput.mockDept || 'Kỹ Thuật & AI';\n    depts[mockDept] = { g: G, n: N, s: S };\n    depts['Kinh Doanh & CSKH'] = { g: 8, n: 4, s: 1 };\n  } else {\n    for (const r of rows) {\n      const k = r.dept_name, cnt = num(r.count);\n      depts[k] = depts[k] || { g: 0, n: 0, s: 0 };\n      if (r.mood === 'GREAT') { depts[k].g += cnt; G += cnt; }\n      else if (r.mood === 'NORMAL') { depts[k].n += cnt; N += cnt; }\n      else if (r.mood === 'STRESSED') { depts[k].s += cnt; S += cnt; }\n    }\n  }\n\n  // Fallback mẫu tối thiểu nếu CSDL mới chỉ có 1 vài check-in\n  if (G + N + S === 0) {\n    G = 10; N = 4; S = 1;\n    depts['Kỹ Thuật & AI'] = { g: 6, n: 2, s: 1 };\n    depts['Nhân Sự & Vận Hành'] = { g: 4, n: 2, s: 0 };\n  }\n\n  const total = G + N + S;\n  const hasData = total > 0;\n  const score = scoreOf(G, N, S);\n  const prevScore = webhookInput.mockPrevScore !== undefined ? num(webhookInput.mockPrevScore) : (scoreOf(num(c.prev_great), num(c.prev_normal), num(c.prev_stressed)) || 72);\n  const delta = (score !== null && prevScore !== null) ? score - prevScore : null;\n\n  const active = num(c.active_employees) || 15;\n  const participants = num(c.participants) || total;\n  const participationPct = active > 0 ? Math.min(100, Math.round((participants / active) * 100)) : 85;\n  const overdue = num(c.total_overdue_tasks) || 2;\n  const burnoutFlags = num(c.burnout_flags) || (S > 5 ? 1 : 0);\n\n  const list = Object.keys(depts).map(name => {\n    const d = depts[name], t = d.g + d.n + d.s;\n    return { name, t, score: scoreOf(d.g, d.n, d.s), g: pct(d.g, t), n: pct(d.n, t), s: pct(d.s, t) };\n  }).sort((a, b) => (a.score ?? 101) - (b.score ?? 101));\n\n  const hotspots = [], htmlLines = [], plainLines = [];\n  for (const d of list) {\n    if (d.t < CONFIG.MIN_GROUP_SIZE) {\n      htmlLines.push('• <b>' + esc(d.name) + ':</b> chưa đủ dữ liệu (dưới ' + CONFIG.MIN_GROUP_SIZE + ' lượt check-in, ẩn để bảo mật)');\n      plainLines.push('- ' + d.name + ': chưa đủ dữ liệu');\n      continue;\n    }\n    const hot = d.score < CONFIG.HOTSPOT_SCORE || d.s >= CONFIG.HOTSPOT_STRESSED_PCT;\n    if (hot) hotspots.push(d.name);\n    const detail = 'Morale ' + d.score + '/100 (😊 ' + d.g + '% | 😐 ' + d.n + '% | 😫 ' + d.s + '%)';\n    htmlLines.push('• <b>' + esc(d.name) + ':</b> ' + detail + (hot ? ' ⚠️' : ''));\n    plainLines.push('- ' + d.name + ': Morale ' + d.score + '/100, vui ' + d.g + '%, bình thường ' + d.n + '%, căng thẳng ' + d.s + '%' + (hot ? ' [ĐIỂM NÓNG]' : ''));\n  }\n\n  const lowPart = participationPct !== null && participationPct < CONFIG.LOW_PARTICIPATION_PCT;\n  const weekStart = $now.minus({ days: $now.weekday - 1 }).toFormat('yyyy-MM-dd');\n\n  const aiPrompt = hasData\n    ? [\n      'Bạn là chuyên gia tư vấn quản trị nhân sự & văn hóa doanh nghiệp cấp cao. Dựa trên số liệu tuần này (Thứ Hai đến hôm nay):',\n      '- Điểm Morale toàn công ty: ' + score + '/100' + (prevScore !== null ? ' (tuần trước ' + prevScore + ', thay đổi ' + (delta >= 0 ? '+' : '') + delta + ')' : ''),\n      '- Tỷ lệ cảm xúc: ' + pct(G, total) + '% vui vẻ, ' + pct(N, total) + '% bình thường, ' + pct(S, total) + '% căng thẳng (' + total + ' lượt check-in)',\n      '- Tỷ lệ nhân viên tham gia check-in: ' + participationPct + '% (' + participants + '/' + active + ' nhân sự)',\n      '- Nhiệm vụ onboarding đang quá hạn: ' + overdue,\n      '- Số nhân viên có cờ nguy cơ kiệt sức trong tuần: ' + burnoutFlags,\n      '- Chi tiết phòng ban:', plainLines.join('\\n'), '',\n      'Viết bản tin quản trị bằng tiếng Việt, văn bản thuần (KHÔNG HTML, KHÔNG Markdown, KHÔNG emoji), gồm 4 phần ngắn gọn:',\n      '1) Tóm tắt nhịp đập tinh thần toàn công ty trong 2 câu.',\n      '2) Cảnh báo điểm nóng: phòng ban nào cần lưu ý và vì sao (nếu không có thì ghi rõ không có).',\n      '3) Đề xuất đúng 2 hành động cụ thể cho tuần tới.',\n      '4) Một câu chúc cuối tuần ấm áp.',\n      'Chỉ dùng số liệu được cung cấp, tuyệt đối không bịa thêm số liệu.'\n    ].join('\\n')\n    : 'Chỉ trả lời đúng một câu: Chưa có đủ dữ liệu check-in trong tuần để phân tích.';\n\n  return [{ json: {\n    hasData, weekStart, totalCheckins: total, score, prevScore, delta,\n    greatPct: pct(G, total), normalPct: pct(N, total), stressedPct: pct(S, total),\n    participationPct, participants, activeEmployees: active, lowParticipation: lowPart,\n    overdueTasks: overdue, burnoutFlags, hotspots, hasHotspots: hotspots.length > 0,\n    deptLinesHtml: htmlLines.join('\\n'), deptLinesPlain: plainLines.join('\\n'),\n    aiPrompt, telegramChatId: CONFIG.TELEGRAM_CHAT_ID, hrEmail: CONFIG.HR_EMAIL\n  } }];\n} catch (err) {\n  throw new Error('[WF-04] Morale analysis error: ' + err.message);\n}"
       },
       "id": "a1c30e04-b7a4-4f04-a004-000000000004",
       "name": "Morale Analytics Engine",
@@ -116,7 +116,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-04 | Dựng bản tin gửi Telegram (HTML) và Email (text)\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\ntry {\n  const e = $('Morale Analytics Engine').first().json;\n  const ai = String($input.first().json.text || '').trim();\n  const aiFallback = 'Hệ thống chưa tạo được nhận định chiến lược tự động tuần này; vui lòng xem số liệu bên trên.';\n\n  if (!e.hasData) {\n    const msg = 'Chưa có đủ lượt check-in cảm xúc trong tuần (tính từ ' + e.weekStart + ') để tạo báo cáo phân tích. Hãy khuyến khích nhân viên check-in đều đặn!';\n    return [{ json: {\n      telegramText: '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN</b>\\n\\n⚠️ <i>' + esc(msg) + '</i>',\n      emailSubject: '[HR Executive Digest] Tuần ' + e.weekStart + ': chưa đủ dữ liệu',\n      emailBody: 'Bản tin sức khỏe tinh thần tuần\\n\\n' + msg\n    } }];\n  }\n\n  const icon = e.score >= 75 ? '🟢' : (e.score >= 55 ? '🟡' : '🔴');\n  const trendTg = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta > 0 ? '📈 +' + e.delta : (e.delta < 0 ? '📉 ' + e.delta : '➖ không đổi')) + ' so với tuần trước';\n  const trendPlain = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta >= 0 ? '+' : '') + e.delta + ' so với tuần trước';\n  const part = e.participationPct !== null ? e.participationPct + '% (' + e.participants + '/' + e.activeEmployees + ' nhân viên)' : 'không xác định';\n  const hot = e.hotspots.length ? e.hotspots.join(', ') : 'Không có';\n\n  const telegramText = [\n    '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN (WEEKLY MORALE DIGEST)</b>',\n    '<i>Tuần bắt đầu ' + esc(e.weekStart) + '</i>', '',\n    icon + ' <b>Chỉ số Morale toàn công ty:</b> <b>' + e.score + '/100</b> (' + trendTg + ')',\n    '📈 <b>Phân bổ cảm xúc:</b> 😊 ' + e.greatPct + '% | 😐 ' + e.normalPct + '% | 😫 ' + e.stressedPct + '%',\n    '📋 <b>Lượt check-in:</b> ' + e.totalCheckins + ' | <b>Tham gia:</b> ' + part + (e.lowParticipation ? ' ⚠️ thấp, kết quả có thể thiếu đại diện' : ''),\n    '🚧 <b>Task onboarding quá hạn:</b> ' + e.overdueTasks,\n    '🆘 <b>Nhân viên có cờ nguy cơ kiệt sức:</b> ' + e.burnoutFlags,\n    '🔥 <b>Điểm nóng:</b> ' + esc(hot), '',\n    '🏢 <b>Chi tiết phòng ban:</b>', e.deptLinesHtml, '',\n    '💡 <b>Nhận định chiến lược từ AI Advisor:</b>',\n    esc((ai || aiFallback).slice(0, 1800)), '',\n    '<i>Chúc toàn thể đội ngũ một cuối tuần thật nhiều năng lượng!</i>'\n  ].join('\\n').substring(0, 4000);\n\n  const emailBody = [\n    'BẢN TIN SỨC KHỎE TINH THẦN TUẦN (tuần bắt đầu ' + e.weekStart + ')', '',\n    'Chỉ số Morale toàn công ty: ' + e.score + '/100 (' + trendPlain + ')',\n    'Phân bổ cảm xúc: vui ' + e.greatPct + '% | bình thường ' + e.normalPct + '% | căng thẳng ' + e.stressedPct + '%',\n    'Lượt check-in: ' + e.totalCheckins + ' | Tham gia: ' + part,\n    'Task onboarding quá hạn: ' + e.overdueTasks,\n    'Nhân viên có cờ nguy cơ kiệt sức: ' + e.burnoutFlags,\n    'Điểm nóng: ' + hot, '',\n    'Chi tiết phòng ban:', e.deptLinesPlain, '',\n    'Nhận định chiến lược từ AI Advisor:', (ai || aiFallback), '',\n    'HR Tech Automation System'\n  ].join('\\n');\n\n  return [{ json: { telegramText, emailBody,\n    emailSubject: '[HR Executive Digest] Morale ' + e.score + '/100 - tuần ' + e.weekStart } }];\n} catch (err) {\n  return [{ json: {\n    telegramText: '📊 <b>Weekly Morale Digest</b>\\n\\nKhông dựng được bản tin tự động: ' + esc(err.message),\n    emailSubject: '[HR Executive Digest] Lỗi dựng bản tin',\n    emailBody: 'Không dựng được bản tin tự động: ' + err.message\n  } }];\n}"
+        "jsCode": "// WF-04 | Dựng bản tin gửi Telegram (HTML) và Email (text)\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\ntry {\n  const e = $('Morale Analytics Engine').first().json;\n  const ai = String($input.first().json.text || '').trim();\n  const aiFallback = 'Hệ thống chưa tạo được nhận định chiến lược tự động tuần này; vui lòng xem số liệu bên trên.';\n\n  if (!e.hasData) {\n    const msg = 'Chưa có đủ lượt check-in cảm xúc trong tuần (tính từ ' + e.weekStart + ') để tạo báo cáo phân tích. Hãy khuyến khích nhân viên check-in đều đặn!';\n    return [{ json: {\n      telegramText: '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN</b>\\n\\n⚠️ <i>' + esc(msg) + '</i>',\n      emailSubject: '[HR Executive Digest] Tuần ' + e.weekStart + ': chưa đủ dữ liệu',\n      emailBody: 'Bản tin sức khỏe tinh thần tuần\\n\\n' + msg,\n      hasHotspots: false,\n      hotspots: []\n    } }];\n  }\n\n  const icon = e.score >= 75 ? '🟢' : (e.score >= 55 ? '🟡' : '🔴');\n  const trendTg = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta > 0 ? '📈 +' + e.delta : (e.delta < 0 ? '📉 ' + e.delta : '➖ không đổi')) + ' so với tuần trước';\n  const trendPlain = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta >= 0 ? '+' : '') + e.delta + ' so với tuần trước';\n  const part = e.participationPct !== null ? e.participationPct + '% (' + e.participants + '/' + e.activeEmployees + ' nhân viên)' : 'không xác định';\n  const hot = e.hotspots.length ? e.hotspots.join(', ') : 'Không có';\n\n  const telegramText = [\n    '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN (WEEKLY MORALE DIGEST)</b>',\n    '<i>Tuần bắt đầu ' + esc(e.weekStart) + '</i>', '',\n    icon + ' <b>Chỉ số Morale toàn công ty:</b> <b>' + e.score + '/100</b> (' + trendTg + ')',\n    '📈 <b>Phân bổ cảm xúc:</b> 😊 ' + e.greatPct + '% | 😐 ' + e.normalPct + '% | 😫 ' + e.stressedPct + '%',\n    '📋 <b>Lượt check-in:</b> ' + e.totalCheckins + ' | <b>Tham gia:</b> ' + part + (e.lowParticipation ? ' ⚠️ thấp, kết quả có thể thiếu đại diện' : ''),\n    '🚧 <b>Task onboarding quá hạn:</b> ' + e.overdueTasks,\n    '🆘 <b>Nhân viên có cờ nguy cơ kiệt sức:</b> ' + e.burnoutFlags,\n    '🔥 <b>Điểm nóng:</b> ' + esc(hot), '',\n    '🏢 <b>Chi tiết phòng ban:</b>', e.deptLinesHtml, '',\n    '💡 <b>Nhận định chiến lược từ AI Advisor:</b>',\n    esc((ai || aiFallback).slice(0, 1800)), '',\n    '<i>Chúc toàn thể đội ngũ một cuối tuần thật nhiều năng lượng!</i>'\n  ].join('\\n').substring(0, 4000);\n\n  const emailBody = [\n    'BẢN TIN SỨC KHỎE TINH THẦN TUẦN (tuần bắt đầu ' + e.weekStart + ')', '',\n    'Chỉ số Morale toàn công ty: ' + e.score + '/100 (' + trendPlain + ')',\n    'Phân bổ cảm xúc: vui ' + e.greatPct + '% | bình thường ' + e.normalPct + '% | căng thẳng ' + e.stressedPct + '%',\n    'Lượt check-in: ' + e.totalCheckins + ' | Tham gia: ' + part,\n    'Task onboarding quá hạn: ' + e.overdueTasks,\n    'Nhân viên có cờ nguy cơ kiệt sức: ' + e.burnoutFlags,\n    'Điểm nóng: ' + hot, '',\n    'Chi tiết phòng ban:', e.deptLinesPlain, '',\n    'Nhận định chiến lược từ AI Advisor:', (ai || aiFallback), '',\n    'HR Tech Automation System'\n  ].join('\\n');\n\n  return [{ json: {\n    telegramText, emailBody,\n    emailSubject: '[HR Executive Digest] Morale ' + e.score + '/100 - tuần ' + e.weekStart,\n    hasHotspots: e.hasHotspots,\n    hotspots: e.hotspots\n  } }];\n} catch (err) {\n  return [{ json: {\n    telegramText: '📊 <b>Weekly Morale Digest</b>\\n\\nKhông dựng được bản tin tự động: ' + esc(err.message),\n    emailSubject: '[HR Executive Digest] Lỗi dựng bản tin',\n    emailBody: 'Không dựng được bản tin tự động: ' + err.message,\n    hasHotspots: false,\n    hotspots: []\n  } }];\n}"
       },
       "id": "a1c30e04-b7a4-4f04-a004-000000000007",
       "name": "Build Digest Card",
@@ -129,6 +129,56 @@
     },
     {
       "parameters": {
+        "dataType": "boolean",
+        "value1": "={{ $json.hasHotspots }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": true,
+              "operator": "equal"
+            }
+          ]
+        }
+      },
+      "id": "a1c30e04-b7a4-4f04-a004-000000000008",
+      "name": "Switch Hotspot Tier",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Morale Analytics Engine').first().json.telegramChatId }}",
+        "text": "={{ '🚨 <b>[CẢNH BÁO ĐIỂM NÓNG KHẨN CẤP]</b>\\n⚠️ <i>Phát hiện phòng ban có tỷ lệ căng thẳng vượt ngưỡng an toàn!</i>\\n\\n' + $json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "id": "a1c30e04-b7a4-4f04-a004-000000000009",
+      "name": "Telegram Hotspot Warning",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1780,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "nEgzOjvRL1PL6URH",
+          "name": "Telegram account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
         "chatId": "={{ $('Morale Analytics Engine').first().json.telegramChatId }}",
         "text": "={{ $json.telegramText }}",
         "additionalFields": {
@@ -136,13 +186,13 @@
           "appendAttribution": false
         }
       },
-      "id": "a1c30e04-b7a4-4f04-a004-000000000008",
+      "id": "a1c30e04-b7a4-4f04-a004-000000000010",
       "name": "Telegram Management Digest",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1560,
-        300
+        1780,
+        400
       ],
       "credentials": {
         "telegramApi": {
@@ -164,12 +214,12 @@
         "text": "={{ $('Build Digest Card').first().json.emailBody }}",
         "options": {}
       },
-      "id": "a1c30e04-b7a4-4f04-a004-000000000009",
+      "id": "a1c30e04-b7a4-4f04-a004-000000000011",
       "name": "Email HR Director Report",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1780,
+        2000,
         300
       ],
       "credentials": {
@@ -186,12 +236,12 @@
         "query": "=INSERT INTO morale_reports (week_start, company_score, total_checkins, participation_pct, great_pct, normal_pct, stressed_pct, overdue_tasks, burnout_flags) VALUES ('{{ $('Morale Analytics Engine').first().json.weekStart }}', {{ $('Morale Analytics Engine').first().json.score ?? 'NULL' }}, {{ $('Morale Analytics Engine').first().json.totalCheckins }}, {{ $('Morale Analytics Engine').first().json.participationPct ?? 'NULL' }}, {{ $('Morale Analytics Engine').first().json.greatPct }}, {{ $('Morale Analytics Engine').first().json.normalPct }}, {{ $('Morale Analytics Engine').first().json.stressedPct }}, {{ $('Morale Analytics Engine').first().json.overdueTasks }}, {{ $('Morale Analytics Engine').first().json.burnoutFlags }}) ON DUPLICATE KEY UPDATE company_score = VALUES(company_score), total_checkins = VALUES(total_checkins), participation_pct = VALUES(participation_pct), great_pct = VALUES(great_pct), normal_pct = VALUES(normal_pct), stressed_pct = VALUES(stressed_pct), overdue_tasks = VALUES(overdue_tasks), burnout_flags = VALUES(burnout_flags);",
         "options": {}
       },
-      "id": "a1c30e04-b7a4-4f04-a004-000000000010",
+      "id": "a1c30e04-b7a4-4f04-a004-000000000012",
       "name": "MySQL Archive Morale Metrics",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        2000,
+        2220,
         300
       ],
       "credentials": {
@@ -204,12 +254,25 @@
     },
     {
       "parameters": {
+        "jsCode": "// WF-04 | Summary Audit Logger: Ghi log hoàn tất kiểm toán bản tin tuần\nconst report = $('Morale Analytics Engine').first().json;\nreturn [{\n  json: {\n    status: 'COMPLETED',\n    archivedAt: new Date().toISOString(),\n    weekStart: report.weekStart,\n    companyScore: report.score,\n    totalParticipants: report.participants,\n    hotspotsDetected: report.hotspots.length,\n    auditSignature: 'TV3-WF04-ENTERPRISE-AUDIT'\n  }\n}];"
+      },
+      "id": "a1c30e04-b7a4-4f04-a004-000000000013",
+      "name": "Summary Audit Logger",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "httpMethod": "POST",
         "path": "weekly-morale-digest",
         "responseMode": "onReceived",
         "options": {}
       },
-      "id": "a1c30e04-b7a4-4f04-a004-000000000011",
+      "id": "a1c30e04-b7a4-4f04-a004-000000000014",
       "name": "Test Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -291,7 +354,36 @@
       "main": [
         [
           {
+            "node": "Switch Hotspot Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Hotspot Tier": {
+      "main": [
+        [
+          {
+            "node": "Telegram Hotspot Warning",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Telegram Management Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Hotspot Warning": {
+      "main": [
+        [
+          {
+            "node": "Email HR Director Report",
             "type": "main",
             "index": 0
           }
@@ -320,6 +412,17 @@
         ]
       ]
     },
+    "MySQL Archive Morale Metrics": {
+      "main": [
+        [
+          {
+            "node": "Summary Audit Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Test Webhook Trigger": {
       "main": [
         [
@@ -337,7 +440,7 @@
     "executionOrder": "v1",
     "timezone": "Asia/Ho_Chi_Minh"
   },
-  "versionId": "v4-final-04",
+  "versionId": "v4-final-04-upgraded",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "hr-tech-n8n-tv3"

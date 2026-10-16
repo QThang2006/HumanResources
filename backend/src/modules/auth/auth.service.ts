@@ -74,4 +74,33 @@ export class AuthService {
       },
     };
   }
+
+  // Danh sách IP bị phong tỏa tạm thời (In-memory IP Blacklist)
+  private blockedIps = new Map<string, { banUntil: Date; reason: string; incidentId: string }>();
+
+  async blockIp(ip: string, durationMinutes: number = 60, incidentId?: string, reason?: string) {
+    const banUntil = new Date(Date.now() + durationMinutes * 60 * 1000);
+    this.blockedIps.set(ip, {
+      banUntil,
+      reason: reason || 'Brute-force limit exceeded',
+      incidentId: incidentId || 'N/A',
+    });
+    return {
+      success: true,
+      message: `Đã tạm khóa địa chỉ IP [${ip}] trong ${durationMinutes} phút.`,
+      ip,
+      banUntil,
+      incidentId,
+    };
+  }
+
+  isIpBlocked(ip: string): boolean {
+    const record = this.blockedIps.get(ip);
+    if (!record) return false;
+    if (new Date() > record.banUntil) {
+      this.blockedIps.delete(ip);
+      return false;
+    }
+    return true;
+  }
 }

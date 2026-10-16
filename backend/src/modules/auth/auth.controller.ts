@@ -36,4 +36,26 @@ export class AuthController {
       message: 'Đăng xuất phiên làm việc thành công.',
     };
   }
+
+  // Endpoint tiếp nhận lệnh cấm IP từ n8n WF-01 Brute-force Defense
+  @Post('block-ip')
+  blockIp(
+    @Body()
+    body: {
+      ip: string;
+      durationMinutes?: number;
+      incidentId?: string;
+      reason?: string;
+    },
+  ) {
+    if (!body.ip) {
+      throw new BadRequestException('Vui lòng cung cấp địa chỉ IP cần khóa.');
+    }
+    return this.authService.blockIp(
+      body.ip,
+      body.durationMinutes,
+      body.incidentId,
+      body.reason,
+    );
+  }
 }

@@ -45,7 +45,7 @@
       ],
       "parameters": {
         "method": "GET",
-        "url": "http://localhost:3001/api/jobs",
+        "url": "http://host.docker.internal:3001/api/jobs",
         "options": {
           "timeout": 20000
         }

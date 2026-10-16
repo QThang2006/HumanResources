@@ -29,7 +29,7 @@
         400
       ],
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst p = body.data || body; const d = p.delivery;\nconst base = \"http://localhost:3001/api\";\nif (!Number.isSafeInteger(p.interviewId) || p.interviewId < 1 || !d || !/^[a-f0-9]{64}$/.test(d.token || '') || !/^[a-f0-9-]{36}$/.test(d.requestId || '')) throw new Error('Authenticated TV2 delivery metadata required');\nif (d.callbackUrl !== base + '/applications/interviews/' + p.interviewId + '/delivery') throw new Error('Callback destination must match configured API');\nreturn [{json:{interviewId:p.interviewId, delivery:d}}];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst p = body.data || body; const d = p.delivery;\nconst base = \"http://host.docker.internal:3001/api\";\nif (!Number.isSafeInteger(p.interviewId) || p.interviewId < 1 || !d || !/^[a-f0-9]{64}$/.test(d.token || '') || !/^[a-f0-9-]{36}$/.test(d.requestId || '')) throw new Error('Authenticated TV2 delivery metadata required');\nif (d.callbackUrl !== base + '/applications/interviews/' + p.interviewId + '/delivery') throw new Error('Callback destination must match configured API');\nreturn [{json:{interviewId:p.interviewId, delivery:d}}];"
       }
     },
     {

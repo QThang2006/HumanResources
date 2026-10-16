@@ -45,7 +45,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -101,7 +101,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -147,7 +147,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -238,7 +238,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -284,7 +284,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -374,7 +374,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

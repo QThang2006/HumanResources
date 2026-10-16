@@ -10,7 +10,7 @@ Toàn bộ tài khoản demo đã được nạp dữ liệu chuẩn xác vào c
 
 | Vai trò | Họ và tên | Email đăng nhập | Mật khẩu | Mục đích sử dụng khi Demo |
 | :--- | :--- | :--- | :---: | :--- |
-| **Nhân viên (Employee)** | **Trần Quốc Đạt** | `dattrandn@gmail.com` | `password123` | Demo Check-in cảm xúc STRESSED ngày thứ 3, xem Checklist 10 nhiệm vụ thử việc và tiến độ % cá nhân. |
+| **Nhân viên (Employee)** | **Trần Viết Đạt** | `dattrandn@gmail.com` | `password123` | Demo Check-in cảm xúc STRESSED ngày thứ 3, xem Checklist 10 nhiệm vụ thử việc và tiến độ % cá nhân. |
 | **Quản lý (Manager)** | **Vũ Trần** | `vutranpoh@gmail.com` | `password123` | Demo Bảng điều khiển Team Mood, xem Cờ đỏ Attention Queue, Mở can thiệp 1-on-1, Tiến độ 30 ngày của Đạt và Radar tuần. |
 | **Nhân sự (HR)** | **Lê Thị Thu Thảo** | `hr@company.com` | `password123` | Quản trị nhân tài, nhận cảnh báo email kiệt sức và báo cáo tuần. |
 | **SuperAdmin** | **Nguyễn Văn Quản Trị** | `superadmin@company.com` | `password123` | Quản trị toàn hệ thống, cấu hình Webhook và kiểm tra log. |
@@ -83,7 +83,7 @@ Trước khi thầy gọi tên, bạn mở sẵn **3 Tab trình duyệt** trên 
 3. **Chuyển sang Tab Quản lý (Tab 2 - `vutranpoh@gmail.com`):**
    * Nhấn **F5** làm mới trang $\rightarrow$ Bấm Tab **"Nhịp Năng Lượng Đội Ngũ (Team Mood)"**:
    * 🎙️ **Chỉ tay vào màn hình Web:**
-     > *"Ngay lập tức, tại khối **Cần quan tâm (Attention Queue)** của Quản lý Vũ Trần, xuất hiện cờ đỏ cảnh báo: **1 nguy cơ kiệt sức - Trần Quốc Đạt (Kỹ Thuật & AI - 3 ngày stress liên tiếp)** cùng trích dẫn nguyên văn phản hồi khó khăn của nhân viên.*  
+     > *"Ngay lập tức, tại khối **Cần quan tâm (Attention Queue)** của Quản lý Vũ Trần, xuất hiện cờ đỏ cảnh báo: **1 nguy cơ kiệt sức - Trần Viết Đạt (Kỹ Thuật & AI - 3 ngày stress liên tiếp)** cùng trích dẫn nguyên văn phản hồi khó khăn của nhân viên.*  
      > *Quản lý chỉ cần bấm nút **'Mở 1-on-1'**, hệ thống sẽ mở ra Modal chứa 3 câu hỏi gợi ý của AI để sếp trao đổi thấu cảm và lưu biên bản tháo gỡ khó khăn cho nhân sự."*
 
 ---

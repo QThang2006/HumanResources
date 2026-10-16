@@ -105,9 +105,8 @@
         ],
         "parameters": {
           "method": "POST",
-          "url": "={{ $env.GOOGLE_FORM_SYNC_URL }}",
-          "authentication": "genericCredentialType",
-          "genericAuthType": "httpCustomAuth",
+          "url": "={{ $env.GOOGLE_FORM_SYNC_URL || 'https://script.google.com/macros/s/AKfycbz_placeholder/exec' }}",
+          "authentication": "none",
           "sendBody": true,
           "specifyBody": "json",
           "jsonBody": "={{ {formId:$json.formId, options:$json.options, jobIds:$json.jobIds, action:$json.action} }}",
@@ -530,9 +529,17 @@
         ],
         "parameters": {
           "method": "POST",
-          "url": "http://localhost:3001/api/recruitment/intake",
-          "authentication": "genericCredentialType",
-          "genericAuthType": "httpHeaderAuth",
+          "url": "http://host.docker.internal:3001/api/recruitment/intake",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-automation-secret",
+                "value": "super_secret_hr_ai_jwt_key_2026_change_in_production"
+              }
+            ]
+          },
+          "authentication": "none",
           "sendBody": true,
           "contentType": "multipart-form-data",
           "bodyParameters": {
@@ -659,10 +666,15 @@
         ],
         "parameters": {
           "method": "POST",
-          "url": "={{ 'http://localhost:3001/api/recruitment/intake/' + $('09. Soạn thư xác nhận đã nhận hồ sơ').item.json.applicationId + '/acknowledgement' }}",
-          "sendHeaders": false,
+          "url": "={{ 'http://host.docker.internal:3001/api/recruitment/intake/' + $('09. Soạn thư xác nhận đã nhận hồ sơ').item.json.applicationId + '/acknowledgement' }}",
+          "sendHeaders": true,
           "headerParameters": {
-            "parameters": []
+            "parameters": [
+              {
+                "name": "x-automation-secret",
+                "value": "super_secret_hr_ai_jwt_key_2026_change_in_production"
+              }
+            ]
           },
           "sendBody": true,
           "specifyBody": "json",
@@ -670,8 +682,7 @@
           "options": {
             "timeout": 20000
           },
-          "authentication": "genericCredentialType",
-          "genericAuthType": "httpHeaderAuth"
+          "authentication": "none"
         }
       },
       {

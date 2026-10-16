@@ -104,9 +104,8 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.GOOGLE_FORM_SYNC_URL }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpCustomAuth",
+        "url": "={{ $env.GOOGLE_FORM_SYNC_URL || 'https://script.google.com/macros/s/AKfycbz_placeholder/exec' }}",
+        "authentication": "none",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {formId:$json.formId, options:$json.options, jobIds:$json.jobIds, action:$json.action} }}",

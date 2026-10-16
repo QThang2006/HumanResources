@@ -53,6 +53,12 @@ export class TrainingController {
             body.userId,
         );
     }
+    @Get('ai-readiness/:userId')
+    getAiReadiness(
+        @Param('userId', ParseIntPipe) userId: number,
+    ) {
+        return this.trainingService.getAiReadiness(userId);
+    }
     @Post('assignments')
     assignCourse(
         @Body()
@@ -61,6 +67,7 @@ export class TrainingController {
             courseId: number;
             assignedByAi?: boolean;
             aiReason?: string;
+            dueAt?: string;
         },
     ) {
         return this.trainingService.assignCourse(body);
@@ -78,6 +85,13 @@ export class TrainingController {
             id,
             body.progressPercent,
         );
+    }
+    @Patch('assignments/:id/due-date')
+    updateDueDate(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() body: { dueAt: string },
+    ) {
+        return this.trainingService.updateDueDate(id, body.dueAt);
     }
 
 }

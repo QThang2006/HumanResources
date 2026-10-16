@@ -9,7 +9,7 @@
         "color": 4
       },
       "id": "sticky-hired-info",
-      "name": "Sticky Note - Hired",
+      "name": "Ghi chú – Tiếp nhận nhân sự mới",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -25,7 +25,7 @@
         "options": {}
       },
       "id": "webhook-employee-hired",
-      "name": "Webhook: 1-Click Hired",
+      "name": "30. Nhận sự kiện tuyển dụng nhân sự mới",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
@@ -43,7 +43,7 @@
         }
       },
       "id": "respond-webhook-hired",
-      "name": "Respond HTTP 200",
+      "name": "18. Hoàn tất xử lý yêu cầu",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
@@ -56,7 +56,7 @@
         "jsCode": "const raw = $input.first().json;\nconst rawBody = raw.body || raw;\nconst payload = rawBody.data || rawBody;\n\n// Hỗ trợ cả 2 chuẩn tên thuộc tính (fullName hoặc candidateName, departmentName hoặc department)\nconst fullName = payload.fullName || payload.candidateName || 'Thành Viên Mới';\nconst jobTitle = payload.jobTitle || 'Chuyên viên Kỹ thuật';\nconst department = payload.departmentName || payload.department || 'Phòng Phát Triển Công Nghệ Số';\nconst email = payload.email || payload.candidateEmail || 'quocthangngo2006@gmail.com';\nconst tempPassword = payload.tempPassword || 'Enterprise@2026#';\nconst portalUrl = payload.portalUrl || 'http://localhost:5173/login';\nconst fromEmail = payload.fromEmail || 'quocthangngo2006@gmail.com';\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }\n    .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 35px 20px; text-align: center; }\n    .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; }\n    .card-title { font-weight: 700; color: #0f172a; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #10b981; padding-bottom: 6px; display: inline-block; }\n    .cred-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 18px; margin: 20px 0; }\n    .cred-title { font-weight: 700; color: #1e40af; margin-bottom: 10px; font-size: 15px; }\n    .item { margin: 8px 0; font-size: 15px; }\n    .code-tag { background: #dbeafe; color: #1e3a8a; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 15px; font-weight: bold; }\n    .btn { display: inline-block; background: #059669; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0; }\n    .kit-box { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 15px; margin-top: 15px; color: #065f46; font-size: 14px; }\n    .footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>CHÀO MỪNG GIA NHẬP ĐỘI NGŨ</h1>\n      <p style=\"margin: 6px 0 0 0; opacity: 0.95;\">Enterprise Multi-Agent Ecosystem</p>\n    </div>\n    <div class=\"content\">\n      <p>Thân gửi <strong>${fullName}</strong>,</p>\n      <p>Ban Giám đốc cùng toàn thể đại gia đình công ty xin gửi lời chúc mừng nồng nhiệt nhất tới bạn! Chúng tôi rất vui mừng và tự hào khi bạn chính thức trở thành một thành viên quan trọng trong đội ngũ.</p>\n      \n      <div class=\"card\">\n        <div class=\"card-title\">THÔNG TIN VỊ TRÍ CÔNG TÁC</div>\n        <div class=\"item\">📌 <strong>Chức danh:</strong> ${jobTitle}</div>\n        <div class=\"item\">🏢 <strong>Phòng ban:</strong> ${department}</div>\n        <div class=\"item\">🛡️ <strong>Chế độ đãi ngộ:</strong> 100% Bảo hiểm BHXH + Thẻ sức khỏe PVI + Ngân sách học tập L&D</div>\n      </div>\n\n      <div class=\"cred-box\">\n        <div class=\"cred-title\">🔐 THÔNG TIN TÀI KHOẢN NỘI BỘ (HR PORTAL)</div>\n        <div class=\"item\">👤 <strong>Tên đăng nhập (Email):</strong> <code>${email}</code></div>\n        <div class=\"item\">🔑 <strong>Mật khẩu tạm thời:</strong> <span class=\"code-tag\">${tempPassword}</span></div>\n        <div class=\"item\">🌐 <strong>Cổng thông tin:</strong> <a href=\"${portalUrl}\">${portalUrl}</a></div>\n        <p style=\"font-size: 13px; color: #64748b; margin: 10px 0 0 0;\"><i>* Lưu ý an toàn: Vui lòng đổi mật khẩu mới ngay trong lần đầu tiên đăng nhập hệ thống.</i></p>\n      </div>\n\n      <div class=\"kit-box\">\n        🎁 <strong>Gói Chào Mừng (Welcome Kit) chuẩn bị cho bạn vào Ngày 1:</strong>\n        <ul style=\"margin: 6px 0 0 0; padding-left: 20px;\">\n          <li>Laptop chuyên dụng & Màn hình phụ làm việc.</li>\n          <li>Thẻ nhân viên, Balo công nghệ và Sổ tay văn hóa doanh nghiệp 2026.</li>\n          <li>Checklist thử việc 30 ngày và Trợ lý AI Copilot hỗ trợ 24/7.</li>\n        </ul>\n      </div>\n\n      <div style=\"text-align: center; margin: 25px 0;\">\n        <a href=\"${portalUrl}\" class=\"btn\" target=\"_blank\">🚀 Kích Hoạt & Đăng Nhập HR Portal</a>\n      </div>\n\n      <p>Chúc bạn sẽ có một hành trình làm việc tràn đầy cảm hứng, phát triển vượt bậc và gặt hái nhiều thành công rực rỡ cùng chúng tôi!</p>\n      <p>Trân trọng,<br><strong>Phòng Nhân Sự & Văn Hóa Doanh Nghiệp</strong></p>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Email này được tạo tự động bởi n8n Workflow Engine.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    userId: payload.userId,\n    fullName: fullName,\n    jobTitle: jobTitle,\n    department: department,\n    email: email,\n    tempPassword: tempPassword,\n    portalUrl: portalUrl,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[Welcome to Enterprise] Chúc mừng ${fullName} chính thức gia nhập vị trí ${jobTitle}! 🎉`,\n    emailHtml: htmlTemplate,\n    telegramAlert: `🎉 <b>NHÂN SỰ MỚI GIA NHẬP CÔNG TY</b>\\n• Họ tên: <b>${fullName}</b> (ID #${payload.userId || 'NEW'})\\n• Vị trí: <b>${jobTitle}</b>\\n• Phòng ban: <b>${department}</b>\\n• Email: <code>${email}</code>\\n\\n⚡ <i>IT Helpdesk & HR Operations vui lòng chuẩn bị Welcome Kit, Laptop và kích hoạt tài khoản nội bộ trước ngày Onboarding!</i>`\n  }\n};"
       },
       "id": "code-format-hired",
-      "name": "Soạn Thảo Welcome Package & HTML",
+      "name": "31. Soạn nội dung chào mừng nhân sự mới",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -72,7 +72,7 @@
         "html": "={{ $json.emailHtml }}"
       },
       "id": "send-email-hired",
-      "name": "Gửi Welcome Package Email",
+      "name": "32. Gửi thư chào mừng nhân sự mới",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
@@ -89,7 +89,7 @@
         }
       },
       "id": "telegram-hired-ops-alert",
-      "name": "Bắn Telegram IT & HR Ops",
+      "name": "33. Thông báo bộ phận IT và nhân sự qua Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -99,32 +99,32 @@
     }
   ],
   "connections": {
-    "Webhook: 1-Click Hired": {
+    "30. Nhận sự kiện tuyển dụng nhân sự mới": {
       "main": [
         [
           {
-            "node": "Respond HTTP 200",
+            "node": "18. Hoàn tất xử lý yêu cầu",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Soạn Thảo Welcome Package & HTML",
+            "node": "31. Soạn nội dung chào mừng nhân sự mới",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Soạn Thảo Welcome Package & HTML": {
+    "31. Soạn nội dung chào mừng nhân sự mới": {
       "main": [
         [
           {
-            "node": "Gửi Welcome Package Email",
+            "node": "32. Gửi thư chào mừng nhân sự mới",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Bắn Telegram IT & HR Ops",
+            "node": "33. Thông báo bộ phận IT và nhân sự qua Telegram",
             "type": "main",
             "index": 0
           }

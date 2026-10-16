@@ -23,6 +23,8 @@ function validateConnections(workflow) {
   const output = join(root, '.temp', 'n8n-import');
   await mkdir(output, { recursive: true });
   for (const [file, id] of [
+    ['candidate-intake-omnichannel.json', 'hrTv2IntakeV2'],
+    ['offer-letter-48h.json', 'hrTv2OfferV2'],
     ['interview-schedule.json', 'hrTv2Interview01'],
     ['interview-schedule-readback.json', 'hrTv2Delivery01'],
     ['employee-hired.json', 'hrTv2Employee01'],
@@ -40,19 +42,19 @@ function validateConnections(workflow) {
       // resolves connections by name, so give each branch its own responder.
       for (const [trigger, responderId, responderName] of [
         [
-          'Webhook: Xếp lịch phỏng vấn',
+          '01. Nhận yêu cầu xếp lịch phỏng vấn',
           'respond-webhook-interview',
-          'Respond HTTP 200 - Interview',
+          '19. Phản hồi yêu cầu phỏng vấn',
         ],
-        ['Webhook: Cảnh báo kiệt sức', 'respond-webhook-burnout', 'Respond HTTP 200 - Burnout'],
-        ['Webhook: 1-Click Hired', 'respond-webhook-hired', 'Respond HTTP 200 - Hired'],
+        ['20. Nhận cảnh báo nguy cơ kiệt sức', 'respond-webhook-burnout', '29. Phản hồi yêu cầu cảnh báo kiệt sức'],
+        ['30. Nhận sự kiện tuyển dụng nhân sự mới', 'respond-webhook-hired', '39. Phản hồi yêu cầu tiếp nhận nhân sự'],
       ]) {
         const responder = workflow.nodes.find((node) => node.id === responderId);
         if (!responder) throw new Error('Missing responder: ' + responderId);
         responder.name = responderName;
         for (const group of workflow.connections[trigger].main) {
           for (const edge of group) {
-            if (edge.node === 'Respond HTTP 200') edge.node = responderName;
+            if (edge.node === '18. Hoàn tất xử lý yêu cầu') edge.node = responderName;
           }
         }
       }
@@ -64,7 +66,7 @@ function validateConnections(workflow) {
   }
   const localTest = JSON.parse(await readFile(join(output, 'interview-schedule.json'), 'utf8'));
   localTest.id = 'hrTv2LocalTest01';
-  localTest.name = 'TV2 - LOCAL TEST - Interview (no external delivery)';
+  localTest.name = '91.05 | Bản thử – Phỏng vấn cục bộ không gửi ra ngoài';
   localTest.active = false;
   for (const node of localTest.nodes) {
     delete node.credentials;

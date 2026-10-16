@@ -116,7 +116,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-04 | Dựng bản tin gửi Telegram (HTML) và Email (text)\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\ntry {\n  const e = $('Morale Analytics Engine').first().json;\n  const ai = String($input.first().json.text || '').trim();\n  const aiFallback = 'Hệ thống chưa tạo được nhận định chiến lược tự động tuần này; vui lòng xem số liệu bên trên.';\n\n  if (!e.hasData) {\n    const msg = 'Chưa có đủ lượt check-in cảm xúc trong tuần (tính từ ' + e.weekStart + ') để tạo báo cáo phân tích. Hãy khuyến khích nhân viên check-in đều đặn!';\n    return [{ json: {\n      telegramText: '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN</b>\\n\\n⚠️ <i>' + esc(msg) + '</i>',\n      emailSubject: '[HR Executive Digest] Tuần ' + e.weekStart + ': chưa đủ dữ liệu',\n      emailBody: 'Bản tin sức khỏe tinh thần tuần\\n\\n' + msg\n    } }];\n  }\n\n  const icon = e.score >= 75 ? '🟢' : (e.score >= 55 ? '🟡' : '🔴');\n  const trendTg = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta > 0 ? '📈 +' + e.delta : (e.delta < 0 ? '📉 ' + e.delta : '➖ không đổi')) + ' so với tuần trước';\n  const trendPlain = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta >= 0 ? '+' : '') + e.delta + ' so với tuần trước';\n  const part = e.participationPct !== null ? e.participationPct + '% (' + e.participants + '/' + e.activeEmployees + ' nhân viên)' : 'không xác định';\n  const hot = e.hotspots.length ? e.hotspots.join(', ') : 'Không có';\n\n  const telegramText = [\n    '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN (WEEKLY MORALE DIGEST)</b>',\n    '<i>Tuần bắt đầu ' + esc(e.weekStart) + '</i>', '',\n    icon + ' <b>Chỉ số Morale toàn công ty:</b> <b>' + e.score + '/100</b> (' + trendTg + ')',\n    '📈 <b>Phân bổ cảm xúc:</b> 😊 ' + e.greatPct + '% | 😐 ' + e.normalPct + '% | 😫 ' + e.stressedPct + '%',\n    '📋 <b>Lượt check-in:</b> ' + e.totalCheckins + ' | <b>Tham gia:</b> ' + part + (e.lowParticipation ? ' ⚠️ thấp, kết quả có thể thiếu đại diện' : ''),\n    '🚧 <b>Task onboarding quá hạn:</b> ' + e.overdueTasks,\n    '🆘 <b>Nhân viên có cờ nguy cơ kiệt sức:</b> ' + e.burnoutFlags,\n    '🔥 <b>Điểm nóng:</b> ' + esc(hot), '',\n    '🏢 <b>Chi tiết phòng ban:</b>', e.deptLinesHtml, '',\n    '💡 <b>Nhận định chiến lược từ AI Advisor:</b>',\n    esc((ai || aiFallback).slice(0, 1800)), '',\n    '<i>Chúc toàn thể đội ngũ một cuối tuần thật nhiều năng lượng!</i>'\n  ].join('\\n').substring(0, 4000);\n\n  const emailBody = [\n    'BẢN TIN SỨC KHỎE TINH THẦN TUẦN (tuần bắt đầu ' + e.weekStart + ')', '',\n    'Chỉ số Morale toàn công ty: ' + e.score + '/100 (' + trendPlain + ')',\n    'Phân bổ cảm xúc: vui ' + e.greatPct + '% | bình thường ' + e.normalPct + '% | căng thẳng ' + e.stressedPct + '%',\n    'Lượt check-in: ' + e.totalCheckins + ' | Tham gia: ' + part,\n    'Task onboarding quá hạn: ' + e.overdueTasks,\n    'Nhân viên có cờ nguy cơ kiệt sức: ' + e.burnoutFlags,\n    'Điểm nóng: ' + hot, '',\n    'Chi tiết phòng ban:', e.deptLinesPlain, '',\n    'Nhận định chiến lược từ AI Advisor:', (ai || aiFallback), '',\n    'HR Tech Automation System'\n  ].join('\\n');\n\n  return [{ json: { telegramText, emailBody,\n    emailSubject: '[HR Executive Digest] Morale ' + e.score + '/100 - tuần ' + e.weekStart } }];\n} catch (err) {\n  return [{ json: {\n    telegramText: '📊 <b>Weekly Morale Digest</b>\\n\\nKhông dựng được bản tin tự động: ' + esc(err.message),\n    emailSubject: '[HR Executive Digest] Lỗi dựng bản tin',\n    emailBody: 'Không dựng được bản tin tự động: ' + err.message\n  } }];\n}"
+        "jsCode": "// WF-04 | Dựng bản tin gửi Telegram (HTML) và Email (text)\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\ntry {\n  const e = $('Morale Analytics Engine').first().json;\n  const ai = String($input.first().json.text || '').trim();\n  const aiFallback = 'Hệ thống chưa tạo được nhận định chiến lược tự động tuần này; vui lòng xem số liệu bên trên.';\n\n  if (!e.hasData) {\n    const msg = 'Chưa có đủ lượt check-in cảm xúc trong tuần (tính từ ' + e.weekStart + ') để tạo báo cáo phân tích. Hãy khuyến khích nhân viên check-in đều đặn!';\n    return [{ json: {\n      telegramText: '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN</b>\\n\\n⚠️ <i>' + esc(msg) + '</i>',\n      emailSubject: '[HR Executive Digest] Tuần ' + e.weekStart + ': chưa đủ dữ liệu',\n      emailBody: 'Bản tin sức khỏe tinh thần tuần\\n\\n' + msg,\n      hasHotspots: false,\n      hotspots: []\n    } }];\n  }\n\n  const icon = e.score >= 75 ? '🟢' : (e.score >= 55 ? '🟡' : '🔴');\n  const trendTg = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta > 0 ? '📈 +' + e.delta : (e.delta < 0 ? '📉 ' + e.delta : '➖ không đổi')) + ' so với tuần trước';\n  const trendPlain = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta >= 0 ? '+' : '') + e.delta + ' so với tuần trước';\n  const part = e.participationPct !== null ? e.participationPct + '% (' + e.participants + '/' + e.activeEmployees + ' nhân viên)' : 'không xác định';\n  const hot = e.hotspots.length ? e.hotspots.join(', ') : 'Không có';\n\n  const telegramText = [\n    '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN (WEEKLY MORALE DIGEST)</b>',\n    '<i>Tuần bắt đầu ' + esc(e.weekStart) + '</i>', '',\n    icon + ' <b>Chỉ số Morale toàn công ty:</b> <b>' + e.score + '/100</b> (' + trendTg + ')',\n    '📈 <b>Phân bổ cảm xúc:</b> 😊 ' + e.greatPct + '% | 😐 ' + e.normalPct + '% | 😫 ' + e.stressedPct + '%',\n    '📋 <b>Lượt check-in:</b> ' + e.totalCheckins + ' | <b>Tham gia:</b> ' + part + (e.lowParticipation ? ' ⚠️ thấp, kết quả có thể thiếu đại diện' : ''),\n    '🚧 <b>Task onboarding quá hạn:</b> ' + e.overdueTasks,\n    '🆘 <b>Nhân viên có cờ nguy cơ kiệt sức:</b> ' + e.burnoutFlags,\n    '🔥 <b>Điểm nóng:</b> ' + esc(hot), '',\n    '🏢 <b>Chi tiết phòng ban:</b>', e.deptLinesHtml, '',\n    '💡 <b>Nhận định chiến lược từ AI Advisor:</b>',\n    esc((ai || aiFallback).slice(0, 1800)), '',\n    '<i>Chúc toàn thể đội ngũ một cuối tuần thật nhiều năng lượng!</i>'\n  ].join('\\n').substring(0, 4000);\n\n  const emailBody = [\n    'BẢN TIN SỨC KHỎE TINH THẦN TUẦN (tuần bắt đầu ' + e.weekStart + ')', '',\n    'Chỉ số Morale toàn công ty: ' + e.score + '/100 (' + trendPlain + ')',\n    'Phân bổ cảm xúc: vui ' + e.greatPct + '% | bình thường ' + e.normalPct + '% | căng thẳng ' + e.stressedPct + '%',\n    'Lượt check-in: ' + e.totalCheckins + ' | Tham gia: ' + part,\n    'Task onboarding quá hạn: ' + e.overdueTasks,\n    'Nhân viên có cờ nguy cơ kiệt sức: ' + e.burnoutFlags,\n    'Điểm nóng: ' + hot, '',\n    'Chi tiết phòng ban:', e.deptLinesPlain, '',\n    'Nhận định chiến lược từ AI Advisor:', (ai || aiFallback), '',\n    'HR Tech Automation System'\n  ].join('\\n');\n\n  return [{ json: {\n    telegramText, emailBody,\n    emailSubject: '[HR Executive Digest] Morale ' + e.score + '/100 - tuần ' + e.weekStart,\n    hasHotspots: e.hasHotspots,\n    hotspots: e.hotspots\n  } }];\n} catch (err) {\n  return [{ json: {\n    telegramText: '📊 <b>Weekly Morale Digest</b>\\n\\nKhông dựng được bản tin tự động: ' + esc(err.message),\n    emailSubject: '[HR Executive Digest] Lỗi dựng bản tin',\n    emailBody: 'Không dựng được bản tin tự động: ' + err.message,\n    hasHotspots: false,\n    hotspots: []\n  } }];\n}"
       },
       "id": "a1c30e04-b7a4-4f04-a004-000000000007",
       "name": "Build Digest Card",
@@ -129,6 +129,56 @@
     },
     {
       "parameters": {
+        "dataType": "boolean",
+        "value1": "={{ $json.hasHotspots }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": true,
+              "operator": "equal"
+            }
+          ]
+        }
+      },
+      "id": "a1c30e04-b7a4-4f04-a004-000000000008",
+      "name": "Switch Hotspot Tier",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Morale Analytics Engine').first().json.telegramChatId }}",
+        "text": "={{ '🚨 <b>[CẢNH BÁO ĐIỂM NÓNG KHẨN CẤP]</b>\\n⚠️ <i>Phát hiện phòng ban có tỷ lệ căng thẳng vượt ngưỡng an toàn!</i>\\n\\n' + $json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "id": "a1c30e04-b7a4-4f04-a004-000000000009",
+      "name": "Telegram Hotspot Warning",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1780,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "nEgzOjvRL1PL6URH",
+          "name": "Telegram account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
         "chatId": "={{ $('Morale Analytics Engine').first().json.telegramChatId }}",
         "text": "={{ $json.telegramText }}",
         "additionalFields": {
@@ -136,13 +186,13 @@
           "appendAttribution": false
         }
       },
-      "id": "a1c30e04-b7a4-4f04-a004-000000000008",
+      "id": "a1c30e04-b7a4-4f04-a004-000000000010",
       "name": "Telegram Management Digest",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1560,
-        300
+        1780,
+        400
       ],
       "credentials": {
         "telegramApi": {
@@ -164,12 +214,12 @@
         "text": "={{ $('Build Digest Card').first().json.emailBody }}",
         "options": {}
       },
-      "id": "a1c30e04-b7a4-4f04-a004-000000000009",
+      "id": "a1c30e04-b7a4-4f04-a004-000000000011",
       "name": "Email HR Director Report",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1780,
+        2000,
         300
       ],
       "credentials": {
@@ -186,12 +236,12 @@
         "query": "=INSERT INTO morale_reports (week_start, company_score, total_checkins, participation_pct, great_pct, normal_pct, stressed_pct, overdue_tasks, burnout_flags) VALUES ('{{ $('Morale Analytics Engine').first().json.weekStart }}', {{ $('Morale Analytics Engine').first().json.score ?? 'NULL' }}, {{ $('Morale Analytics Engine').first().json.totalCheckins }}, {{ $('Morale Analytics Engine').first().json.participationPct ?? 'NULL' }}, {{ $('Morale Analytics Engine').first().json.greatPct }}, {{ $('Morale Analytics Engine').first().json.normalPct }}, {{ $('Morale Analytics Engine').first().json.stressedPct }}, {{ $('Morale Analytics Engine').first().json.overdueTasks }}, {{ $('Morale Analytics Engine').first().json.burnoutFlags }}) ON DUPLICATE KEY UPDATE company_score = VALUES(company_score), total_checkins = VALUES(total_checkins), participation_pct = VALUES(participation_pct), great_pct = VALUES(great_pct), normal_pct = VALUES(normal_pct), stressed_pct = VALUES(stressed_pct), overdue_tasks = VALUES(overdue_tasks), burnout_flags = VALUES(burnout_flags);",
         "options": {}
       },
-      "id": "a1c30e04-b7a4-4f04-a004-000000000010",
+      "id": "a1c30e04-b7a4-4f04-a004-000000000012",
       "name": "MySQL Archive Morale Metrics",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        2000,
+        2220,
         300
       ],
       "credentials": {
@@ -204,12 +254,25 @@
     },
     {
       "parameters": {
+        "jsCode": "// WF-04 | Summary Audit Logger: Ghi log hoàn tất kiểm toán bản tin tuần\nconst report = $('Morale Analytics Engine').first().json;\nreturn [{\n  json: {\n    status: 'COMPLETED',\n    archivedAt: new Date().toISOString(),\n    weekStart: report.weekStart,\n    companyScore: report.score,\n    totalParticipants: report.participants,\n    hotspotsDetected: report.hotspots.length,\n    auditSignature: 'TV3-WF04-ENTERPRISE-AUDIT'\n  }\n}];"
+      },
+      "id": "a1c30e04-b7a4-4f04-a004-000000000013",
+      "name": "Summary Audit Logger",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "httpMethod": "POST",
         "path": "weekly-morale-digest",
         "responseMode": "onReceived",
         "options": {}
       },
-      "id": "a1c30e04-b7a4-4f04-a004-000000000011",
+      "id": "a1c30e04-b7a4-4f04-a004-000000000014",
       "name": "Test Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -291,7 +354,36 @@
       "main": [
         [
           {
+            "node": "Switch Hotspot Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Hotspot Tier": {
+      "main": [
+        [
+          {
+            "node": "Telegram Hotspot Warning",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Telegram Management Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Hotspot Warning": {
+      "main": [
+        [
+          {
+            "node": "Email HR Director Report",
             "type": "main",
             "index": 0
           }
@@ -320,6 +412,17 @@
         ]
       ]
     },
+    "MySQL Archive Morale Metrics": {
+      "main": [
+        [
+          {
+            "node": "Summary Audit Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Test Webhook Trigger": {
       "main": [
         [
@@ -337,7 +440,7 @@
     "executionOrder": "v1",
     "timezone": "Asia/Ho_Chi_Minh"
   },
-  "versionId": "v4-final-04",
+  "versionId": "v4-final-04-upgraded",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "hr-tech-n8n-tv3"

@@ -17,8 +17,11 @@ import {
   TrainingCourse,
   EmployeeTraining,
   PerformanceReview,
+  PerformanceReviewReminder,
+  OffboardingCase,
   EmployeeMood,
   AuditLog,
+  Offer,
 } from './entities';
 import { AiModule } from './modules/core/ai/ai.module';
 import { AutomationModule } from './modules/core/automation/automation.module';
@@ -28,6 +31,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { ApplicationsModule } from './modules/applications/applications.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { InterviewDelivery } from './modules/applications/interview-delivery.entity';
+import { OffboardingModule } from './modules/offboarding/offboarding.module';
 
 @Module({
   imports: [
@@ -64,8 +68,11 @@ import { InterviewDelivery } from './modules/applications/interview-delivery.ent
           TrainingCourse,
           EmployeeTraining,
           PerformanceReview,
+          PerformanceReviewReminder,
+          OffboardingCase,
           EmployeeMood,
           AuditLog,
+          Offer,
         ],
         synchronize: true, // Tự động đồng bộ cấu trúc các bảng khi khởi động (Môi trường Dev)
         logging: ['error', 'warn'],
@@ -86,6 +93,7 @@ import { InterviewDelivery } from './modules/applications/interview-delivery.ent
     SystemConfigModule,
     DocumentsModule,
     TrainingModule,
+    OffboardingModule,
   ],
 })
 export class AppModule {}

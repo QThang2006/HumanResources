@@ -1,0 +1,296 @@
+{
+  "name": "TV4 - 04 Quy Trình Thôi Việc Tự Động (Offboarding)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tv4-offboarding",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "tv4-offboarding-01-webhook",
+      "name": "Webhook - HR Duyệt Thôi Việc",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "tv4-offboarding-approved"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "api-base-url",
+              "name": "apiBaseUrl",
+              "type": "string",
+              "value": "http://host.docker.internal:3001/api"
+            },
+            {
+              "id": "automation-secret",
+              "name": "automationSecret",
+              "type": "string",
+              "value": "THAY_BANG_GIA_TRI_N8N_AUTOMATION_SECRET"
+            },
+            {
+              "id": "sender-email",
+              "name": "senderEmail",
+              "type": "string",
+              "value": "automation@example.com"
+            },
+            {
+              "id": "test-employee-email",
+              "name": "testEmployeeEmail",
+              "type": "string",
+              "value": "test-employee@example.com"
+            },
+            {
+              "id": "test-internal-email",
+              "name": "testInternalEmail",
+              "type": "string",
+              "value": "test-internal@example.com"
+            },
+            {
+              "id": "it-email",
+              "name": "itEmail",
+              "type": "string",
+              "value": "it@company.com"
+            },
+            {
+              "id": "accounting-email",
+              "name": "accountingEmail",
+              "type": "string",
+              "value": "accounting@company.com"
+            },
+            {
+              "id": "telegram-chat-id",
+              "name": "telegramChatId",
+              "type": "string",
+              "value": "THAY_BANG_CHAT_ID_NHOM_TELEGRAM"
+            },
+            {
+              "id": "exit-survey-url",
+              "name": "exitSurveyUrl",
+              "type": "string",
+              "value": "https://forms.gle/THAY_BANG_LINK_FORM_KHAO_SAT"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "tv4-offboarding-02-config",
+      "name": "Nạp cấu hình liên phòng ban",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [230, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Webhook - HR Duyệt Thôi Việc').first().json;\nconst config = $json;\nconst headers = request.headers || {};\nconst suppliedSecret = String(headers['x-automation-secret'] || headers['X-Automation-Secret'] || '').trim();\nif (!config.automationSecret || suppliedSecret !== String(config.automationSecret).trim()) throw new Error('Webhook thôi việc chưa được xác thực');\nconst body = request.body?.data || request.body || request;\nconst caseId = Number(body.caseId);\nif (!Number.isInteger(caseId) || caseId <= 0) throw new Error('caseId hồ sơ thôi việc không hợp lệ');\nreturn [{ json: { ...config, caseId, runId: String($execution.id) } }];"
+      },
+      "id": "tv4-offboarding-03-validate",
+      "name": "Xác thực yêu cầu từ hệ thống",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.apiBaseUrl + '/offboarding/automation/' + $json.caseId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Secret",
+              "value": "={{ $json.automationSecret }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "tv4-offboarding-04-fetch",
+      "name": "Lấy hồ sơ thôi việc đã duyệt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst record = response.data ?? response;\nconst config = $('Xác thực yêu cầu từ hệ thống').first().json;\nconst esc = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst dateLabel = new Date(`${record.lastWorkingDate}T00:00:00+07:00`).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' });\nconst employee = record.employee;\nconst employeeRecipient = String(config.testEmployeeEmail || employee.personalEmail || employee.workEmail || '').trim();\nconst itRecipient = String(config.testInternalEmail || config.itEmail || '').trim();\nconst accountingRecipient = String(config.testInternalEmail || config.accountingEmail || '').trim();\nif (!employeeRecipient || !itRecipient || !accountingRecipient) throw new Error('Thiếu email nhận thông báo thôi việc');\nconst surveyUrl = record.exitSurveyUrl || config.exitSurveyUrl;\nconst assetNotes = record.assetNotes ? `<p><strong>Ghi chú tài sản:</strong> ${esc(record.assetNotes)}</p>` : '';\nconst itSubject = `[IT] Thu hồi thiết bị và tài khoản - ${employee.fullName}`;\nconst itHtml = `<h3>Yêu cầu IT xử lý thôi việc</h3><p>Nhân viên: <strong>${esc(employee.fullName)}</strong></p><p>Email công ty: ${esc(employee.workEmail)}</p><p>Phòng ban: ${esc(employee.departmentName)}</p><p>Ngày làm việc cuối: <strong>${dateLabel}</strong></p>${assetNotes}<ol><li>Thu hồi laptop, thẻ và thiết bị công ty.</li><li>Khóa email, VPN và các tài khoản nội bộ sau ngày làm việc cuối.</li><li>Sao lưu và bàn giao dữ liệu công việc.</li></ol>`;\nconst accountingSubject = `[Kế toán] Quyết toán thôi việc - ${employee.fullName}`;\nconst accountingHtml = `<h3>Yêu cầu quyết toán thôi việc</h3><p>Nhân viên: <strong>${esc(employee.fullName)}</strong></p><p>Phòng ban: ${esc(employee.departmentName)}</p><p>Ngày làm việc cuối: <strong>${dateLabel}</strong></p><p>Người duyệt: ${esc(record.approvedBy.fullName)}</p><ol><li>Tính lương đến ngày làm việc cuối.</li><li>Đối chiếu phép năm còn lại và các khoản tạm ứng.</li><li>Xác nhận quyết toán với bộ phận Nhân sự.</li></ol>`;\nconst farewellSubject = `Lời cảm ơn và khảo sát thôi việc - ${employee.fullName}`;\nconst farewellHtml = `<p>Kính gửi <strong>${esc(employee.fullName)}</strong>,</p><p>Cảm ơn bạn vì những đóng góp trong thời gian đồng hành cùng công ty. Chúc bạn nhiều thành công trên chặng đường tiếp theo.</p><p>Vui lòng dành ít phút hoàn thành khảo sát thôi việc để giúp chúng tôi cải thiện môi trường làm việc:</p><p><a href=\"${esc(surveyUrl)}\">Mở khảo sát thôi việc</a></p><p>Trân trọng,<br/><strong>Bộ phận Nhân sự</strong></p>`;\nconst telegramText = `📋 <b>HỒ SƠ THÔI VIỆC ĐÃ ĐƯỢC DUYỆT</b>\\n\\nMã hồ sơ: <b>#${record.caseId}</b>\\nNhân viên: <b>${esc(employee.fullName)}</b>\\nPhòng ban: ${esc(employee.departmentName)}\\nNgày làm việc cuối: <b>${dateLabel}</b>\\n\\nĐã chuyển tác vụ tới IT, Kế toán và chuẩn bị thư cảm ơn cho nhân viên.`;\nreturn [{ json: { ...config, ...record, employeeRecipient, itRecipient, accountingRecipient, itSubject, itHtml, accountingSubject, accountingHtml, farewellSubject, farewellHtml, telegramText } }];"
+      },
+      "id": "tv4-offboarding-05-compose",
+      "name": "Soạn nội dung điều phối bằng tiếng Việt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.senderEmail }}",
+        "toEmail": "={{ $json.itRecipient }}",
+        "subject": "={{ $json.itSubject }}",
+        "html": "={{ $json.itHtml }}",
+        "options": {}
+      },
+      "id": "tv4-offboarding-06-it-email",
+      "name": "Gửi ticket cho phòng IT",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1150, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.senderEmail }}",
+        "toEmail": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.accountingRecipient }}",
+        "subject": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.accountingSubject }}",
+        "html": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.accountingHtml }}",
+        "options": {}
+      },
+      "id": "tv4-offboarding-07-accounting-email",
+      "name": "Gửi thông báo cho Kế toán",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1380, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.senderEmail }}",
+        "toEmail": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.employeeRecipient }}",
+        "subject": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.farewellSubject }}",
+        "html": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.farewellHtml }}",
+        "options": {}
+      },
+      "id": "tv4-offboarding-08-employee-email",
+      "name": "Gửi thư cảm ơn và khảo sát",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1610, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.telegramChatId }}",
+        "text": "={{ $('Soạn nội dung điều phối bằng tiếng Việt').item.json.telegramText }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "tv4-offboarding-09-telegram",
+      "name": "Thông báo kênh liên phòng ban",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1840, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Soạn nội dung điều phối bằng tiếng Việt').item.json;\nconst succeeded = (name, telegram = false) => {\n  try {\n    const result = $(name).item.json || {};\n    if (result.error) return false;\n    if (telegram) return result.ok !== false;\n    return !Array.isArray(result.rejected) || result.rejected.length === 0;\n  } catch { return false; }\n};\nconst itNotified = succeeded('Gửi ticket cho phòng IT');\nconst financeNotified = succeeded('Gửi thông báo cho Kế toán');\nconst employeeNotified = succeeded('Gửi thư cảm ơn và khảo sát');\nconst telegramNotified = succeeded('Thông báo kênh liên phòng ban', true);\nconst successCount = [itNotified, financeNotified, employeeNotified, telegramNotified].filter(Boolean).length;\nconst status = successCount === 4 ? 'SENT' : successCount > 0 ? 'PARTIAL' : 'FAILED';\nreturn [{ json: { ...source, itNotified, financeNotified, employeeNotified, telegramNotified, status, detail: `IT=${itNotified}; KeToan=${financeNotified}; NhanVien=${employeeNotified}; Telegram=${telegramNotified}` } }];"
+      },
+      "id": "tv4-offboarding-10-summary",
+      "name": "Tổng hợp kết quả liên phòng ban",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2070, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.apiBaseUrl + '/offboarding/automation/' + $json.caseId + '/results' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Secret",
+              "value": "={{ $json.automationSecret }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ runId: $json.runId, itNotified: $json.itNotified, financeNotified: $json.financeNotified, employeeNotified: $json.employeeNotified, telegramNotified: $json.telegramNotified, status: $json.status, detail: $json.detail }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "tv4-offboarding-11-callback",
+      "name": "Lưu kết quả thôi việc về hệ thống",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2300, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: $('Tổng hợp kết quả liên phòng ban').item.json.status !== 'FAILED', workflow: 'TV4 - Offboarding', caseId: $('Tổng hợp kết quả liên phòng ban').item.json.caseId, status: $('Tổng hợp kết quả liên phòng ban').item.json.status, notifications: { it: $('Tổng hợp kết quả liên phòng ban').item.json.itNotified, accounting: $('Tổng hợp kết quả liên phòng ban').item.json.financeNotified, employee: $('Tổng hợp kết quả liên phòng ban').item.json.employeeNotified, telegram: $('Tổng hợp kết quả liên phòng ban').item.json.telegramNotified } }) }}",
+        "options": {}
+      },
+      "id": "tv4-offboarding-12-response",
+      "name": "Phản hồi kết quả offboarding",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2530, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - HR Duyệt Thôi Việc": {
+      "main": [[{ "node": "Nạp cấu hình liên phòng ban", "type": "main", "index": 0 }]]
+    },
+    "Nạp cấu hình liên phòng ban": {
+      "main": [[{ "node": "Xác thực yêu cầu từ hệ thống", "type": "main", "index": 0 }]]
+    },
+    "Xác thực yêu cầu từ hệ thống": {
+      "main": [[{ "node": "Lấy hồ sơ thôi việc đã duyệt", "type": "main", "index": 0 }]]
+    },
+    "Lấy hồ sơ thôi việc đã duyệt": {
+      "main": [[{ "node": "Soạn nội dung điều phối bằng tiếng Việt", "type": "main", "index": 0 }]]
+    },
+    "Soạn nội dung điều phối bằng tiếng Việt": {
+      "main": [[{ "node": "Gửi ticket cho phòng IT", "type": "main", "index": 0 }]]
+    },
+    "Gửi ticket cho phòng IT": {
+      "main": [[{ "node": "Gửi thông báo cho Kế toán", "type": "main", "index": 0 }]]
+    },
+    "Gửi thông báo cho Kế toán": {
+      "main": [[{ "node": "Gửi thư cảm ơn và khảo sát", "type": "main", "index": 0 }]]
+    },
+    "Gửi thư cảm ơn và khảo sát": {
+      "main": [[{ "node": "Thông báo kênh liên phòng ban", "type": "main", "index": 0 }]]
+    },
+    "Thông báo kênh liên phòng ban": {
+      "main": [[{ "node": "Tổng hợp kết quả liên phòng ban", "type": "main", "index": 0 }]]
+    },
+    "Tổng hợp kết quả liên phòng ban": {
+      "main": [[{ "node": "Lưu kết quả thôi việc về hệ thống", "type": "main", "index": 0 }]]
+    },
+    "Lưu kết quả thôi việc về hệ thống": {
+      "main": [[{ "node": "Phản hồi kết quả offboarding", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "active": false,
+  "versionId": "tv4-offboarding-workflow-v2"
+}

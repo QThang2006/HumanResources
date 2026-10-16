@@ -140,6 +140,15 @@ export class UsersService {
             );
         }
 
+        if (
+            data.role === UserRole.EMPLOYEE &&
+            (!data.departmentId || !data.jobTitle?.trim())
+        ) {
+            throw new BadRequestException(
+                'Nhân viên cần có đầy đủ phòng ban và chức danh để phục vụ phân tích năng lực.',
+            );
+        }
+
         const existingUser = await this.userRepository.findOne({
             where: { email },
         });

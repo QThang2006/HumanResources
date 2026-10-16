@@ -445,6 +445,17 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
       return;
     }
 
+    if (
+      newUserForm.role === 'EMPLOYEE' &&
+      (!newUserForm.departmentId || !newUserForm.jobTitle.trim())
+    ) {
+      showToast(
+          'error',
+          'Vui lòng chọn phòng ban và nhập chức danh để AI có thể phân tích năng lực sơ bộ.',
+      );
+      return;
+    }
+
     setCreatingUser(true);
 
     try {
@@ -674,7 +685,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
 
                 <label className="block">
           <span className="text-xs font-black text-[#565C61]">
-            Phòng ban
+            Phòng ban {newUserForm.role === 'EMPLOYEE' ? '*' : ''}
           </span>
 
                   <select
@@ -699,7 +710,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
 
                 <label className="block">
           <span className="text-xs font-black text-[#565C61]">
-            Chức danh
+            Chức danh {newUserForm.role === 'EMPLOYEE' ? '*' : ''}
           </span>
 
                   <input
@@ -737,6 +748,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                     ))}
                   </select>
                 </label>
+
               </div>
 
               {/* FOOTER */}
@@ -1366,6 +1378,8 @@ const IntegrationsPanel: React.FC<{
 export const AdminSettingsPage: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>('rbac');
+  const [hrWorkspaceTab, setHrWorkspaceTab] =
+    useState<'rag' | 'courses'>('courses');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [n8nWebhookUrl, setN8nWebhookUrl] = useState('');
   const [configSaving, setConfigSaving] = useState(false);
@@ -1523,22 +1537,54 @@ export const AdminSettingsPage: React.FC = () => {
     return (
       <div className="min-h-full bg-[#F4F5F5]">
         <div className="mx-auto max-w-[1500px] px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mb-6 border-b border-[#DDE1E2] pb-6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A98562]">
-              Human Resources
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-[#1D2023]">
-              Knowledge & learning
-            </h1>
-            <p className="mt-2 text-sm text-[#72797E]">
-              Quản lý tri thức nội bộ và chương trình đào tạo.
-            </p>
+          <div className="mb-6 rounded-[26px] border border-[#E1E4E5] bg-white p-5 shadow-[0_16px_44px_rgba(45,34,28,0.06)] sm:p-7">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#A98562]">
+                  Không gian Nhân sự
+                </p>
+                <h1 className="mt-2 text-3xl font-black tracking-tight text-[#1D2023]">
+                  Tri thức & Phát triển
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-[#72797E]">
+                  Quản lý nguồn tri thức và lộ trình đào tạo trong một không gian thống nhất.
+                </p>
+              </div>
+
+              <div className="grid gap-2 rounded-[18px] border border-[#E2E5E7] bg-[#F6F7F7] p-1.5 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setHrWorkspaceTab('courses')}
+                  className={`flex items-center gap-2 rounded-[14px] px-4 py-3 text-sm font-black transition ${
+                    hrWorkspaceTab === 'courses'
+                      ? 'bg-white text-[#2B2421] shadow-sm'
+                      : 'text-[#777E83] hover:bg-white/70'
+                  }`}
+                >
+                  <GraduationCap className="h-4 w-4" />
+                  Đào tạo & Phát triển
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHrWorkspaceTab('rag')}
+                  className={`flex items-center gap-2 rounded-[14px] px-4 py-3 text-sm font-black transition ${
+                    hrWorkspaceTab === 'rag'
+                      ? 'bg-white text-[#2B2421] shadow-sm'
+                      : 'text-[#777E83] hover:bg-white/70'
+                  }`}
+                >
+                  <Database className="h-4 w-4" />
+                  Kho tri thức
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-6">
-            <KnowledgeBasePanel />
+          {hrWorkspaceTab === 'courses' ? (
             <TrainingPanel />
-          </div>
+          ) : (
+            <KnowledgeBasePanel />
+          )}
         </div>
       </div>
     );

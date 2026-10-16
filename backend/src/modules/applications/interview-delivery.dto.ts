@@ -1,5 +1,7 @@
 import {
   IsEmail,
+  IsOptional,
+  IsArray,
   IsEnum,
   IsInt,
   IsISO8601,
@@ -38,6 +40,7 @@ export class DeliveryCallbackInput extends DeliveryClaimInput {
   @IsEmail()
   @MaxLength(255)
   recipient: string;
+  @IsOptional() @IsArray() @IsEmail({}, { each: true }) acceptedRecipients?: string[];
   @ValidateIf((o) => o.event === DeliveryEvent.SMTP_ACCEPTED)
   @IsString()
   @Matches(/^[^\r\n]+$/)

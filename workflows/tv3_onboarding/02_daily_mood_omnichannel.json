@@ -108,7 +108,7 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-3.1-flash-lite",
         "options": {
           "temperature": 0.7
         }
@@ -201,7 +201,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "daily-mood-reminder",
-        "responseMode": "onReceived",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "a1c30e02-b7a4-4f02-a002-000000000012",
@@ -213,6 +213,23 @@
         480
       ],
       "webhookId": "daily-mood-reminder"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-02 Daily Mood Omnichannel', status: 'BATCH_TRIGGERED', triggeredAt: .toISO() }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000013",
+      "name": "Respond HTTP 202",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        460,
+        520
+      ]
     }
   ],
   "pinData": {},
@@ -337,6 +354,11 @@
     "Test Webhook Trigger": {
       "main": [
         [
+          {
+            "node": "Respond HTTP 202",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "Weekday Context & Config",
             "type": "main",

@@ -1,0 +1,304 @@
+{
+  "name": "TV4 - 02 Nhắc hoàn thành khóa học bắt buộc",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "tv4-training-01-schedule",
+      "name": "Lịch chạy 08 giờ mỗi ngày",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "api-base-url",
+              "name": "apiBaseUrl",
+              "type": "string",
+              "value": "http://host.docker.internal:3001/api"
+            },
+            {
+              "id": "automation-secret",
+              "name": "automationSecret",
+              "type": "string",
+              "value": "THAY_BANG_GIA_TRI_N8N_AUTOMATION_SECRET"
+            },
+            {
+              "id": "telegram-chat-id",
+              "name": "telegramChatId",
+              "type": "string",
+              "value": "THAY_BANG_CHAT_ID_NHOM_TELEGRAM"
+            },
+            {
+              "id": "sender-email",
+              "name": "senderEmail",
+              "type": "string",
+              "value": "automation@example.com"
+            },
+            {
+              "id": "test-recipient-email",
+              "name": "testRecipientEmail",
+              "type": "string",
+              "value": "test-recipient@example.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "tv4-training-02-config",
+      "name": "Nạp cấu hình an toàn",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.apiBaseUrl + '/training/automation/pending-reminders' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Secret",
+              "value": "={{ $json.automationSecret }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "tv4-training-03-fetch",
+      "name": "Lấy danh sách cần nhắc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst payload = response.data ?? response;\nconst reminders = Array.isArray(payload.reminders) ? payload.reminders : [];\nconst config = $('Nạp cấu hình an toàn').first().json;\nconst runId = String($execution.id);\n\nif (reminders.length === 0) {\n  return [{ json: { skip: true, runId, generatedAt: payload.generatedAt, ...config } }];\n}\n\nreturn reminders.map((reminder) => ({\n  json: {\n    skip: false,\n    runId,\n    ...config,\n    ...reminder\n  }\n}));"
+      },
+      "id": "tv4-training-04-split",
+      "name": "Tách từng lượt đào tạo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-reminder-condition",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tv4-training-05-if-reminder",
+      "name": "Có trường hợp cần nhắc?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $json;\nconst employee = item.employee;\nconst manager = item.manager;\nconst course = item.course;\nconst testRecipientEmail = String(item.testRecipientEmail || '').trim();\nconst employeeEmail = testRecipientEmail || employee.email;\nconst managerEmail = manager ? (testRecipientEmail || manager.email || '') : '';\nconst overdue = item.daysRemaining < 0;\nconst dueLabel = overdue\n  ? `đã quá hạn ${Math.abs(item.daysRemaining)} ngày`\n  : item.daysRemaining === 0\n    ? 'đến hạn hôm nay'\n    : `còn ${item.daysRemaining} ngày`;\nconst courseLink = course.courseUrl || 'http://localhost:5173/employee/workspace';\nconst subject = overdue\n  ? `[Quá hạn] Khóa học bắt buộc: ${course.title}`\n  : `[Nhắc hạn] Khóa học bắt buộc: ${course.title}`;\nconst employeeHtml = `<p>Chào <strong>${employee.fullName}</strong>,</p><p>Khóa học bắt buộc <strong>${course.title}</strong> ${dueLabel}, nhưng tiến độ hiện tại mới đạt <strong>${item.progressPercent}%</strong>.</p><p>Vui lòng tiếp tục học và hoàn thành đúng hạn.</p><p><a href=\"${courseLink}\">Mở khóa học</a></p><p>Đây là thông báo tự động từ hệ thống Đào tạo nội bộ.</p>`;\nconst managerHtml = manager\n  ? `<p>Chào <strong>${manager.fullName}</strong>,</p><p>Nhân viên <strong>${employee.fullName}</strong> đang có khóa học bắt buộc <strong>${course.title}</strong> ${dueLabel}; tiến độ hiện tại là <strong>${item.progressPercent}%</strong>.</p><p>Vui lòng hỗ trợ đôn đốc nhân viên hoàn thành.</p>`\n  : '';\nconst managerLabel = item.managerSource === 'DEPARTMENT' ? 'Quản lý phòng ban' : 'Quản lý trực tiếp';\nconst telegramText = `📚 <b>NHẮC TIẾN ĐỘ ĐÀO TẠO</b>\\n\\nNhân viên: <b>${employee.fullName}</b>\\nKhóa học: <b>${course.title}</b>\\nTiến độ: <b>${item.progressPercent}%</b>\\nHạn: <b>${dueLabel}</b>${manager ? `\\n${managerLabel}: <b>${manager.fullName}</b>` : '\\n⚠️ Chưa khai báo quản lý cho nhân viên'}`;\n\nreturn [{ json: {\n  ...item,\n  employeeEmail,\n  managerEmail,\n  hasManager: Boolean(manager && managerEmail),\n  emailSubject: subject,\n  employeeHtml,\n  managerHtml,\n  telegramText\n} }];"
+      },
+      "id": "tv4-training-06-compose",
+      "name": "Soạn nội dung nhắc bằng tiếng Việt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 220]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.senderEmail }}",
+        "toEmail": "={{ $json.employeeEmail }}",
+        "subject": "={{ $json.emailSubject }}",
+        "html": "={{ $json.employeeHtml }}",
+        "options": {}
+      },
+      "id": "tv4-training-07-email-employee",
+      "name": "Gửi thư nhắc nhân viên",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1320, 220],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-manager-condition",
+              "leftValue": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.hasManager }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tv4-training-08-if-manager",
+      "name": "Có quản lý trực tiếp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1540, 220]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.senderEmail }}",
+        "toEmail": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.managerEmail }}",
+        "subject": "={{ '[Quản lý] ' + $('Soạn nội dung nhắc bằng tiếng Việt').item.json.emailSubject }}",
+        "html": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.managerHtml }}",
+        "options": {}
+      },
+      "id": "tv4-training-09-email-manager",
+      "name": "Thông báo cho quản lý",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1760, 140],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.telegramChatId }}",
+        "text": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "id": "tv4-training-10-telegram",
+      "name": "Thông báo kênh đào tạo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1980, 220],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Soạn nội dung nhắc bằng tiếng Việt').item.json;\nconst nodeError = (nodeName) => {\n  try {\n    const output = $(nodeName).item.json;\n    return output?.error ? String(output.error.message || output.error) : '';\n  } catch (_) {\n    return 'Node không chạy hoặc không trả kết quả.';\n  }\n};\n\nconst employeeError = nodeError('Gửi thư nhắc nhân viên');\nconst managerError = source.hasManager ? nodeError('Thông báo cho quản lý') : '';\nconst telegramError = nodeError('Thông báo kênh đào tạo');\nconst employeeNotified = !employeeError;\nconst managerNotified = source.hasManager && !managerError;\nconst telegramNotified = !telegramError;\nconst requiredResults = [employeeNotified, telegramNotified];\nif (source.hasManager) requiredResults.push(managerNotified);\nconst successCount = requiredResults.filter(Boolean).length;\nconst status = successCount === requiredResults.length\n  ? 'SENT'\n  : successCount > 0\n    ? 'PARTIAL'\n    : 'FAILED';\nconst details = [\n  `Nhân viên: ${employeeNotified ? 'đã gửi' : 'lỗi - ' + employeeError}`,\n  source.hasManager\n    ? `Quản lý: ${managerNotified ? 'đã gửi' : 'lỗi - ' + managerError}`\n    : 'Quản lý: bỏ qua vì chưa khai báo',\n  `Telegram: ${telegramNotified ? 'đã gửi' : 'lỗi - ' + telegramError}`,\n];\nreturn [{ json: {\n  apiBaseUrl: source.apiBaseUrl,\n  automationSecret: source.automationSecret,\n  assignmentId: source.assignmentId,\n  runId: source.runId,\n  employeeNotified,\n  managerNotified,\n  telegramNotified,\n  status,\n  detail: details.join('; ')\n} }];"
+      },
+      "id": "tv4-training-11-result",
+      "name": "Tổng hợp kết quả gửi",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.apiBaseUrl + '/training/automation/reminder-results' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Secret",
+              "value": "={{ $json.automationSecret }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ assignmentId: $json.assignmentId, runId: $json.runId, employeeNotified: $json.employeeNotified, managerNotified: $json.managerNotified, telegramNotified: $json.telegramNotified, status: $json.status, detail: $json.detail }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "tv4-training-12-callback",
+      "name": "Lưu kết quả về hệ thống",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2420, 220]
+    }
+  ],
+  "connections": {
+    "Lịch chạy 08 giờ mỗi ngày": {
+      "main": [[{"node": "Nạp cấu hình an toàn", "type": "main", "index": 0}]]
+    },
+    "Nạp cấu hình an toàn": {
+      "main": [[{"node": "Lấy danh sách cần nhắc", "type": "main", "index": 0}]]
+    },
+    "Lấy danh sách cần nhắc": {
+      "main": [[{"node": "Tách từng lượt đào tạo", "type": "main", "index": 0}]]
+    },
+    "Tách từng lượt đào tạo": {
+      "main": [[{"node": "Có trường hợp cần nhắc?", "type": "main", "index": 0}]]
+    },
+    "Có trường hợp cần nhắc?": {
+      "main": [[{"node": "Soạn nội dung nhắc bằng tiếng Việt", "type": "main", "index": 0}], []]
+    },
+    "Soạn nội dung nhắc bằng tiếng Việt": {
+      "main": [[{"node": "Gửi thư nhắc nhân viên", "type": "main", "index": 0}]]
+    },
+    "Gửi thư nhắc nhân viên": {
+      "main": [[{"node": "Có quản lý trực tiếp?", "type": "main", "index": 0}]]
+    },
+    "Có quản lý trực tiếp?": {
+      "main": [[{"node": "Thông báo cho quản lý", "type": "main", "index": 0}], [{"node": "Thông báo kênh đào tạo", "type": "main", "index": 0}]]
+    },
+    "Thông báo cho quản lý": {
+      "main": [[{"node": "Thông báo kênh đào tạo", "type": "main", "index": 0}]]
+    },
+    "Thông báo kênh đào tạo": {
+      "main": [[{"node": "Tổng hợp kết quả gửi", "type": "main", "index": 0}]]
+    },
+    "Tổng hợp kết quả gửi": {
+      "main": [[{"node": "Lưu kết quả về hệ thống", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "pinData": {},
+  "tags": []
+}

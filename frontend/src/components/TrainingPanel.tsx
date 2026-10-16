@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Clock3,
   GraduationCap,
+  Info,
   Loader2,
   Plus,
   RefreshCw,
@@ -14,6 +15,8 @@ import {
 
 import {
   trainingApi,
+  type TrainingAiReadiness,
+  type TrainingAiSuggestion,
   type TrainingAssignment,
   type TrainingCourse,
   type TrainingCourseType,
@@ -24,8 +27,14 @@ import type { User } from '../types';
 
 const COURSE_TYPE_LABELS: Record<TrainingCourseType, string> = {
   MANDATORY: 'BẮT BUỘC',
-  AI_SKILL_GAP: 'AI CHỈ ĐỊNH',
+  AI_SKILL_GAP: 'AI ĐỀ XUẤT',
   SOFT_SKILL: 'KỸ NĂNG MỀM',
+};
+
+const PRIORITY_LABELS: Record<'HIGH' | 'MEDIUM' | 'LOW', string> = {
+  HIGH: 'Ưu tiên cao',
+  MEDIUM: 'Ưu tiên vừa',
+  LOW: 'Ưu tiên thấp',
 };
 
 const COURSE_TYPE_STYLES: Record<TrainingCourseType, string> = {
@@ -38,6 +47,15 @@ const STATUS_LABELS: Record<string, string> = {
   ASSIGNED: 'Đã giao',
   IN_PROGRESS: 'Đang học',
   COMPLETED: 'Hoàn thành',
+};
+
+const dateInputValue = (daysFromToday: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromToday);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 export const TrainingPanel: React.FC = () => {
@@ -57,8 +75,14 @@ export const TrainingPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savingCourse, setSavingCourse] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [aiSuggestion, setAiSuggestion] =
+    useState<TrainingAiSuggestion | null>(null);
+  const [aiReadiness, setAiReadiness] =
+    useState<TrainingAiReadiness | null>(null);
+  const [checkingReadiness, setCheckingReadiness] = useState(false);
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [updatingDueId, setUpdatingDueId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
 
   const [title, setTitle] = useState('');
@@ -70,8 +94,14 @@ export const TrainingPanel: React.FC = () => {
 
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [assignmentDueAt, setAssignmentDueAt] = useState(() => dateInputValue(30));
   const [assignedByAi, setAssignedByAi] = useState(false);
   const [aiReason, setAiReason] = useState('');
+
+  const employees = useMemo(
+    () => users.filter(user => user.role === 'EMPLOYEE'),
+    [users],
+  );
 
   const loadData = useCallback(async (showLoading = false) => {
     try {
@@ -163,18 +193,24 @@ export const TrainingPanel: React.FC = () => {
           Number(selectedUserId),
       );
 
-      setSelectedCourseId(String(suggestion.courseId));
-      setAssignedByAi(true);
+      setAiSuggestion(suggestion);
+      setSelectedCourseId(
+        suggestion.courseId === null ? '' : String(suggestion.courseId),
+      );
+      setAssignedByAi(suggestion.hasMatchingCourse);
       setAiReason(suggestion.reason);
 
       setMessage(
-          `AI đề xuất khóa "${suggestion.courseTitle}" cho nhân viên. Vui lòng kiểm tra trước khi gán.`,
+        suggestion.hasMatchingCourse
+          ? `AI đã đề xuất khóa "${suggestion.courseTitle}". Vui lòng kiểm tra trước khi gán.`
+          : 'AI đã phân tích khoảng trống năng lực nhưng kho hiện tại chưa có khóa học phù hợp.',
       );
     } catch (error) {
       console.error(error);
 
       setAssignedByAi(false);
       setAiReason('');
+      setAiSuggestion(null);
 
       setMessage(
           error instanceof Error
@@ -183,6 +219,44 @@ export const TrainingPanel: React.FC = () => {
       );
     } finally {
       setAiSuggesting(false);
+    }
+  };
+  const handleEmployeeChange = async (userId: string) => {
+    setSelectedUserId(userId);
+    setSelectedCourseId('');
+    setAssignedByAi(false);
+    setAiReason('');
+    setAiSuggestion(null);
+    setAiReadiness(null);
+    setMessage('');
+
+    if (!userId) return;
+
+    try {
+      setCheckingReadiness(true);
+      const readiness = await trainingApi.getAiReadiness(Number(userId));
+      setAiReadiness(readiness);
+    } catch (error) {
+      console.error(error);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Không thể kiểm tra dữ liệu phân tích của nhân viên.',
+      );
+    } finally {
+      setCheckingReadiness(false);
+    }
+  };
+  const handleCourseChange = (courseId: string) => {
+    setSelectedCourseId(courseId);
+
+    if (
+      aiSuggestion &&
+      String(aiSuggestion.courseId ?? '') !== courseId
+    ) {
+      setAiSuggestion(null);
+      setAssignedByAi(false);
+      setAiReason('');
     }
   };
   const handleAssignCourse = async () => {
@@ -201,12 +275,16 @@ export const TrainingPanel: React.FC = () => {
         assignedByAi,
         aiReason:
           assignedByAi && aiReason.trim() ? aiReason.trim() : undefined,
+        dueAt: assignmentDueAt,
       });
 
       setSelectedUserId('');
       setSelectedCourseId('');
       setAssignedByAi(false);
       setAiReason('');
+      setAssignmentDueAt(dateInputValue(30));
+      setAiSuggestion(null);
+      setAiReadiness(null);
       setMessage('Đã gán khóa học cho nhân viên.');
       await loadData();
     } catch (error) {
@@ -233,6 +311,29 @@ export const TrainingPanel: React.FC = () => {
       setMessage('Không thể cập nhật tiến độ.');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleDueDateChange = async (
+    assignmentId: number,
+    dueAt: string,
+  ) => {
+    if (!dueAt) return;
+    try {
+      setUpdatingDueId(assignmentId);
+      setMessage('');
+      await trainingApi.updateDueDate(assignmentId, dueAt);
+      setMessage('Đã cập nhật hạn hoàn thành.');
+      await loadData();
+    } catch (error) {
+      console.error(error);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Không thể cập nhật hạn hoàn thành.',
+      );
+    } finally {
+      setUpdatingDueId(null);
     }
   };
 
@@ -312,7 +413,7 @@ export const TrainingPanel: React.FC = () => {
           <MetricCard
             label="Tiến độ TB"
             value={`${summary.averageProgress}%`}
-            sub={`${courseStats.ai} khóa AI CHỈ ĐỊNH`}
+            sub={`${courseStats.ai} khóa do AI đề xuất`}
             icon={<GraduationCap className="h-4 w-4" />}
           />
         </div>
@@ -348,7 +449,7 @@ export const TrainingPanel: React.FC = () => {
                 className={inputClass}
               >
                 <option value="MANDATORY">BẮT BUỘC</option>
-                <option value="AI_SKILL_GAP">AI CHỈ ĐỊNH (KỸ NĂNG)</option>
+                <option value="AI_SKILL_GAP">AI ĐỀ XUẤT THEO NĂNG LỰC</option>
                 <option value="SOFT_SKILL">KỸ NĂNG MỀM</option>
               </select>
             </FormField>
@@ -379,7 +480,7 @@ export const TrainingPanel: React.FC = () => {
             </FormField>
 
             <div className="md:col-span-2">
-              <FormField label="URL khóa học">
+              <FormField label="Đường dẫn khóa học">
                 <input
                   value={courseUrl}
                   onChange={event => setCourseUrl(event.target.value)}
@@ -419,11 +520,11 @@ export const TrainingPanel: React.FC = () => {
             <FormField label="Nhân viên">
               <select
                 value={selectedUserId}
-                onChange={event => setSelectedUserId(event.target.value)}
+                onChange={event => handleEmployeeChange(event.target.value)}
                 className={inputClass}
               >
                 <option value="">Chọn nhân viên</option>
-                {users.map(user => (
+                {employees.map(user => (
                   <option key={user.id} value={user.id}>
                     {user.fullName} - {user.email}
                   </option>
@@ -434,7 +535,7 @@ export const TrainingPanel: React.FC = () => {
             <FormField label="Khóa học">
               <select
                 value={selectedCourseId}
-                onChange={event => setSelectedCourseId(event.target.value)}
+                onChange={event => handleCourseChange(event.target.value)}
                 className={inputClass}
               >
                 <option value="">Chọn khóa học</option>
@@ -445,12 +546,55 @@ export const TrainingPanel: React.FC = () => {
                 ))}
               </select>
             </FormField>
+
+            <div className="md:col-span-2">
+              <FormField label="Hạn hoàn thành">
+                <input
+                  type="date"
+                  min={dateInputValue(1)}
+                  value={assignmentDueAt}
+                  onChange={event => setAssignmentDueAt(event.target.value)}
+                  className={inputClass}
+                />
+              </FormField>
+              <p className="mt-1.5 text-xs font-semibold text-[#82898E]">
+                Hệ thống tự động nhắc khi khóa bắt buộc còn tối đa 3 ngày và tiến độ dưới 50%.
+              </p>
+            </div>
           </div>
+
+          {checkingReadiness && (
+            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] px-4 py-3 text-sm font-semibold text-[#666D72]">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Đang kiểm tra dữ liệu nhân viên...
+            </div>
+          )}
+
+          {aiReadiness && !aiReadiness.canAnalyze && (
+            <div className="mt-4 rounded-2xl border border-[#E8D5B8] bg-[#FBF6ED] px-4 py-3 text-sm text-[#7A572F]">
+              <div className="flex items-start gap-2 font-black">
+                <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                Chưa đủ dữ liệu để phân tích khoảng trống năng lực
+              </div>
+              <p className="mt-1 pl-6 text-xs font-semibold leading-5">
+                Cần bổ sung: {aiReadiness.missingData.join(', ')}.
+              </p>
+            </div>
+          )}
+
+          {aiReadiness?.canAnalyze && !aiSuggestion && (
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-[#DCE5DF] bg-[#F4F8F5] p-3 text-xs text-[#496154]">
+              <span><strong>{aiReadiness.reviewCount}</strong> lần đánh giá hiệu suất</span>
+              <span>Điểm hiệu suất mới nhất: <strong>{aiReadiness.latestKpiScore ?? '—'}</strong></span>
+              <span><strong>{aiReadiness.trainingHistoryCount}</strong> lượt đào tạo</span>
+              <span><strong>{aiReadiness.availableCourseCount}</strong> khóa có thể đề xuất</span>
+            </div>
+          )}
 
           <button
               type="button"
               onClick={handleAiSuggestCourse}
-              disabled={!selectedUserId || aiSuggesting}
+              disabled={!selectedUserId || checkingReadiness || !aiReadiness?.canAnalyze || aiSuggesting}
               className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#E6D7BF] bg-[#FBF6ED] px-4 text-sm font-black text-[#936A38] transition hover:bg-[#F5EAD8] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {aiSuggesting ? (
@@ -461,22 +605,72 @@ export const TrainingPanel: React.FC = () => {
 
             {aiSuggesting
                 ? 'AI đang phân tích...'
-                : 'AI Phân tích & Gợi ý Khóa học'}
+                : 'Phân tích năng lực bằng AI'}
           </button>
 
-          {assignedByAi && (
-            <textarea
-              value={aiReason}
-              onChange={event => setAiReason(event.target.value)}
-              placeholder="Lý do AI đề xuất khóa học..."
-              className="mt-3 min-h-24 w-full resize-y rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] px-4 py-3 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
-            />
+          {aiSuggestion && (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-[#D8CCC2] bg-[#FCFAF7]">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8DED5] px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-black text-[#6F3042]">
+                  <BrainCircuit className="h-4 w-4" />
+                  Kết quả phân tích khoảng trống năng lực
+                </div>
+                <span className="rounded-full bg-[#6F3042] px-3 py-1 text-[10px] font-black text-white">
+                  Mức sẵn sàng {aiSuggestion.readinessScore}/100
+                </span>
+              </div>
+
+              <div className="space-y-4 p-4 text-sm">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">Khoảng trống kỹ năng</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {aiSuggestion.skillGaps.map(skill => (
+                      <span key={skill} className="rounded-full border border-[#E6D7BF] bg-white px-2.5 py-1 text-xs font-bold text-[#7A572F]">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">Đánh giá tổng quan</p>
+                  <p className="mt-1 leading-6 text-[#454B4F]">{aiSuggestion.summary}</p>
+                </div>
+
+                <div className="rounded-xl border border-[#E6D7BF] bg-white p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
+                        {aiSuggestion.hasMatchingCourse ? 'Khóa học đề xuất' : 'Trạng thái kho khóa học'}
+                      </p>
+                      <p className="mt-1 font-black text-[#202326]">
+                        {aiSuggestion.courseTitle ?? 'Chưa có khóa học phù hợp'}
+                      </p>
+                    </div>
+                    {aiSuggestion.priority && (
+                      <span className="rounded-full bg-[#FBF1F2] px-2.5 py-1 text-[10px] font-black text-[#9D4150]">
+                        {PRIORITY_LABELS[aiSuggestion.priority]}
+                      </span>
+                    )}
+                  </div>
+                  {aiSuggestion.estimatedTimeToComplete && (
+                    <p className="mt-2 text-xs font-semibold text-[#716A64]">Thời gian: {aiSuggestion.estimatedTimeToComplete}</p>
+                  )}
+                  <p className="mt-2 text-xs leading-5 text-[#53595E]">{aiSuggestion.reason}</p>
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">Định hướng phát triển</p>
+                  <p className="mt-1 leading-6 text-[#454B4F]">{aiSuggestion.careerAdvice}</p>
+                </div>
+              </div>
+            </div>
           )}
 
           <button
             type="button"
             onClick={handleAssignCourse}
-            disabled={assigning}
+            disabled={assigning || !selectedUserId || !selectedCourseId}
             className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#202326] px-5 text-sm font-black text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {assigning ? (
@@ -484,7 +678,11 @@ export const TrainingPanel: React.FC = () => {
             ) : (
               <UserPlus className="h-4 w-4" />
             )}
-            {assigning ? 'Đang gán...' : 'Gán khóa học'}
+            {assigning
+              ? 'Đang gán...'
+              : aiSuggestion
+                ? 'Duyệt & Gán khóa học'
+                : 'Gán khóa học'}
           </button>
         </div>
       </section>
@@ -558,7 +756,7 @@ export const TrainingPanel: React.FC = () => {
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-[#E8EAEC] bg-[#F8F9F9]">
-                  {['Nhân viên', 'Khóa học', 'Loại', 'Tiến độ', 'Trạng thái'].map(column => (
+                  {['Nhân viên', 'Khóa học', 'Loại', 'Hạn hoàn thành', 'Tiến độ', 'Trạng thái'].map(column => (
                     <th
                       key={column}
                       className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7"
@@ -588,6 +786,31 @@ export const TrainingPanel: React.FC = () => {
                         <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${COURSE_TYPE_STYLES[assignment.course.type]}`}>
                           {COURSE_TYPE_LABELS[assignment.course.type]}
                         </span>
+                      </td>
+
+                      <td className="px-5 py-4 text-xs font-semibold text-[#636A70] sm:px-7">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            min={dateInputValue(1)}
+                            value={assignment.dueAt
+                              ? new Date(assignment.dueAt).toLocaleDateString('en-CA')
+                              : ''}
+                            disabled={updatingDueId === assignment.id}
+                            onChange={event =>
+                              handleDueDateChange(assignment.id, event.target.value)
+                            }
+                            className="h-8 rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-2 text-xs font-bold outline-none focus:border-[#8A4153] disabled:opacity-50"
+                          />
+                          {updatingDueId === assignment.id && (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          )}
+                        </div>
+                        {assignment.reminderCount > 0 && (
+                          <p className="mt-1 text-[10px] font-bold text-[#936A38]">
+                            Đã nhắc {assignment.reminderCount} lần
+                          </p>
+                        )}
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">

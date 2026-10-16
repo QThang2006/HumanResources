@@ -41,6 +41,10 @@ export interface TrainingAssignment {
     aiReason: string | null;
     status: TrainingStatus;
     completedAt: string | null;
+    dueAt: string | null;
+    lastReminderAt: string | null;
+    reminderCount: number;
+    managerEscalatedAt: string | null;
     createdAt: string;
 }
 
@@ -59,17 +63,31 @@ export interface TrainingAiSuggestion {
     readinessScore: number;
     summary: string;
 
-    courseId: number;
-    courseTitle: string;
+    courseId: number | null;
+    courseTitle: string | null;
     matchedMissingSkills: string[];
-    priority: 'HIGH' | 'MEDIUM' | 'LOW';
-    estimatedTimeToComplete: string;
+    priority: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+    estimatedTimeToComplete: string | null;
 
     reason: string;
     careerAdvice: string;
 
     assignedByAi: boolean;
     aiGenerated: boolean;
+    hasMatchingCourse: boolean;
+}
+export interface TrainingAiReadiness {
+    employeeId: number;
+    employeeName: string;
+    canAnalyze: boolean;
+    hasJobTitle: boolean;
+    hasDepartment: boolean;
+    hasPerformanceReviews: boolean;
+    reviewCount: number;
+    latestKpiScore: number | null;
+    trainingHistoryCount: number;
+    availableCourseCount: number;
+    missingData: string[];
 }
 export const trainingApi = {
 
@@ -98,12 +116,18 @@ export const trainingApi = {
             userId,
         });
     },
+    getAiReadiness: async (
+        userId: number,
+    ): Promise<TrainingAiReadiness> => {
+        return apiClient.get(`/training/ai-readiness/${userId}`);
+    },
 
     assignCourse: async (data: {
         userId: number;
         courseId: number;
         assignedByAi?: boolean;
         aiReason?: string;
+        dueAt?: string;
     }) => {
         return apiClient.post('/training/assignments', data);
     },
@@ -117,6 +141,15 @@ export const trainingApi = {
             {
                 progressPercent,
             },
+        );
+    },
+    updateDueDate: async (
+        assignmentId: number,
+        dueAt: string,
+    ) => {
+        return apiClient.patch(
+            `/training/assignments/${assignmentId}/due-date`,
+            { dueAt },
         );
     },
 

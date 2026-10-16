@@ -18,7 +18,9 @@
     "seed:tv2-three-cv": "node dist/seeds/tv2-three-cv-demo.cli.js",
     "seed:all": "node scripts/seed_users.js && node scripts/seed_knowledge_base.js && node dist/seeds/recruitment-demo.cli.js",
     "demo:recruitment": "node test/recruitment-demo.cjs",
-    "test:recruitment-seed": "node --test test/recruitment-demo-seed.test.cjs"
+    "test:recruitment-seed": "node --test test/recruitment-demo-seed.test.cjs",
+    "test:training-reminder": "node --test test/training-reminder.test.cjs",
+    "test:tv4-automation": "node --test test/training-reminder.test.cjs test/tv4-automation-workflows.test.cjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

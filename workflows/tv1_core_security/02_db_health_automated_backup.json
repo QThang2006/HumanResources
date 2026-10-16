@@ -138,7 +138,7 @@
         "fromEmail": "quocthangngo2006@gmail.com",
         "toEmail": "quocthangngo2006@gmail.com",
         "subject": "=[Hạ Tầng 02:00 AM] Báo cáo sao lưu CSDL định kỳ & Giám sát sức khỏe server",
-        "html": "={{ $json.summaryHtml }}"
+        "html": "={{ $('8. Format Health Report HTML').first().json.summaryHtml || '<p>Báo cáo sức khỏe CSDL định kỳ 02:00 AM hoàn tất.</p>' }}"
       },
       "id": "b1a20002-c1a2-4a02-b002-000000000010",
       "name": "10. Send Email DB Digest (SMTP)",

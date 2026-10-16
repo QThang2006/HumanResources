@@ -68,7 +68,7 @@
         "url": "http://host.docker.internal:3001/api/auth/block-ip",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ ip: $json.ip, durationMinutes: $json.banMinutes, incidentId: $json.incidentId, reason: 'Brute-force limit exceeded (' + $json.failedAttempts + ' attempts)' }) }}",
+        "jsonBody": "={{ JSON.stringify({ ip: $json.ip, durationMinutes: $json.banMinutes, incidentId: $json.incidentId, reason: 'Brute-force limit exceeded (' + $json.failedAttempts + ' attempts)', email: $json.email, failedAttempts: $json.failedAttempts }) }}",
         "options": {
           "timeout": 5000
         }
@@ -130,9 +130,9 @@
     {
       "parameters": {
         "fromEmail": "quocthangngo2006@gmail.com",
-        "toEmail": "={{ $json.email }}",
+        "toEmail": "={{ $('7. Gemini AI Threat Classifier').first().json.email || 'quocthangngo2006@gmail.com' }}",
         "subject": "=[Cảnh Báo Bảo Mật] Tài khoản của bạn vừa bị thử đăng nhập trái phép nhiều lần",
-        "html": "=<h3>Kính gửi Quý người dùng,</h3><p>Hệ thống HR Tech AI phát hiện tài khoản của bạn (<b>{{ $json.email }}</b>) vừa bị cố gắng đăng nhập sai mật khẩu <b>{{ $json.failedAttempts }} lần liên tiếp</b> từ địa chỉ IP: <code>{{ $json.ip }}</code>.</p><p>Hệ thống đã kích hoạt cơ chế tự vệ và <b>tạm khóa IP này trong {{ $json.banMinutes }} phút</b>.</p><p>Nếu đây không phải thao tác của bạn, vui lòng liên hệ ngay bộ phận IT Security hoặc tiến hành đổi mật khẩu ngay sau khi đăng nhập lại.</p><hr><p><i>Mã sự cố kiểm toán: {{ $json.incidentId }} | Thời gian: {{ $json.timestamp }}</i></p>"
+        "html": "=<h3>Kính gửi Quý người dùng,</h3><p>Hệ thống HR Tech AI phát hiện tài khoản của bạn (<b>{{ $('7. Gemini AI Threat Classifier').first().json.email }}</b>) vừa bị cố gắng đăng nhập sai mật khẩu <b>{{ $('7. Gemini AI Threat Classifier').first().json.failedAttempts }} lần liên tiếp</b> từ địa chỉ IP: <code>{{ $('7. Gemini AI Threat Classifier').first().json.ip }}</code>.</p><p>Hệ thống đã kích hoạt cơ chế tự vệ và <b>tạm khóa IP này trong {{ $('7. Gemini AI Threat Classifier').first().json.banMinutes }} phút</b>.</p><p>Nếu đây không phải thao tác của bạn, vui lòng liên hệ ngay bộ phận IT Security hoặc tiến hành đổi mật khẩu ngay sau khi đăng nhập lại.</p><hr><p><i>Mã sự cố kiểm toán: {{ $('7. Gemini AI Threat Classifier').first().json.incidentId }} | Thời gian: {{ $('7. Gemini AI Threat Classifier').first().json.timestamp }}</i></p>"
       },
       "id": "b1a10001-c1a1-4a01-b001-000000000010",
       "name": "10. Send Email Security Warning (SMTP)",
@@ -144,7 +144,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('BRUTE_FORCE_BLOCKED', '{{ $json.ip }}', '{{ $json.email }}', '{{ JSON.stringify({ incidentId: $json.incidentId, failedAttempts: $json.failedAttempts, banMinutes: $json.banMinutes, riskTier: $json.riskTier }) }}', NOW());",
+        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('BRUTE_FORCE_BLOCKED', '{{ $('7. Gemini AI Threat Classifier').first().json.ip }}', '{{ $('7. Gemini AI Threat Classifier').first().json.email }}', '{{ JSON.stringify({ incidentId: $('7. Gemini AI Threat Classifier').first().json.incidentId, failedAttempts: $('7. Gemini AI Threat Classifier').first().json.failedAttempts, banMinutes: $('7. Gemini AI Threat Classifier').first().json.banMinutes, riskTier: $('7. Gemini AI Threat Classifier').first().json.riskTier }) }}', NOW());",
         "options": {}
       },
       "id": "b1a10001-c1a1-4a01-b001-000000000011",
@@ -157,7 +157,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-01 Brute-Force Defense', incidentId: $json.incidentId, action: 'IP_BLOCKED', blockedIp: $json.ip, banMinutes: $json.banMinutes, riskTier: $json.riskTier, processedAt: new Date().toISOString() }) }}",
+        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-01 Brute-Force Defense', incidentId: $('7. Gemini AI Threat Classifier').first().json.incidentId, action: 'IP_BLOCKED', blockedIp: $('7. Gemini AI Threat Classifier').first().json.ip, banMinutes: $('7. Gemini AI Threat Classifier').first().json.banMinutes, riskTier: $('7. Gemini AI Threat Classifier').first().json.riskTier, processedAt: new Date().toISOString() }) }}",
         "options": {
           "responseCode": 202
         }

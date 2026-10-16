@@ -127,7 +127,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('SYSTEM_INCIDENT_CAPTURED', '127.0.0.1', 'devops@company.com', '{{ JSON.stringify({ incidentRef: $json.incidentRef, endpoint: $json.endpoint, file: $json.culpritFile, line: $json.culpritLine, severity: $json.aiDiagnostic.severity }) }}', NOW());",
+        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('SYSTEM_INCIDENT_CAPTURED', '127.0.0.1', 'devops@company.com', '{{ JSON.stringify({ incidentRef: $('6. Format Actionable Playbook').first().json.incidentRef, endpoint: $('6. Format Actionable Playbook').first().json.endpoint, file: $('6. Format Actionable Playbook').first().json.culpritFile, line: $('6. Format Actionable Playbook').first().json.culpritLine, severity: $('6. Format Actionable Playbook').first().json.aiDiagnostic.severity }) }}', NOW());",
         "options": {}
       },
       "id": "b1a30003-c1a3-4a03-b003-000000000010",
@@ -141,8 +141,8 @@
       "parameters": {
         "fromEmail": "quocthangngo2006@gmail.com",
         "toEmail": "quocthangngo2006@gmail.com",
-        "subject": "=[Sự Cố Kỹ Thuật] Báo cáo crash {{ $json.incidentRef }} tại {{ $json.culpritFile }}",
-        "html": "=<h3>Báo Cáo Sự Cố Ứng Dụng (Incident Report)</h3><p><b>Mã sự cố:</b> <code>{{ $json.incidentRef }}</code></p><p><b>API Endpoint:</b> <code>{{ $json.method }} {{ $json.endpoint }}</code> (Status: {{ $json.statusCode }})</p><p><b>Tệp tin xảy ra lỗi:</b> <code>{{ $json.culpritFile }}</code> (Dòng {{ $json.culpritLine }})</p><p><b>Thông báo lỗi:</b> <span style=\"color: red;\">{{ $json.errorMessage }}</span></p><hr><h4>Chẩn đoán & Gợi ý giải pháp từ AI Gemini:</h4><p><b>Nguyên nhân:</b> {{ $json.aiDiagnostic.rootCause }}</p><p><b>Đề xuất xử lý:</b> <i>{{ $json.aiDiagnostic.suggestedFix }}</i></p><hr><pre style=\"background: #f1f5f9; padding: 10px;\">{{ $json.stackTrace }}</pre>"
+        "subject": "=[Sự Cố Kỹ Thuật] Báo cáo crash {{ $('6. Format Actionable Playbook').first().json.incidentRef }} tại {{ $('6. Format Actionable Playbook').first().json.culpritFile }}",
+        "html": "=<h3>Báo Cáo Sự Cố Ứng Dụng (Incident Report)</h3><p><b>Mã sự cố:</b> <code>{{ $('6. Format Actionable Playbook').first().json.incidentRef }}</code></p><p><b>API Endpoint:</b> <code>{{ $('6. Format Actionable Playbook').first().json.method }} {{ $('6. Format Actionable Playbook').first().json.endpoint }}</code> (Status: {{ $('6. Format Actionable Playbook').first().json.statusCode }})</p><p><b>Tệp tin xảy ra lỗi:</b> <code>{{ $('6. Format Actionable Playbook').first().json.culpritFile }}</code> (Dòng {{ $('6. Format Actionable Playbook').first().json.culpritLine }})</p><p><b>Thông báo lỗi:</b> <span style=\"color: red;\">{{ $('6. Format Actionable Playbook').first().json.errorMessage }}</span></p><hr><h4>Chẩn đoán & Gợi ý giải pháp từ AI Gemini:</h4><p><b>Nguyên nhân:</b> {{ $('6. Format Actionable Playbook').first().json.aiDiagnostic ? $('6. Format Actionable Playbook').first().json.aiDiagnostic.rootCause : 'Đang phân tích' }}</p><p><b>Đề xuất xử lý:</b> <i>{{ $('6. Format Actionable Playbook').first().json.aiDiagnostic ? $('6. Format Actionable Playbook').first().json.aiDiagnostic.suggestedFix : 'Kiểm tra log' }}</i></p><hr><pre style=\"background: #f1f5f9; padding: 10px;\">{{ $('6. Format Actionable Playbook').first().json.stackTrace }}</pre>"
       },
       "id": "b1a30003-c1a3-4a03-b003-000000000011",
       "name": "11. Send Email Technical Digest (SMTP)",
@@ -154,7 +154,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-03 Incident Aggregator', incidentRef: $json.incidentRef, targetFile: $json.culpritFile, severity: $json.aiDiagnostic.severity, status: 'DISPATCHED_TO_ONCALL', processedAt: new Date().toISOString() }) }}",
+        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-03 Incident Aggregator', incidentRef: $('6. Format Actionable Playbook').first().json.incidentRef, targetFile: $('6. Format Actionable Playbook').first().json.culpritFile, severity: $('6. Format Actionable Playbook').first().json.aiDiagnostic ? $('6. Format Actionable Playbook').first().json.aiDiagnostic.severity : 'HIGH', status: 'DISPATCHED_TO_ONCALL', processedAt: new Date().toISOString() }) }}",
         "options": {
           "responseCode": 200
         }

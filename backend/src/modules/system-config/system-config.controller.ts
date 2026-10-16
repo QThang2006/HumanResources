@@ -14,19 +14,21 @@ import { Public } from '../../common/decorators/public.decorator';
 import { UserRole } from '../../entities/user.entity';
 
 @Controller('system-config')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.SUPERADMIN)
 export class SystemConfigController {
   constructor(
       private readonly systemConfigService: SystemConfigService,
   ) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERADMIN)
   getConfig() {
     return this.systemConfigService.getConfig();
   }
 
   @Patch()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERADMIN)
   updateConfig(
       @Body()
       body: {
@@ -41,6 +43,8 @@ export class SystemConfigController {
   }
 
   @Post('test-n8n')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERADMIN)
   testN8n(
       @Body()
       body: {
@@ -51,7 +55,10 @@ export class SystemConfigController {
         body.webhookUrl,
     );
   }
+
   @Post('test-gemini')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERADMIN)
   testGemini() {
     return this.systemConfigService.testGemini();
   }

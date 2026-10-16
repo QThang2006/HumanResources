@@ -50,6 +50,8 @@ export class AuthController {
       durationMinutes?: number;
       incidentId?: string;
       reason?: string;
+      email?: string;
+      failedAttempts?: number;
     },
   ) {
     if (!body.ip) {
@@ -60,6 +62,8 @@ export class AuthController {
       body.durationMinutes,
       body.incidentId,
       body.reason,
+      body.email,
+      body.failedAttempts,
     );
   }
 }

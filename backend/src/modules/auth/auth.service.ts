@@ -8,16 +8,16 @@ import { User } from '../../entities/user.entity';
 @Injectable()
 export class AuthService {
   constructor(
-      @InjectRepository(User)
-      private userRepository: Repository<User>,
-      private jwtService: JwtService,
-  ) {}
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    private jwtService: JwtService,
+  ) { }
 
   async validateUser(email: string, pass: string): Promise<User | null> {
     const lookupEmail =
-        email === 'admin@company.com'
-            ? 'superadmin@company.com'
-            : email;
+      email === 'admin@company.com'
+        ? 'superadmin@company.com'
+        : email;
 
     const user = await this.userRepository.findOne({
       where: { email: lookupEmail },
@@ -66,14 +66,14 @@ export class AuthService {
       });
 
       throw new UnauthorizedException(
-          'Email hoặc mật khẩu không chính xác.',
+        'Email hoặc mật khẩu không chính xác.',
       );
     }
 
     // Đến đây chắc chắn user không còn null
     if (user.isActive === false) {
       throw new UnauthorizedException(
-          'Tài khoản đã bị tạm khóa. Vui lòng liên hệ quản trị viên.',
+        'Tài khoản đã bị tạm khóa. Vui lòng liên hệ quản trị viên.',
       );
     }
 
@@ -100,7 +100,14 @@ export class AuthService {
   // Danh sách IP bị phong tỏa tạm thời (In-memory IP Blacklist)
   private blockedIps = new Map<string, { banUntil: Date; reason: string; incidentId: string }>();
 
-  async blockIp(ip: string, durationMinutes: number = 60, incidentId?: string, reason?: string) {
+  async blockIp(
+    ip: string,
+    durationMinutes: number = 60,
+    incidentId?: string,
+    reason?: string,
+    email?: string,
+    failedAttempts?: number,
+  ) {
     const banUntil = new Date(Date.now() + durationMinutes * 60 * 1000);
     this.blockedIps.set(ip, {
       banUntil,
@@ -111,8 +118,11 @@ export class AuthService {
       success: true,
       message: `Đã tạm khóa địa chỉ IP [${ip}] trong ${durationMinutes} phút.`,
       ip,
+      email: email || 'quocthangngo2006@gmail.com',
+      failedAttempts: failedAttempts || 5,
+      banMinutes: durationMinutes,
       banUntil,
-      incidentId,
+      incidentId: incidentId || `INC-BRUTE-${Date.now().toString(36).toUpperCase()}`,
     };
   }
 

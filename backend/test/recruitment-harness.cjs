@@ -69,6 +69,10 @@ async function startHarness({
   const automation = {
     calls: [],
     hireCalls: [],
+    offerCalls: [],
+    jobsCalls: [],
+    offerAccepted: true,
+    async triggerOfferIssued(payload) { this.offerCalls.push(payload); return this.offerAccepted; },
     accepted: true,
     hireAccepted: true,
     async triggerInterviewScheduled(payload) {
@@ -78,6 +82,10 @@ async function startHarness({
     async triggerEmployeeHired(payload) {
       this.hireCalls.push(payload);
       return this.hireAccepted;
+    },
+    async triggerJobsChanged(payload) {
+      this.jobsCalls.push(payload);
+      return true;
     },
   };
   async function close() {

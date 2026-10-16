@@ -364,7 +364,7 @@ test(
         assert.equal((await req('/jobs/departments')).status, 401);
         assert.equal((await req('/jobs/departments', { who: 'manager' })).status, 403);
         const departments = (await req('/jobs/departments', { who: 'hr' })).data;
-        assert.deepEqual(Object.keys(departments[0]).sort(), ['code', 'id', 'name']);
+        assert.deepEqual(Object.keys(departments[0]).sort(), ['code', 'id', 'managerId', 'name']);
         const capabilities = (await req('/jobs/capabilities', { who: 'manager' })).data;
         assert.equal(capabilities.hire, true);
         assert.equal(capabilities.jd, false);
@@ -628,7 +628,7 @@ test(
         const path = '/applications/interviews/' + interview.id + '/result';
         assert.equal((await req(path, { who: 'hr', method: 'PATCH', body })).status, 403);
         assert.equal((await req(path, { who: 'peer', method: 'PATCH', body })).status, 403);
-        assert.equal((await req(path, { who: 'other', method: 'PATCH', body })).status, 404);
+        assert.equal((await req(path, { who: 'other', method: 'PATCH', body })).status, 403);
         for (const invalid of [
           { ...body, score: 101 },
           { ...body, feedback: ' ' },

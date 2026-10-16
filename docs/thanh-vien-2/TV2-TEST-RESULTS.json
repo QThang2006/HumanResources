@@ -1,0 +1,54 @@
+{
+  "checkedOn": "2026-10-16",
+  "backendBuild": "PASS",
+  "frontendTypecheck": "PASS",
+  "frontendBuild": "PASS (existing bundle-size warning)",
+  "tests": {
+    "recruitment": 37,
+    "delivery": 9,
+    "workflowContracts": 1,
+    "intakeOffer": 6
+  },
+  "n8nEngine": {
+    "passed": true,
+    "engine": "n8n",
+    "database": "isolated MySQL",
+    "smtp": "loopback sink, 6 messages, no external delivery",
+    "google": "contract fixture",
+    "waits": "accelerated in test only",
+    "cases": [
+      "Gmail intake",
+      "duplicate intake",
+      "Form/Drive intake",
+      "interview + ICS two recipients",
+      "offer + 24h reminder + 48h expiry"
+    ]
+  },
+  "imported": [
+    {
+      "id": "hrTv2IntakeV2",
+      "nodes": 13,
+      "active": false
+    },
+    {
+      "id": "hrTv2InterviewV2",
+      "nodes": 18,
+      "active": false
+    },
+    {
+      "id": "hrTv2OfferV2",
+      "nodes": 15,
+      "active": false
+    }
+  ],
+  "liveSetupRequired": [
+    "Gmail OAuth2",
+    "Google Sheets Trigger OAuth2 and response Sheet",
+    "Google Drive OAuth2",
+    "MAIL_FROM and HR_EMAIL",
+    "RECRUITMENT_CALLBACK_BASE_URL",
+    "PUBLIC_WEB_BASE_URL",
+    "Restart Backend; unpublish old interview workflow before publishing new one"
+  ],
+  "googleLiveCallsTested": false
+}

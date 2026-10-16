@@ -18,6 +18,7 @@ import {
   EmployeeTraining,
   PerformanceReview,
   EmployeeMood,
+  Offer,
 } from './entities';
 import { AiModule } from './modules/core/ai/ai.module';
 import { AutomationModule } from './modules/core/automation/automation.module';
@@ -64,6 +65,7 @@ import { InterviewDelivery } from './modules/applications/interview-delivery.ent
           EmployeeTraining,
           PerformanceReview,
           EmployeeMood,
+          Offer,
         ],
         synchronize: true, // Tự động đồng bộ cấu trúc các bảng khi khởi động (Môi trường Dev)
         logging: ['error', 'warn'],

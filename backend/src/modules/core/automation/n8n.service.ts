@@ -69,6 +69,21 @@ export class N8nService {
     return this.postWebhook(url, fullPayload, 'Tuyển dụng nhân sự mới');
   }
 
+  async triggerOfferIssued(payload: { offerId: number; token: string; responseToken: string }): Promise<boolean> {
+    return this.postWebhook(this.webhookBaseUrl + '/offer-issued', payload, 'Phát hành Offer Letter');
+  }
+
+  /**
+   * Bắn webhook khi danh sách tin tuyển dụng thay đổi để đồng bộ dropdown Google Form.
+   * Backend vẫn là nguồn mã vị trí duy nhất; n8n chỉ chuyển danh sách job đang mở sang Form.
+   */
+  async triggerJobsChanged(payload: {
+    action: 'CREATED' | 'UPDATED' | 'STATUS_CHANGED';
+    job: Record<string, unknown>;
+  }): Promise<boolean> {
+    return this.postWebhook(this.webhookBaseUrl + '/jobs-changed', payload, 'Đồng bộ danh sách vị trí Google Form');
+  }
+
   /**
    * Bắn Webhook cảnh báo kiệt sức (Telegram / Slack / Email HR)
    */
@@ -95,7 +110,7 @@ export class N8nService {
     try {
       this.logger.log(`[n8n Dispatcher] Bắn webhook [${actionName}] tới: ${url}`);
       // Gọi fetch bất đồng bộ, không làm nghẽn luồng xử lý chính của người dùng
-      fetch(url, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(10000),
@@ -105,11 +120,9 @@ export class N8nService {
           ...data,
           data,
         }),
-      }).catch((err) => {
-        this.logger.warn(`[n8n Dispatcher] Không thể kết nối tới server n8n (${url}): ${err.message}`);
       });
-
-      return true;
+      if (!response.ok) this.logger.warn('Webhook rejected: HTTP ' + response.status);
+      return response.ok;
     } catch (err: any) {
       this.logger.error(`[n8n Dispatcher] Lỗi ngoại lệ: ${err.message}`);
       return false;

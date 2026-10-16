@@ -34,7 +34,7 @@ const crypto = require('node:crypto');
     const { buildReadbackWorkflow } = require('./build-interview-readback-workflow.cjs');
     const workflow = buildReadbackWorkflow(source, config.callbackBaseUrl);
     workflow.id = 'hrTv2Readback01';
-    workflow.name = 'TV2 - WEB TEST - Meet and email saved to ATS';
+    workflow.name = '91.02 | Bản thử – Lưu kết quả tạo lịch và gửi thư vào ATS';
     const byName = (name) => workflow.nodes.find((n) => n.name === name);
     const webhook = workflow.nodes.find((n) => n.type === 'n8n-nodes-base.webhook');
     webhook.parameters.path = 'hr-tv2-readback-test/interview-schedule';
@@ -42,12 +42,12 @@ const crypto = require('node:crypto');
     const assertion = `if (p.applicationId !== ${config.applicationId} || p.candidateName !== 'TV2 WEB TEST - Ung vien gia' || p.round !== 1 || Date.parse(p.scheduledAt) !== Date.parse(${JSON.stringify(config.scheduledAt)})) throw new Error('Only the prepared synthetic schedule is allowed');
 const self = ${JSON.stringify(email)};
 if ([p.candidateEmail,p.fromEmail,p.interviewerEmail].some(x=>String(x).toLowerCase()!==self)) throw new Error('Only the configured personal Gmail may receive the test');`;
-    const envelope = byName('Validate delivery envelope');
+    const envelope = byName('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn');
     envelope.parameters.jsCode = envelope.parameters.jsCode.replace(
       'return [{json:{interviewId:p.interviewId, delivery:d}}];',
       assertion + '\nreturn [{json:{interviewId:p.interviewId, delivery:d}}];',
     );
-    const payload = byName('Load interview payload');
+    const payload = byName('04. Nạp thông tin buổi phỏng vấn');
     payload.parameters.jsCode = payload.parameters.jsCode.replace(
       'return [{json:{...p, delivery:d}}];',
       assertion + '\nreturn [{json:{...p, delivery:d}}];',
@@ -75,13 +75,13 @@ if ([p.candidateEmail,p.fromEmail,p.interviewerEmail].some(x=>String(x).toLowerC
     }
     const report = {
       id: 'tv2-readback-live-report',
-      name: 'TV2 readback test result',
+      name: '17a. Tổng hợp kết quả kiểm tra lưu vào ATS',
       type: 'n8n-nodes-base.code',
       typeVersion: 2,
       position: [2880, 400],
       parameters: {
         jsCode: `const saved = $input.first().json.data || $input.first().json;
-const p = $('Load interview payload').first().json; const e = $('Verify Calendar readback').first().json;
+const p = $('04. Nạp thông tin buổi phỏng vấn').first().json; const e = $('08. Xác minh lịch và liên kết Google Meet').first().json;
 if (saved.recorded!==true || saved.interviewId!==p.interviewId || saved.automation.calendarStatus!=='CONFIRMED' || saved.automation.emailStatus!=='SMTP_ACCEPTED') throw new Error('ATS readback was not saved');
 return [{json:{success:true,mode:'TV2_READBACK_LIVE_TEST',testReference:${JSON.stringify(reference)},applicationId:p.applicationId,interviewId:p.interviewId,meetingLink:e.hangoutLink,automation:saved.automation,inboxDelivery:'NOT_YET_VERIFIED'}}];`,
       },
@@ -89,7 +89,7 @@ return [{json:{success:true,mode:'TV2_READBACK_LIVE_TEST',testReference:${JSON.s
     workflow.nodes.push(report);
     const respond = workflow.nodes.find((n) => n.type === 'n8n-nodes-base.respondToWebhook');
     respond.position = [3120, 400];
-    workflow.connections['Save email status to ATS'] = {
+    workflow.connections['13. Lưu trạng thái gửi thư vào ATS'] = {
       main: [[{ node: report.name, type: 'main', index: 0 }]],
     };
     workflow.connections[report.name] = {
@@ -136,7 +136,7 @@ return [{json:{success:true,mode:'TV2_READBACK_LIVE_TEST',testReference:${JSON.s
   webhook.position = [100, 400];
   const guard = code(
     'tv2-self-guard',
-    'Validate TV2 self-test',
+    '02. Kiểm tra dữ liệu thử nghiệm cá nhân',
     `const body = $input.first().json.body || $input.first().json;
 const p = body.data || body;
 const self = ${JSON.stringify(email)};
@@ -174,7 +174,7 @@ return [{ json: p }];`,
   const readback = {
     ...structuredClone(calendar),
     id: 'tv2-event-readback',
-    name: 'Read back Google event',
+    name: '07. Đọc lại sự kiện Google Calendar thử nghiệm',
     position: [820, 400],
     parameters: {
       resource: 'event',
@@ -186,7 +186,7 @@ return [{ json: p }];`,
   };
   const checkMeet = code(
     'tv2-check-meet',
-    'Verify real Calendar and Meet',
+    '08. Xác minh lịch và phòng Meet thử nghiệm',
     `const e = $input.first().json;
 const expectedId = ${JSON.stringify(eventId)};
 const expectedStart = Date.parse(${JSON.stringify(config.scheduledAt)});
@@ -202,10 +202,10 @@ return [{ json: { ...e, hangoutLink: meet } }];`,
   format.position = [1300, 400];
   const mailGuard = code(
     'tv2-mail-guard',
-    'Validate self-addressed invitation',
+    '10a. Kiểm tra thư thử chỉ gửi cho chính mình',
     `const p = $input.first().json;
 const self = ${JSON.stringify(email)};
-const event = $('Verify real Calendar and Meet').first().json;
+const event = $('08. Xác minh lịch và phòng Meet thử nghiệm').first().json;
 if (String(p.fromEmail).toLowerCase() !== self || String(p.candidateEmail).toLowerCase() !== self || p.googleMeetUrl !== event.hangoutLink || !p.emailHtml?.includes(event.hangoutLink)) throw new Error('Unexpected recipient or Meet URL');
 p.emailSubject = ${JSON.stringify('[TV2 TEST] ' + reference)};
 p.emailHtml = p.emailHtml.replace('<body>', '<body><p><strong>TV2 TEST: Du lieu ung vien gia, gui ve chinh tai khoan test.</strong></p>');
@@ -217,9 +217,9 @@ return [{ json: p }];`,
   smtp.parameters.emailFormat = 'html';
   const report = code(
     'tv2-live-report',
-    'TV2 live test result',
+    '17. Tổng hợp kết quả thử nghiệm Google và Gmail',
     `const m = $input.first().json;
-const e = $('Verify real Calendar and Meet').first().json;
+const e = $('08. Xác minh lịch và phòng Meet thử nghiệm').first().json;
 const self = ${JSON.stringify(email)};
 if (!m.messageId || !Array.isArray(m.accepted) || m.accepted.length !== 1 || String(m.accepted[0]).toLowerCase() !== self || (m.rejected || []).length) throw new Error('SMTP did not accept the one self-addressed message');
 return [{ json: { success: true, mode: 'TV2_LIVE_SELF_TEST', testReference: ${JSON.stringify(reference)}, calendar: { eventId: e.id, googleMeetUrl: e.hangoutLink, readback: 'VERIFIED' }, email: { status: 'SMTP_ACCEPTED', messageId: m.messageId, inboxDelivery: 'NOT_YET_VERIFIED' }, telegram: 'NOT_REQUESTED' } }];`,
@@ -253,7 +253,7 @@ return [{ json: { success: true, mode: 'TV2_LIVE_SELF_TEST', testReference: ${JS
     connections[nodes[i].name] = { main: [[{ node: nodes[i + 1].name, type: 'main', index: 0 }]] };
   const workflow = {
     id: 'hrTv2LiveSelf01',
-    name: 'TV2 - LIVE TEST - Calendar and Gmail self-only',
+    name: '91.04 | Bản thử – Google Calendar và Gmail gửi cho chính mình',
     active: false,
     nodes,
     connections,
@@ -264,7 +264,7 @@ return [{ json: { success: true, mode: 'TV2_LIVE_SELF_TEST', testReference: ${JS
     throw new Error('Telegram must be excluded');
   if (webMode) {
     workflow.id = 'hrTv2WebLive01';
-    workflow.name = 'TV2 - WEB TEST - Recruitment Calendar and Gmail';
+    workflow.name = '91.03 | Bản thử – Xếp lịch và gửi thư từ giao diện tuyển dụng';
     webhook.parameters.path = 'hr-tv2-web-test/interview-schedule';
     webhook.webhookId = 'hr-tv2-web-test-interview';
     guard.parameters.jsCode = [
@@ -295,7 +295,7 @@ return [{ json: { success: true, mode: 'TV2_LIVE_SELF_TEST', testReference: ${JS
         'success: true,',
         'success: true, applicationId: ' +
           config.applicationId +
-          ', interviewId: $("Validate TV2 self-test").first().json.interviewId,',
+          ', interviewId: $("02. Kiểm tra dữ liệu thử nghiệm cá nhân").first().json.interviewId,',
       );
     for (const n of nodes) if (n.type === 'n8n-nodes-base.code') new Function(n.parameters.jsCode);
   }

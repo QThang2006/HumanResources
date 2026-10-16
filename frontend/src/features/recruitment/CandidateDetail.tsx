@@ -1,3 +1,4 @@
+import { OfferPanel } from './OfferPanel';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { recruitmentApi as api } from './api';
@@ -94,6 +95,7 @@ export function CandidateDetail({
 }) {
   const { user } = useAuth();
   const operator = user?.role === 'HR' || user?.role === 'SUPERADMIN';
+  const [offerStatus, setOfferStatus] = useState<string | null>(null);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -208,6 +210,7 @@ export function CandidateDetail({
   }
   const terminal = candidate && ['HIRED', 'REJECTED'].includes(candidate.status);
   const canHire =
+    (!offerStatus || offerStatus === 'ACCEPTED') &&
     !!capabilities?.hire &&
     !!candidate &&
     ['INTERVIEWING', 'OFFERED'].includes(candidate.status) &&
@@ -528,23 +531,11 @@ export function CandidateDetail({
                 </Alert>
               )}
             </section>
+            {operator && <OfferPanel applicationId={id} jobTitle={candidate.jobTitle} canCreate={['INTERVIEWING', 'OFFERED'].includes(candidate.status) && candidate.interviews[0]?.result === 'PASSED'} statusChanged={setOfferStatus} changed={() => { act(async () => {}); }} />}
             {operator && !terminal && (
               <section className="space-y-3 border-t pt-4">
                 <div className="flex flex-wrap gap-2">
-                  {candidate.status === 'INTERVIEWING' && (
-                    <button
-                      className={buttonClass}
-                      disabled={busy || candidate.interviews[0]?.result !== 'PASSED'}
-                      onClick={() =>
-                        act(async () => {
-                          await api.state(candidate, 'OFFERED');
-                          return 'Đã chuyển sang đề xuất nhận việc.';
-                        })
-                      }
-                    >
-                      Đề xuất nhận việc
-                    </button>
-                  )}
+
                   <button
                     className={secondaryClass}
                     disabled={busy}

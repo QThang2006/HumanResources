@@ -64,6 +64,8 @@ export class ApplicationsController {
 
   // Webhook nhận meeting_link và googleCalendarEventId từ n8n
   @Post('interviews/:id/meeting-link')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
   updateMeetingLink(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { meetingLink: string; eventId?: string },

@@ -1,3 +1,4 @@
+import { IntakeController, IntakeGuard } from './intake.controller';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApplicationsService } from './applications.service';
@@ -14,6 +15,9 @@ import { CvStorageService } from './cv-storage.service';
 import { SubmitRateGuard } from './submit-rate.guard';
 import { InterviewDelivery } from './interview-delivery.entity';
 import { InterviewDeliveryService } from './interview-delivery.service';
+import { Offer } from '../../entities/offer.entity';
+import { OfferService } from './offer.service';
+import { OfferController } from './offer.controller';
 import {
   InterviewScheduleController,
   InterviewScheduleService,
@@ -31,15 +35,18 @@ import {
       OnboardingTask,
       TrainingCourse,
       EmployeeTraining,
+      Offer,
     ]),
   ],
-  controllers: [ApplicationsController, InterviewScheduleController],
+  controllers: [IntakeController, ApplicationsController, InterviewScheduleController, OfferController],
   providers: [
     ApplicationsService,
     CvStorageService,
     SubmitRateGuard,
     InterviewDeliveryService,
     InterviewScheduleService,
+    OfferService,
+    IntakeGuard,
   ],
   exports: [ApplicationsService],
 })

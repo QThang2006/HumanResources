@@ -76,6 +76,7 @@ test(
       event: 'SMTP_ACCEPTED',
       eventId: a.p.delivery.eventId,
       recipient: a.p.candidateEmail,
+      acceptedRecipients: [a.p.candidateEmail, a.p.interviewerEmail],
       messageId: '<test-one@example.test>',
     };
     await t.test(
@@ -98,6 +99,9 @@ test(
       },
     );
     await t.test('unauthenticated/wrong capability and unclaimed result are rejected', async () => {
+      assert.equal((await req('/applications/interviews/' + a.p.interviewId + '/meeting-link', {
+        method: 'POST', body: { meetingLink: 'https://meet.google.com/abc-defg-hij' },
+      })).status, 401);
       assert.equal(
         (await a.machine('/claim', { requestId: a.p.delivery.requestId }, null)).status,
         401,
@@ -228,6 +232,7 @@ test(
               applicationId: b.appId,
               eventId: b.p.delivery.eventId,
               recipient: b.p.candidateEmail,
+              acceptedRecipients: [b.p.candidateEmail, b.p.interviewerEmail],
             })
           ).status,
           201,

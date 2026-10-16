@@ -20,6 +20,7 @@ import {
   PerformanceReviewReminder,
   OffboardingCase,
   EmployeeMood,
+  AuditLog,
   Offer,
 } from './entities';
 import { AiModule } from './modules/core/ai/ai.module';
@@ -70,6 +71,7 @@ import { OffboardingModule } from './modules/offboarding/offboarding.module';
           PerformanceReviewReminder,
           OffboardingCase,
           EmployeeMood,
+          AuditLog,
           Offer,
         ],
         synchronize: true, // Tự động đồng bộ cấu trúc các bảng khi khởi động (Môi trường Dev)

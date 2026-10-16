@@ -12,4 +12,6 @@ export * from './performance-review.entity';
 export * from './performance-review-reminder.entity';
 export * from './offboarding-case.entity';
 export * from './employee-mood.entity';
+export * from './audit-log.entity';
 export * from './offer.entity';
+

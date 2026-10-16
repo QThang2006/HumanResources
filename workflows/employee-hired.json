@@ -82,7 +82,7 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $json.telegramChatId || $json.chatId || '@enterprise_it_ops' }}",
+        "chatId": "={{ $json.telegramChatId || $json.chatId || '8928574834' }}",
         "text": "={{ $json.telegramAlert }}",
         "additionalFields": {
           "parse_mode": "HTML"

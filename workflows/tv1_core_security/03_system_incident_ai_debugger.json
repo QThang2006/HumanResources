@@ -96,7 +96,7 @@
     },
     {
       "parameters": {
-        "chatId": "6331216556",
+        "chatId": "8928574834",
         "text": "=🗄️ *[DBA BÁO ĐỘNG] SỰ CỐ CƠ SỞ DỮ LIỆU MYSQL*\n\n• *Mã sự cố:* `{{ $json.incidentRef }}`\n• *API:* `{{ $json.method }} {{ $json.endpoint }}`\n• *Vị trí:* `{{ $json.culpritFile }}:{{ $json.culpritLine }}`\n• *Chi tiết:* `{{ $json.errorMessage }}`\n• *Chẩn đoán AI:* {{ $json.aiDiagnostic.rootCause }}\n• *Đề xuất:* {{ $json.aiDiagnostic.suggestedFix }}\n\n_Vui lòng kiểm tra ngay connection pool và transaction timeout._",
         "additionalFields": {
           "parse_mode": "Markdown"
@@ -111,7 +111,7 @@
     },
     {
       "parameters": {
-        "chatId": "6331216556",
+        "chatId": "8928574834",
         "text": "=⚠️ *[DEV BÁO ĐỘNG] SỰ CỐ CODE LOGIC BACKEND*\n\n• *Mã sự cố:* `{{ $json.incidentRef }}`\n• *API:* `{{ $json.method }} {{ $json.endpoint }}`\n• *Module:* `{{ $json.culpritFile }}` (Dòng {{ $json.culpritLine }})\n• *Lỗi:* `{{ $json.errorMessage }}`\n• *AI Gợi ý:* {{ $json.aiDiagnostic.suggestedFix }}\n\n_Đã tạo ticket theo dõi sự cố trên hệ thống kiểm toán._",
         "additionalFields": {
           "parse_mode": "Markdown"

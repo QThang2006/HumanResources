@@ -122,6 +122,14 @@ return [{
       n.parameters.responseBody = "={\n  \"success\": true,\n  \"message\": \"Incident reported, analyzed by AI, dispatched to Telegram & Email, and archived in MySQL.\",\n  \"incidentRef\": \"{{ $('6. Format Actionable Playbook1').first().json.incidentRef }}\",\n  \"aiDiagnostic\": {{ JSON.stringify($('6. Format Actionable Playbook1').first().json.aiDiagnostic || {}) }}\n}";
       updatedCount++;
     }
+
+    // Cập nhật tất cả Telegram nodes sang Chat ID thật: 8928574834
+    if (n.type && n.type.includes('telegram')) {
+      if (n.parameters) {
+        n.parameters.chatId = '8928574834';
+        updatedCount++;
+      }
+    }
   }
 
   console.log('Total nodes patched:', updatedCount);

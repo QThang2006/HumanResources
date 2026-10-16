@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "chatId": "6331216556",
+        "chatId": "8928574834",
         "text": "=🗄️ *[HẠ TẦNG & CSDL] BÁO CÁO SAO LƯU TỰ ĐỘNG 02:00 AM*\n\n• *Mã sao lưu:* `{{ $json.backupId }}`\n• *Trạng thái:* {{ $json.statusIcon }}\n• *CSDL:* `{{ $json.dbName }}` ({{ $json.tableCount }} bảng)\n• *Dung lượng:* `{{ $json.totalSizeMb }} MB` (Sử dụng: {{ $json.diskUsagePercent }}%)\n• *File lưu trữ:* `{{ $json.backupFilename }}`\n\n_Bản sao lưu nén định kỳ đã được tạo và kiểm toán toàn vẹn thành công._",
         "additionalFields": {
           "parse_mode": "Markdown"

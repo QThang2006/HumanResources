@@ -114,7 +114,7 @@
     },
     {
       "parameters": {
-        "chatId": "6331216556",
+        "chatId": "8928574834",
         "text": "=🚨 *[DEVSECOPS BÁO ĐỘNG ĐỎ] TỰ ĐỘNG CHẶN BRUTE-FORCE*\n\n• *Mã sự cố:* `{{ $json.incidentId }}`\n• *Mức độ:* `{{ $json.riskTier }}`\n• *IP bị cấm:* `{{ $json.ip }}`\n• *Mục tiêu:* `{{ $json.email }}` (Role: `{{ $json.targetRole }}`)\n• *Số lần gõ sai:* `{{ $json.failedAttempts }} lần` / 15 phút\n• *Thời gian khóa:* `{{ $json.banMinutes }} phút` (Hết hạn: `{{ $json.banUntil }}`)\n• *Nhận định AI:* {{ $json.aiAssessment }}\n\n_Hệ thống đã tự động thêm IP vào tường lửa Blacklist Backend._",
         "additionalFields": {
           "parse_mode": "Markdown"

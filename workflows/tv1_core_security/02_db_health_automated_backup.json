@@ -65,7 +65,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-02 Node 5: Tính toán tỷ lệ dung lượng đĩa & chỉ số bảng dữ liệu\nconst input = $input.first().json;\n\nconst totalSizeMb = Number(input.total_size_mb || 38.5);\nconst tableCount = Number(input.table_count || 11);\nconst maxAllowedMb = 1000.0; // Định mức hạn ngạch CSDL 1GB\nconst diskUsagePercent = Math.round((totalSizeMb / maxAllowedMb) * 100);\n\nconst backupId = 'BKP-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-0200';\nconst isStorageAlarm = diskUsagePercent >= 80;\n\nreturn [{\n  json: {\n    backupId,\n    dbName: input.db_name || 'hr_enterprise_db',\n    totalSizeMb,\n    tableCount,\n    diskUsagePercent,\n    isStorageAlarm,\n    backupFilename: 'db_backup_' + backupId + '.sql.gz',\n    timestamp: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// WF-02 Node 5: Tính toán tỷ lệ dung lượng đĩa & chỉ số bảng dữ liệu\nconst input = $input.first().json;\n\nconst totalSizeMb = Number(input.total_size_mb || 38.5);\nconst tableCount = Number(input.table_count || 11);\nconst maxAllowedMb = 1000.0;\nconst diskUsagePercent = Math.round((totalSizeMb / maxAllowedMb) * 100);\n\nconst backupId = 'BKP-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-0200';\nconst isStorageAlarm = diskUsagePercent >= 80;\n\nreturn [{\n  json: {\n    backupId,\n    dbName: input.db_name || 'hr_enterprise_db',\n    totalSizeMb,\n    tableCount,\n    diskUsagePercent,\n    isStorageAlarm,\n    backupFilename: 'db_backup_' + backupId + '.sql.gz',\n    timestamp: new Date().toISOString()\n  }\n}];"
       },
       "id": "b1a20002-c1a2-4a02-b002-000000000005",
       "name": "5. Calculate Storage & Metrics",
@@ -110,7 +110,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-02 Node 8: Biên tập báo cáo tóm tắt tình trạng hạ tầng\nconst item = $input.first().json;\n\nconst statusIcon = item.isStorageAlarm ? '⚠️ CẢNH BÁO' : '✅ HOÀN HẢO';\nconst summaryHtml = `\n  <div style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">\n    <h2 style=\"color: #1e293b;\">🛡️ BÁO CÁO KIỂM TRA HẠ TẦNG & SAO LƯU CSDL BAN ĐÊM</h2>\n    <p><b>Mã phiên sao lưu:</b> <code>${item.backupId}</code></p>\n    <p><b>Thời gian thực hiện:</b> ${item.timestamp}</p>\n    <table border=\"1\" cellpadding=\"8\" style=\"border-collapse: collapse; width: 100%; max-width: 600px;\">\n      <tr style=\"background: #f1f5f9;\"><th>Chỉ số</th><th>Giá trị</th></tr>\n      <tr><td>Cơ sở dữ liệu</td><td><b>${item.dbName}</b></td></tr>\n      <tr><td>Tổng số bảng thực thể</td><td><b>${item.tableCount} bảng (Chuẩn 3NF)</b></td></tr>\n      <tr><td>Dung lượng CSDL hiện tại</td><td><b>${item.totalSizeMb} MB</b> (${item.diskUsagePercent}% hạn ngạch)</td></tr>\n      <tr><td>Tệp sao lưu nén</td><td><code>${item.backupFilename}</code></td></tr>\n      <tr><td>Tình trạng an toàn</td><td><b>${statusIcon}</b></td></tr>\n    </table>\n  </div>\n`;\n\nreturn [{\n  json: {\n    ...item,\n    statusIcon,\n    summaryHtml\n  }\n}];"
+        "jsCode": "// WF-02 Node 8: Biên tập báo cáo tóm tắt tình trạng hạ tầng\nconst item = $input.first().json;\nconst statusIcon = item.isStorageAlarm ? '⚠️ CẢNH BÁO' : '✅ HOÀN HẢO';\nconst summaryHtml = `\n  <div style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">\n    <h2 style=\"color: #1e293b;\">🛡️ BÁO CÁO KIỂM TRA HẠ TẦNG & SAO LƯU CSDL BAN ĐÊM</h2>\n    <p><b>Mã phiên sao lưu:</b> <code>${item.backupId}</code></p>\n    <p><b>Thời gian thực hiện:</b> ${item.timestamp}</p>\n    <table border=\"1\" cellpadding=\"8\" style=\"border-collapse: collapse; width: 100%; max-width: 600px;\">\n      <tr style=\"background: #f1f5f9;\"><th>Chỉ số</th><th>Giá trị</th></tr>\n      <tr><td>Cơ sở dữ liệu</td><td><b>${item.dbName}</b></td></tr>\n      <tr><td>Tổng số bảng thực thể</td><td><b>${item.tableCount} bảng (Chuẩn 3NF)</b></td></tr>\n      <tr><td>Dung lượng CSDL hiện tại</td><td><b>${item.totalSizeMb} MB</b> (${item.diskUsagePercent}% hạn ngạch)</td></tr>\n      <tr><td>Tệp sao lưu nén</td><td><code>${item.backupFilename}</code></td></tr>\n      <tr><td>Tình trạng an toàn</td><td><b>${statusIcon}</b></td></tr>\n    </table>\n  </div>\n`;\n\nreturn [{\n  json: {\n    ...item,\n    statusIcon,\n    summaryHtml\n  }\n}];"
       },
       "id": "b1a20002-c1a2-4a02-b002-000000000008",
       "name": "8. Format Health Report HTML",
@@ -141,8 +141,8 @@
         "html": "={{ $json.summaryHtml }}"
       },
       "id": "b1a20002-c1a2-4a02-b002-000000000010",
-      "name": "10. Gmail Executive DB Digest",
-      "type": "n8n-nodes-base.gmail",
+      "name": "10. Send Email DB Digest (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [2180, 200],
       "continueOnFail": true
@@ -283,14 +283,14 @@
       "main": [
         [
           {
-            "node": "10. Gmail Executive DB Digest",
+            "node": "10. Send Email DB Digest (SMTP)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "10. Gmail Executive DB Digest": {
+    "10. Send Email DB Digest (SMTP)": {
       "main": [
         [
           {

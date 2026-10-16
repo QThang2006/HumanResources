@@ -2,13 +2,17 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BookOpen,
   BrainCircuit,
+  CalendarDays,
   CheckCircle2,
   Clock3,
-  GraduationCap,
   Info,
+  LayoutGrid,
+  ListChecks,
   Loader2,
   Plus,
   RefreshCw,
+  Search,
+  Sparkles,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -20,6 +24,7 @@ import {
   type TrainingAssignment,
   type TrainingCourse,
   type TrainingCourseType,
+  type TrainingStatus,
   type TrainingSummary,
 } from '../api/training.api';
 import { usersApi } from '../api/users.api';
@@ -48,6 +53,10 @@ const STATUS_LABELS: Record<string, string> = {
   IN_PROGRESS: 'Đang học',
   COMPLETED: 'Hoàn thành',
 };
+
+type TrainingWorkspace = 'setup' | 'catalog' | 'progress';
+type CourseFilter = 'ALL' | TrainingCourseType;
+type AssignmentFilter = 'ALL' | TrainingStatus;
 
 const dateInputValue = (daysFromToday: number) => {
   const date = new Date();
@@ -84,6 +93,16 @@ export const TrainingPanel: React.FC = () => {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [updatingDueId, setUpdatingDueId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
+  const [activeWorkspace, setActiveWorkspace] =
+    useState<TrainingWorkspace>('setup');
+  const [courseSearch, setCourseSearch] = useState('');
+  const [courseFilter, setCourseFilter] = useState<CourseFilter>('ALL');
+  const [assignmentSearch, setAssignmentSearch] = useState('');
+  const [assignmentFilter, setAssignmentFilter] =
+    useState<AssignmentFilter>('ALL');
+  const [referenceTime] = useState(() =>
+    new Date(`${dateInputValue(0)}T00:00:00`).getTime(),
+  );
 
   const [title, setTitle] = useState('');
   const [courseType, setCourseType] =
@@ -170,6 +189,7 @@ export const TrainingPanel: React.FC = () => {
       setCourseType('MANDATORY');
       setMessage('Đã tạo khóa học thành công.');
       await loadData();
+      setActiveWorkspace('catalog');
     } catch (error) {
       console.error(error);
       setMessage(
@@ -198,12 +218,20 @@ export const TrainingPanel: React.FC = () => {
         suggestion.courseId === null ? '' : String(suggestion.courseId),
       );
       setAssignedByAi(suggestion.hasMatchingCourse);
-      setAiReason(suggestion.reason);
+      setAiReason(
+        suggestion.analysisMode === 'PRELIMINARY'
+          ? `Phân tích sơ bộ (chưa có KPI): ${suggestion.reason}`
+          : suggestion.reason,
+      );
 
       setMessage(
         suggestion.hasMatchingCourse
-          ? `AI đã đề xuất khóa "${suggestion.courseTitle}". Vui lòng kiểm tra trước khi gán.`
-          : 'AI đã phân tích khoảng trống năng lực nhưng kho hiện tại chưa có khóa học phù hợp.',
+          ? suggestion.analysisMode === 'PRELIMINARY'
+            ? `AI đã phân tích sơ bộ và đề xuất khóa "${suggestion.courseTitle}". Vui lòng kiểm tra trước khi gán.`
+            : `AI đã đề xuất khóa "${suggestion.courseTitle}". Vui lòng kiểm tra trước khi gán.`
+          : suggestion.analysisMode === 'PRELIMINARY'
+            ? 'AI đã phân tích sơ bộ nhưng kho hiện tại chưa có khóa học phù hợp.'
+            : 'AI đã phân tích khoảng trống năng lực nhưng kho hiện tại chưa có khóa học phù hợp.',
       );
     } catch (error) {
       console.error(error);
@@ -287,6 +315,7 @@ export const TrainingPanel: React.FC = () => {
       setAiReadiness(null);
       setMessage('Đã gán khóa học cho nhân viên.');
       await loadData();
+      setActiveWorkspace('progress');
     } catch (error) {
       console.error(error);
       setMessage(
@@ -348,6 +377,61 @@ export const TrainingPanel: React.FC = () => {
     };
   }, [courses]);
 
+  const filteredCourses = useMemo(() => {
+    const keyword = courseSearch.trim().toLocaleLowerCase('vi');
+
+    return courses.filter(course => {
+      const matchesType =
+        courseFilter === 'ALL' || course.type === courseFilter;
+      const matchesKeyword =
+        !keyword ||
+        course.title.toLocaleLowerCase('vi').includes(keyword) ||
+        course.skillsProvided.some(skill =>
+          skill.toLocaleLowerCase('vi').includes(keyword),
+        );
+
+      return matchesType && matchesKeyword;
+    });
+  }, [courseFilter, courseSearch, courses]);
+
+  const filteredAssignments = useMemo(() => {
+    const keyword = assignmentSearch.trim().toLocaleLowerCase('vi');
+
+    return assignments.filter(assignment => {
+      const matchesStatus =
+        assignmentFilter === 'ALL' ||
+        assignment.status === assignmentFilter;
+      const matchesKeyword =
+        !keyword ||
+        assignment.user.fullName.toLocaleLowerCase('vi').includes(keyword) ||
+        assignment.user.email.toLocaleLowerCase('vi').includes(keyword) ||
+        assignment.course.title.toLocaleLowerCase('vi').includes(keyword);
+
+      return matchesStatus && matchesKeyword;
+    });
+  }, [assignmentFilter, assignmentSearch, assignments]);
+
+  const dueSoonCount = useMemo(() => {
+    const threeDays = 3 * 24 * 60 * 60 * 1000;
+
+    return assignments.filter(assignment => {
+      if (
+        assignment.status === 'COMPLETED' ||
+        !assignment.dueAt ||
+        assignment.progressPercent >= 50
+      ) {
+        return false;
+      }
+
+      const dueTime = new Date(assignment.dueAt).getTime();
+      return (
+        Number.isFinite(dueTime) &&
+        dueTime >= referenceTime &&
+        dueTime - referenceTime <= threeDays
+      );
+    }).length;
+  }, [assignments, referenceTime]);
+
   if (loading) {
     return (
       <div className="flex min-h-80 items-center justify-center gap-3 rounded-[24px] border border-[#E2E5E7] bg-white text-[#82898E] shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
@@ -373,11 +457,18 @@ export const TrainingPanel: React.FC = () => {
 
       <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-2xl">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#E7D9DD] bg-[#FAF3F5] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#6F3042]">
+                <Sparkles className="h-3.5 w-3.5" />
+                Trung tâm học tập nội bộ
+              </div>
               <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
                 Đào tạo & Phát triển
               </h2>
+              <p className="mt-2 text-sm leading-6 text-[#72797E]">
+              Thiết kế khóa học, phân tích năng lực và theo dõi tiến độ
+              </p>
             </div>
 
             <button
@@ -401,7 +492,7 @@ export const TrainingPanel: React.FC = () => {
           <MetricCard
             label="Lượt đào tạo"
             value={summary.totalAssignments}
-            sub={`${summary.inProgress} đang học`}
+            sub={`${summary.inProgress} đang học · ${summary.averageProgress}% trung bình`}
             icon={<Users className="h-4 w-4" />}
           />
           <MetricCard
@@ -411,14 +502,41 @@ export const TrainingPanel: React.FC = () => {
             icon={<CheckCircle2 className="h-4 w-4" />}
           />
           <MetricCard
-            label="Tiến độ TB"
-            value={`${summary.averageProgress}%`}
-            sub={`${courseStats.ai} khóa do AI đề xuất`}
-            icon={<GraduationCap className="h-4 w-4" />}
+            label="Cần chú ý"
+            value={dueSoonCount}
+            sub="Sắp đến hạn, tiến độ dưới 50%"
+            icon={<CalendarDays className="h-4 w-4" />}
           />
         </div>
       </section>
 
+      <section className="rounded-[22px] border border-[#E2E5E7] bg-[#F8F9F9] p-2 shadow-[0_8px_24px_rgba(45,34,28,0.04)]">
+        <div className="grid gap-2 md:grid-cols-3">
+          <WorkspaceTab
+            active={activeWorkspace === 'setup'}
+            icon={<Sparkles className="h-4 w-4" />}
+            title="Thiết lập & Đề xuất"
+            description="Tạo khóa và gán lộ trình"
+            onClick={() => setActiveWorkspace('setup')}
+          />
+          <WorkspaceTab
+            active={activeWorkspace === 'catalog'}
+            icon={<LayoutGrid className="h-4 w-4" />}
+            title="Danh mục khóa học"
+            description={`${courses.length} khóa · ${courseStats.ai} khóa AI`}
+            onClick={() => setActiveWorkspace('catalog')}
+          />
+          <WorkspaceTab
+            active={activeWorkspace === 'progress'}
+            icon={<ListChecks className="h-4 w-4" />}
+            title="Theo dõi tiến độ"
+            description={`${summary.inProgress} đang học · ${dueSoonCount} cần chú ý`}
+            onClick={() => setActiveWorkspace('progress')}
+          />
+        </div>
+      </section>
+
+      {activeWorkspace === 'setup' && (
       <section className="grid gap-5 xl:grid-cols-2">
         <div className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
           <div className="flex items-center gap-3">
@@ -582,7 +700,23 @@ export const TrainingPanel: React.FC = () => {
             </div>
           )}
 
-          {aiReadiness?.canAnalyze && !aiSuggestion && (
+          {aiReadiness?.canAnalyze && !aiReadiness.hasPerformanceReviews && !aiSuggestion && (
+            <div className="mt-4 rounded-2xl border border-[#E8D5B8] bg-[#FBF6ED] px-4 py-3 text-sm text-[#7A572F]">
+              <div className="flex items-start gap-2 font-black">
+                <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                Phân tích sơ bộ — chưa có dữ liệu KPI
+              </div>
+              <p className="mt-1 pl-6 text-xs font-semibold leading-5">
+                Dựa trên chức danh, phòng ban, lịch sử đào tạo và kỹ năng. Kết quả chỉ mang tính gợi ý phát triển.
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2 pl-6 text-xs">
+                <span><strong>{aiReadiness.trainingHistoryCount}</strong> lượt đào tạo</span>
+                <span><strong>{aiReadiness.availableCourseCount}</strong> khóa có thể đề xuất</span>
+              </div>
+            </div>
+          )}
+
+          {aiReadiness?.canAnalyze && aiReadiness.hasPerformanceReviews && !aiSuggestion && (
             <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-[#DCE5DF] bg-[#F4F8F5] p-3 text-xs text-[#496154]">
               <span><strong>{aiReadiness.reviewCount}</strong> lần đánh giá hiệu suất</span>
               <span>Điểm hiệu suất mới nhất: <strong>{aiReadiness.latestKpiScore ?? '—'}</strong></span>
@@ -613,16 +747,31 @@ export const TrainingPanel: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8DED5] px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-black text-[#6F3042]">
                   <BrainCircuit className="h-4 w-4" />
-                  Kết quả phân tích khoảng trống năng lực
+                  {aiSuggestion.analysisMode === 'PRELIMINARY'
+                    ? 'Kết quả phân tích sơ bộ'
+                    : 'Kết quả phân tích khoảng trống năng lực'}
                 </div>
                 <span className="rounded-full bg-[#6F3042] px-3 py-1 text-[10px] font-black text-white">
-                  Mức sẵn sàng {aiSuggestion.readinessScore}/100
+                  {aiSuggestion.analysisMode === 'PRELIMINARY'
+                    ? 'Điểm tham khảo'
+                    : 'Mức sẵn sàng'}{' '}
+                  {aiSuggestion.readinessScore}/100
                 </span>
               </div>
 
               <div className="space-y-4 p-4 text-sm">
+                {aiSuggestion.analysisMode === 'PRELIMINARY' && (
+                  <div className="rounded-xl border border-[#E8D5B8] bg-[#FBF6ED] px-3 py-2 text-xs font-semibold leading-5 text-[#7A572F]">
+                    {aiSuggestion.dataNotice ||
+                      'Phân tích sơ bộ — chưa có dữ liệu KPI. Kết quả chỉ mang tính gợi ý phát triển.'}
+                  </div>
+                )}
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">Khoảng trống kỹ năng</p>
+                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
+                    {aiSuggestion.analysisMode === 'PRELIMINARY'
+                      ? 'Kỹ năng nên phát triển'
+                      : 'Khoảng trống kỹ năng'}
+                  </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {aiSuggestion.skillGaps.map(skill => (
                       <span key={skill} className="rounded-full border border-[#E6D7BF] bg-white px-2.5 py-1 text-xs font-bold text-[#7A572F]">
@@ -633,7 +782,11 @@ export const TrainingPanel: React.FC = () => {
                 </div>
 
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">Đánh giá tổng quan</p>
+                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
+                    {aiSuggestion.analysisMode === 'PRELIMINARY'
+                      ? 'Nhận định sơ bộ'
+                      : 'Đánh giá tổng quan'}
+                  </p>
                   <p className="mt-1 leading-6 text-[#454B4F]">{aiSuggestion.summary}</p>
                 </div>
 
@@ -686,13 +839,40 @@ export const TrainingPanel: React.FC = () => {
           </button>
         </div>
       </section>
+      )}
 
+      {activeWorkspace === 'catalog' && (
       <section className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
-        <div className="mb-5 flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-4 border-b border-[#E8EAEC] pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h3 className="text-lg font-black text-[#202326]">Danh mục khóa học</h3>
+            <p className="mt-1 text-xs font-semibold text-[#82898E]">
+              Tìm nhanh theo tên khóa học hoặc kỹ năng cung cấp.
+            </p>
           </div>
-          <span className="text-xs font-bold text-[#82898E]">{courses.length} khóa học</span>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative min-w-0 sm:w-72">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+              <input
+                value={courseSearch}
+                onChange={event => setCourseSearch(event.target.value)}
+                placeholder="Tìm khóa học, kỹ năng..."
+                className={`${inputClass} pl-10`}
+              />
+            </div>
+            <select
+              value={courseFilter}
+              onChange={event =>
+                setCourseFilter(event.target.value as CourseFilter)
+              }
+              className={`${inputClass} sm:w-48`}
+            >
+              <option value="ALL">Tất cả loại khóa học</option>
+              <option value="MANDATORY">Bắt buộc</option>
+              <option value="AI_SKILL_GAP">AI đề xuất</option>
+              <option value="SOFT_SKILL">Kỹ năng mềm</option>
+            </select>
+          </div>
         </div>
 
         {courses.length === 0 ? (
@@ -700,9 +880,26 @@ export const TrainingPanel: React.FC = () => {
             <BookOpen className="mx-auto h-5 w-5 text-[#9FA6AB]" />
             <p className="mt-2 text-sm font-black text-[#53595E]">Chưa có khóa học</p>
           </div>
+        ) : filteredCourses.length === 0 ? (
+          <div className="mt-5 rounded-[18px] border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-5 py-10 text-center">
+            <Search className="mx-auto h-5 w-5 text-[#9FA6AB]" />
+            <p className="mt-2 text-sm font-black text-[#53595E]">
+              Không tìm thấy khóa học phù hợp
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setCourseSearch('');
+                setCourseFilter('ALL');
+              }}
+              className="mt-3 text-xs font-black text-[#6F3042] hover:underline"
+            >
+              Xóa bộ lọc
+            </button>
+          </div>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-            {courses.map(course => (
+          <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+            {filteredCourses.map(course => (
               <article
                 key={course.id}
                 className="group rounded-[18px] border border-[#E3E6E7] bg-[#FFFFFF] p-4 transition hover:-translate-y-0.5 hover:border-[#D8CCC2] hover:bg-white hover:shadow-[0_10px_24px_rgba(45,34,28,0.07)]"
@@ -743,14 +940,63 @@ export const TrainingPanel: React.FC = () => {
           </div>
         )}
       </section>
+      )}
 
+      {activeWorkspace === 'progress' && (
       <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7">
-          <h3 className="text-lg font-black text-[#202326]">Tiến độ đào tạo</h3>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h3 className="text-lg font-black text-[#202326]">Tiến độ đào tạo</h3>
+              <p className="mt-1 text-xs font-semibold text-[#82898E]">
+                Theo dõi hạn hoàn thành, số lần nhắc và trạng thái của từng nhân viên.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="relative min-w-0 sm:w-72">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+                <input
+                  value={assignmentSearch}
+                  onChange={event => setAssignmentSearch(event.target.value)}
+                  placeholder="Tìm nhân viên, khóa học..."
+                  className={`${inputClass} pl-10`}
+                />
+              </div>
+              <select
+                value={assignmentFilter}
+                onChange={event =>
+                  setAssignmentFilter(event.target.value as AssignmentFilter)
+                }
+                className={`${inputClass} sm:w-44`}
+              >
+                <option value="ALL">Tất cả trạng thái</option>
+                <option value="ASSIGNED">Đã giao</option>
+                <option value="IN_PROGRESS">Đang học</option>
+                <option value="COMPLETED">Hoàn thành</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {assignments.length === 0 ? (
           <div className="px-5 py-12 text-center text-sm font-semibold text-[#82898E]">Chưa có lượt đào tạo nào.</div>
+        ) : filteredAssignments.length === 0 ? (
+          <div className="px-5 py-12 text-center">
+            <Search className="mx-auto h-5 w-5 text-[#9FA6AB]" />
+            <p className="mt-2 text-sm font-black text-[#53595E]">
+              Không có lượt đào tạo phù hợp
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setAssignmentSearch('');
+                setAssignmentFilter('ALL');
+              }}
+              className="mt-3 text-xs font-black text-[#6F3042] hover:underline"
+            >
+              Xóa bộ lọc
+            </button>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px]">
@@ -768,7 +1014,7 @@ export const TrainingPanel: React.FC = () => {
               </thead>
 
               <tbody className="divide-y divide-[#E9ECEC]">
-                {assignments.map(assignment => {
+                {filteredAssignments.map(assignment => {
                   const progress = Math.max(0, Math.min(100, assignment.progressPercent));
 
                   return (
@@ -867,9 +1113,44 @@ export const TrainingPanel: React.FC = () => {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 };
+
+const WorkspaceTab: React.FC<{
+  active: boolean;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  onClick: () => void;
+}> = ({ active, icon, title, description, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`flex items-center gap-3 rounded-[18px] px-4 py-3 text-left transition ${
+      active
+        ? 'bg-white text-[#25282B] shadow-[0_8px_22px_rgba(45,34,28,0.08)] ring-1 ring-[#E2E5E7]'
+        : 'text-[#72797E] hover:bg-white/70 hover:text-[#303438]'
+    }`}
+  >
+    <span
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+        active
+          ? 'bg-[#F4E7EB] text-[#6F3042]'
+          : 'bg-[#ECEEEE] text-[#858C91]'
+      }`}
+    >
+      {icon}
+    </span>
+    <span className="min-w-0">
+      <span className="block text-sm font-black">{title}</span>
+      <span className="mt-0.5 block truncate text-[11px] font-semibold text-[#90979C]">
+        {description}
+      </span>
+    </span>
+  </button>
+);
 
 const inputClass =
   'h-11 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] px-3.5 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10';

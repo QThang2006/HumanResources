@@ -27,6 +27,21 @@ export interface RagSearchResult {
     similarity: number;
 }
 
+export interface RagWorkflowSearchResponse {
+    workflow: string;
+    answer: string;
+    sources: Array<{
+        chunkId: number;
+        documentId: number;
+        documentTitle: string;
+        similarity: number;
+    }>;
+    results: RagSearchResult[];
+    suggestedFollowUpQuestions: string[];
+    requiresHrIntervention: boolean;
+    aiGenerated: boolean;
+}
+
 export const documentsApi = {
     getAll: async (): Promise<KnowledgeDocument[]> => {
         return apiClient.get('/documents');
@@ -47,11 +62,27 @@ export const documentsApi = {
         return apiClient.post('/documents/upload', formData);
     },
 
+    delete: async (
+        documentId: number,
+    ): Promise<{ id: number; message: string }> => {
+        return apiClient.delete(`/documents/${documentId}`);
+    },
+
     search: async (
         query: string,
         topK: number = 3,
     ): Promise<RagSearchResult[]> => {
         return apiClient.post('/documents/search', {
+            query,
+            topK,
+        });
+    },
+
+    searchThroughWorkflow: async (
+        query: string,
+        topK: number = 3,
+    ): Promise<RagWorkflowSearchResponse> => {
+        return apiClient.post('/documents/workflow-search', {
             query,
             topK,
         });

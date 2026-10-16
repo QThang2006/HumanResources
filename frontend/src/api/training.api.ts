@@ -59,6 +59,8 @@ export interface TrainingSummary {
 export interface TrainingAiSuggestion {
     employeeId: number;
     employeeName: string;
+    analysisMode: 'FULL' | 'PRELIMINARY';
+    dataNotice: string | null;
     skillGaps: string[];
     readinessScore: number;
     summary: string;
@@ -80,6 +82,7 @@ export interface TrainingAiReadiness {
     employeeId: number;
     employeeName: string;
     canAnalyze: boolean;
+    analysisMode: 'FULL' | 'PRELIMINARY';
     hasJobTitle: boolean;
     hasDepartment: boolean;
     hasPerformanceReviews: boolean;

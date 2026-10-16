@@ -1,5 +1,5 @@
 {
-  "name": "TV4 - 01 Knowledge RAG Search",
+  "name": "TV4 - 01 Trả lời Kho tri thức có dẫn nguồn",
   "nodes": [
     {
       "parameters": {
@@ -9,7 +9,7 @@
         "options": {}
       },
       "id": "6e18e5b8-e30f-495b-95f4-dc03c8b05e68",
-      "name": "Webhook - TV4 Knowledge RAG",
+      "name": "Tiếp nhận câu hỏi Kho tri thức",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
@@ -20,10 +20,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body ?? $json;\nconst headers = $json.headers ?? {};\nconst query = String(body.query ?? '').trim();\nconst requestedTopK = Number(body.topK ?? 3);\nconst topK = Math.min(Math.max(Number.isFinite(requestedTopK) ? requestedTopK : 3, 1), 10);\nconst authorization = headers.authorization ?? headers.Authorization ?? body.authorization ?? '';\nif (!query) throw new Error('query is required');\nif (!authorization) throw new Error('Authorization header is required');\nreturn [{ json: { query, topK, authorization } }];"
+        "jsCode": "const body = $json.body ?? $json;\nconst headers = $json.headers ?? {};\nconst query = String(body.query ?? '').trim();\nconst requestedTopK = Number(body.topK ?? 4);\nconst topK = Math.min(Math.max(Number.isFinite(requestedTopK) ? requestedTopK : 4, 1), 5);\nconst authorization = headers.authorization ?? headers.Authorization ?? body.authorization ?? '';\nif (!query) throw new Error('Vui lòng nhập câu hỏi.');\nif (!authorization) throw new Error('Thiếu thông tin xác thực người dùng.');\nreturn [{ json: { query, topK, authorization } }];"
       },
       "id": "0ae5f22a-6d64-4de9-9d2d-d94eab3bc911",
-      "name": "Validate Input",
+      "name": "Kiểm tra dữ liệu đầu vào",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -52,28 +52,111 @@
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ query: $json.query, topK: $json.topK }) }}",
-        "options": {}
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "586170ac-186f-47bd-a89c-eac5cfe6877c",
-      "name": "Search Knowledge Base",
+      "name": "Tìm nội dung liên quan",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        512,
+        500,
         0
       ]
     },
     {
       "parameters": {
-        "jsCode": "const results = $json.data ?? [];\n\nreturn [\n  {\n    json: {\n      success: true,\n      workflow: 'TV4 - Knowledge RAG Search',\n      resultCount: results.length,\n      results: results.map(item => ({\n        chunkId: item.chunkId,\n        documentId: item.documentId,\n        documentTitle: item.documentTitle,\n        chunkIndex: item.chunkIndex,\n        content: item.content,\n        similarity: item.similarity,\n      })),\n    },\n  },\n];"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "780daf58-f767-4c5e-8b45-0ec45225bc78",
+              "leftValue": "={{ Array.isArray($json.data ?? $json) && ($json.data ?? $json).length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fd82f5cb-9d5d-473e-9b5e-93bc6fb2c86a",
+      "name": "Có nội dung phù hợp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        740,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/api/documents/rag-answer",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Kiểm tra dữ liệu đầu vào').item.json.authorization }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ query: $('Kiểm tra dữ liệu đầu vào').item.json.query, contexts: $json.data ?? $json }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "66af2bba-bab7-4a41-93cc-8fb02dc1217d",
+      "name": "Tạo câu trả lời có dẫn nguồn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        980,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const answerData = $json.data ?? $json;\nconst searchOutput = $('Tìm nội dung liên quan').item.json;\nconst results = searchOutput.data ?? searchOutput;\nreturn [{\n  json: {\n    success: true,\n    workflow: 'TV4 - 01 Trả lời Kho tri thức có dẫn nguồn',\n    answer: String(answerData.answer ?? ''),\n    sources: Array.isArray(answerData.sources) ? answerData.sources : [],\n    results: Array.isArray(results) ? results.map(item => ({\n      chunkId: item.chunkId,\n      documentId: item.documentId,\n      documentTitle: item.documentTitle,\n      chunkIndex: item.chunkIndex,\n      content: item.content,\n      similarity: item.similarity,\n    })) : [],\n    suggestedFollowUpQuestions: Array.isArray(answerData.suggestedFollowUpQuestions) ? answerData.suggestedFollowUpQuestions : [],\n    requiresHrIntervention: Boolean(answerData.requiresHrIntervention),\n    aiGenerated: Boolean(answerData.aiGenerated),\n  },\n}];"
       },
       "id": "ac7095a7-7247-4f29-ac00-3ffca49f65fc",
-      "name": "Format RAG Result",
+      "name": "Chuẩn hóa câu trả lời",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        768,
-        0
+        1220,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    success: true,\n    workflow: 'TV4 - 01 Trả lời Kho tri thức có dẫn nguồn',\n    answer: 'Kho tri thức chưa có nội dung phù hợp để trả lời câu hỏi này. Vui lòng bổ sung tài liệu hoặc đặt câu hỏi cụ thể hơn.',\n    sources: [],\n    results: [],\n    suggestedFollowUpQuestions: [],\n    requiresHrIntervention: false,\n    aiGenerated: false,\n  },\n}];"
+      },
+      "id": "0265b2d9-cbc5-4491-8d94-8c1227e3779e",
+      "name": "Thông báo chưa đủ dữ liệu",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        120
       ]
     },
     {
@@ -83,55 +166,95 @@
         "options": {}
       },
       "id": "2c160c66-cf3c-4d07-b27f-daa9575d9873",
-      "name": "Respond to Webhook",
+      "name": "Phản hồi về giao diện",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        1024,
+        1460,
         0
       ]
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook - TV4 Knowledge RAG": {
+    "Tiếp nhận câu hỏi Kho tri thức": {
       "main": [
         [
           {
-            "node": "Validate Input",
+            "node": "Kiểm tra dữ liệu đầu vào",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Validate Input": {
+    "Kiểm tra dữ liệu đầu vào": {
       "main": [
         [
           {
-            "node": "Search Knowledge Base",
+            "node": "Tìm nội dung liên quan",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Search Knowledge Base": {
+    "Tìm nội dung liên quan": {
       "main": [
         [
           {
-            "node": "Format RAG Result",
+            "node": "Có nội dung phù hợp?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format RAG Result": {
+    "Có nội dung phù hợp?": {
       "main": [
         [
           {
-            "node": "Respond to Webhook",
+            "node": "Tạo câu trả lời có dẫn nguồn",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Thông báo chưa đủ dữ liệu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tạo câu trả lời có dẫn nguồn": {
+      "main": [
+        [
+          {
+            "node": "Chuẩn hóa câu trả lời",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chuẩn hóa câu trả lời": {
+      "main": [
+        [
+          {
+            "node": "Phản hồi về giao diện",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Thông báo chưa đủ dữ liệu": {
+      "main": [
+        [
+          {
+            "node": "Phản hồi về giao diện",
             "type": "main",
             "index": 0
           }
@@ -144,7 +267,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "8f6cbeef-7586-441d-a75a-1d87aeeca925",
+  "versionId": "f0a38bdb-1ba9-4a20-8638-06aa7fbc6534",
   "meta": {
     "instanceId": "be7227bc03e89227b5400c3d777f6233d8a6e50ee64f64e697cf2fa2325853b1"
   },

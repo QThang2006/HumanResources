@@ -174,6 +174,86 @@ test('API tự động hóa từ chối khóa sai và chấp nhận khóa đúng
   assert.equal(guard.canActivate(context('mot-khoa-bi-mat-rat-dai')), true);
 });
 
+test('cho phép phân tích sơ bộ khi nhân viên chưa có KPI nhưng đủ chức danh và phòng ban', async () => {
+  const employee = {
+    id: 10,
+    fullName: 'Nguyễn Nhân Viên Mới',
+    jobTitle: 'Nhân viên kinh doanh',
+    department: { id: 3, name: 'Kinh doanh' },
+    trainings: [],
+    performanceReviews: [],
+  };
+  const course = {
+    id: 30,
+    title: 'Kỹ năng giao tiếp với khách hàng',
+    skillsProvided: ['Giao tiếp với khách hàng'],
+    durationHours: 8,
+    courseUrl: null,
+  };
+  const service = new TrainingService(
+    { find: async () => [course] },
+    {},
+    { findOne: async () => employee },
+    {
+      generateJson: async () => ({
+        missingSkills: ['Giao tiếp với khách hàng'],
+        summary: 'Phân tích sơ bộ: nên củng cố kỹ năng giao tiếp theo yêu cầu vị trí.',
+      }),
+      recommendSkillGapCourse: async () => ({
+        summary: 'Đề xuất học kỹ năng giao tiếp.',
+        skillGapsIdentified: ['Giao tiếp với khách hàng'],
+        readinessScore: 60,
+        recommendedCourses: [
+          {
+            courseId: course.id,
+            courseTitle: course.title,
+            matchedMissingSkills: ['Giao tiếp với khách hàng'],
+            priority: 'HIGH',
+            estimatedTimeToComplete: '8 giờ',
+            whyRecommended: 'Phù hợp với kỹ năng cần phát triển của vị trí.',
+            learningPathOrder: 1,
+          },
+        ],
+        careerAdvice: 'Áp dụng kiến thức vào các tình huống trao đổi với khách hàng.',
+        aiGenerated: true,
+      }),
+    },
+  );
+
+  const readiness = await service.getAiReadiness(employee.id);
+  const suggestion = await service.suggestCourseForEmployee(employee.id);
+
+  assert.equal(readiness.canAnalyze, true);
+  assert.equal(readiness.analysisMode, 'PRELIMINARY');
+  assert.equal(readiness.hasPerformanceReviews, false);
+  assert.equal(suggestion.analysisMode, 'PRELIMINARY');
+  assert.equal(suggestion.courseId, course.id);
+  assert.match(suggestion.dataNotice, /chưa có dữ liệu KPI/i);
+});
+
+test('không phân tích sơ bộ khi nhân viên thiếu chức danh hoặc phòng ban', async () => {
+  const employee = {
+    id: 11,
+    fullName: 'Nhân viên thiếu hồ sơ',
+    jobTitle: null,
+    department: { id: 3, name: 'Kinh doanh' },
+    trainings: [],
+    performanceReviews: [],
+  };
+  const service = new TrainingService(
+    { find: async () => [] },
+    {},
+    { findOne: async () => employee },
+    {},
+  );
+
+  const readiness = await service.getAiReadiness(employee.id);
+
+  assert.equal(readiness.canAnalyze, false);
+  assert.equal(readiness.analysisMode, 'PRELIMINARY');
+  assert.ok(readiness.missingData.includes('chức danh'));
+});
+
 test('workflow 4.1 giữ đúng 12 node và ghi nhận cả kết quả Telegram', () => {
   const workflowPath = path.resolve(
     __dirname,

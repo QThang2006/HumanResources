@@ -2,7 +2,11 @@ import {
     BadRequestException,
     Body,
     Controller,
+    Delete,
     Get,
+    Headers,
+    Param,
+    ParseIntPipe,
     Post,
     Req,
     UploadedFile,
@@ -13,6 +17,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 
 import { DocumentsService } from './documents.service';
+import type { RagContextInput } from './documents.service';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -34,6 +39,13 @@ export class DocumentsController {
     @Get()
     findAll() {
         return this.documentsService.findAll();
+    }
+
+    @Delete(':id')
+    deleteDocument(
+        @Param('id', ParseIntPipe) documentId: number,
+    ) {
+        return this.documentsService.deleteDocument(documentId);
     }
 
     // =========================
@@ -105,6 +117,49 @@ export class DocumentsController {
         return this.documentsService.searchKnowledgeBase(
             query,
             topK,
+        );
+    }
+
+    @Post('workflow-search')
+    searchKnowledgeBaseThroughWorkflow(
+        @Body()
+        body: {
+            query: string;
+            topK?: number;
+        },
+        @Headers('authorization') authorization: string,
+    ) {
+        const query = body.query?.trim();
+
+        if (!query) {
+            throw new BadRequestException(
+                'Vui lòng nhập câu hỏi cần tìm kiếm.',
+            );
+        }
+
+        const topK = Math.min(
+            Math.max(body.topK ?? 3, 1),
+            10,
+        );
+
+        return this.documentsService.searchThroughWorkflow(
+            query,
+            topK,
+            authorization,
+        );
+    }
+
+    @Post('rag-answer')
+    generateGroundedAnswer(
+        @Body()
+        body: {
+            query: string;
+            contexts: RagContextInput[];
+        },
+    ) {
+        return this.documentsService.generateGroundedAnswer(
+            body.query,
+            body.contexts,
         );
     }
 }

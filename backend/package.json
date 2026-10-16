@@ -20,7 +20,8 @@
     "demo:recruitment": "node test/recruitment-demo.cjs",
     "test:recruitment-seed": "node --test test/recruitment-demo-seed.test.cjs",
     "test:training-reminder": "node --test test/training-reminder.test.cjs",
-    "test:tv4-automation": "node --test test/training-reminder.test.cjs test/tv4-automation-workflows.test.cjs"
+    "test:tv4-automation": "node --test test/training-reminder.test.cjs test/tv4-automation-workflows.test.cjs",
+    "test:documents": "node --test test/documents.test.cjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

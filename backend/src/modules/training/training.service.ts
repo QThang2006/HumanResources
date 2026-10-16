@@ -125,9 +125,25 @@ export class TrainingService {
             throw new NotFoundException('Không tìm thấy nhân viên.');
         }
 
-    if ((employee.performanceReviews ?? []).length === 0) {
+    const latestReviews = [...(employee.performanceReviews ?? [])]
+        .sort(
+            (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime(),
+        )
+        .slice(0, 3);
+    const hasPerformanceReviews = latestReviews.length > 0;
+    const analysisMode = hasPerformanceReviews ? 'FULL' : 'PRELIMINARY';
+    const dataNotice = hasPerformanceReviews
+        ? null
+        : 'Phân tích sơ bộ dựa trên chức danh, phòng ban và lịch sử đào tạo; chưa có dữ liệu KPI hoặc nhận xét của quản lý.';
+
+    if (
+        !hasPerformanceReviews &&
+        (!employee.jobTitle?.trim() || !employee.department)
+    ) {
         throw new BadRequestException(
-            'Chưa đủ dữ liệu để phân tích khoảng trống năng lực. Nhân viên này chưa có đánh giá hiệu suất hoặc chỉ số công việc.',
+            'Chưa đủ dữ liệu để phân tích sơ bộ. Nhân viên cần có đầy đủ chức danh và phòng ban.',
         );
     }
 
@@ -145,14 +161,6 @@ export class TrainingService {
         (course) => !assignedCourseIds.has(course.id),
     );
 
-    const latestReviews = [...(employee.performanceReviews ?? [])]
-        .sort(
-            (a, b) =>
-                new Date(b.createdAt).getTime() -
-                new Date(a.createdAt).getTime(),
-        )
-        .slice(0, 3);
-
     const completedCourses = (employee.trainings ?? [])
         .filter(
             (training) =>
@@ -168,7 +176,13 @@ export class TrainingService {
         jobTitle: employee.jobTitle || 'Chưa cập nhật chức danh',
         department:
             employee.department?.name || 'Chưa cập nhật phòng ban',
+        analysisMode,
+        dataNotice,
         completedCourses,
+        availableCourseSkills: availableCourses.map((course) => ({
+            title: course.title,
+            skillsProvided: course.skillsProvided ?? [],
+        })),
         performanceReviews: latestReviews.map((review) => ({
             reviewPeriod: review.reviewPeriod,
             kpiScore: review.kpiScore,
@@ -196,8 +210,10 @@ Chỉ trả về JSON:
 }
 
 Yêu cầu:
-- Không suy đoán vô căn cứ.
-- Ưu tiên dữ liệu KPI, nhận xét quản lý và lịch sử đào tạo.
+- Nếu analysisMode là FULL, ưu tiên KPI, nhận xét quản lý và lịch sử đào tạo.
+- Nếu analysisMode là PRELIMINARY, chỉ đề xuất các kỹ năng thường cần cho chức danh và phòng ban đã cung cấp; không khẳng định đây là điểm yếu đã được đo lường.
+- Ở chế độ PRELIMINARY, phần summary phải bắt đầu bằng "Phân tích sơ bộ:".
+- Không suy đoán thông tin cá nhân hoặc kết quả làm việc không có trong hồ sơ.
 - missingSkills phải là các kỹ năng có thể cải thiện bằng đào tạo.
         `.trim(),
         'Bạn là chuyên gia Đào tạo & Phát triển và phân tích Skill Gap trong doanh nghiệp.',
@@ -205,6 +221,14 @@ Yêu cầu:
 
     const missingSkills =
         skillAnalysis?.missingSkills?.filter(Boolean) ?? [];
+    const rawSummary =
+        skillAnalysis?.summary?.trim() ||
+        'Các kỹ năng được đề xuất dựa trên dữ liệu hồ sơ hiện có.';
+    const analysisSummary =
+        analysisMode === 'PRELIMINARY' &&
+        !rawSummary.toLocaleLowerCase('vi').startsWith('phân tích sơ bộ')
+            ? `Phân tích sơ bộ: ${rawSummary}`
+            : rawSummary;
 
     if (missingSkills.length === 0) {
         throw new BadRequestException(
@@ -308,12 +332,14 @@ Yêu cầu:
             return {
                 employeeId: employee.id,
                 employeeName: employee.fullName,
+                analysisMode,
+                dataNotice,
                 skillGaps:
                     recommendation.skillGapsIdentified?.length > 0
                         ? recommendation.skillGapsIdentified
                         : missingSkills,
                 readinessScore: recommendation.readinessScore,
-                summary: skillAnalysis.summary || recommendation.summary,
+                summary: analysisSummary || recommendation.summary,
                 courseId: null,
                 courseTitle: null,
                 matchedMissingSkills: [],
@@ -348,12 +374,14 @@ Yêu cầu:
     return {
     employeeId: employee.id,
     employeeName: employee.fullName,
+    analysisMode,
+    dataNotice,
     skillGaps:
         recommendation.skillGapsIdentified?.length > 0
             ? recommendation.skillGapsIdentified
             : missingSkills,
     readinessScore: recommendation.readinessScore,
-    summary: skillAnalysis?.summary || recommendation.summary,
+    summary: analysisSummary || recommendation.summary,
 
     courseId: best.courseId,
     courseTitle: best.courseTitle,
@@ -407,13 +435,19 @@ Yêu cầu:
         }
         if (availableCourseCount === 0) missingData.push('khóa học chưa được gán');
 
+        const hasMinimumProfile = Boolean(
+            employee.jobTitle?.trim() && employee.department,
+        );
+        const hasPerformanceReviews = reviews.length > 0;
+
         return {
             employeeId: employee.id,
             employeeName: employee.fullName,
-            canAnalyze: reviews.length > 0,
+            canAnalyze: hasPerformanceReviews || hasMinimumProfile,
+            analysisMode: hasPerformanceReviews ? 'FULL' : 'PRELIMINARY',
             hasJobTitle: Boolean(employee.jobTitle),
             hasDepartment: Boolean(employee.department),
-            hasPerformanceReviews: reviews.length > 0,
+            hasPerformanceReviews,
             reviewCount: reviews.length,
             latestKpiScore: reviews[0] ? Number(reviews[0].kpiScore) : null,
             trainingHistoryCount: employee.trainings?.length ?? 0,

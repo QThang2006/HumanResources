@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, BadRequestException, Ip, Headers } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -9,11 +9,15 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() body: LoginDto) {
+  async login(
+    @Body() body: LoginDto,
+    @Ip() clientIp: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
     if (!body.email || !body.password) {
       throw new BadRequestException('Vui lòng nhập đầy đủ email và mật khẩu.');
     }
-    return this.authService.login(body.email, body.password);
+    return this.authService.login(body.email, body.password, clientIp, userAgent);
   }
 
   @UseGuards(JwtAuthGuard)

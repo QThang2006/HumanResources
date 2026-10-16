@@ -38,11 +38,33 @@ export class AuthService {
     return user;
   }
 
-  async login(email: string, pass: string) {
+  async login(
+    email: string,
+    pass: string,
+    clientIp?: string,
+    userAgent?: string,
+  ) {
+    // 1. Kiểm tra xem IP có đang bị phong tỏa tạm thời bởi n8n không
+    if (clientIp && this.isIpBlocked(clientIp)) {
+      const banInfo = this.blockedIps.get(clientIp);
+      throw new UnauthorizedException(
+        `Địa chỉ IP [${clientIp}] đang bị phong tỏa tạm thời đến ${banInfo?.banUntil.toLocaleTimeString('vi-VN')} do phát hiện nghi vấn dò quét mật khẩu.`,
+      );
+    }
+
     const user = await this.validateUser(email, pass);
 
     // Sai email hoặc sai mật khẩu
     if (!user) {
+      // Bắn security alert sang n8n WF-01 bất đồng bộ (Fire-and-forget)
+      this.dispatchSecurityAlertToN8n({
+        ip: clientIp || '127.0.0.1',
+        email,
+        userAgent: userAgent || 'Unknown-Browser',
+        reason: 'LOGIN_FAILED_CREDENTIALS_MISMATCH',
+        timestamp: new Date().toISOString(),
+      });
+
       throw new UnauthorizedException(
           'Email hoặc mật khẩu không chính xác.',
       );
@@ -102,5 +124,19 @@ export class AuthService {
       return false;
     }
     return true;
+  }
+
+  // Bắn webhook thông báo đăng nhập sai sang n8n WF-01 Brute-force Defense
+  private dispatchSecurityAlertToN8n(payload: any) {
+    const baseUrl = process.env.N8N_WEBHOOK_URL || 'http://localhost:5678/webhook';
+    const webhookUrl = `${baseUrl.replace(/\/$/, '')}/security-alert`;
+    fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(3000),
+      body: JSON.stringify(payload),
+    }).catch(() => {
+      // Bỏ qua lỗi kết nối n8n để không làm chậm luồng người dùng
+    });
   }
 }

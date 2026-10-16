@@ -11,6 +11,7 @@ export class N8nService {
   private webhookBaseUrl: string;
   private defaultSenderEmail: string;
   private defaultHrEmail: string;
+  private defaultTelegramChatId: string;
 
   constructor(private readonly configService: ConfigService) {
     this.webhookBaseUrl =
@@ -23,6 +24,9 @@ export class N8nService {
     this.defaultHrEmail =
       this.configService.get<string>('HR_EMAIL') ||
       'quocthangngo2006@gmail.com';
+    this.defaultTelegramChatId =
+      this.configService.get<string>('TELEGRAM_CHAT_ID') ||
+      '8928574834';
   }
 
   /**
@@ -43,6 +47,7 @@ export class N8nService {
     const url = `${this.webhookBaseUrl}/interview-schedule`;
     const fullPayload = {
       fromEmail: payload.fromEmail || this.defaultSenderEmail,
+      telegramChatId: payload.telegramChatId || this.defaultTelegramChatId,
       ...payload,
     };
     return this.postWebhook(url, fullPayload, 'Xếp lịch phỏng vấn');
@@ -64,6 +69,7 @@ export class N8nService {
     const url = `${this.webhookBaseUrl}/employee-hired`;
     const fullPayload = {
       fromEmail: payload.fromEmail || this.defaultSenderEmail,
+      telegramChatId: payload.telegramChatId || this.defaultTelegramChatId,
       ...payload,
     };
     return this.postWebhook(url, fullPayload, 'Tuyển dụng nhân sự mới');
@@ -86,6 +92,7 @@ export class N8nService {
     const fullPayload = {
       fromEmail: payload.fromEmail || this.defaultSenderEmail,
       hrEmail: payload.hrEmail || this.defaultHrEmail,
+      telegramChatId: payload.telegramChatId || this.defaultTelegramChatId,
       ...payload,
     };
     return this.postWebhook(url, fullPayload, 'Cảnh báo nguy cơ kiệt sức');

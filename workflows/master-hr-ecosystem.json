@@ -111,7 +111,7 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $json.telegramChatId || $json.chatId || '@enterprise_hr_recruitment' }}",
+        "chatId": "={{ $json.telegramChatId || $json.chatId || '8928574834' }}",
         "text": "={{ $json.telegramAlert }}",
         "additionalFields": {
           "parse_mode": "HTML"
@@ -207,7 +207,7 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $json.telegramChatId || $json.chatId || '@enterprise_hr_alerts' }}",
+        "chatId": "={{ $json.telegramChatId || $json.chatId || '8928574834' }}",
         "text": "={{ $json.telegramAlert }}",
         "additionalFields": {
           "parse_mode": "HTML"
@@ -303,7 +303,7 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $json.telegramChatId || $json.chatId || '@enterprise_it_ops' }}",
+        "chatId": "={{ $json.telegramChatId || $json.chatId || '8928574834' }}",
         "text": "={{ $json.telegramAlert }}",
         "additionalFields": {
           "parse_mode": "HTML"

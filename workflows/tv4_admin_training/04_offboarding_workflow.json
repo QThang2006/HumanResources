@@ -12,7 +12,10 @@
       "name": "Webhook - HR Duyệt Thôi Việc",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 300],
+      "position": [
+        0,
+        300
+      ],
       "webhookId": "tv4-offboarding-approved"
     },
     {
@@ -81,7 +84,10 @@
       "name": "Nạp cấu hình liên phòng ban",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [230, 300]
+      "position": [
+        230,
+        300
+      ]
     },
     {
       "parameters": {
@@ -91,7 +97,10 @@
       "name": "Xác thực yêu cầu từ hệ thống",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
@@ -113,7 +122,10 @@
       "name": "Lấy hồ sơ thôi việc đã duyệt",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [690, 300]
+      "position": [
+        690,
+        300
+      ]
     },
     {
       "parameters": {
@@ -123,7 +135,10 @@
       "name": "Soạn nội dung điều phối bằng tiếng Việt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [920, 300]
+      "position": [
+        920,
+        300
+      ]
     },
     {
       "parameters": {
@@ -137,11 +152,20 @@
       "name": "Gửi ticket cho phòng IT",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1150, 300],
+      "position": [
+        1150,
+        300
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -155,11 +179,20 @@
       "name": "Gửi thông báo cho Kế toán",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1380, 300],
+      "position": [
+        1380,
+        300
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -173,11 +206,20 @@
       "name": "Gửi thư cảm ơn và khảo sát",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1610, 300],
+      "position": [
+        1610,
+        300
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -192,7 +234,10 @@
       "name": "Thông báo kênh liên phòng ban",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1840, 300],
+      "position": [
+        1840,
+        300
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
@@ -206,7 +251,10 @@
       "name": "Tổng hợp kết quả liên phòng ban",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2070, 300]
+      "position": [
+        2070,
+        300
+      ]
     },
     {
       "parameters": {
@@ -237,7 +285,10 @@
       "name": "Lưu kết quả thôi việc về hệ thống",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2300, 300]
+      "position": [
+        2300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -249,42 +300,133 @@
       "name": "Phản hồi kết quả offboarding",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [2530, 300]
+      "position": [
+        2530,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook - HR Duyệt Thôi Việc": {
-      "main": [[{ "node": "Nạp cấu hình liên phòng ban", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Nạp cấu hình liên phòng ban",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Nạp cấu hình liên phòng ban": {
-      "main": [[{ "node": "Xác thực yêu cầu từ hệ thống", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Xác thực yêu cầu từ hệ thống",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Xác thực yêu cầu từ hệ thống": {
-      "main": [[{ "node": "Lấy hồ sơ thôi việc đã duyệt", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Lấy hồ sơ thôi việc đã duyệt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Lấy hồ sơ thôi việc đã duyệt": {
-      "main": [[{ "node": "Soạn nội dung điều phối bằng tiếng Việt", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Soạn nội dung điều phối bằng tiếng Việt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Soạn nội dung điều phối bằng tiếng Việt": {
-      "main": [[{ "node": "Gửi ticket cho phòng IT", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gửi ticket cho phòng IT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gửi ticket cho phòng IT": {
-      "main": [[{ "node": "Gửi thông báo cho Kế toán", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gửi thông báo cho Kế toán",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gửi thông báo cho Kế toán": {
-      "main": [[{ "node": "Gửi thư cảm ơn và khảo sát", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gửi thư cảm ơn và khảo sát",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gửi thư cảm ơn và khảo sát": {
-      "main": [[{ "node": "Thông báo kênh liên phòng ban", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Thông báo kênh liên phòng ban",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Thông báo kênh liên phòng ban": {
-      "main": [[{ "node": "Tổng hợp kết quả liên phòng ban", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Tổng hợp kết quả liên phòng ban",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Tổng hợp kết quả liên phòng ban": {
-      "main": [[{ "node": "Lưu kết quả thôi việc về hệ thống", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Lưu kết quả thôi việc về hệ thống",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Lưu kết quả thôi việc về hệ thống": {
-      "main": [[{ "node": "Phản hồi kết quả offboarding", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Phản hồi kết quả offboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {

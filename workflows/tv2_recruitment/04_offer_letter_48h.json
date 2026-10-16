@@ -82,6 +82,12 @@
         "options": {
           "appendAttribution": false
         }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
       }
     },
     {
@@ -213,6 +219,12 @@
           "appendAttribution": false,
           "ccEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.hrEmail }}"
         }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
       }
     },
     {
@@ -342,6 +354,12 @@
         "html": "={{ '<p>Offer #' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + ' đã hết hạn mà chưa có phản hồi. Vui lòng kiểm tra hồ sơ trong ATS.</p>' }}",
         "options": {
           "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
         }
       }
     },

@@ -16,7 +16,10 @@
       "name": "1. Schedule 02:00 AM Cron",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -30,7 +33,10 @@
       "name": "2. Ping Backend Health Check",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [420, 300],
+      "position": [
+        420,
+        300
+      ],
       "continueOnFail": true
     },
     {
@@ -48,7 +54,10 @@
       "name": "3. IF Backend Is Online?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -60,7 +69,10 @@
       "name": "4. MySQL Query Database Metrics",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [860, 200],
+      "position": [
+        860,
+        200
+      ],
       "continueOnFail": true
     },
     {
@@ -71,7 +83,10 @@
       "name": "5. Calculate Storage & Metrics",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, 200]
+      "position": [
+        1080,
+        200
+      ]
     },
     {
       "parameters": {
@@ -88,7 +103,10 @@
       "name": "6. IF Storage Warning (>80%)?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1300, 200]
+      "position": [
+        1300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -105,7 +123,10 @@
       "name": "7. Trigger DB Snapshot Dump",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1520, 200],
+      "position": [
+        1520,
+        200
+      ],
       "continueOnFail": true
     },
     {
@@ -116,7 +137,10 @@
       "name": "8. Format Health Report HTML",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1740, 200]
+      "position": [
+        1740,
+        200
+      ]
     },
     {
       "parameters": {
@@ -130,7 +154,10 @@
       "name": "9. Telegram Alert Tech Lead",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1960, 200],
+      "position": [
+        1960,
+        200
+      ],
       "continueOnFail": true
     },
     {
@@ -144,8 +171,17 @@
       "name": "10. Send Email DB Digest (SMTP)",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [2180, 200],
-      "continueOnFail": true
+      "position": [
+        2180,
+        200
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -157,7 +193,10 @@
       "name": "11. MySQL Clean Old Session Logs",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [2400, 200],
+      "position": [
+        2400,
+        200
+      ],
       "continueOnFail": true
     },
     {
@@ -180,7 +219,10 @@
       "name": "12. Set Completed State",
       "type": "n8n-nodes-base.set",
       "typeVersion": 2,
-      "position": [2620, 200]
+      "position": [
+        2620,
+        200
+      ]
     }
   ],
   "connections": {

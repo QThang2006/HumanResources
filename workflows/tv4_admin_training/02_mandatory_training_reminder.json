@@ -16,7 +16,10 @@
       "name": "Lịch chạy 08 giờ mỗi ngày",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 300]
+      "position": [
+        0,
+        300
+      ]
     },
     {
       "parameters": {
@@ -60,7 +63,10 @@
       "name": "Nạp cấu hình an toàn",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [220, 300]
+      "position": [
+        220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -82,7 +88,10 @@
       "name": "Lấy danh sách cần nhắc",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [440, 300]
+      "position": [
+        440,
+        300
+      ]
     },
     {
       "parameters": {
@@ -92,7 +101,10 @@
       "name": "Tách từng lượt đào tạo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [660, 300]
+      "position": [
+        660,
+        300
+      ]
     },
     {
       "parameters": {
@@ -121,7 +133,10 @@
       "name": "Có trường hợp cần nhắc?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [880, 300]
+      "position": [
+        880,
+        300
+      ]
     },
     {
       "parameters": {
@@ -131,7 +146,10 @@
       "name": "Soạn nội dung nhắc bằng tiếng Việt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 220]
+      "position": [
+        1100,
+        220
+      ]
     },
     {
       "parameters": {
@@ -145,11 +163,20 @@
       "name": "Gửi thư nhắc nhân viên",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1320, 220],
+      "position": [
+        1320,
+        220
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -178,7 +205,10 @@
       "name": "Có quản lý trực tiếp?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1540, 220]
+      "position": [
+        1540,
+        220
+      ]
     },
     {
       "parameters": {
@@ -192,11 +222,20 @@
       "name": "Thông báo cho quản lý",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1760, 140],
+      "position": [
+        1760,
+        140
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -211,7 +250,10 @@
       "name": "Thông báo kênh đào tạo",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1980, 220],
+      "position": [
+        1980,
+        220
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
@@ -225,7 +267,10 @@
       "name": "Tổng hợp kết quả gửi",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2200, 220]
+      "position": [
+        2200,
+        220
+      ]
     },
     {
       "parameters": {
@@ -256,42 +301,141 @@
       "name": "Lưu kết quả về hệ thống",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2420, 220]
+      "position": [
+        2420,
+        220
+      ]
     }
   ],
   "connections": {
     "Lịch chạy 08 giờ mỗi ngày": {
-      "main": [[{"node": "Nạp cấu hình an toàn", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Nạp cấu hình an toàn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Nạp cấu hình an toàn": {
-      "main": [[{"node": "Lấy danh sách cần nhắc", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Lấy danh sách cần nhắc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Lấy danh sách cần nhắc": {
-      "main": [[{"node": "Tách từng lượt đào tạo", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Tách từng lượt đào tạo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Tách từng lượt đào tạo": {
-      "main": [[{"node": "Có trường hợp cần nhắc?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Có trường hợp cần nhắc?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Có trường hợp cần nhắc?": {
-      "main": [[{"node": "Soạn nội dung nhắc bằng tiếng Việt", "type": "main", "index": 0}], []]
+      "main": [
+        [
+          {
+            "node": "Soạn nội dung nhắc bằng tiếng Việt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     },
     "Soạn nội dung nhắc bằng tiếng Việt": {
-      "main": [[{"node": "Gửi thư nhắc nhân viên", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Gửi thư nhắc nhân viên",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gửi thư nhắc nhân viên": {
-      "main": [[{"node": "Có quản lý trực tiếp?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Có quản lý trực tiếp?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Có quản lý trực tiếp?": {
-      "main": [[{"node": "Thông báo cho quản lý", "type": "main", "index": 0}], [{"node": "Thông báo kênh đào tạo", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Thông báo cho quản lý",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Thông báo kênh đào tạo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Thông báo cho quản lý": {
-      "main": [[{"node": "Thông báo kênh đào tạo", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Thông báo kênh đào tạo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Thông báo kênh đào tạo": {
-      "main": [[{"node": "Tổng hợp kết quả gửi", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Tổng hợp kết quả gửi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Tổng hợp kết quả gửi": {
-      "main": [[{"node": "Lưu kết quả về hệ thống", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Lưu kết quả về hệ thống",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

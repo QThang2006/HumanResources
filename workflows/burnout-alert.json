@@ -78,7 +78,13 @@
       "position": [
         740,
         560
-      ]
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {

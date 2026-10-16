@@ -12,7 +12,10 @@
       "name": "1. Webhook Security Event",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [200, 300],
+      "position": [
+        200,
+        300
+      ],
       "webhookId": "security-alert-tv1"
     },
     {
@@ -23,7 +26,10 @@
       "name": "2. Sanitize & Parse Network Info",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
@@ -33,7 +39,10 @@
       "name": "3. Rate Limiter & Attempt Counter",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -50,7 +59,10 @@
       "name": "4. IF Limit Exceeded (>= 5)?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [860, 300]
+      "position": [
+        860,
+        300
+      ]
     },
     {
       "parameters": {
@@ -60,7 +72,10 @@
       "name": "5. Calc Ban Window & Incident ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, 200]
+      "position": [
+        1080,
+        200
+      ]
     },
     {
       "parameters": {
@@ -77,7 +92,10 @@
       "name": "6. Sync Blacklist to Backend API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1300, 200],
+      "position": [
+        1300,
+        200
+      ],
       "continueOnFail": true
     },
     {
@@ -88,7 +106,10 @@
       "name": "7. Gemini AI Threat Classifier",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1520, 200]
+      "position": [
+        1520,
+        200
+      ]
     },
     {
       "parameters": {
@@ -110,7 +131,10 @@
       "name": "8. Switch Risk Severity Tier",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [1740, 200]
+      "position": [
+        1740,
+        200
+      ]
     },
     {
       "parameters": {
@@ -124,7 +148,10 @@
       "name": "9. Telegram Alert DevSecOps",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1980, 100],
+      "position": [
+        1980,
+        100
+      ],
       "continueOnFail": true
     },
     {
@@ -138,8 +165,17 @@
       "name": "10. Send Email Security Warning (SMTP)",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [2200, 200],
-      "continueOnFail": true
+      "position": [
+        2200,
+        200
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -151,7 +187,10 @@
       "name": "11. MySQL Security Audit Logger",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
-      "position": [2420, 200],
+      "position": [
+        2420,
+        200
+      ],
       "continueOnFail": true
     },
     {
@@ -166,7 +205,10 @@
       "name": "12. Respond HTTP 202 Accepted",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [2640, 200]
+      "position": [
+        2640,
+        200
+      ]
     }
   ],
   "connections": {

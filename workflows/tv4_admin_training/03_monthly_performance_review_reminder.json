@@ -16,7 +16,10 @@
       "name": "Cron ngày 25 - Mở kỳ đánh giá",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 180]
+      "position": [
+        0,
+        180
+      ]
     },
     {
       "parameters": {
@@ -33,7 +36,10 @@
       "name": "Cron ngày 28 - Đôn đốc chưa nộp",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 420]
+      "position": [
+        0,
+        420
+      ]
     },
     {
       "parameters": {
@@ -95,7 +101,10 @@
       "name": "Nạp cấu hình an toàn",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -105,7 +114,10 @@
       "name": "Xác định đợt thông báo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [470, 300]
+      "position": [
+        470,
+        300
+      ]
     },
     {
       "parameters": {
@@ -140,7 +152,10 @@
       "name": "Lấy danh sách quản lý cần nhắc",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -150,7 +165,10 @@
       "name": "Tách từng quản lý phụ trách",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [930, 300]
+      "position": [
+        930,
+        300
+      ]
     },
     {
       "parameters": {
@@ -179,7 +197,10 @@
       "name": "Có quản lý cần thông báo?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1160, 300]
+      "position": [
+        1160,
+        300
+      ]
     },
     {
       "parameters": {
@@ -190,7 +211,10 @@
       "name": "Soạn nội dung đánh giá bằng tiếng Việt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1390, 220]
+      "position": [
+        1390,
+        220
+      ]
     },
     {
       "parameters": {
@@ -204,11 +228,20 @@
       "name": "Gửi thư cho quản lý",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1620, 220],
+      "position": [
+        1620,
+        220
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -223,7 +256,10 @@
       "name": "Thông báo kênh đánh giá",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1850, 220],
+      "position": [
+        1850,
+        220
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
@@ -238,7 +274,10 @@
       "name": "Tổng hợp kết quả thông báo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2080, 220]
+      "position": [
+        2080,
+        220
+      ]
     },
     {
       "parameters": {
@@ -269,42 +308,134 @@
       "name": "Lưu kết quả nhắc đánh giá",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2310, 220]
+      "position": [
+        2310,
+        220
+      ]
     }
   ],
   "connections": {
     "Cron ngày 25 - Mở kỳ đánh giá": {
-      "main": [[{ "node": "Nạp cấu hình an toàn", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Nạp cấu hình an toàn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Cron ngày 28 - Đôn đốc chưa nộp": {
-      "main": [[{ "node": "Nạp cấu hình an toàn", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Nạp cấu hình an toàn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Nạp cấu hình an toàn": {
-      "main": [[{ "node": "Xác định đợt thông báo", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Xác định đợt thông báo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Xác định đợt thông báo": {
-      "main": [[{ "node": "Lấy danh sách quản lý cần nhắc", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Lấy danh sách quản lý cần nhắc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Lấy danh sách quản lý cần nhắc": {
-      "main": [[{ "node": "Tách từng quản lý phụ trách", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Tách từng quản lý phụ trách",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Tách từng quản lý phụ trách": {
-      "main": [[{ "node": "Có quản lý cần thông báo?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Có quản lý cần thông báo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Có quản lý cần thông báo?": {
-      "main": [[{ "node": "Soạn nội dung đánh giá bằng tiếng Việt", "type": "main", "index": 0 }], []]
+      "main": [
+        [
+          {
+            "node": "Soạn nội dung đánh giá bằng tiếng Việt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     },
     "Soạn nội dung đánh giá bằng tiếng Việt": {
-      "main": [[{ "node": "Gửi thư cho quản lý", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gửi thư cho quản lý",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gửi thư cho quản lý": {
-      "main": [[{ "node": "Thông báo kênh đánh giá", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Thông báo kênh đánh giá",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Thông báo kênh đánh giá": {
-      "main": [[{ "node": "Tổng hợp kết quả thông báo", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Tổng hợp kết quả thông báo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Tổng hợp kết quả thông báo": {
-      "main": [[{ "node": "Lưu kết quả nhắc đánh giá", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Lưu kết quả nhắc đánh giá",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {

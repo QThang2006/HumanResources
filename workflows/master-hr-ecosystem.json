@@ -107,7 +107,13 @@
       "position": [
         980,
         540
-      ]
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -203,7 +209,13 @@
       "position": [
         1690,
         560
-      ]
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {
@@ -299,7 +311,13 @@
       "position": [
         2640,
         560
-      ]
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "parameters": {

@@ -22,6 +22,10 @@ export enum AiRecommendation {
 @Index(['jobId', 'candidateEmail'], { unique: true })
 @Entity('applications')
 export class Application {
+  @Column({ length: 64, nullable: true, unique: true, select: false }) intakeKey: string;
+  @Column({ length: 20, nullable: true }) intakeChannel: string;
+  @Column({ length: 20, nullable: true }) acknowledgementStatus: string;
+  @Column({ length: 998, nullable: true }) acknowledgementMessageId: string;
   @PrimaryGeneratedColumn()
   id: number;
 

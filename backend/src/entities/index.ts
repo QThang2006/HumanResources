@@ -10,3 +10,4 @@ export * from './training-course.entity';
 export * from './employee-training.entity';
 export * from './performance-review.entity';
 export * from './employee-mood.entity';
+export * from './offer.entity';

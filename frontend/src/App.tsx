@@ -1,3 +1,4 @@
+import { OfferResponsePage } from './pages/OfferResponsePage';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { MainLayout } from './layouts/MainLayout';
@@ -20,6 +21,7 @@ function App() {
             <Route path="/" element={<Navigate to="/careers" replace />} />
             <Route path="/careers" element={<CareersPage />} />
             <Route path="/careers/:id" element={<JobDetailPage />} />
+            <Route path="/offers/:token" element={<OfferResponsePage />} />
             <Route path="/login" element={<LoginPage />} />
 
             {/* 2. Tuyến Đường Phân Quyền Được Bảo Vệ (Protected Routes) */}

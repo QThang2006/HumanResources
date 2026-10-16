@@ -1,3 +1,4 @@
+import { Offer, OfferStatus } from '../../entities/offer.entity';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { OnboardingTask, TaskCategory } from '../../entities/onboarding-task.entity';
@@ -65,6 +66,8 @@ export function applicationView(row: Application) {
     candidateName: row.candidateName,
     candidateEmail: row.candidateEmail,
     candidatePhone: row.candidatePhone,
+    intakeChannel: row.intakeChannel,
+    acknowledgementStatus: row.acknowledgementStatus,
     status: row.status,
     matchScore: row.matchScore === null ? null : Number(row.matchScore),
     aiSummary: row.aiSummary,
@@ -190,7 +193,7 @@ export class ApplicationsService {
     return this.files.mimeType(app.cvFileUrl) || 'application/pdf';
   }
 
-  async apply(input: SubmitInput, file: Express.Multer.File) {
+  async apply(input: SubmitInput, file: Express.Multer.File, intake?: { key: string; channel: string }) {
     const job = await this.db
       .getRepository(Job)
       .findOneBy({ id: input.jobId, status: JobStatus.OPEN });
@@ -207,6 +210,7 @@ export class ApplicationsService {
         return manager.getRepository(Application).save(
           manager.getRepository(Application).create({
             ...input,
+            ...(intake ? { intakeKey: intake.key, intakeChannel: intake.channel, acknowledgementStatus: 'CLAIMED' } : {}),
             candidateEmail: input.candidateEmail.trim().toLowerCase(),
             cvFileUrl: key,
             rawCvText,
@@ -559,6 +563,9 @@ export class ApplicationsService {
             },
           };
         }
+        const issuedOffer = await manager.getRepository(Offer).findOne({ where: { applicationId }, order: { version: 'DESC' } });
+        if (issuedOffer && issuedOffer.status !== OfferStatus.ACCEPTED)
+          throw new ConflictException('Ứng viên cần chấp nhận Offer trước khi nhận việc.');
         if (![ApplicationStatus.INTERVIEWING, ApplicationStatus.OFFERED].includes(app.status))
           throw new ConflictException('Hồ sơ chưa ở bước nhận việc.');
         const latest = await manager.getRepository(Interview).findOne({

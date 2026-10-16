@@ -24,12 +24,14 @@ import { ChangeJobStatusDto } from './dto/change-job-status.dto';
 import { ListJobsQueryDto } from './dto/list-jobs-query.dto';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { AssignDepartmentManagerDto } from './dto/assign-department-manager.dto';
+import { N8nService } from '../core/automation/n8n.service';
 
 @Controller('jobs')
 export class JobsController {
   constructor(
     private readonly jobs: JobsService,
     private readonly ai: RecruitmentAiService,
+    private readonly n8n: N8nService,
   ) {}
 
   @Get()
@@ -126,21 +128,30 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN)
   create(@CurrentUser('id') userId: number, @Body() input: CreateJobDto) {
-    return this.jobs.create(input, userId);
+    return this.jobs.create(input, userId).then((job) => {
+      void this.n8n.triggerJobsChanged({ action: 'CREATED', job });
+      return job;
+    });
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN)
   update(@Param('id', ParseIntPipe) id: number, @Body() input: UpdateJobDto) {
-    return this.jobs.update(id, input);
+    return this.jobs.update(id, input).then((job) => {
+      void this.n8n.triggerJobsChanged({ action: 'UPDATED', job });
+      return job;
+    });
   }
 
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.HR, UserRole.SUPERADMIN)
   changeStatus(@Param('id', ParseIntPipe) id: number, @Body() input: ChangeJobStatusDto) {
-    return this.jobs.changeStatus(id, input);
+    return this.jobs.changeStatus(id, input).then((job) => {
+      void this.n8n.triggerJobsChanged({ action: 'STATUS_CHANGED', job });
+      return job;
+    });
   }
 
   @Post('ai-generate')

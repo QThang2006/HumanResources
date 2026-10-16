@@ -9,7 +9,7 @@
         "color": 3
       },
       "id": "sticky-burnout-info",
-      "name": "Sticky Note - Burnout Info",
+      "name": "Ghi chú – Cảnh báo nguy cơ kiệt sức",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -25,7 +25,7 @@
         "options": {}
       },
       "id": "webhook-burnout-alert",
-      "name": "Webhook: Cảnh báo kiệt sức",
+      "name": "20. Nhận cảnh báo nguy cơ kiệt sức",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
@@ -43,7 +43,7 @@
         }
       },
       "id": "respond-webhook-burnout",
-      "name": "Respond HTTP 200",
+      "name": "18. Hoàn tất xử lý yêu cầu",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
@@ -56,7 +56,7 @@
         "jsCode": "const raw = $input.first().json;\nconst rawBody = raw.body || raw;\nconst payload = rawBody.data || rawBody;\n\nconst employeeName = payload.employeeName || payload.fullName || 'Nhân sự';\nconst userId = payload.userId || 'N/A';\nconst department = payload.departmentName || payload.department || 'Phòng Ban';\nconst stressDays = payload.stressDays || 1;\nconst latestFeedback = payload.latestFeedback || '(Không có ghi chú thêm)';\nconst reviewPortalUrl = payload.reviewPortalUrl || 'http://localhost:5173/admin/burnout-alerts';\nconst fromEmail = payload.fromEmail || 'quocthangngo2006@gmail.com';\nconst hrEmail = payload.hrEmail || 'quocthangngo2006@gmail.com';\n\nlet severityBadge = '🟡 VỪA (MEDIUM)';\nlet severityColor = '#eab308';\nlet urgentLevel = 'Cảnh báo theo dõi';\n\nif (stressDays >= 3) {\n  severityBadge = '🔴 KHẨN CẤP (CRITICAL - NGUY CƠ NGHỈ VIỆC CAO)';\n  severityColor = '#ef4444';\n  urgentLevel = 'Yêu cầu Trưởng phòng can thiệp 1-on-1 trong 24 giờ!';\n} else if (stressDays >= 2) {\n  severityBadge = '🟠 CAO (HIGH - QUÁ TẢI SPRINT)';\n  severityColor = '#f97316';\n  urgentLevel = 'Khuyến nghị rà soát và san sẻ bớt task tồn đọng';\n}\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border-top: 5px solid ${severityColor}; }\n    .header { background: #ffffff; color: #0f172a; padding: 25px 30px; border-bottom: 1px solid #e2e8f0; }\n    .header h1 { margin: 0; font-size: 20px; color: #dc2626; display: flex; align-items: center; gap: 8px; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .badge { display: inline-block; background: ${severityColor}; color: #ffffff; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 15px; }\n    .alert-card { background: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px; padding: 18px; margin: 15px 0; }\n    .item { margin: 8px 0; font-size: 14px; }\n    .quote { background: #ffffff; border-left: 3px solid #dc2626; padding: 12px 16px; margin: 15px 0; font-style: italic; color: #475569; border-radius: 0 6px 6px 0; }\n    .actions { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin-top: 20px; }\n    .btn { display: inline-block; background: #dc2626; color: #ffffff !important; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; text-align: center; margin-top: 10px; }\n    .footer { text-align: center; font-size: 12px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🚨 CẢNH BÁO NGUY CƠ KIỆT SỨC (BURNOUT RISK)</h1>\n      <p style=\"margin: 4px 0 0 0; color: #64748b; font-size: 14px;\">Hệ thống Giám sát Hạnh phúc & Sức khỏe Tinh thần Đội ngũ</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"badge\">${severityBadge}</div>\n      <p>Kính gửi <strong>Trưởng Phòng Ban & Giám Đốc Nhân Sự</strong>,</p>\n      <p>Hệ thống AI vừa phát hiện dấu hiệu quá tải tinh thần nghiêm trọng từ nhân sự trực thuộc quản lý của bạn:</p>\n      \n      <div class=\"alert-card\">\n        <div class=\"item\">👤 <strong>Nhân viên:</strong> ${employeeName} (Mã nhân sự: #${userId})</div>\n        <div class=\"item\">🏢 <strong>Phòng ban:</strong> ${department}</div>\n        <div class=\"item\">⏱️ <strong>Số ngày stress liên tiếp:</strong> <span style=\"color: #dc2626; font-weight: 700;\">${stressDays} ngày</span></div>\n        <div class=\"item\">⚡ <strong>Mức độ khẩn cấp:</strong> ${urgentLevel}</div>\n      </div>\n\n      <p><strong>Lời nhắn phản hồi check-in từ nhân viên:</strong></p>\n      <div class=\"quote\">\"${latestFeedback}\"</div>\n\n      <div class=\"actions\">\n        <div style=\"font-weight: 700; color: #0f172a; margin-bottom: 8px;\">🎯 HÀNH ĐỘNG KHUYẾN NGHỊ NGAY HÔM NAY:</div>\n        <ul style=\"margin: 0; padding-left: 20px; font-size: 14px;\">\n          <li>Đặt lịch hẹn trao đổi 1-on-1 trong 24 giờ để lắng nghe tâm tư thực tế.</li>\n          <li>Rà soát lại danh sách task trong Sprint, hỗ trợ giảm tải hoặc san sẻ công việc.</li>\n          <li>Xem xét đề xuất cho nhân viên nghỉ bù hoặc sử dụng 1 ngày Mental Health Day.</li>\n        </ul>\n        <div style=\"text-align: center;\">\n          <a href=\"${reviewPortalUrl}\" class=\"btn\" target=\"_blank\">🔍 Mở Bảng Điều Khiển Can Thiệp 1-on-1</a>\n        </div>\n      </div>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Cảnh báo tự động phát ra từ n8n Automation Engine.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nconst telegramAlert = `🚨 <b>CẢNH BÁO NGUY CƠ KIỆT SỨC (BURNOUT ALERT)</b>\\n\\n` +\n  `• <b>Nhân sự:</b> ${employeeName} (ID: #${userId})\\n` +\n  `• <b>Phòng ban:</b> ${department}\\n` +\n  `• <b>Mức độ:</b> <b>${severityBadge}</b>\\n` +\n  `• <b>Số ngày stress liên tục:</b> <code>${stressDays} ngày</code>\\n` +\n  `• <b>Lời nhắn:</b> <i>\"${latestFeedback}\"</i>\\n\\n` +\n  `⚡ <b>Yêu cầu hành động:</b> ${urgentLevel}\\n` +\n  `👉 <a href=\"${reviewPortalUrl}\">Mở trang can thiệp 1-on-1 trên HR Portal</a>`;\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    hrEmail: hrEmail,\n    employeeName: employeeName,\n    userId: userId,\n    department: department,\n    stressDays: stressDays,\n    severityBadge: severityBadge,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[KHẨN CẤP] Cảnh báo nguy cơ kiệt sức đối với ${employeeName} (${department})`,\n    emailHtml: htmlTemplate,\n    telegramAlert: telegramAlert\n  }\n};"
       },
       "id": "code-format-burnout",
-      "name": "Đánh Giá Cấp Độ & Soạn Thảo Cảnh Báo",
+      "name": "21. Đánh giá mức độ và soạn cảnh báo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -72,7 +72,7 @@
         "html": "={{ $json.emailHtml }}"
       },
       "id": "send-email-burnout",
-      "name": "Gửi Email Khẩn Cấp Tới HR Lead",
+      "name": "22. Gửi cảnh báo khẩn cấp cho trưởng nhóm HR",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
@@ -89,7 +89,7 @@
         }
       },
       "id": "telegram-burnout-push",
-      "name": "Bắn Telegram Bot Khẩn Cấp",
+      "name": "23. Gửi cảnh báo khẩn cấp qua Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -99,32 +99,32 @@
     }
   ],
   "connections": {
-    "Webhook: Cảnh báo kiệt sức": {
+    "20. Nhận cảnh báo nguy cơ kiệt sức": {
       "main": [
         [
           {
-            "node": "Respond HTTP 200",
+            "node": "18. Hoàn tất xử lý yêu cầu",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Đánh Giá Cấp Độ & Soạn Thảo Cảnh Báo",
+            "node": "21. Đánh giá mức độ và soạn cảnh báo",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Đánh Giá Cấp Độ & Soạn Thảo Cảnh Báo": {
+    "21. Đánh giá mức độ và soạn cảnh báo": {
       "main": [
         [
           {
-            "node": "Gửi Email Khẩn Cấp Tới HR Lead",
+            "node": "22. Gửi cảnh báo khẩn cấp cho trưởng nhóm HR",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Bắn Telegram Bot Khẩn Cấp",
+            "node": "23. Gửi cảnh báo khẩn cấp qua Telegram",
             "type": "main",
             "index": 0
           }

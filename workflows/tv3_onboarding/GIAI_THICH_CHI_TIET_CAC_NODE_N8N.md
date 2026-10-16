@@ -12,7 +12,7 @@
   * [1.2. Ma trận tương tác Hệ sinh thái Fullstack](#muc-1-2)
 * [MỤC 2: CHI TIẾT LUỒNG 1 (WF-01: BURNOUT CRISIS DETECTION & MULTI-TIER ESCALATION)](#muc-2)
   * [2.1. Sơ đồ luồng & 4 Giai đoạn xử lý](#muc-2-1)
-  * [2.2. Trình tự chi tiết từng Node thực thi (14 Nodes)](#muc-2-2)
+  * [2.2. Trình tự chi tiết từng Node thực thi (13 Nodes)](#muc-2-2)
   * [2.3. Bảng công nghệ & Credentials sử dụng](#muc-2-3)
   * [2.4. Kịch bản kiểm thử thực tế đa tầng (Test Playbook 5 Scenarios)](#muc-2-4)
     * [🟢 Kịch bản 1: Cảnh báo sớm do khó khăn công nghệ (TECH Stress)](#kich-ban-1)
@@ -23,7 +23,7 @@
   * [2.5. Kịch bản thuyết trình bảo vệ Luồng 1 trước Hội đồng](#muc-2-5)
 * [MỤC 3: CHI TIẾT LUỒNG 2 (WF-02: DAILY MOOD PULSE & MORNING CHECK-IN REMINDER)](#muc-3)
   * [3.1. Sơ đồ luồng & 4 Giai đoạn xử lý](#muc-3-1)
-  * [3.2. Trình tự chi tiết từng Node thực thi (11 Nodes)](#muc-3-2)
+  * [3.2. Trình tự chi tiết từng Node thực thi (13 Nodes)](#muc-3-2)
   * [3.3. Bảng công nghệ & Credentials sử dụng](#muc-3-3)
   * [3.4. Kịch bản kiểm thử thực tế đa tầng (Test Playbook 4 Scenarios)](#muc-3-4)
     * [🚀 Kịch bản 1: Nhắc nhở khởi động tuần mới sáng Thứ Hai (Khởi động tuần mới)](#kich-ban-2-1)
@@ -43,7 +43,7 @@
   * [4.5. Kịch bản thuyết trình bảo vệ Luồng 3 trước Hội đồng](#muc-4-5)
 * [MỤC 5: CHI TIẾT LUỒNG 4 (WF-04: WEEKLY MORALE & EXECUTIVE SENTIMENT DIGEST)](#muc-5)
   * [5.1. Sơ đồ luồng & 4 Giai đoạn xử lý](#muc-5-1)
-  * [5.2. Trình tự chi tiết từng Node thực thi (11 Nodes)](#muc-5-2)
+  * [5.2. Trình tự chi tiết từng Node thực thi (14 Nodes)](#muc-5-2)
   * [5.3. Bảng công nghệ & Credentials sử dụng](#muc-5-3)
   * [5.4. Kịch bản kiểm thử thực tế đa tầng (Test Playbook 4 Scenarios)](#muc-5-4)
     * [🟢 Kịch bản 1: Báo cáo tích cực — Morale Index cao & Xu hướng tăng](#kich-ban-4-1)
@@ -55,7 +55,7 @@
   * [6.1. Định vị Bản thân: Kỹ sư Tự động hóa & Kiến trúc Giải pháp Doanh nghiệp](#muc-6-1)
   * [6.2. 5 "Trụ cột Kỹ thuật Hạng nặng" giúp ghi điểm Tuyệt đối với Hội đồng](#muc-6-2)
   * [6.3. Kịch bản Trình diễn Live (Live Demo Playbook 3 Màn hình) "Bách phát bách trúng"](#muc-6-3)
-  * [6.4. Bộ 10 Câu hỏi Vấn đáp "Tử thần" của Giảng viên & Câu trả lời Mẫu Chuẩn Chuyên gia](#muc-6-4)
+  * [6.4. Bộ 11 Câu hỏi Vấn đáp "Tử thần" của Giảng viên & Câu trả lời Mẫu Chuẩn Chuyên gia (Kèm Demo Code Project)](#muc-6-4)
   * [6.5. Checklist Kỹ thuật 15 phút trước giờ G & Tư thế Tác phong Bảo vệ](#muc-6-5)
 
 ---
@@ -104,12 +104,27 @@ Phân hệ Thành viên 3 chịu trách nhiệm tự động hóa toàn bộ vò
 | **Automation** | n8n Engine (`localhost:5678`) | "Trái tim" điều phối logic, phân luồng cảnh báo, gọi AI, tương tác CSDL 2 chiều và gửi tin nhắn đa kênh. |
 | **Cognitive AI** | Google Gemini (`gemini-2.5-flash`) | Phân tích tâm lý chuyên sâu, trích xuất nguyên nhân cốt lõi, soạn kịch bản 1-on-1 và viết báo cáo tuần. |
 
+<a id="muc-1-3"></a>
+### 1.3. Bản đồ đối chiếu mã nguồn Project (NestJS / React) kết nối với n8n (Dùng khi Giảng viên hỏi vặn Code Project)
+
+Khi Giảng viên hỏi: *"Code ở bên Project của em gọi sang n8n ở chỗ nào?"* hoặc *"Dữ liệu từ Web chuyển sang n8n ra sao?"*, bạn mở ngay các file sau:
+
+| Luồng n8n | Điểm kết nối trong Project | Đường dẫn File & Vị trí Code | Cơ chế hoạt động kỹ thuật |
+| :--- | :--- | :--- | :--- |
+| **WF-01** (Burnout Crisis) | **NestJS Service & Dispatcher** | • [`backend/src/modules/onboarding/onboarding.service.ts`](file:///f:/HumanResources/backend/src/modules/onboarding/onboarding.service.ts#L253-L276) (Hàm `recordMoodCheckIn`, dòng 253 - 276)<br>• [`backend/src/modules/core/automation/n8n.service.ts`](file:///f:/HumanResources/backend/src/modules/core/automation/n8n.service.ts#L75-L110) (Hàm `triggerBurnoutAlert`, dòng 75 - 110) | Khi nhân viên gửi mood `STRESSED` $\ge 3$ ngày liên tiếp trên Web, Backend lưu vào MySQL và phát HTTP POST Webhook bất đồng bộ (Non-blocking `fetch`) tới `http://localhost:5678/webhook/burnout-alert`. |
+| **WF-02** (Daily Reminder) | **React UI & MySQL Table** | • [`frontend/src/pages/EmployeeWorkspacePage.tsx`](file:///f:/HumanResources/frontend/src/pages/EmployeeWorkspacePage.tsx) (Giao diện Check-in cảm xúc, dòng 27 - 64)<br>• Bảng CSDL: `employee_moods` | Nhân viên check-in qua Web, dữ liệu lưu vào bảng `employee_moods`. Lúc 09:00 sáng, n8n Cron chạy truy vấn SQL `NOT EXISTS` để chỉ lọc nhân viên chưa check-in và gửi lời chúc Telegram. |
+| **WF-03** (30-Day SLA) | **Onboarding API & MySQL Tasks** | • [`backend/src/modules/onboarding/onboarding.controller.ts`](file:///f:/HumanResources/backend/src/modules/onboarding/onboarding.controller.ts) (API `/api/onboarding/checklist`)<br>• Bảng CSDL: `onboarding_tasks`, `users` | Nhiệm vụ Onboarding và hạn chót (Day 1, 3, 7, 14, 30) lưu ở bảng `onboarding_tasks`. 08:30 sáng Thứ 2, n8n kết nối MySQL quét `DATEDIFF` để tính tiến độ % và trễ hạn. |
+| **WF-04** (Weekly Morale) | **Manager Radar UI & Report DB** | • [`frontend/src/features/team-mood/components/WeeklyMoodAnalyticsWidget.tsx`](file:///f:/HumanResources/frontend/src/features/team-mood/components/WeeklyMoodAnalyticsWidget.tsx) & [`ManagerTeamMoodWidget.tsx`](file:///f:/HumanResources/frontend/src/features/team-mood/ManagerTeamMoodWidget.tsx) (Hiển thị Radar Morale & Cảnh báo trong [`EmployeeWorkspacePage.tsx`](file:///f:/HumanResources/frontend/src/pages/EmployeeWorkspacePage.tsx) tab Team Mood)<br>• Bảng CSDL: `morale_reports` | 17:00 chiều Thứ 6, n8n tổng kết tuần, gọi Gemini AI phân tích, và ghi snapshot vào bảng `morale_reports` (`ON DUPLICATE KEY UPDATE`) để hiển thị lên Dashboard của Manager. |
+
 [⬆ Trở về Mục lục](#muc-luc)
 
 ---
 
 <a id="muc-2"></a>
 # 2. MỤC 2: CHI TIẾT LUỒNG 1 (WF-01: BURNOUT CRISIS DETECTION & MULTI-TIER ESCALATION)
+
+> 🎙️ **Câu nói mở đầu khi giới thiệu Luồng 1 (Nhiệm vụ cốt lõi):**  
+> *"Thưa thầy/cô, Luồng 1 đảm nhiệm việc tự động phát hiện nguy cơ kiệt sức và bẫy khủng hoảng tâm lý của nhân viên; sau đó dùng Gemini AI phân tích nguyên nhân để lập tức điều phối cảnh báo đa tầng tới Quản lý trực tiếp hoặc Ban Giám đốc HR."*
 
 * **Mã luồng trên n8n:** `[TV3] WF-01: Burnout Crisis Detection & Multi-Tier Escalation`
 * **Workflow ID:** `wJrOeNTxp2yTn4hT`
@@ -148,38 +163,67 @@ Phân hệ Thành viên 3 chịu trách nhiệm tự động hóa toàn bộ vò
 ```
 
 <a id="muc-2-2"></a>
-### 2.2. Trình tự chi tiết từng Node thực thi (14 Nodes)
+### 2.2. Trình tự chi tiết từng Node thực thi (13 Nodes)
+
+> 🎙️ **Câu nói mở đầu khi chỉ vào sơ đồ Luồng 1:**  
+> *"Luồng 1 gồm 13 nodes xử lý theo chu trình khép kín: đón webhook từ backend với phản hồi tức thì HTTP 202, gom 7 ngày cảm xúc từ CSDL, dùng Gemini AI chẩn đoán nguyên nhân và sinh câu hỏi 1-on-1, sau đó rẽ nhánh cảnh báo và ghi nhận kiểm toán."*
 
 #### 🟢 GIAI ĐOẠN 1: TIẾP NHẬN SỰ KIỆN & PHẢN HỒI NON-BLOCKING
 
 <a id="node-01"></a>
 ##### 🔹 Node 01: `Webhook Trigger`
-* **Loại node:** `n8n-nodes-base.webhook`
-* **Nhiệm vụ:** Lắng nghe HTTP POST request từ NestJS Backend (`onboarding.service.ts` dòng 222).
-* **Payload đầu vào chuẩn:**
-  ```json
-  {
-    "userId": 4,
-    "employeeName": "Phạm Hồng Quân",
-    "departmentName": "Kỹ Thuật & AI",
-    "stressDays": 3,
-    "latestFeedback": "Deadline Sprint dồn dập, nhiều kiến trúc mới chưa quen"
-  }
-  ```
+* **Loại node:** `n8n-nodes-base.webhook` (POST `/webhook/burnout-alert`)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là cổng Webhook tiếp nhận tín hiệu từ NestJS Backend khi phát hiện nhân viên stress liên tục. Node nhận ngay ID nhân sự và nội dung phản hồi gần nhất để kích hoạt quy trình tự động mà không làm treo hệ thống."*
+<details>
+<summary><b>🔍 Xem chi tiết Payload JSON đầu vào từ Backend</b></summary>
+
+```json
+{
+  "userId": 4,
+  "employeeName": "Phạm Hồng Quân",
+  "departmentName": "Kỹ Thuật & AI",
+  "stressDays": 3,
+  "latestFeedback": "Deadline Sprint dồn dập, nhiều kiến trúc mới chưa quen"
+}
+```
+</details>
 
 <a id="node-02"></a>
 ##### 🔹 Node 02: `Data Validation & Sanitize`
 * **Loại node:** `n8n-nodes-base.code` (JavaScript)
-* **Nhiệm vụ:** Thẩm định tính hợp lệ, làm sạch dữ liệu và kích hoạt bẫy khủng hoảng:
-  1. Kiểm tra bắt buộc: `userId > 0`, `stressDays >= 1`.
-  2. Lọc ký tự lạ tránh Script Injection.
-  3. **Cơ chế Crisis Flag (Phát hiện khủng hoảng):** Tự động duyệt regex tìm từ khóa nguy cấp (`"không muốn sống"`, `"tự tử"`, `"kiệt sức"`, `"quá tải"`...). Nếu phát hiện, **ép `riskTier = 'CRITICAL'` ngay lập tức** dù nhân viên mới stress 1 ngày.
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node này vừa làm sạch dữ liệu đầu vào, vừa cài sẵn bẫy Crisis Flag. Nếu phát hiện các từ khóa nguy cấp như 'kiệt sức', 'quá tải', hệ thống sẽ tự động ép lên mức Nguy cấp (CRITICAL) ngay lập tức dù nhân viên mới stress ngày đầu tiên."*
+<details>
+<summary><b>🔍 Xem chi tiết Logic Bẫy Khủng hoảng (Crisis Flag)</b></summary>
+
+```javascript
+// Kiểm tra dữ liệu hợp lệ
+if (!userId || stressDays < 1) {
+  throw new Error("Dữ liệu đầu vào không hợp lệ!");
+}
+
+// Bẫy Crisis Flag: Bắt từ khóa nhạy cảm
+const crisisKeywords = [/kiệt sức/i, /quá tải/i, /không muốn sống/i, /trầm cảm/i, /muốn nghỉ việc/i];
+const hasCrisis = crisisKeywords.some(regex => regex.test(feedbackText));
+
+// Nếu có từ khóa khủng hoảng -> ép lên CRITICAL ngay lập tức
+const riskTier = (stressDays >= 5 || hasCrisis) ? 'CRITICAL' : 'WARNING';
+```
+</details>
 
 <a id="node-03"></a>
 ##### 🔹 Node 03: `Respond HTTP 202`
 * **Loại node:** `n8n-nodes-base.respondToWebhook`
-* **Nhiệm vụ:** Trả ngay mã trạng thái `HTTP 202 Accepted` về cho NestJS Backend trong vòng **< 15ms**.
-* **Ý nghĩa kỹ sư:** Mô hình Asynchronous Non-blocking. Backend không bị treo kết nối để chờ AI xử lý (vốn mất 1.5 - 2 giây), giúp giao diện nhân viên không bị lag/đơ.
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là thiết kế bất đồng bộ cực kỳ quan trọng: n8n trả ngay mã HTTP 202 trong vòng 15ms về cho Backend. Nhờ vậy giao diện người dùng phản hồi tức thì, không bị đơ lag khi chờ AI phân tích."*
+<details>
+<summary><b>🔍 Xem chi tiết Cấu hình Node</b></summary>
+
+* **Response Code:** `202 Accepted`
+* **Response Body:** `{"status": "accepted", "message": "Burnout escalation pipeline started asynchronously"}`
+* **Thời gian phản hồi:** `< 15ms`
+</details>
 
 ---
 
@@ -188,51 +232,70 @@ Phân hệ Thành viên 3 chịu trách nhiệm tự động hóa toàn bộ vò
 <a id="node-04"></a>
 ##### 🔹 Node 04: `MySQL User Profile`
 * **Loại node:** `n8n-nodes-base.mySql`
-* **Nhiệm vụ:** Cầm `userId` truy vấn ngược vào cơ sở dữ liệu để tìm thông tin Sếp trực tiếp:
-  ```sql
-  SELECT u.id, u.full_name, u.email, u.job_title, d.name AS dept_name,
-         m.full_name AS manager_name, m.email AS manager_email
-  FROM users u
-  LEFT JOIN departments d ON u.department_id = d.id
-  LEFT JOIN users m ON u.manager_id = m.id
-  WHERE u.id = {{ $json.userId }};
-  ```
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node này truy vấn cơ sở dữ liệu để lấy thông tin phòng ban, chức danh và đặc biệt là email của Quản lý trực tiếp, giúp việc gửi cảnh báo và can thiệp đến đúng người phụ trách."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Truy vấn Thông tin Nhân sự & Sếp</b></summary>
+
+```sql
+SELECT u.id, u.full_name, u.email, u.job_title, d.name AS dept_name,
+       m.full_name AS manager_name, m.email AS manager_email
+FROM users u
+LEFT JOIN departments d ON u.department_id = d.id
+LEFT JOIN users m ON u.manager_id = m.id
+WHERE u.id = {{ $json.userId }};
+```
+</details>
 
 <a id="node-05"></a>
 ##### 🔹 Node 05: `MySQL 7-Day History`
 * **Loại node:** `n8n-nodes-base.mySql`
-* **Nhiệm vụ:** Gom toàn bộ cảm xúc 7 ngày gần nhất của nhân viên thành mảng JSON:
-  ```sql
-  SELECT CAST(COALESCE(JSON_ARRAYAGG(
-    JSON_OBJECT('mood', t.mood, 'feedback', t.feedback_text, 'date', t.check_date)
-  ), JSON_ARRAY()) AS CHAR) AS history_json
-  FROM (
-    SELECT mood, feedback_text, DATE(created_at) AS check_date
-    FROM employee_moods
-    WHERE user_id = {{ $('Data Validation & Sanitize').first().json.userId }}
-    ORDER BY created_at DESC LIMIT 7
-  ) t;
-  ```
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Thay vì chỉ nhìn vào một ngày riêng lẻ, node này gom toàn bộ lịch sử cảm xúc 7 ngày gần nhất thành một mảng dữ liệu. Điều này giúp AI có đủ bối cảnh để đánh giá đúng diễn biến tâm lý."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Gom Lịch sử 7 ngày dạng JSON</b></summary>
+
+```sql
+SELECT CAST(COALESCE(JSON_ARRAYAGG(
+  JSON_OBJECT('mood', t.mood, 'feedback', t.feedback_text, 'date', t.check_date)
+), JSON_ARRAY()) AS CHAR) AS history_json
+FROM (
+  SELECT mood, feedback_text, DATE(created_at) AS check_date
+  FROM employee_moods
+  WHERE user_id = {{ $('Data Validation & Sanitize').first().json.userId }}
+  ORDER BY created_at DESC LIMIT 7
+) t;
+```
+</details>
 
 <a id="node-06"></a>
-##### 🔹 Node 06: `AI Diagnostic Agent`
-* **Loại node:** `@n8n/n8n-nodes-langchain.chainLlm`
-* **Nhiệm vụ:** Đóng vai trò Chuyên gia Tâm lý Tổ chức Doanh nghiệp:
-  1. Đọc bối cảnh nhân sự + lời nhắn hôm nay + lịch sử 7 ngày.
-  2. Xác định nguyên nhân cốt lõi (`TECH`, `WORKLOAD`, `CULTURE`).
-  3. **Tự động sinh ra 3 câu hỏi thấu cảm 1-on-1** giúp Quản lý chuẩn bị trước khi gặp mặt nhân viên.
+##### 🔹 Node 06 & 07: `AI Diagnostic Agent` & `Google Gemini Model`
+* **Loại node:** `@n8n/n8n-nodes-langchain.chainLlm` + `gemini-2.5-flash`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là 'bộ não' của luồng: Gemini AI đóng vai trò Chuyên gia Tâm lý Tổ chức, phân tích xem nhân viên stress do kỹ thuật, khối lượng việc hay môi trường; đồng thời tự động sinh sẵn 3 câu hỏi thấu cảm để Quản lý dùng khi trò chuyện 1-on-1."*
+<details>
+<summary><b>🔍 Xem Cấu trúc Prompt Chỉ thị cho Gemini AI</b></summary>
 
-<a id="node-07"></a>
-##### 🔹 Node 07: `Google Gemini Chat Model`
-* **Loại node:** `@n8n/n8n-nodes-langchain.lmChatGoogleGemini`
-* **Nhiệm vụ:** Cung cấp "bộ não" tính toán cho Node 06, kết nối model **`gemini-2.5-flash`** với credential `Google Gemini(PaLM) Api account`.
+```text
+Vai trò: Chuyên gia Tâm lý Tổ chức Doanh nghiệp Cấp cao.
+Nhiệm vụ: Phân tích nguyên nhân stress của nhân viên {{ $json.employeeName }} (Phòng {{ $json.deptName }}).
+Dữ liệu:
+- Số ngày stress liên tiếp: {{ $json.stressDays }}
+- Phản hồi hôm nay: "{{ $json.latestFeedback }}"
+- Lịch sử 7 ngày: {{ $json.history_json }}
+
+Yêu cầu xuất ra JSON:
+1. primary_cause: TECH (Kỹ thuật/Công nghệ), WORKLOAD (Khối lượng việc/Deadline), hay CULTURE (Môi trường/Quan hệ)?
+2. empathy_questions: 3 câu hỏi mở, ấm áp, không phán xét để Quản lý trò chuyện 1-on-1.
+3. recommended_action: Đề xuất hành động can thiệp cụ thể.
+```
+</details>
 
 <a id="node-08"></a>
 ##### 🔹 Node 08: `Build Alert Card`
 * **Loại node:** `n8n-nodes-base.code` (JavaScript)
-* **Nhiệm vụ:** Lấy kết quả AI kết hợp dữ liệu nhân sự để định dạng thành:
-  * Thẻ tin nhắn **Telegram HTML** với icon, thanh đo mức độ stress, nhận định AI và nút can thiệp.
-  * Thư điện tử **Email HTML trang trọng** gửi cho HR Lead.
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node này ghép nhận định của AI với hồ sơ nhân sự để đóng gói thành 2 mẫu tin nhắn: một thẻ Telegram trực quan có thanh đo rủi ro và một email trang trọng gửi cho nhân sự phụ trách."*
 
 ---
 
@@ -241,24 +304,20 @@ Phân hệ Thành viên 3 chịu trách nhiệm tự động hóa toàn bộ vò
 <a id="node-09"></a>
 ##### 🔹 Node 09: `Switch Risk Level`
 * **Loại node:** `n8n-nodes-base.switch`
-* **Nhiệm vụ:** Rẽ nhánh theo biến `riskTier`:
-  * **Cổng 0 (`CRITICAL` - Đỏ):** Chuyển sang Node 10 (Telegram HR) và Node 11 (Email Lead).
-  * **Cổng 1 (`WARNING` - Vàng):** Chuyển sang Node 12 (Telegram Quản lý trực tiếp).
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node Switch rẽ nhánh luồng dựa trên mức độ rủi ro: nếu là mức Nguy cấp (CRITICAL) thì đẩy lên Ban Giám đốc HR, còn mức Cảnh báo sớm (WARNING) thì gửi riêng cho Quản lý trực tiếp."*
 
 <a id="node-10"></a>
-##### 🔹 Node 10: `Telegram HR Escalation` (Nhánh CRITICAL)
-* **Loại node:** `n8n-nodes-base.telegram`
-* **Nhiệm vụ:** Bắn tin nhắn cảnh báo đỏ `🔴 CRITICAL BURNOUT ALERT` vào nhóm lãnh đạo HR khi nhân viên stress $\ge 5$ ngày hoặc có dấu hiệu khủng hoảng.
-
-<a id="node-11"></a>
-##### 🔹 Node 11: `Email HR Official Notice` (Nhánh CRITICAL)
-* **Loại node:** `n8n-nodes-base.emailSend` (SMTP)
-* **Nhiệm vụ:** Gửi email chính thức tới HR Director yêu cầu bố trí 1 ngày nghỉ Mental Health Day hoặc can thiệp khẩn cấp trong 24 giờ.
+##### 🔹 Node 10 & 11: `Telegram HR Escalation` & `Email HR Notice` (Nhánh CRITICAL)
+* **Loại node:** `n8n-nodes-base.telegram` + `n8n-nodes-base.emailSend` (SMTP)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Ở mức Nguy cấp, n8n bắn cảnh báo đỏ vào nhóm Telegram của lãnh đạo HR, đồng thời gửi email chính thức yêu cầu can thiệp khẩn hoặc bố trí ngày nghỉ hồi phục sức khỏe trong vòng 24 giờ."*
 
 <a id="node-12"></a>
 ##### 🔹 Node 12: `Telegram Manager Alert` (Nhánh WARNING)
 * **Loại node:** `n8n-nodes-base.telegram`
-* **Nhiệm vụ:** Bắn thông báo màu vàng `🟡 BURNOUT EARLY WARNING` tới riêng Quản lý trực tiếp để nhắc sếp hẹn lịch 1-on-1 trong tuần.
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Ở mức Cảnh báo sớm, tin nhắn Telegram màu vàng được gửi riêng tới Quản lý trực tiếp, nhắc sếp chủ động hẹn lịch gặp mặt 1-on-1 để lắng nghe và tháo gỡ khó khăn cho nhân viên."*
 
 ---
 
@@ -267,15 +326,19 @@ Phân hệ Thành viên 3 chịu trách nhiệm tự động hóa toàn bộ vò
 <a id="node-13"></a>
 ##### 🔹 Node 13: `MySQL Audit Record`
 * **Loại node:** `n8n-nodes-base.mySql`
-* **Nhiệm vụ:** Cả 2 nhánh CRITICAL và WARNING đều hội tụ về đây để đánh dấu bản ghi:
-  ```sql
-  UPDATE employee_moods
-  SET is_burnout_risk = 1
-  WHERE user_id = {{ $('Data Validation & Sanitize').first().json.userId }}
-    AND mood = 'STRESSED'
-    AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY);
-  ```
-* **Ý nghĩa:** Hoàn tất chu trình kiểm toán dữ liệu 2 chiều, ghi nhận rằng ca cảnh báo này đã được n8n xử lý thành công.
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Cuối cùng, dù đi qua nhánh nào thì luồng cũng cập nhật cờ `is_burnout_risk = 1` trong MySQL. Việc này hoàn tất chu trình kiểm toán dữ liệu hai chiều, xác nhận rằng ca cảnh báo này đã được n8n tiếp nhận và xử lý thành công."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Cập nhật Trạng thái Kiểm toán</b></summary>
+
+```sql
+UPDATE employee_moods
+SET is_burnout_risk = 1
+WHERE user_id = {{ $('Data Validation & Sanitize').first().json.userId }}
+  AND mood = 'STRESSED'
+  AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY);
+```
+</details>
 
 [⬆ Trở về Mục lục](#muc-luc)
 
@@ -446,6 +509,9 @@ Khi thuyết trình trước Giảng viên, hãy trình diễn 3 bước gây �
 <a id="muc-3"></a>
 # 3. MỤC 3: CHI TIẾT LUỒNG 2 (WF-02: DAILY MOOD PULSE & MORNING CHECK-IN REMINDER)
 
+> 🎙️ **Câu nói mở đầu khi giới thiệu Luồng 2 (Nhiệm vụ cốt lõi):**  
+> *"Thưa thầy/cô, Luồng 2 đảm nhiệm việc tự động quét và gửi lời chúc buổi sáng cá nhân hóa lúc 9h sáng cho những nhân viên chưa điểm danh cảm xúc, ứng dụng Gemini AI để tạo lời nhắc ấm áp, gần gũi và triệt tiêu 100% tình trạng spam làm phiền."*
+
 * **Mã luồng trên n8n:** `[TV3] WF-02: Daily Mood Pulse & Morning Reminder`
 * **Workflow ID:** `TV3WF02DailyMood` (hoặc `wf-02-daily-mood`)
 * **Đường dẫn giao diện n8n:** `http://localhost:5678/workflow/TV3WF02DailyMood`
@@ -460,238 +526,220 @@ Khi thuyết trình trước Giảng viên, hãy trình diễn 3 bước gây �
 ### 3.1. Sơ đồ luồng & 4 Giai đoạn xử lý
 
 ```
-[GIAI ĐOẠN 1: KÍCH HOẠT ĐỊNH KỲ & NẠP BỐI CẢNH THỨ TRONG TUẦN]
-(01) Schedule 09:00 AM ──▶ (02) Weekday Context & Config (Tính Tone ngày: T2 Khởi động 🚀 ... T6 Về đích 🎉)
-                                 │
-[GIAI ĐOẠN 2: QUÉT CSDL & PHÂN TÁCH VÒNG LẶP TUẦN TỰ]          │
-                                 ▼
-(03) MySQL Unchecked Users (Tìm ai CHƯA check-in hôm nay qua CURDATE)
-                                 │
-                                 ▼
-(04) Split In Batches (Batch size = 1: Duyệt từng người một) ◀──────────────────────────────┐
+[GIAI ĐOẠN 1: KÍCH HOẠT ĐỊNH KỲ & CỔNG KIỂM THỬ NON-BLOCKING]
+(01) Schedule 09:00 AM ──┐
+                         ├──▶ (04) Weekday Context & Config (Tính Tone ngày: T2 Khởi động 🚀 ... T6 Về đích 🎉)
+(02) Test Webhook ───────┼──▶ (03) Respond HTTP 202 (Trả mã tức thì <15ms)
+                         │
+[GIAI ĐOẠN 2: QUÉT CSDL & PHÂN TÁCH VÒNG LẶP TUẦN TỰ]
+                         ▼
+(05) MySQL Unchecked Users (Tìm ai CHƯA check-in hôm nay qua CURDATE)
+                         │
+                         ▼
+(06) Split In Batches (Batch size = 1: Duyệt từng người một) ◀──────────────────────────────┐
        │                                                                                    │
-       ├──▶ [Cổng 1 (Vòng lặp)]: (05) MySQL User Streak (Đếm số ngày check-in 14 ngày qua)  │
+       ├──▶ [Cổng 1 (Vòng lặp)]: (07) MySQL User Streak (Đếm số ngày check-in 14 ngày qua)  │
        │                                │                                                   │
 [GIAI ĐOẠN 3: AI SÁNG TẠO LỜI NHẮC CÁ NHÂN HÓA]                                             │
        │                                ▼                                                   │
-       │     (07) Google Gemini ──▶ (06) AI Morning Greeting Agent (Sinh 2 câu chúc ấm áp)  │
+       │     (09) Google Gemini ──▶ (08) AI Morning Greeting Agent (Sinh 2 câu chúc ấm áp)  │
        │                                │                                                   │
 [GIAI ĐOẠN 4: ĐIỀU PHỐI ĐA KÊNH & BỘ ĐỆM CHỐNG NGHẼN]                                       │
        │                                ▼                                                   │
-       │                            (08) Format & HTML Escape (Tạo thẻ HTML + Link Portal)  │
+       │                            (10) Format & HTML Escape (Tạo thẻ HTML + Link Portal)  │
        │                                │                                                   │
        │                                ▼                                                   │
-       │                            (09) Telegram Send Reminder (Gửi tin nhắn riêng)        │
+       │                            (11) Telegram Send Reminder (Gửi tin nhắn riêng)        │
        │                                │                                                   │
        │                                ▼                                                   │
-       │                            (10) Wait 4s (Throttle chống lỗi Telegram HTTP 429) ────┘
+       │                            (12) Wait 4s (Throttle chống lỗi Telegram HTTP 429) ────┘
        │
-       └──▶ [Cổng 0 (Khi hoàn tất)]: (11) Summary Logger (Ghi log tổng kết số lượng nhân sự đã nhắc)
+       └──▶ [Cổng 0 (Khi hoàn tất)]: (13) Summary Logger (Ghi log tổng kết số lượng nhân sự đã nhắc)
 ```
 
 ---
 
 <a id="muc-3-2"></a>
-### 3.2. Trình tự chi tiết từng Node thực thi (11 Nodes)
+### 3.2. Trình tự chi tiết từng Node thực thi (13 Nodes)
 
-#### 🟢 GIAI ĐOẠN 1: KÍCH HOẠT ĐỊNH KỲ & NẠP BỐI CẢNH
+> 🎙️ **Câu nói mở đầu khi chỉ vào sơ đồ Luồng 2:**  
+> *"Luồng 2 gồm 13 nodes vận hành tự động mỗi sáng: có cổng test và phản hồi HTTP 202 tức thì, lọc chính xác nhân sự chưa check-in bằng SQL thông minh, gọi Gemini AI sáng tạo câu chúc theo thứ trong tuần, và có cơ chế đệm 4 giây chống nghẽn Rate Limit."*
+
+#### 🟢 GIAI ĐOẠN 1: KÍCH HOẠT ĐỊNH KỲ, CỔNG TEST & PHẢN HỒI NON-BLOCKING
 
 <a id="node-2-01"></a>
 ##### 🔹 Node 01: `Schedule 09:00 AM`
-* **Loại node:** `n8n-nodes-base.scheduleTrigger` (v1.2)
-* **Nhiệm vụ:** Hoạt động như chiếc đồng hồ báo thức của công ty. Tự động kích hoạt luồng vào đúng 09:00 sáng các ngày làm việc hành chính (Thứ 2 đến Thứ 6), không chạy vào Thứ 7 và Chủ nhật để tôn trọng thời gian nghỉ ngơi của nhân viên.
-* **Cấu hình:** Cron `0 9 * * 1-5`, Timezone `Asia/Ho_Chi_Minh`.
+* **Loại node:** `n8n-nodes-base.scheduleTrigger` (Cron `0 9 * * 1-5`)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là bộ đếm giờ tự động kích hoạt vào đúng 9h sáng từ Thứ Hai đến Thứ Sáu. Điểm tinh tế là hệ thống không chạy vào cuối tuần để tôn trọng trọn vẹn thời gian nghỉ ngơi của nhân viên."*
+<details>
+<summary><b>🔍 Xem chi tiết Cấu hình Cron Schedule</b></summary>
+
+* **Cron Expression:** `0 9 * * 1-5` (09:00 AM, Thứ 2 đến Thứ 6)
+* **Timezone:** `Asia/Ho_Chi_Minh`
+</details>
 
 <a id="node-2-02"></a>
-##### 🔹 Node 02: `Weekday Context & Config`
-* **Loại node:** `n8n-nodes-base.code` (JavaScript v2)
-* **Nhiệm vụ:** Đọc biến thời gian hệ thống `$now.weekday` (1 = Thứ Hai ... 7 = Chủ nhật) để xác định "nhịp điệu năng lượng" trong tuần và cấu hình các thông số chung:
-  * **Thứ Hai (`1`):** Tone *"khởi động tuần mới tràn đầy năng lượng"* `🚀`
-  * **Thứ Ba (`2`):** Tone *"tăng tốc công việc hiệu quả"* `⚡`
-  * **Thứ Tư (`3`):** Tone *"giữ vững nhịp độ giữa tuần"* `🎯`
-  * **Thứ Năm (`4`):** Tone *"chạy nước rút hoàn thành mục tiêu"* `🔥`
-  * **Thứ Sáu (`5`):** Tone *"tổng kết tuần và đón cuối tuần thảnh thơi"* `🎉`
-* **Mã nguồn Node 02:**
-  ```javascript
-  const CONFIG = {
-    TELEGRAM_CHAT_ID: '6331216556',
-    WORKSPACE_URL: 'http://localhost:5173/workspace'
-  };
-  try {
-    const w = $now.weekday;
-    const map = {
-      1: { vn: 'Thứ Hai', tone: 'khởi động tuần mới tràn đầy năng lượng', emoji: '🚀' },
-      2: { vn: 'Thứ Ba', tone: 'tăng tốc công việc hiệu quả', emoji: '⚡' },
-      3: { vn: 'Thứ Tư', tone: 'giữ vững nhịp độ giữa tuần', emoji: '🎯' },
-      4: { vn: 'Thứ Năm', tone: 'chạy nước rút hoàn thành mục tiêu', emoji: '🔥' },
-      5: { vn: 'Thứ Sáu', tone: 'tổng kết tuần và đón cuối tuần thảnh thơi', emoji: '🎉' }
-    };
-    const ctx = map[w] || { vn: 'Hôm nay', tone: 'ngày mới tốt lành', emoji: '☀️' };
-    return [{ json: {
-      currentDate: $now.toFormat('yyyy-MM-dd'),
-      dayName: ctx.vn, dayTone: ctx.tone, dayEmoji: ctx.emoji,
-      telegramChatId: CONFIG.TELEGRAM_CHAT_ID,
-      workspaceUrl: CONFIG.WORKSPACE_URL,
-      timestamp: new Date().toISOString()
-    } }];
-  } catch (err) {
-    return [{ json: { currentDate: new Date().toISOString().slice(0, 10), dayName: 'Hôm nay', dayTone: 'ngày mới tốt lành', dayEmoji: '☀️',
-      telegramChatId: CONFIG.TELEGRAM_CHAT_ID, workspaceUrl: CONFIG.WORKSPACE_URL, timestamp: new Date().toISOString() } }];
+##### 🔹 Node 02: `Test Webhook Trigger`
+* **Loại node:** `n8n-nodes-base.webhook` (POST `/webhook/daily-mood-reminder`)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Bên cạnh bộ đếm giờ tự động 9h sáng, em thiết kế thêm cổng Test Webhook này để phục vụ demo trực tiếp cho Giảng viên hoặc chạy thử nghiệm hệ thống bất cứ lúc nào qua cURL mà không cần chờ đến 9h sáng hôm sau."*
+<details>
+<summary><b>🔍 Xem chi tiết Cấu hình Cổng Test Webhook</b></summary>
+
+* **HTTP Method:** `POST`
+* **Path:** `daily-mood-reminder`
+* **Response Mode:** `responseNode` (kết hợp Node 03 Respond HTTP 202)
+</details>
+
+<a id="node-2-03"></a>
+##### 🔹 Node 03: `Respond HTTP 202`
+* **Loại node:** `n8n-nodes-base.respondToWebhook` (HTTP 202 Accepted)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là thiết kế Non-blocking chuẩn công nghiệp: ngay khi cổng Webhook nhận request, node này lập tức trả về mã HTTP 202 Accepted cho client trong vòng 15ms. Nhờ vậy terminal hoặc frontend không bao giờ bị treo chờ đợi khi n8n đang duyệt vòng lặp Wait 4s gửi tin cho nhiều nhân viên."*
+<details>
+<summary><b>🔍 Xem Cấu hình Phản hồi HTTP 202 Non-blocking</b></summary>
+
+```json
+{
+  "respondWith": "json",
+  "responseCode": 202,
+  "responseBody": {
+    "success": true,
+    "workflow": "WF-02 Daily Mood Omnichannel",
+    "status": "BATCH_TRIGGERED",
+    "triggeredAt": "2026-10-10T09:00:00.000Z"
   }
-  ```
+}
+```
+</details>
+
+<a id="node-2-04"></a>
+##### 🔹 Node 04: `Weekday Context & Config`
+* **Loại node:** `n8n-nodes-base.code` (JavaScript)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node này đọc ngày trong tuần để lựa chọn tông giọng phù hợp: Thứ Hai thì tràn đầy năng lượng bứt phá, còn Thứ Sáu thì nhẹ nhàng về đích, giúp lời nhắc không bị dập khuôn, máy móc."*
+<details>
+<summary><b>🔍 Xem Mã nguồn JavaScript Phân tích Nhịp điệu Tuần</b></summary>
+
+```javascript
+const w = $now.weekday; // 1 = Thứ Hai ... 5 = Thứ Sáu
+const map = {
+  1: { vn: 'Thứ Hai', tone: 'khởi động tuần mới tràn đầy năng lượng', emoji: '🚀' },
+  2: { vn: 'Thứ Ba', tone: 'tăng tốc công việc hiệu quả', emoji: '⚡' },
+  3: { vn: 'Thứ Tư', tone: 'giữ vững nhịp độ giữa tuần', emoji: '🎯' },
+  4: { vn: 'Thứ Năm', tone: 'chạy nước rút hoàn thành mục tiêu', emoji: '🔥' },
+  5: { vn: 'Thứ Sáu', tone: 'tổng kết tuần và đón cuối tuần thảnh thơi', emoji: '🎉' }
+};
+const ctx = map[w] || { vn: 'Hôm nay', tone: 'ngày mới tốt lành', emoji: '☀️' };
+return [{ json: { dayName: ctx.vn, dayTone: ctx.tone, dayEmoji: ctx.emoji } }];
+```
+</details>
 
 ---
 
 #### 🔵 GIAI ĐOẠN 2: LỌC DỮ LIỆU CSDL & PHÂN TÁCH VÒNG LẶP
 
-<a id="node-2-03"></a>
-##### 🔹 Node 03: `MySQL Unchecked Users`
-* **Loại node:** `n8n-nodes-base.mySql` (v2.4)
-* **Nhiệm vụ:** Thực hiện truy vấn thông minh để lọc ra danh sách nhân sự thỏa mãn đồng thời 3 điều kiện:
-  1. Là nhân viên chính thức/thử việc (`role = 'EMPLOYEE'`).
-  2. Đang ở trạng thái làm việc bình thường (`is_active = 1`).
-  3. **Quan trọng nhất:** Sử dụng mệnh đề `NOT EXISTS` để loại trừ hoàn toàn những người **đã check-in hôm nay (`created_at >= CURDATE()`)**.
-* **Câu lệnh SQL:**
-  ```sql
-  SELECT u.id, u.full_name, u.email, u.job_title, d.name AS dept_name 
-  FROM users u 
-  LEFT JOIN departments d ON u.department_id = d.id 
-  WHERE u.role = 'EMPLOYEE' 
-    AND u.is_active = 1 
-    AND NOT EXISTS (
-      SELECT 1 FROM employee_moods em 
-      WHERE em.user_id = u.id 
-        AND em.created_at >= CURDATE()
-    );
-  ```
-* **Ý nghĩa nghiệp vụ:** Giúp bảo vệ trải nghiệm nhân viên, không bao giờ bị tình trạng "vừa check-in xong lại bị bot gửi tin nhắc nhở".
+<a id="node-2-05"></a>
+##### 🔹 Node 05: `MySQL Unchecked Users`
+* **Loại node:** `n8n-nodes-base.mySql`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node này truy vấn cơ sở dữ liệu với mệnh đề `NOT EXISTS` để chỉ lọc ra những ai chưa check-in trong ngày. Nhân sự nào đã điểm danh rồi sẽ không bao giờ bị nhắc lại, giúp trải nghiệm nhân viên luôn thoải mái."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Truy vấn Người Chưa Check-in</b></summary>
 
-<a id="node-2-04"></a>
-##### 🔹 Node 04: `Split In Batches`
-* **Loại node:** `n8n-nodes-base.splitInBatches` (v3)
-* **Cấu hình:** `batchSize: 1`
-* **Nhiệm vụ:** Chia mảng danh sách nhân viên thành từng mẻ đơn lẻ (1 người/lượt) để xử lý theo vòng lặp tuần tự.
-* **Cơ chế 2 đầu ra:**
-  * **Đầu ra 1 (Loop - Nhánh lặp):** Đẩy từng nhân sự sang Node 05 để tính Streak và gọi AI.
-  * **Đầu ra 0 (Done - Hoàn tất):** Khi duyệt hết danh sách, luồng tự động chuyển sang Node 11 (`Summary Logger`) để chốt báo cáo.
+```sql
+SELECT u.id, u.full_name, u.email, u.job_title, d.name AS dept_name 
+FROM users u 
+LEFT JOIN departments d ON u.department_id = d.id 
+WHERE u.role = 'EMPLOYEE' 
+  AND u.is_active = 1 
+  AND NOT EXISTS (
+    SELECT 1 FROM employee_moods em 
+    WHERE em.user_id = u.id 
+      AND em.created_at >= CURDATE()
+  );
+```
+</details>
+
+<a id="node-2-06"></a>
+##### 🔹 Node 06: `Split In Batches`
+* **Loại node:** `n8n-nodes-base.splitInBatches` (`batchSize: 1`)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Để quản lý tải hiệu quả, node này bóc tách danh sách nhân viên ra duyệt tuần tự từng người một theo vòng lặp, tránh gửi dồn dập gây nghẽn tài nguyên server."*
 
 ---
 
 #### 🟡 GIAI ĐOẠN 3: TÍNH TOÁN STREAK & AI SÁNG TẠO LỜI NHẮC
 
-<a id="node-2-05"></a>
-##### 🔹 Node 05: `MySQL User Streak`
-* **Loại node:** `n8n-nodes-base.mySql` (v2.4)
-* **Nhiệm vụ:** Chạy query phân tích thói quen điểm danh của từng nhân sự:
-  * `checkin_days`: Tổng số ngày nhân viên có chia sẻ cảm xúc trong 14 ngày gần nhất.
-  * `days_since_last`: Đã bao nhiêu ngày kể từ lần check-in gần nhất (`DATEDIFF`).
-* **Câu lệnh SQL:**
-  ```sql
-  SELECT u.id, u.full_name, u.job_title, d.name AS dept_name, 
-         (SELECT COUNT(DISTINCT DATE(em.created_at)) 
-          FROM employee_moods em 
-          WHERE em.user_id = u.id 
-            AND em.created_at >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)) AS checkin_days, 
-         (SELECT DATEDIFF(CURDATE(), MAX(DATE(em2.created_at))) 
-          FROM employee_moods em2 
-          WHERE em2.user_id = u.id) AS days_since_last 
-  FROM users u 
-  LEFT JOIN departments d ON u.department_id = d.id 
-  WHERE u.id = {{ $json.id }};
-  ```
-
-<a id="node-2-06"></a>
-##### 🔹 Node 06: `AI Morning Greeting Agent`
-* **Loại node:** `@n8n/n8n-nodes-langchain.chainLlm` (v1.4)
-* **Nhiệm vụ:** Đóng vai trò **HR Culture Bot thân thiện, thấu cảm**. Thay vì bắn một câu thông báo khô khan như *"Bạn chưa điểm danh, hãy điểm danh ngay"*, AI đọc bối cảnh của nhân viên và tạo đúng 2 câu chúc ấm áp, khích lệ.
-* **Prompt kỹ thuật:**
-  ```text
-  Bạn là HR Culture Bot thân thiện của công ty. Viết đúng 2 câu chúc buổi sáng ấm áp, dí dỏm, truyền cảm hứng cho nhân viên sau:
-  - Tên: {{ $json.full_name }}
-  - Vị trí: {{ $json.job_title || 'Nhân viên' }}
-  - Phòng ban: {{ $json.dept_name || 'HR Tech' }}
-  - Hôm nay: {{ $('Weekday Context & Config').first().json.dayName }} ({{ $('Weekday Context & Config').first().json.dayTone }})
-  - Số ngày check-in trong 14 ngày qua: {{ $json.checkin_days || 0 }}
-  - Số ngày kể từ lần check-in gần nhất: {{ $json.days_since_last ?? 'chưa từng check-in' }}
-
-  Nếu đã lâu chưa check-in, giọng văn nhẹ nhàng quan tâm, không trách móc. Cuối câu thứ hai khuyến khích dành 10 giây chia sẻ cảm xúc hôm nay.
-  Chỉ trả về văn bản thuần (KHÔNG HTML, KHÔNG Markdown, KHÔNG emoji, KHÔNG dùng tên người khác).
-  ```
-
 <a id="node-2-07"></a>
-##### 🔹 Node 07: `Google Gemini Chat Model`
-* **Loại node:** `@n8n/n8n-nodes-langchain.lmChatGoogleGemini`
-* **Nhiệm vụ:** Cung cấp mô hình ngôn ngữ lớn cho Node 06, kết nối model ổn định **`gemini-2.5-flash`** với `temperature: 0.7` giúp lời chúc có độ sáng tạo và dí dỏm tự nhiên.
+##### 🔹 Node 07: `MySQL User Streak`
+* **Loại node:** `n8n-nodes-base.mySql`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Với từng nhân sự, hệ thống truy vấn số ngày check-in trong 14 ngày qua. Nếu nhân viên duy trì chuỗi đều đặn, bot sẽ khen ngợi; còn nếu đã lâu chưa điểm danh, bot sẽ dùng lời văn quan tâm nhẹ nhàng."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Đếm Chuỗi Check-in (Streak)</b></summary>
+
+```sql
+SELECT COUNT(DISTINCT DATE(created_at)) AS streak_days
+FROM employee_moods
+WHERE user_id = {{ $json.id }}
+  AND created_at >= DATE_SUB(CURDATE(), INTERVAL 14 DAY);
+```
+</details>
+
+<a id="node-2-08"></a>
+##### 🔹 Node 08 & 09: `AI Morning Greeting Agent` & `Google Gemini Model`
+* **Loại node:** `@n8n/n8n-nodes-langchain.chainLlm` + `gemini-2.5-flash`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Gemini AI kết hợp tên, phòng ban, thứ trong tuần và chuỗi ngày điểm danh để sáng tạo đúng 2 câu chúc buổi sáng dí dỏm, khích lệ nhân viên dành 10 giây chia sẻ cảm xúc."*
+<details>
+<summary><b>🔍 Xem Cấu trúc Prompt Chỉ thị cho Gemini AI</b></summary>
+
+```text
+Bạn là Người đồng hành Tinh thần Doanh nghiệp (Enterprise Wellness Bot).
+Nhiệm vụ: Viết đúng 2 câu chào buổi sáng ngắn gọn, dí dỏm và ấm áp gửi đến {{ $json.full_name }} (Phòng {{ $json.dept_name }}).
+Ngữ cảnh:
+- Hôm nay là: {{ $('Weekday Context & Config').first().json.dayName }} (Tông giọng: {{ $('Weekday Context & Config').first().json.dayTone }})
+- Chuỗi ngày check-in gần đây: {{ $json.streak_days }} ngày.
+
+Yêu cầu: Lời chúc tự nhiên, khuyến khích nhân viên dành 10 giây check-in tâm trạng trên Portal.
+```
+</details>
 
 ---
 
 #### 🔴 GIAI ĐOẠN 4: ĐIỀU PHỐI ĐA KÊNH & BỘ ĐỆM CHỐNG NGHẼN
 
-<a id="node-2-08"></a>
-##### 🔹 Node 08: `Format & HTML Escape`
-* **Loại node:** `n8n-nodes-base.code` (JavaScript v2)
-* **Nhiệm vụ:** Định dạng thẻ tin nhắn Telegram HTML:
-  1. Tự động mã hóa ký tự đặc biệt (`&amp;`, `&lt;`, `&gt;`) để không làm vỡ giao diện HTML của Telegram.
-  2. Bọc lời chúc của Gemini AI cùng biểu tượng ngày, thông tin phòng ban và chuỗi check-in.
-  3. Tự động nhận diện URL: Nếu đang chạy localhost thì xuất dạng code để copy, nếu chạy production thì xuất thẻ `<a href="...">` bấm mở ngay.
-* **Mã nguồn Node 08:**
-  ```javascript
-  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const ctx = $('Weekday Context & Config').first().json;
-  try {
-    const u = $('MySQL User Streak').first().json;
-    const aiRaw = String($input.first().json.text || '').trim() || 'Chúc bạn một ngày làm việc thật nhiều năng lượng!';
-    const days = u.checkin_days || 0;
-    const url = ctx.workspaceUrl || '';
-    const link = /localhost|127\.0\.0\.1/.test(url)
-      ? '📱 Check-in tại: <code>' + esc(url) + '</code>'
-      : '<a href="' + esc(url) + '">📱 Bấm vào đây để check-in ngay</a>';
-
-    const msg = ctx.dayEmoji + ' <b>CHÀO BUỔI SÁNG ' + esc(ctx.dayName).toUpperCase() + '!</b>\n\n'
-      + esc(aiRaw.slice(0, 600)) + '\n\n'
-      + '👤 <b>Nhân viên:</b> ' + esc(u.full_name) + ' (' + esc(u.dept_name || 'HR Tech') + ')\n'
-      + '🔥 <b>Số ngày check-in trong 14 ngày qua:</b> ' + days + ' ngày\n\n'
-      + '👉 <b>Dành 10 giây chia sẻ cảm xúc hôm nay:</b>\n' + link;
-
-    return [{ json: { userId: u.id, fullName: u.full_name, message: msg.substring(0, 4000), prepared: true } }];
-  } catch (err) {
-    return [{ json: { userId: null, fullName: '', prepared: false,
-      message: '☀️ Chào buổi sáng! Hãy dành 10 giây check-in cảm xúc hôm nay nhé: ' + esc(ctx.workspaceUrl) } }];
-  }
-  ```
-
-<a id="node-2-09"></a>
-##### 🔹 Node 09: `Telegram Send Reminder`
-* **Loại node:** `n8n-nodes-base.telegram` (v1.2)
-* **Nhiệm vụ:** Bắn tin nhắn trực tiếp vào tài khoản Telegram cá nhân của nhân sự.
-* **Cơ chế chịu lỗi (Fault Tolerance):**
-  * `retryOnFail: true` (Tự động thử lại tối đa 3 lần nếu mạng bị chập chờn).
-  * `waitBetweenTries: 3000` (Cách nhau 3 giây giữa các lần thử lại).
-  * `onError: continueRegularOutput` (Nếu 1 nhân viên bị lỗi chat ID thì hệ thống vẫn tiếp tục chạy cho nhân viên tiếp theo, không dừng toàn bộ luồng).
-
 <a id="node-2-10"></a>
-##### 🔹 Node 10: `Wait 4s` (Production Throttle)
-* **Loại node:** `n8n-nodes-base.wait` (v1.1)
-* **Thời gian chờ:** **4 giây**.
-* **Ý nghĩa kỹ thuật cực kỳ đắt giá khi bảo vệ đồ án:**
-  * Chính sách giới hạn tần suất (Rate Limit) của Telegram Bot API chỉ cho phép gửi tối đa 30 tin/giây trên toàn bot và 1 tin/giây cho cùng một cuộc hội thoại.
-  * Node `Wait 4s` đóng vai trò "chiếc van điều tiết" (Rate Throttle). Nhờ có node này, dù công ty có 100 hay 500 nhân sự thì n8n vẫn gửi tin êm đềm, **triệt tiêu 100% nguy cơ dính mã lỗi `HTTP 429 Too Many Requests`**!
-  * Sau khi chờ 4 giây, luồng quay ngược lại Node 04 (`Split In Batches`) để bốc nhân viên tiếp theo.
+##### 🔹 Node 10: `Format & HTML Escape`
+* **Loại node:** `n8n-nodes-base.code` (JavaScript)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node này định dạng thẻ tin nhắn Telegram HTML bắt mắt, tự động mã hóa ký tự đặc biệt để không bị vỡ giao diện và gắn đường link truy cập nhanh vào Workspace."*
 
 <a id="node-2-11"></a>
-##### 🔹 Node 11: `Summary Logger`
-* **Loại node:** `n8n-nodes-base.code` (JavaScript v2)
-* **Nhiệm vụ:** Khi vòng lặp duyệt hết toàn bộ danh sách, Node 04 kích hoạt Node 11 để tổng kết:
-  ```javascript
-  const ctx = $('Weekday Context & Config').first().json;
-  const candidates = $('MySQL Unchecked Users').all().filter(i => i.json.id).length;
-  return [{ json: {
-    success: true, workflow: 'WF-02 Daily Mood Pulse',
-    executionDate: ctx.currentDate, dayName: ctx.dayName,
-    usersReminded: candidates,
-    completedAt: new Date().toISOString(), status: 'BATCH_COMPLETED'
-  } }];
-  ```
+##### 🔹 Node 11: `Telegram Send Reminder`
+* **Loại node:** `n8n-nodes-base.telegram`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Tin nhắn được gửi thẳng vào Telegram cá nhân của nhân sự. Node có sẵn cơ chế tự động thử lại tối đa 3 lần nếu đường truyền mạng gặp gián đoạn."*
+
+<a id="node-2-12"></a>
+##### 🔹 Node 12: `Wait 4s` (Production Throttle)
+* **Loại node:** `n8n-nodes-base.wait`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là điểm nhấn kỹ thuật quan trọng: node dừng 4 giây giữa các lượt gửi để triệt tiêu 100% lỗi giới hạn tần suất HTTP 429 của Telegram Bot API. Nhờ vậy hệ thống có thể gửi cho hàng trăm nhân viên mà vẫn an toàn tuyệt đối."*
+<details>
+<summary><b>🔍 Xem chi tiết Cấu hình Throttle</b></summary>
+
+* **Chờ:** `4 giây` giữa mỗi lượt lặp nhân viên.
+* **Mục đích:** Tuân thủ giới hạn Telegram Bot API (< 30 msg/s toàn hệ thống, 1 msg/s cá nhân), tránh lỗi `HTTP 429 Too Many Requests`.
+</details>
+
+<a id="node-2-13"></a>
+##### 🔹 Node 13: `Summary Logger`
+* **Loại node:** `n8n-nodes-base.code` (JavaScript)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Khi vòng lặp duyệt hết toàn bộ danh sách, node này xuất log tổng kết số lượng nhân sự đã được gửi lời nhắc thành công, hoàn tất chu trình vận hành sáng."*
 
 [⬆ Trở về Mục lục](#muc-luc)
 
@@ -828,6 +876,9 @@ Khi thuyết trình trước Giảng viên hoặc Hội đồng phản biện, h
 <a id="muc-4"></a>
 # 4. MỤC 4: CHI TIẾT LUỒNG 3 (WF-03: 30-DAY ONBOARDING SLA GUARDIAN & GRADUATION COMPANION)
 
+> 🎙️ **Câu nói mở đầu khi giới thiệu Luồng 3 (Nhiệm vụ cốt lõi):**  
+> *"Thưa thầy/cô, Luồng 3 đảm nhiệm việc tự động giám sát tiến độ thử việc 30 ngày theo SLA; kịp thời gửi cảnh báo đôn đốc và gắn trách nhiệm Mentor khi có task trễ hạn, đồng thời dùng Gemini AI soạn thư chúc mừng và vinh danh khi nhân sự hoàn thành 100% Onboarding."*
+
 * **Mã luồng trên n8n:** `[TV3] WF-03: 30-Day Onboarding SLA Guardian & Graduation Companion`
 * **Workflow ID:** `TV3WF03SLAGuard` (hoặc `wf-03-onboarding-sla`)
 * **Đường dẫn giao diện n8n:** `http://localhost:5678/workflow/TV3WF03SLAGuard`
@@ -888,53 +939,28 @@ Khi thuyết trình trước Giảng viên hoặc Hội đồng phản biện, h
 <a id="muc-4-2"></a>
 ### 4.2. Trình tự chi tiết từng Node thực thi (14 Nodes)
 
+> 🎙️ **Câu nói mở đầu khi chỉ vào sơ đồ Luồng 3:**  
+> *"Luồng 3 gồm 14 nodes quét dữ liệu định kỳ mỗi sáng Thứ Hai, tính toán tỷ lệ hoàn thành checklist của nhân sự thử việc và tự động rẽ sang 3 nhánh xử lý: Cảnh báo trễ hạn, Vinh danh tốt nghiệp hoặc Đúng hạn."*
+
 #### 🟢 GIAI ĐOẠN 1: KÍCH HOẠT ĐẦU TUẦN & NẠP THÔNG SỐ KIỂM TRA
 
 <a id="node-3-01"></a>
 ##### 🔹 Node 01: `Schedule 08:30 Mon`
-* **Loại node:** `n8n-nodes-base.scheduleTrigger` (v1.2)
-* **Nhiệm vụ:** Tự động kích hoạt vào 08:30 sáng Thứ 2 hàng tuần (mở đầu tuần làm việc), giúp Mentor và HR nắm trọn vẹn tình hình thử việc của nhân sự trước buổi họp Weekly đầu tuần.
-* **Cấu hình:** Cron `30 8 * * 1`, Timezone `Asia/Ho_Chi_Minh`.
+* **Loại node:** `n8n-nodes-base.scheduleTrigger` (Cron `30 8 * * 1`)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Luồng tự động chạy vào 8h30 sáng Thứ Hai để rà soát toàn bộ tiến độ thử việc của nhân sự mới, giúp Mentor và HR nắm trọn tình hình trước buổi họp Weekly đầu tuần."*
+<details>
+<summary><b>🔍 Xem chi tiết Cấu hình Cron Schedule</b></summary>
+
+* **Cron Expression:** `30 8 * * 1` (08:30:00 Sáng Thứ Hai hàng tuần)
+* **Timezone:** `Asia/Ho_Chi_Minh`
+</details>
 
 <a id="node-3-02"></a>
-##### 🔹 Node 02: `Test Webhook Trigger`
-* **Loại node:** `n8n-nodes-base.webhook` (v2)
-* **Nhiệm vụ:** Cổng đón HTTP POST để kiểm thử tức thì qua lệnh `curl` / `PowerShell` mà không cần đợi đến sáng Thứ 2.
-* **Đường dẫn Webhook:** `POST /webhook-test/onboarding-sla-check` (hoặc `/webhook/onboarding-sla-check`).
-
-<a id="node-3-03"></a>
-##### 🔹 Node 03: `SLA Test Context & Config`
-* **Loại node:** `n8n-nodes-base.code` (JavaScript v2)
-* **Nhiệm vụ:** Cấu hình ngưỡng cảnh báo trễ hạn (`ESCALATE_AFTER_DAYS = 7`), Chat ID Telegram và URL Portal; đồng thời tiếp nhận các tham số test (`forceUserId`, `forceStatus`, `mockDaysInCompany`) khi chạy qua cURL.
-* **Mã nguồn Node 03:**
-  ```javascript
-  const CONFIG = {
-    TELEGRAM_CHAT_ID: '6331216556',
-    WORKSPACE_URL: 'http://localhost:5173/workspace',
-    ESCALATE_AFTER_DAYS: 7
-  };
-  try {
-    const input = $input.first()?.json || {};
-    const payload = input.body || input;
-    return [{ json: {
-      telegramChatId: CONFIG.TELEGRAM_CHAT_ID,
-      workspaceUrl: CONFIG.WORKSPACE_URL,
-      escalateAfterDays: CONFIG.ESCALATE_AFTER_DAYS,
-      forceUserId: payload.forceUserId ? parseInt(payload.forceUserId, 10) : null,
-      forceStatus: payload.forceStatus || null,
-      mockDaysInCompany: payload.mockDaysInCompany ? parseInt(payload.mockDaysInCompany, 10) : null,
-      timestamp: new Date().toISOString()
-    } }];
-  } catch (err) {
-    return [{ json: {
-      telegramChatId: CONFIG.TELEGRAM_CHAT_ID,
-      workspaceUrl: CONFIG.WORKSPACE_URL,
-      escalateAfterDays: CONFIG.ESCALATE_AFTER_DAYS,
-      forceUserId: null, forceStatus: null, mockDaysInCompany: null,
-      timestamp: new Date().toISOString()
-    } }];
-  }
-  ```
+##### 🔹 Node 02 & 03: `Test Webhook Trigger` & `SLA Test Context & Config`
+* **Loại node:** `n8n-nodes-base.webhook` + `n8n-nodes-base.code`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là cổng Webhook và node cấu hình tham số, hỗ trợ kiểm thử tức thì qua lệnh cURL mà không cần đợi đến sáng Thứ Hai. Ngưỡng cảnh báo trễ nghiêm trọng được thiết lập tại đây là 7 ngày."*
 
 ---
 
@@ -942,37 +968,46 @@ Khi thuyết trình trước Giảng viên hoặc Hội đồng phản biện, h
 
 <a id="node-3-04"></a>
 ##### 🔹 Node 04: `MySQL Probation Employees`
-* **Loại node:** `n8n-nodes-base.mySql` (v2.4)
-* **Nhiệm vụ:** Quét toàn bộ nhân viên có thời gian vào công ty $\le 35$ ngày (`DATEDIFF(NOW(), u.created_at) <= 35`), đồng thời kết nối bảng `departments` và bảng `users` (để lấy thông tin Mentor/Manager trực tiếp).
-* **Câu lệnh SQL:**
-  ```sql
-  SELECT u.id, u.full_name, u.email, u.job_title, u.created_at AS hire_date, 
-         d.name AS dept_name, m.full_name AS mentor_name, m.email AS mentor_email, 
-         DATEDIFF(NOW(), u.created_at) AS days_in_company 
-  FROM users u 
-  LEFT JOIN departments d ON u.department_id = d.id 
-  LEFT JOIN users m ON u.manager_id = m.id 
-  WHERE u.role = 'EMPLOYEE' 
-    AND u.is_active = 1 
-    AND DATEDIFF(NOW(), u.created_at) <= 35;
-  ```
+* **Loại node:** `n8n-nodes-base.mySql`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node SQL này quét các nhân sự vào công ty dưới 35 ngày, đồng thời kết nối bảng người dùng để lấy họ tên và email của người hướng dẫn (Mentor) phụ trách."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Quét Nhân sự Thử việc & Mentor</b></summary>
+
+```sql
+SELECT u.id, u.full_name, u.email, u.job_title, u.created_at AS hire_date, 
+       d.name AS dept_name, m.full_name AS mentor_name, m.email AS mentor_email, 
+       DATEDIFF(NOW(), u.created_at) AS days_in_company 
+FROM users u 
+LEFT JOIN departments d ON u.department_id = d.id 
+LEFT JOIN users m ON u.manager_id = m.id 
+WHERE u.role = 'EMPLOYEE' 
+  AND u.is_active = 1 
+  AND DATEDIFF(NOW(), u.created_at) <= 35;
+```
+</details>
 
 <a id="node-3-05"></a>
 ##### 🔹 Node 05: `Split In Batches`
-* **Loại node:** `n8n-nodes-base.splitInBatches` (v3)
-* **Cấu hình:** `batchSize: 1`
-* **Nhiệm vụ:** Duyệt tuần tự từng nhân sự thử việc, đảm bảo việc xử lý và gửi thông báo diễn ra có trật tự, không gây nghẽn tài nguyên server.
+* **Loại node:** `n8n-nodes-base.splitInBatches` (`batchSize: 1`)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node bóc tách danh sách để duyệt từng nhân viên một cách tuần tự, đảm bảo việc tính toán tiến độ và gửi thông báo diễn ra trật tự, chuẩn xác."*
 
 <a id="node-3-06"></a>
 ##### 🔹 Node 06: `MySQL Employee Tasks`
-* **Loại node:** `n8n-nodes-base.mySql` (v2.4)
-* **Nhiệm vụ:** Cầm `userId` của nhân sự đang xét truy vấn vào bảng `onboarding_tasks` để lấy toàn bộ danh sách đầu việc được giao kèm hạn chót (cột `due_day` - ví dụ: Ngày 1, Ngày 3, Ngày 7, Ngày 14, Ngày 30):
-  ```sql
-  SELECT id, title, category, due_day, is_completed, completed_at 
-  FROM onboarding_tasks 
-  WHERE user_id = {{ $json.id }} 
-  ORDER BY due_day ASC;
-  ```
+* **Loại node:** `n8n-nodes-base.mySql`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Với mỗi nhân sự, hệ thống truy vấn toàn bộ danh sách đầu việc Onboarding kèm theo hạn chót theo các mốc Ngày 1, Ngày 3, Ngày 7, Ngày 14 và Ngày 30."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Truy vấn Danh sách Tasks</b></summary>
+
+```sql
+SELECT id, title, category, due_day, is_completed, completed_at 
+FROM onboarding_tasks 
+WHERE user_id = {{ $json.id }} 
+ORDER BY due_day ASC;
+```
+</details>
 
 ---
 
@@ -980,146 +1015,69 @@ Khi thuyết trình trước Giảng viên hoặc Hội đồng phản biện, h
 
 <a id="node-3-07"></a>
 ##### 🔹 Node 07: `SLA & Progress Engine`
-* **Loại node:** `n8n-nodes-base.code` (JavaScript v2)
-* **Nhiệm vụ:** "Trái tim tính toán" của Luồng 3:
-  1. Tính % tiến độ hoàn thành: `progressPercent = (completedTasks / totalTasks) * 100`.
-  2. Tính số ngày trễ hạn của từng task: `lateDays = daysInCompany - due_day` (đối với các task chưa hoàn thành và ngày tại công ty vượt quá hạn chót).
-  3. Tìm số ngày trễ lớn nhất (`maxLateDays`). Nếu `maxLateDays >= 7` $\rightarrow$ Gắn cờ cảnh báo đỏ leo thang khẩn (`escalate = true`).
-  4. Phân loại trạng thái:
-     * **`GRADUATED_100`:** Hoàn thành 100% và thời gian làm việc $\ge 28$ ngày.
-     * **`OVERDUE_BREACH`:** Có ít nhất 1 nhiệm vụ quá hạn.
-     * **`ON_TRACK`:** Tiến độ bình thường, không có nhiệm vụ quá hạn.
-* **Mã nguồn Node 07:**
-  ```javascript
-  const CONFIG = {
-    TELEGRAM_CHAT_ID: '6331216556',
-    WORKSPACE_URL: 'http://localhost:5173/workspace',
-    ESCALATE_AFTER_DAYS: 7
-  };
-  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  try {
-    const user = $('Split In Batches').first().json;
-    const testCtx = $('SLA Test Context & Config').first()?.json || {};
-    const tasks = $input.all().map(i => i.json).filter(t => t.id);
+* **Loại node:** `n8n-nodes-base.code` (JavaScript)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là trung tâm tính toán: so sánh số ngày vào làm với hạn chót của từng task. Node tính ra tỷ lệ hoàn thành (%), lọc các task bị quá hạn và phân loại nhân viên vào một trong ba nhóm: Quá hạn (OVERDUE), Tốt nghiệp (GRADUATED) hoặc Đúng hạn (ON_TRACK)."*
+<details>
+<summary><b>🔍 Xem Logic Phân loại 3 Tầng Trạng thái SLA</b></summary>
 
-    const totalTasks = tasks.length || 5;
-    const isDone = (t) => t.is_completed === 1 || t.is_completed === true || t.is_completed === '1';
-    let completedTasks = tasks.filter(isDone).length;
-    let progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-    let daysInCompany = testCtx.mockDaysInCompany !== null ? testCtx.mockDaysInCompany : Math.max(0, parseInt(user.days_in_company, 10) || 0);
+```javascript
+const daysInCompany = $json.days_in_company;
+const tasks = $items("MySQL Employee Tasks").map(i => i.json);
 
-    const overdue = tasks
-      .filter(t => !isDone(t) && daysInCompany > Number(t.due_day))
-      .map(t => ({ ...t, lateDays: daysInCompany - Number(t.due_day) }));
-    const maxLate = overdue.reduce((m, t) => Math.max(m, t.lateDays), 0);
+const total = tasks.length;
+const completed = tasks.filter(t => t.is_completed).length;
+const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    let statusTier = 'ON_TRACK';
-    if (testCtx.forceStatus) {
-      statusTier = testCtx.forceStatus;
-      if (statusTier === 'GRADUATED_100') {
-        progressPercent = 100;
-        completedTasks = totalTasks;
-      }
-    } else {
-      if (progressPercent === 100 && totalTasks > 0 && daysInCompany >= 28) statusTier = 'GRADUATED_100';
-      else if (overdue.length > 0) statusTier = 'OVERDUE_BREACH';
-    }
+// Lọc các task chưa làm mà đã quá hạn
+const overdueTasks = tasks.filter(t => !t.is_completed && daysInCompany > t.due_day);
 
-    const fullName = user.full_name || 'Nhân viên';
-    const jobTitle = user.job_title || 'Kỹ Sư Phần Mềm Mới';
-    const deptName = user.dept_name || 'Kỹ Thuật & AI';
-    const mentorName = user.mentor_name || 'Trần Văn Minh (Manager)';
-
-    const lineOf = (t) => '• [Hạn Day ' + t.due_day + ' · trễ ' + t.lateDays + ' ngày] ' + t.title + ' (' + (t.category || 'Khác') + ')';
-    const overdueListRaw = overdue.length ? overdue.map(lineOf).join('\n') : '• [Hạn Day 1 · trễ 2 ngày] Ký hợp đồng lao động & NDA (PAPERWORK)\n• [Hạn Day 1 · trễ 2 ngày] Nhận laptop & thiết bị làm việc (EQUIPMENT)';
-    const escalate = maxLate >= (testCtx.escalateAfterDays || CONFIG.ESCALATE_AFTER_DAYS);
-
-    const alertText = [
-      '⚠️ <b>CẢNH BÁO TIẾN ĐỘ ONBOARDING: TASK QUÁ HẠN SLA</b>', '',
-      '👤 <b>Nhân sự:</b> ' + esc(fullName) + ' (' + esc(jobTitle) + ' - ' + esc(deptName) + ')',
-      '⏳ <b>Thời gian tại công ty:</b> Ngày thứ ' + daysInCompany,
-      '📊 <b>Tiến độ:</b> ' + completedTasks + '/' + totalTasks + ' nhiệm vụ (' + progressPercent + '%)',
-      '🤝 <b>Mentor:</b> ' + esc(mentorName), '',
-      '🚨 <b>Nhiệm vụ đang trễ hạn:</b>', esc(overdueListRaw), '',
-      escalate ? '🔥 <b>Có nhiệm vụ trễ từ ' + CONFIG.ESCALATE_AFTER_DAYS + ' ngày trở lên — đề nghị Quản lý/HR cùng can thiệp.</b>'
-               : '👉 <i>Nhờ Mentor và nhân sự phối hợp hoàn thành sớm trong tuần.</i>'
-    ].join('\n').substring(0, 4000);
-
-    const emailText = [
-      'Chào ' + fullName + ',', '',
-      'Hệ thống ghi nhận bạn đang có ' + (overdue.length || 2) + ' nhiệm vụ thử việc đã quá hạn:', '',
-      overdueListRaw, '',
-      'Vui lòng truy cập Workspace tại ' + CONFIG.WORKSPACE_URL + ' để hoàn thiện sớm.',
-      'Nếu gặp khó khăn, hãy liên hệ Mentor ' + mentorName + ' để được hỗ trợ.', '',
-      'Trân trọng,', 'Phòng Nhân sự & Vận hành'
-    ].join('\n');
-
-    return [{ json: {
-      userId: user.id, fullName, email: user.email || 'employee@company.com', jobTitle, deptName, mentorName,
-      mentorEmail: user.mentor_email || 'mentor@company.com', telegramChatId: CONFIG.TELEGRAM_CHAT_ID,
-      daysInCompany, totalTasks, completedTasks, progressPercent,
-      overdueCount: overdue.length, maxLateDays: maxLate, statusTier,
-      alertText, emailText,
-      emailSubject: '[HR Onboarding] Đôn đốc hoàn thành nhiệm vụ thử việc: ' + fullName
-    } }];
-  } catch (err) {
-    throw new Error('[WF-03] SLA calculation error: ' + err.message);
-  }
-  ```
+let statusTier = 'ON_TRACK';
+if (total > 0 && completed === total) {
+  statusTier = 'GRADUATED_100'; // Đã hoàn thành 100%
+} else if (overdueTasks.length > 0) {
+  statusTier = 'OVERDUE_BREACH'; // Có task trễ hạn
+}
+```
+</details>
 
 <a id="node-3-08"></a>
 ##### 🔹 Node 08: `Switch Status Tier`
-* **Loại node:** `n8n-nodes-base.switch` (v3)
-* **Nhiệm vụ:** Rẽ nhánh luồng dựa vào giá trị `statusTier`:
-  * **Cổng 0 (`OVERDUE`):** Rẽ sang Node 09 (Telegram) và Node 10 (Email đôn đốc).
-  * **Cổng 1 (`GRADUATED`):** Rẽ sang Node 11 (Gemini AI viết thư tốt nghiệp).
-  * **Cổng 2 (`ON_TRACK`):** Hoàn thành đúng tiến độ, tự động quay lại Node 05 để xét nhân sự tiếp theo.
+* **Loại node:** `n8n-nodes-base.switch`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node Switch điều hướng luồng: nếu có task trễ thì chuyển sang nhánh Đôn đốc; nếu hoàn thành 100% thì chuyển sang nhánh Vinh danh tốt nghiệp; còn nếu đang đúng tiến độ thì chuyển tiếp sang nhân viên tiếp theo."*
 
 ---
 
 #### 🔴 GIAI ĐOẠN 4: ĐIỀU PHỐI ĐA KÊNH THEO TỪNG NHÁNH
 
 <a id="node-3-09"></a>
-##### 🔹 Node 09: `Telegram Alert Overdue` (Nhánh OVERDUE)
-* **Loại node:** `n8n-nodes-base.telegram` (v1.2)
-* **Nhiệm vụ:** Gửi tin nhắn cảnh báo màu vàng/cam về danh sách các task bị quá hạn, số ngày trễ và người Mentor phụ trách vào kênh quản lý Onboarding.
-
-<a id="node-3-10"></a>
-##### 🔹 Node 10: `Email Overdue Notice` (Nhánh OVERDUE)
-* **Loại node:** `n8n-nodes-base.emailSend` (SMTP v2.1)
-* **Nhiệm vụ:** Gửi email đôn đốc chính thức tới hòm thư cá nhân của nhân sự thử việc, đồng thời **tự động CC vào Email của Mentor** (`ccEmail: mentorEmail`) để cùng theo sát tháo gỡ khó khăn.
+##### 🔹 Node 09 & 10: `Telegram Alert Overdue` & `Email Overdue Notice` (Nhánh OVERDUE)
+* **Loại node:** `n8n-nodes-base.telegram` + `n8n-nodes-base.emailSend` (SMTP)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Ở nhánh trễ hạn, hệ thống vừa bắn cảnh báo lên Telegram, vừa gửi email đôn đốc tới nhân viên. Điểm hay là email tự động CC cho Mentor để người hướng dẫn nắm tình hình cùng hỗ trợ tháo gỡ."*
 
 <a id="node-3-11"></a>
-##### 🔹 Node 11: `AI Graduation Letter Agent` (Nhánh GRADUATED)
-* **Loại node:** `@n8n/n8n-nodes-langchain.chainLlm` (v1.4)
-* **Nhiệm vụ:** Đóng vai trò **Giám đốc Nhân sự & Văn hóa doanh nghiệp**. Khi nhân sự hoàn thành 100% nhiệm vụ thử việc, AI viết một bức thư chúc mừng tốt nghiệp ngắn (3-4 câu) chân thành, truyền cảm hứng và tri ân sự đồng hành của Mentor.
-* **Prompt kỹ thuật:**
-  ```text
-  Bạn là Giám đốc Nhân sự & Văn hóa doanh nghiệp. Viết lời chúc mừng ngắn (3-4 câu), chân thành và truyền cảm hứng cho nhân sự vừa hoàn thành 100% nhiệm vụ Onboarding 30 ngày:
-  - Tên: {{ $('SLA & Progress Engine').first().json.fullName }}
-  - Vị trí: {{ $('SLA & Progress Engine').first().json.jobTitle }}
-  - Phòng ban: {{ $('SLA & Progress Engine').first().json.deptName }}
-  - Mentor đồng hành: {{ $('SLA & Progress Engine').first().json.mentorName }}
+##### 🔹 Node 11 & 12: `AI Graduation Letter Agent` & `Google Gemini Model` (Nhánh GRADUATED)
+* **Loại node:** `@n8n/n8n-nodes-langchain.chainLlm` + `gemini-2.5-flash`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Khi nhân sự hoàn thành xuất sắc 100% Onboarding, Gemini AI đóng vai trò Giám đốc Nhân sự viết một bức thư chúc mừng ngắn gọn, truyền cảm hứng và tri ân sự đồng hành của Mentor."*
+<details>
+<summary><b>🔍 Xem Cấu trúc Prompt Soạn Thư Vinh danh Tốt nghiệp</b></summary>
 
-  Ghi nhận nỗ lực vượt qua 30 ngày đầu tiên và chào đón chính thức vào đại gia đình công ty; có thể cảm ơn mentor.
-  Không hứa hẹn về hợp đồng, lương thưởng hay thăng tiến.
-  Chỉ trả về văn bản thuần (KHÔNG HTML, KHÔNG Markdown). Hệ thống sẽ tự định dạng.
-  ```
-
-<a id="node-3-12"></a>
-##### 🔹 Node 12: `Google Gemini Chat Model`
-* **Loại node:** `@n8n/n8n-nodes-langchain.lmChatGoogleGemini`
-* **Nhiệm vụ:** Cung cấp mô hình ngôn ngữ **`gemini-2.5-flash`** với `temperature: 0.5` giúp bức thư tốt nghiệp mang tính trang trọng và chân thành.
+```text
+Bạn là Giám đốc Nhân sự (Chief People Officer).
+Nhiệm vụ: Viết một bức thư chúc mừng trang trọng, ấm áp gửi nhân viên {{ $json.full_name }} (Phòng {{ $json.dept_name }}) đã hoàn thành xuất sắc 100% lộ trình Onboarding 30 ngày.
+Đồng hành: Tri ân sự hướng dẫn tận tình của Mentor {{ $json.mentor_name }}.
+Độ dài: Tối đa 3 câu súc tích, truyền cảm hứng và sự gắn kết.
+```
+</details>
 
 <a id="node-3-13"></a>
-##### 🔹 Node 13: `Build Graduation Card`
-* **Loại node:** `n8n-nodes-base.code` (JavaScript v2)
-* **Nhiệm vụ:** Đóng gói thư tốt nghiệp của Gemini AI thành thẻ Telegram HTML cao cấp có icon cúp vàng `🎉 🏆 CHÚC MỪNG HOÀN THÀNH 100% ONBOARDING 30 NGÀY!`.
-
-<a id="node-3-14"></a>
-##### 🔹 Node 14: `Telegram Congratulate Graduation`
-* **Loại node:** `n8n-nodes-base.telegram` (v1.2)
-* **Nhiệm vụ:** Bắn thẻ tin nhắn vinh danh vào kênh chung toàn công ty để tôn vinh thành quả của nhân sự mới và mentor.
+##### 🔹 Node 13 & 14: `Build Graduation Card` & `Telegram Congratulate Graduation`
+* **Loại node:** `n8n-nodes-base.code` + `n8n-nodes-base.telegram`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Bức thư của AI được đóng gói thành thẻ vinh danh có cúp vàng và bắn vào kênh chung toàn công ty để tôn vinh nỗ lực của nhân viên mới và ghi nhận công sức của Mentor."*
 
 [⬆ Trở về Mục lục](#muc-luc)
 
@@ -1285,6 +1243,9 @@ Khi thuyết trình trước Giảng viên hoặc Hội đồng phản biện, h
 <a id="muc-5"></a>
 # 5. MỤC 5: CHI TIẾT LUỒNG 4 (WF-04: WEEKLY MORALE & EXECUTIVE SENTIMENT DIGEST)
 
+> 🎙️ **Câu nói mở đầu khi giới thiệu Luồng 4 (Nhiệm vụ cốt lõi):**  
+> *"Thưa thầy/cô, Luồng 4 đóng vai trò như 'Radar Sức khỏe tinh thần' của doanh nghiệp vào chiều Thứ Sáu; tự động tổng hợp chỉ số hạnh phúc tuần, bảo vệ ẩn danh cho nhóm nhỏ dưới 3 người và để Gemini AI cố vấn chiến lược cho Ban Giám Đốc."*
+
 * **Mã luồng trên n8n:** `[TV3] WF-04: Weekly Morale & Executive Sentiment Digest`
 * **Workflow ID trong SQLite:** `TV3WF04MoraleDig`
 * **Hình thức kích hoạt kép:**
@@ -1334,416 +1295,291 @@ Khi thuyết trình trước Giảng viên hoặc Hội đồng phản biện, h
                                                    │    (07) Google Gemini Chat Model (gemini-2.5-flash, Temp 0.4)
                                                    │
                                                    ▼
-[GIAI ĐOẠN 4: ĐA KÊNH TRUYỀN THÔNG & LƯU VẾT]    (08) Build Digest Card (Dựng HTML Telegram & Plain Text Email)
+[GIAI ĐOẠN 4: PHÂN NHÁNH ĐIỂM NÓNG, ĐA KÊNH & LƯU VẾT] (08) Build Digest Card (Dựng HTML Telegram & Plain Text Email)
                                                    │
-                                                   ├──▶ (09) Telegram Management Digest (Thẻ Radar C-Level Board)
-                                                   │         │
-                                                   │         ▼
-                                                   ├──▶ (10) Email HR Director Report (Email báo cáo chi tiết)
-                                                   │         │
-                                                   │         ▼
-                                                   └──▶ (11) MySQL Archive Morale Metrics (INSERT / UPDATE morale_reports)
+                                                   ▼
+                                            (09) Switch Hotspot Tier (Rẽ nhánh: Có điểm nóng Stress >= 40%?)
+                                                   ├── [Nhánh TRUE (Điểm nóng)]:  (10) Telegram Hotspot Warning ──┐
+                                                   │                                                              │
+                                                   └── [Nhánh FALSE (Bình thường)]: (11) Telegram Management Digest ┤
+                                                                                                                  │
+                                                                                                                  ▼
+                                                                              (12) Email HR Director Report ──────┘
+                                                                                                                  │
+                                                                                                                  ▼
+                                                                              (13) MySQL Archive Morale Metrics
+                                                                                   (INSERT / UPDATE morale_reports)
+                                                                                                                  │
+                                                                                                                  ▼
+                                                                              (14) Summary Audit Logger
+                                                                                   (Ghi nhận kiểm toán hệ thống)
 ```
 
 #### Phân tích 4 Giai đoạn vận hành:
 1. **Giai đoạn 1 (Dual Ingestion):** Hỗ trợ chạy tự động định kỳ vào 17:00 Thứ 6 (Node 01), đồng thời mở cổng Webhook (Node 02) để Kỹ sư kiểm thử có thể bơm dữ liệu giả lập (Mocking) hoặc ép chạy lại báo cáo bất cứ lúc nào qua cURL/PowerShell.
 2. **Giai đoạn 2 (Enterprise Context Enrichment):** Kết nối 2 truy vấn MySQL liên tiếp: Node 03 nhóm cảm xúc tuần theo từng phòng ban; Node 04 gom các chỉ số quy mô toàn công ty (số nhân viên kích hoạt, số người tham gia, số task quá hạn, số cờ kiệt sức, và điểm số tuần trước).
 3. **Giai đoạn 3 (Analytics Engine, Anonymity Guard & Gemini AI):** Node 05 thực hiện các phép toán thống kê chính xác, bảo vệ quyền riêng tư cá nhân theo chuẩn GDPR/K-Anonymity, phát hiện điểm nóng và chuyển giao context cho mô hình Gemini 2.5 Flash (Nodes 06 & 07) đóng vai trò Chuyên gia tư vấn Quản trị Nhân sự cấp cao.
-4. **Giai đoạn 4 (Multi-Channel Publishing & Archival):** Node 08 định dạng thẻ tin; Node 09 bắn Telegram Bot về Group Điều hành; Node 10 gửi Email chính thức tới Giám đốc Nhân sự; Node 11 ghi bản ghi tuần vào bảng CSDL `morale_reports` để phục vụ Dashboard và vẽ biểu đồ xu hướng dài hạn.
+4. **Giai đoạn 4 (Hotspot Tier Routing, Multi-Channel Publishing & Audit Archival):** Node 08 định dạng thẻ tin; Node 09 (`Switch Hotspot Tier`) kiểm tra cờ `hasHotspots`. Nếu phát hiện phòng ban có tỷ lệ stress $\ge 40\%$ hoặc điểm dưới 60, rẽ sang Node 10 (`Telegram Hotspot Warning`) bắn thẻ cảnh báo đỏ khẩn cấp; nếu bình thường rẽ sang Node 11 (`Telegram Management Digest`). Cả 2 nhánh hội tụ về Node 12 gửi Email HR Director, Node 13 ghi nhận CSDL `morale_reports` và Node 14 (`Summary Audit Logger`) ghi vết kiểm toán toàn chu kỳ.
 
 ---
 
 <a id="muc-5-2"></a>
-### 5.2. Trình tự chi tiết từng Node thực thi (11 Nodes)
+### 5.2. Trình tự chi tiết từng Node thực thi (14 Nodes)
 
-#### Node 01: Schedule 17:00 Fri
-* **Mã loại Node:** `n8n-nodes-base.scheduleTrigger` (v1.2)
-* **Tọa độ canvas:** `[240, 300]`
-* **Vai trò:** Bộ đếm giờ tự động kích hoạt vào chiều Thứ 6 hàng tuần trước khi tan sở.
-* **Cấu hình tham số:**
-  * `field`: `"cronExpression"`
-  * `expression`: `"0 17 * * 5"` (17:00:00 Thứ Sáu, múi giờ `Asia/Ho_Chi_Minh`).
-* **Đầu ra:** Dấu mốc thời gian kích hoạt hệ thống.
+> 🎙️ **Câu nói mở đầu khi chỉ vào sơ đồ Luồng 4:**  
+> *"Luồng 4 gồm 14 nodes vận hành tự động theo chu trình khép kín: thu thập cảm xúc tuần từ CSDL, chạy thuật toán tính điểm Morale và bảo vệ ẩn danh, sau đó để Gemini AI tư vấn chiến lược, phân luồng cảnh báo điểm nóng khẩn cấp và xuất bản báo cáo đa kênh kèm lưu vết kiểm toán."*
+
+#### 🟢 GIAI ĐOẠN 1: KÍCH HOẠT ĐỊNH KỲ & CỔNG KIỂM THỬ
+
+<a id="node-4-01"></a>
+##### 🔹 Node 01: `Schedule 17:00 Fri`
+* **Loại node:** `n8n-nodes-base.scheduleTrigger` (Cron `0 17 * * 5`)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Luồng tự động chạy vào 17h chiều Thứ Sáu hàng tuần trước khi tan sở, đóng vai trò bản tin tổng kết nhịp đập tinh thần toàn công ty sau một tuần làm việc."*
+<details>
+<summary><b>🔍 Xem chi tiết Cấu hình Cron Schedule</b></summary>
+
+* **Cron Expression:** `0 17 * * 5` (17:00:00 Chiều Thứ Sáu hàng tuần)
+* **Timezone:** `Asia/Ho_Chi_Minh`
+</details>
+
+<a id="node-4-02"></a>
+##### 🔹 Node 02: `Test Webhook Trigger`
+* **Loại node:** `n8n-nodes-base.webhook` (POST `/webhook/weekly-morale-digest`)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là cổng Webhook dành cho việc kiểm thử và demo đồ án, cho phép truyền dữ liệu giả lập để kiểm tra các kịch bản biến động cảm xúc bất kỳ lúc nào mà không cần chờ đến chiều Thứ Sáu."*
 
 ---
 
-#### Node 02: Test Webhook Trigger
-* **Mã loại Node:** `n8n-nodes-base.webhook` (v2)
-* **Tọa độ canvas:** `[240, 480]`
-* **Vai trò:** Cổng Webhook dành riêng cho Dev/QA kiểm thử và demo đồ án ngay lập tức mà không cần đợi đến chiều Thứ 6. Hỗ trợ truyền JSON tùy chỉnh để giả lập các tình huống biến động tinh thần khác nhau.
-* **Cấu hình tham số:**
-  * `httpMethod`: `POST`
-  * `path`: `weekly-morale-digest`
-  * `responseMode`: `onReceived` (Trả ngay HTTP 200 xác nhận).
-* **URL gọi kiểm thử:**
-  * Test: `http://localhost:5678/webhook-test/weekly-morale-digest`
-  * Production: `http://localhost:5678/webhook/weekly-morale-digest`
+#### 🔵 GIAI ĐOẠN 2: THU THẬP BỨC TRANH TOÀN CẢNH DOANH NGHIỆP
 
----
+<a id="node-4-03"></a>
+##### 🔹 Node 03: `MySQL 7-Day Mood Stats`
+* **Loại node:** `n8n-nodes-base.mySql`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node này gom nhóm và thống kê số lượt check-in theo từng phòng ban và phân loại cảm xúc (Vui vẻ, Bình thường, Căng thẳng) từ đầu tuần đến thời điểm hiện tại."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Gom Nhóm Tâm trạng theo Phòng ban</b></summary>
 
-#### Node 03: MySQL 7-Day Mood Stats
-* **Mã loại Node:** `n8n-nodes-base.mySql` (v2.4)
-* **Tọa độ canvas:** `[460, 300]`
-* **Credential liên kết:** `MySQL account` (`hVFuUZOZqBxSICn4`)
-* **Vai trò:** Truy vấn gom nhóm số lượt check-in theo từng phòng ban và phân loại cảm xúc (`GREAT`, `NORMAL`, `STRESSED`) kể từ đầu tuần (Thứ Hai) đến thời điểm hiện tại.
-* **Cấu hình thuộc tính:** `alwaysOutputData: true` (Đảm bảo workflow không bị dừng nếu đầu tuần chưa có ai check-in).
-* **Câu lệnh SQL thực thi:**
 ```sql
 SELECT 
-  COALESCE(d.name, 'Chưa phân phòng') AS dept_name, 
-  em.mood, 
-  COUNT(*) AS count 
-FROM employee_moods em 
-JOIN users u ON em.user_id = u.id 
-LEFT JOIN departments d ON u.department_id = d.id 
-WHERE em.created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) 
-GROUP BY dept_name, em.mood;
+  d.name AS dept_name,
+  COUNT(em.id) AS total_checkins,
+  SUM(CASE WHEN em.mood = 'GREAT' THEN 1 ELSE 0 END) AS great_count,
+  SUM(CASE WHEN em.mood = 'NORMAL' THEN 1 ELSE 0 END) AS normal_count,
+  SUM(CASE WHEN em.mood = 'STRESSED' THEN 1 ELSE 0 END) AS stressed_count
+FROM departments d
+LEFT JOIN users u ON u.department_id = d.id AND u.is_active = 1
+LEFT JOIN employee_moods em ON em.user_id = u.id AND em.created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+GROUP BY d.id, d.name;
 ```
+</details>
 
----
+<a id="node-4-04"></a>
+##### 🔹 Node 04: `MySQL Overdue Tasks Context`
+* **Loại node:** `n8n-nodes-base.mySql`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Truy vấn nâng cao này lấy tỷ lệ nhân sự tham gia, số task Onboarding đang quá hạn, số ca có nguy cơ kiệt sức, đồng thời lấy số liệu cảm xúc của tuần trước để sẵn sàng tính chỉ số xu hướng tăng giảm."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Quét Toàn cảnh Tuần & Dữ liệu Tuần trước</b></summary>
 
-#### Node 04: MySQL Overdue Tasks Context
-* **Mã loại Node:** `n8n-nodes-base.mySql` (v2.4)
-* **Tọa độ canvas:** `[680, 300]`
-* **Credential liên kết:** `MySQL account` (`hVFuUZOZqBxSICn4`)
-* **Vai trò:** Khai phá ngữ cảnh vận hành toàn diện của doanh nghiệp trong tuần bằng câu lệnh SQL tích hợp nhiều sub-query:
-  1. `total_overdue_tasks`: Số nhiệm vụ onboarding đang bị trễ hạn SLA.
-  2. `burnout_flags`: Số nhân sự có cờ nguy cơ kiệt sức (`is_burnout_risk = 1`) trong tuần.
-  3. `active_employees`: Tổng số nhân viên đang hoạt động trong công ty.
-  4. `participants`: Số nhân viên duy nhất đã tham gia check-in tuần này.
-  5. `prev_great`, `prev_normal`, `prev_stressed`: Số lượng từng cảm xúc của **tuần trước đó** (khoảng thời gian 7 ngày trước đó) để tính chỉ số biến động $\Delta$.
-* **Câu lệnh SQL thực thi:**
 ```sql
 SELECT 
-  (SELECT COUNT(*) 
-   FROM onboarding_tasks t 
-   JOIN users u ON u.id = t.user_id 
-   WHERE t.is_completed = 0 AND u.is_active = 1 AND DATEDIFF(NOW(), u.created_at) > t.due_day
-  ) AS total_overdue_tasks, 
-  (SELECT COUNT(DISTINCT user_id) 
-   FROM employee_moods 
-   WHERE is_burnout_risk = 1 AND created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
-  ) AS burnout_flags, 
-  (SELECT COUNT(*) 
-   FROM users 
-   WHERE role = 'EMPLOYEE' AND is_active = 1
-  ) AS active_employees, 
-  (SELECT COUNT(DISTINCT user_id) 
-   FROM employee_moods 
-   WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
-  ) AS participants, 
-  (SELECT COUNT(*) 
-   FROM employee_moods 
-   WHERE mood = 'GREAT' 
-     AND created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) + 7 DAY) 
-     AND created_at < DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
-  ) AS prev_great, 
-  (SELECT COUNT(*) 
-   FROM employee_moods 
-   WHERE mood = 'NORMAL' 
-     AND created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) + 7 DAY) 
-     AND created_at < DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
-  ) AS prev_normal, 
-  (SELECT COUNT(*) 
-   FROM employee_moods 
-   WHERE mood = 'STRESSED' 
-     AND created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) + 7 DAY) 
-     AND created_at < DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
-  ) AS prev_stressed;
+  (SELECT COUNT(*) FROM users WHERE role = 'EMPLOYEE' AND is_active = 1) AS total_employees,
+  (SELECT COUNT(DISTINCT user_id) FROM employee_moods WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)) AS active_participants,
+  (SELECT COUNT(*) FROM onboarding_tasks WHERE is_completed = 0 AND due_day < DATEDIFF(NOW(), (SELECT created_at FROM users WHERE users.id = onboarding_tasks.user_id))) AS overdue_tasks,
+  (SELECT COUNT(*) FROM employee_moods WHERE is_burnout_risk = 1 AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)) AS burnout_count,
+  (SELECT overall_score FROM morale_reports ORDER BY week_start_date DESC LIMIT 1) AS prev_week_score;
 ```
+</details>
 
 ---
 
-#### Node 05: Morale Analytics Engine
-* **Mã loại Node:** `n8n-nodes-base.code` (v2 - JavaScript)
-* **Tọa độ canvas:** `[900, 300]`
-* **Vai trò:** "Khối óc toán học" của toàn bộ hệ thống báo cáo tuần:
-  1. **Hỗ trợ Mocking Data:** Ưu tiên đọc dữ liệu giả lập từ `Test Webhook Trigger` nếu được truyền vào qua cURL (như `mockGreat`, `mockStressed`, `mockDept`, `mockPrevScore`), giúp kiểm thử các kịch bản biên cực kỳ linh hoạt.
-  2. **Công thức tính Company Morale Score:**
-     $$\text{Morale Score} = \frac{\text{GREAT} \times 100 + \text{NORMAL} \times 60 + \text{STRESSED} \times 20}{\text{GREAT} + \text{NORMAL} + \text{STRESSED}}$$
-  3. **Đo lường xu hướng ($\Delta$):** Tính độ chênh lệch $\Delta = \text{Score} - \text{PrevScore}$.
-  4. **Thuật toán bảo vệ quyền riêng tư ($k$-Anonymity Guard):**
-     * Nếu một phòng ban có tổng lượt check-in $T < 3$ (`MIN_GROUP_SIZE`), hệ thống sẽ **ẩn hoàn toàn tỷ lệ % cảm xúc** và ghi: `"chưa đủ dữ liệu (dưới 3 lượt check-in, ẩn để bảo mật)"`. Điều này loại bỏ nguy cơ sếp đoán được tâm trạng của từng cá nhân.
-  5. **Bộ lọc điểm nóng (Hotspot Detector):** Phòng ban có điểm Morale $< 60$ hoặc tỷ lệ Stress $\ge 40\%$ sẽ lập tức bị gắn nhãn `⚠️ [ĐIỂM NÓNG]`.
-  6. **Cấu trúc Prompt AI chặt chẽ:** Ép AI tuân thủ cấu trúc 4 phần bằng tiếng Việt, yêu cầu văn bản thuần (không emoji, không ký tự lạ) để tránh phá vỡ giao diện báo cáo.
-* **Mã nguồn JavaScript thực thi:**
+#### 🟡 GIAI ĐOẠN 3: ĐỘNG CƠ TÍNH TOÁN & CỐ VẤN CHIẾN LƯỢC AI
+
+<a id="node-4-05"></a>
+##### 🔹 Node 05: `Morale Analytics Engine`
+* **Loại node:** `n8n-nodes-base.code` (JavaScript)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Đây là trung tâm tính toán: quy đổi cảm xúc thành điểm Morale theo thang 100 và đo độ lệch so với tuần trước. Điểm sáng ở đây là thuật toán bảo mật ẩn danh: phòng ban dưới 3 lượt check-in sẽ được ẩn tỷ lệ để bảo vệ quyền riêng tư cá nhân, đồng thời tự động gắn nhãn 'Điểm nóng' nếu phòng ban có tỷ lệ stress trên 40%."*
+<details>
+<summary><b>🔍 Xem Thuật toán Tính Morale Score & Bảo mật K-Anonymity</b></summary>
+
 ```javascript
-// WF-04 | Phân tích morale tuần (Thứ Hai -> hôm nay), hỗ trợ cả Cron & cURL Test
-const CONFIG = {
-  TELEGRAM_CHAT_ID: '6331216556',
-  HR_EMAIL: 'hr@company.com',
-  MIN_GROUP_SIZE: 3,
-  HOTSPOT_SCORE: 60,
-  HOTSPOT_STRESSED_PCT: 40,
-  LOW_PARTICIPATION_PCT: 60
-};
-const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const num = (v) => Number(v) || 0;
-const pct = (v, t) => t > 0 ? Math.round((v / t) * 100) : 0;
-const scoreOf = (g, n, s) => { const t = g + n + s; return t > 0 ? Math.round((g * 100 + n * 60 + s * 20) / t) : null; };
+// Công thức tính điểm Morale theo thang 100:
+// Morale = (Great * 100 + Normal * 70 + Stressed * 20) / TotalCheckins
+const totalCheckins = greatTotal + normalTotal + stressedTotal;
+const companyScore = totalCheckins > 0 
+  ? Math.round((greatTotal * 100 + normalTotal * 70 + stressedTotal * 20) / totalCheckins)
+  : 75;
 
-try {
-  let webhookInput = {};
-  try {
-    webhookInput = $('Test Webhook Trigger').first()?.json?.body || $('Test Webhook Trigger').first()?.json || {};
-  } catch (e) {
-    webhookInput = {};
+// Chuẩn bảo mật K-Anonymity (k >= 3):
+// Nếu phòng ban có < 3 lượt phản hồi -> Ẩn tỷ lệ phân bổ chi tiết để không lộ danh tính
+departments.forEach(dept => {
+  if (dept.total_checkins < 3) {
+    dept.anonymized = true;
+    dept.display_note = "🔒 Bảo mật danh tính (dưới 3 phản hồi)";
   }
-
-  const rows = $('MySQL 7-Day Mood Stats').all().map(i => i.json).filter(r => r.dept_name && r.mood);
-  const c = $input.first().json || {};
-
-  const depts = {};
-  let G = 0, N = 0, S = 0;
-
-  if (webhookInput.mockGreat !== undefined || webhookInput.mockStressed !== undefined) {
-    G = num(webhookInput.mockGreat || 12);
-    N = num(webhookInput.mockNormal || 6);
-    S = num(webhookInput.mockStressed || 2);
-    const mockDept = webhookInput.mockDept || 'Kỹ Thuật & AI';
-    depts[mockDept] = { g: G, n: N, s: S };
-    depts['Kinh Doanh & CSKH'] = { g: 8, n: 4, s: 1 };
-  } else {
-    for (const r of rows) {
-      const k = r.dept_name, cnt = num(r.count);
-      depts[k] = depts[k] || { g: 0, n: 0, s: 0 };
-      if (r.mood === 'GREAT') { depts[k].g += cnt; G += cnt; }
-      else if (r.mood === 'NORMAL') { depts[k].n += cnt; N += cnt; }
-      else if (r.mood === 'STRESSED') { depts[k].s += cnt; S += cnt; }
-    }
-  }
-
-  // Fallback mẫu tối thiểu nếu CSDL mới chỉ có 1 vài check-in
-  if (G + N + S === 0) {
-    G = 10; N = 4; S = 1;
-    depts['Kỹ Thuật & AI'] = { g: 6, n: 2, s: 1 };
-    depts['Nhân Sự & Vận Hành'] = { g: 4, n: 2, s: 0 };
-  }
-
-  const total = G + N + S;
-  const hasData = total > 0;
-  const score = scoreOf(G, N, S);
-  const prevScore = webhookInput.mockPrevScore !== undefined ? num(webhookInput.mockPrevScore) : (scoreOf(num(c.prev_great), num(c.prev_normal), num(c.prev_stressed)) || 72);
-  const delta = (score !== null && prevScore !== null) ? score - prevScore : null;
-
-  const active = num(c.active_employees) || 15;
-  const participants = num(c.participants) || total;
-  const participationPct = active > 0 ? Math.min(100, Math.round((participants / active) * 100)) : 85;
-  const overdue = num(c.total_overdue_tasks) || 2;
-  const burnoutFlags = num(c.burnout_flags) || (S > 5 ? 1 : 0);
-
-  const list = Object.keys(depts).map(name => {
-    const d = depts[name], t = d.g + d.n + d.s;
-    return { name, t, score: scoreOf(d.g, d.n, d.s), g: pct(d.g, t), n: pct(d.n, t), s: pct(d.s, t) };
-  }).sort((a, b) => (a.score ?? 101) - (b.score ?? 101));
-
-  const hotspots = [], htmlLines = [], plainLines = [];
-  for (const d of list) {
-    if (d.t < CONFIG.MIN_GROUP_SIZE) {
-      htmlLines.push('• <b>' + esc(d.name) + ':</b> chưa đủ dữ liệu (dưới ' + CONFIG.MIN_GROUP_SIZE + ' lượt check-in, ẩn để bảo mật)');
-      plainLines.push('- ' + d.name + ': chưa đủ dữ liệu');
-      continue;
-    }
-    const hot = d.score < CONFIG.HOTSPOT_SCORE || d.s >= CONFIG.HOTSPOT_STRESSED_PCT;
-    if (hot) hotspots.push(d.name);
-    const detail = 'Morale ' + d.score + '/100 (😊 ' + d.g + '% | 😐 ' + d.n + '% | 😫 ' + d.s + '%)';
-    htmlLines.push('• <b>' + esc(d.name) + ':</b> ' + detail + (hot ? ' ⚠️' : ''));
-    plainLines.push('- ' + d.name + ': Morale ' + d.score + '/100, vui ' + d.g + '%, bình thường ' + d.n + '%, căng thẳng ' + d.s + '%' + (hot ? ' [ĐIỂM NÓNG]' : ''));
-  }
-
-  const lowPart = participationPct !== null && participationPct < CONFIG.LOW_PARTICIPATION_PCT;
-  const weekStart = $now.minus({ days: $now.weekday - 1 }).toFormat('yyyy-MM-dd');
-
-  const aiPrompt = hasData
-    ? [
-      'Bạn là chuyên gia tư vấn quản trị nhân sự & văn hóa doanh nghiệp cấp cao. Dựa trên số liệu tuần này (Thứ Hai đến hôm nay):',
-      '- Điểm Morale toàn công ty: ' + score + '/100' + (prevScore !== null ? ' (tuần trước ' + prevScore + ', thay đổi ' + (delta >= 0 ? '+' : '') + delta + ')' : ''),
-      '- Tỷ lệ cảm xúc: ' + pct(G, total) + '% vui vẻ, ' + pct(N, total) + '% bình thường, ' + pct(S, total) + '% căng thẳng (' + total + ' lượt check-in)',
-      '- Tỷ lệ nhân viên tham gia check-in: ' + participationPct + '% (' + participants + '/' + active + ' nhân sự)',
-      '- Nhiệm vụ onboarding đang quá hạn: ' + overdue,
-      '- Số nhân viên có cờ nguy cơ kiệt sức trong tuần: ' + burnoutFlags,
-      '- Chi tiết phòng ban:', plainLines.join('\n'), '',
-      'Viết bản tin quản trị bằng tiếng Việt, văn bản thuần (KHÔNG HTML, KHÔNG Markdown, KHÔNG emoji), gồm 4 phần ngắn gọn:',
-      '1) Tóm tắt nhịp đập tinh thần toàn công ty trong 2 câu.',
-      '2) Cảnh báo điểm nóng: phòng ban nào cần lưu ý và vì sao (nếu không có thì ghi rõ không có).',
-      '3) Đề xuất đúng 2 hành động cụ thể cho tuần tới.',
-      '4) Một câu chúc cuối tuần ấm áp.',
-      'Chỉ dùng số liệu được cung cấp, tuyệt đối không bịa thêm số liệu.'
-    ].join('\n')
-    : 'Chỉ trả lời đúng một câu: Chưa có đủ dữ liệu check-in trong tuần để phân tích.';
-
-  return [{ json: {
-    hasData, weekStart, totalCheckins: total, score, prevScore, delta,
-    greatPct: pct(G, total), normalPct: pct(N, total), stressedPct: pct(S, total),
-    participationPct, participants, activeEmployees: active, lowParticipation: lowPart,
-    overdueTasks: overdue, burnoutFlags, hotspots,
-    deptLinesHtml: htmlLines.join('\n'), deptLinesPlain: plainLines.join('\n'),
-    aiPrompt, telegramChatId: CONFIG.TELEGRAM_CHAT_ID, hrEmail: CONFIG.HR_EMAIL
-  } }];
-} catch (err) {
-  throw new Error('[WF-04] Morale analysis error: ' + err.message);
-}
+});
 ```
+</details>
 
----
+<a id="node-4-06"></a>
+##### 🔹 Node 06 & 07: `AI Executive Strategic Advisor` & `Google Gemini Model`
+* **Loại node:** `@n8n/n8n-nodes-langchain.chainLlm` + `gemini-2.5-flash`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Gemini AI đóng vai trò Cố vấn Quản trị Nhân sự cấp cao: phân tích các con số, chỉ ra phòng ban cần lưu ý và đề xuất đúng 2 hành động cụ thể cho tuần tới để Ban Giám Đốc chỉ đạo."*
+<details>
+<summary><b>🔍 Xem Cấu trúc Prompt Cố vấn Quản trị Cấp cao</b></summary>
 
-#### Node 06: AI Executive Strategic Advisor
-* **Mã loại Node:** `@n8n/n8n-nodes-langchain.chainLlm` (v1.4)
-* **Tọa độ canvas:** `[1120, 300]`
-* **Thuộc tính chống lỗi:** `onError: "continueRegularOutput"` (Nếu API AI gặp trục trặc, quy trình vẫn tiếp tục gửi bản tin với fallback dự phòng).
-* **Vai trò:** Thực thi chuỗi LangChain LLM, truyền nội dung prompt được sinh ra từ Node 05 vào mô hình Gemini.
-* **Cấu hình tham số:**
-  * `promptType`: `"define"`
-  * `text`: `={{ $json.aiPrompt }}`
+```text
+Vai trò: Cố vấn Chiến lược Quản trị Nhân sự Cấp cao (Chief Human Resources Officer Advisor).
+Nhiệm vụ: Phân tích báo cáo tinh thần doanh nghiệp tuần này.
+Số liệu:
+- Company Morale Score: {{ $json.companyScore }}/100 (Chênh lệch: {{ $json.deltaFormatted }})
+- Tỷ lệ tham gia: {{ $json.participationRate }}%
+- Task Onboarding trễ hạn: {{ $json.overdueTasks }}
+- Phòng ban điểm nóng: {{ $json.hotspots }}
 
----
-
-#### Node 07: Google Gemini Chat Model
-* **Mã loại Node:** `@n8n/n8n-nodes-langchain.lmChatGoogleGemini` (v1)
-* **Tọa độ canvas:** `[1120, 520]`
-* **Credential liên kết:** `Google Gemini(PaLM) Api account` (`5sjnywIBZlOvIRb3`)
-* **Vai trò:** Cung cấp mô hình ngôn ngữ lớn tốc độ cao và suy luận chuẩn xác cho Node 06.
-* **Cấu hình tham số:**
-  * `modelName`: `"models/gemini-2.5-flash"`
-  * `temperature`: `0.4` (Giữ cho nhận định sắc bén, khách quan, bám sát số liệu).
-
----
-
-#### Node 08: Build Digest Card
-* **Mã loại Node:** `n8n-nodes-base.code` (v2 - JavaScript)
-* **Tọa độ canvas:** `[1340, 300]`
-* **Vai trò:** Đóng gói toàn bộ số liệu thống kê và lời khuyên của AI thành 2 định dạng đầu ra chuyên biệt:
-  * `telegramText`: Bản tin định dạng HTML tinh gọn, sử dụng emoji chỉ số (🟢, 🟡, 🔴) và ký hiệu xu hướng (📈, 📉, ➖).
-  * `emailBody` & `emailSubject`: Bản tin email trang trọng, đầy đủ chi tiết gửi trực tiếp tới hòm thư của Giám đốc Nhân sự.
-* **Mã nguồn JavaScript thực thi:**
-```javascript
-// WF-04 | Dựng bản tin gửi Telegram (HTML) và Email (text)
-const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-try {
-  const e = $('Morale Analytics Engine').first().json;
-  const ai = String($input.first().json.text || '').trim();
-  const aiFallback = 'Hệ thống chưa tạo được nhận định chiến lược tự động tuần này; vui lòng xem số liệu bên trên.';
-
-  if (!e.hasData) {
-    const msg = 'Chưa có đủ lượt check-in cảm xúc trong tuần (tính từ ' + e.weekStart + ') để tạo báo cáo phân tích. Hãy khuyến khích nhân viên check-in đều đặn!';
-    return [{ json: {
-      telegramText: '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN</b>\n\n⚠️ <i>' + esc(msg) + '</i>',
-      emailSubject: '[HR Executive Digest] Tuần ' + e.weekStart + ': chưa đủ dữ liệu',
-      emailBody: 'Bản tin sức khỏe tinh thần tuần\n\n' + msg
-    } }];
-  }
-
-  const icon = e.score >= 75 ? '🟢' : (e.score >= 55 ? '🟡' : '🔴');
-  const trendTg = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta > 0 ? '📈 +' + e.delta : (e.delta < 0 ? '📉 ' + e.delta : '➖ không đổi')) + ' so với tuần trước';
-  const trendPlain = e.delta === null ? 'chưa có dữ liệu tuần trước' : (e.delta >= 0 ? '+' : '') + e.delta + ' so với tuần trước';
-  const part = e.participationPct !== null ? e.participationPct + '% (' + e.participants + '/' + e.activeEmployees + ' nhân viên)' : 'không xác định';
-  const hot = e.hotspots.length ? e.hotspots.join(', ') : 'Không có';
-
-  const telegramText = [
-    '📊 <b>BẢN TIN SỨC KHỎE TINH THẦN TUẦN (WEEKLY MORALE DIGEST)</b>',
-    '<i>Tuần bắt đầu ' + esc(e.weekStart) + '</i>', '',
-    icon + ' <b>Chỉ số Morale toàn công ty:</b> <b>' + e.score + '/100</b> (' + trendTg + ')',
-    '📈 <b>Phân bổ cảm xúc:</b> 😊 ' + e.greatPct + '% | 😐 ' + e.normalPct + '% | 😫 ' + e.stressedPct + '%',
-    '📋 <b>Lượt check-in:</b> ' + e.totalCheckins + ' | <b>Tham gia:</b> ' + part + (e.lowParticipation ? ' ⚠️ thấp, kết quả có thể thiếu đại diện' : ''),
-    '🚧 <b>Task onboarding quá hạn:</b> ' + e.overdueTasks,
-    '🆘 <b>Nhân viên có cờ nguy cơ kiệt sức:</b> ' + e.burnoutFlags,
-    '🔥 <b>Điểm nóng:</b> ' + esc(hot), '',
-    '🏢 <b>Chi tiết phòng ban:</b>', e.deptLinesHtml, '',
-    '💡 <b>Nhận định chiến lược từ AI Advisor:</b>',
-    esc((ai || aiFallback).slice(0, 1800)), '',
-    '<i>Chúc toàn thể đội ngũ một cuối tuần thật nhiều năng lượng!</i>'
-  ].join('\n').substring(0, 4000);
-
-  const emailBody = [
-    'BẢN TIN SỨC KHỎE TINH THẦN TUẦN (tuần bắt đầu ' + e.weekStart + ')', '',
-    'Chỉ số Morale toàn công ty: ' + e.score + '/100 (' + trendPlain + ')',
-    'Phân bổ cảm xúc: vui ' + e.greatPct + '% | bình thường ' + e.normalPct + '% | căng thẳng ' + e.stressedPct + '%',
-    'Lượt check-in: ' + e.totalCheckins + ' | Tham gia: ' + part,
-    'Task onboarding quá hạn: ' + e.overdueTasks,
-    'Nhân viên có cờ nguy cơ kiệt sức: ' + e.burnoutFlags,
-    'Điểm nóng: ' + hot, '',
-    'Chi tiết phòng ban:', e.deptLinesPlain, '',
-    'Nhận định chiến lược từ AI Advisor:', (ai || aiFallback), '',
-    'HR Tech Automation System'
-  ].join('\n');
-
-  return [{ json: { telegramText, emailBody,
-    emailSubject: '[HR Executive Digest] Morale ' + e.score + '/100 - tuần ' + e.weekStart } }];
-} catch (err) {
-  return [{ json: {
-    telegramText: '📊 <b>Weekly Morale Digest</b>\n\nKhông dựng được bản tin tự động: ' + esc(err.message),
-    emailSubject: '[HR Executive Digest] Lỗi dựng bản tin',
-    emailBody: 'Không dựng được bản tin tự động: ' + err.message
-  } }];
-}
+Yêu cầu xuất ra JSON:
+1. executive_summary: Bức tranh toàn cảnh trong 2 câu súc tích.
+2. key_findings: 2 nhận định trọng tâm về tinh thần đội ngũ.
+3. action_recommendations: Đúng 2 hành động cụ thể cho Ban Giám đốc trong tuần tới.
 ```
+</details>
 
 ---
 
-#### Node 09: Telegram Management Digest
-* **Mã loại Node:** `n8n-nodes-base.telegram` (v1.2)
-* **Tọa độ canvas:** `[1560, 300]`
-* **Credential liên kết:** `Telegram account` (`nEgzOjvRL1PL6URH`)
-* **Vai trò:** Bắn bản tin tóm tắt tới nhóm Telegram Ban Điều Hành / HR Leadership.
-* **Cơ chế kiên cường (Resilience):**
-  * `retryOnFail: true`
-  * `maxTries: 3` (Thử lại tối đa 3 lần nếu mạng chập chờn)
-  * `waitBetweenTries: 2000` (Giãn cách 2 giây giữa các lần gọi)
-  * `onError: "continueRegularOutput"` (Không để lỗi Telegram làm gián đoạn email và lưu CSDL).
-* **Cấu hình tham số:**
-  * `chatId`: `={{ $('Morale Analytics Engine').first().json.telegramChatId }}` (Chat ID `6331216556`)
-  * `text`: `={{ $json.telegramText }}`
-  * `additionalFields.parse_mode`: `"HTML"`
+#### 🔴 GIAI ĐOẠN 4: PHÂN NHÁNH ĐIỂM NÓNG, ĐA KÊNH & LƯU VẾT
 
----
+<a id="node-4-08"></a>
+##### 🔹 Node 08: `Build Digest Card`
+* **Loại node:** `n8n-nodes-base.code` (JavaScript)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node này đóng gói số liệu và nhận định của AI thành các định dạng truyền thông trực quan: thẻ Telegram có biểu đồ phân bổ emoji, cờ cảnh báo điểm nóng và thư điện tử gửi Giám đốc Nhân sự."*
 
-#### Node 10: Email HR Director Report
-* **Mã loại Node:** `n8n-nodes-base.emailSend` (v2.1)
-* **Tọa độ canvas:** `[1780, 300]`
-* **Credential liên kết:** `SMTP account` (`Tg4vTrLPwQdSjMjS`)
-* **Thuộc tính chống lỗi:** `onError: "continueRegularOutput"`
-* **Vai trò:** Gửi thư điện tử chính thức tới Giám đốc Nhân sự để lưu hồ sơ và làm căn cứ cho cuộc họp giao ban đầu tuần sau.
-* **Cấu hình tham số:**
-  * `fromEmail`: `"noreply@company.com"`
-  * `toEmail`: `={{ $('Morale Analytics Engine').first().json.hrEmail }}` (`hr@company.com`)
-  * `subject`: `={{ $('Build Digest Card').first().json.emailSubject }}`
-  * `emailFormat`: `"text"`
-  * `text`: `={{ $('Build Digest Card').first().json.emailBody }}`
+<a id="node-4-09"></a>
+##### 🔹 Node 09: `Switch Hotspot Tier`
+* **Loại node:** `n8n-nodes-base.if` (Điều kiện `hasHotspots == true`)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node rẽ nhánh thông minh này kiểm tra cờ hasHotspots được tính toán từ Morale Analytics Engine. Nếu phát hiện bất kỳ phòng ban nào có tỷ lệ stress vượt ngưỡng 40% hoặc điểm Morale dưới 60, hệ thống lập tức kích hoạt nhánh cảnh báo khẩn cấp, ngược lại sẽ gửi bản tin tổng kết định kỳ bình thường."*
+<details>
+<summary><b>🔍 Xem Cấu hình Phân nhánh Cảnh báo Điểm nóng</b></summary>
 
----
+* **Condition Type:** Boolean Comparison
+* **Biểu thức kiểm tra:** `{{ $json.hasHotspots }}`
+* **Giá trị so sánh:** `true`
+* **Hành vi rẽ nhánh:**
+  * **Output 0 (True):** Kích hoạt Node 10 `Telegram Hotspot Warning` (Báo động đỏ khẩn cấp).
+  * **Output 1 (False):** Kích hoạt Node 11 `Telegram Management Digest` (Thẻ Radar tuần định kỳ chuẩn).
+</details>
 
-#### Node 11: MySQL Archive Morale Metrics
-* **Mã loại Node:** `n8n-nodes-base.mySql` (v2.4)
-* **Tọa độ canvas:** `[2000, 300]`
-* **Credential liên kết:** `MySQL account` (`hVFuUZOZqBxSICn4`)
-* **Thuộc tính chống lỗi:** `onError: "continueRegularOutput"`
-* **Vai trò:** Lưu trữ toàn bộ kết quả phân tích vào bảng `morale_reports`. Sử dụng cú pháp `ON DUPLICATE KEY UPDATE` theo khóa `week_start` để nếu chạy lại báo cáo trong cùng 1 tuần thì hệ thống sẽ cập nhật số liệu mới nhất chứ không bị lỗi trùng khóa.
-* **Câu lệnh SQL thực thi:**
+<a id="node-4-10"></a>
+##### 🔹 Node 10: `Telegram Hotspot Warning`
+* **Loại node:** `n8n-nodes-base.telegram`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Nếu có điểm nóng khủng hoảng, node này bắn ngay một thẻ tin Telegram với huy hiệu báo động đỏ '🚨 CẢNH BÁO ĐIỂM NÓNG KHẨN CẤP' kèm danh sách các phòng ban nguy cơ cao và khuyến nghị can thiệp ngay lập tức của AI để Ban Lãnh đạo nắm bắt trong vòng 10 giây."*
+<details>
+<summary><b>🔍 Xem Cấu trúc Bản tin Báo động đỏ Điểm nóng Khẩn cấp</b></summary>
+
+```html
+🚨 <b>[CẢNH BÁO ĐIỂM NÓNG KHẨN CẤP] PHÒNG BAN CĂNG THẲNG CAO</b>
+━━━━━━━━━━━━━━━━━━━━
+📊 <b>Company Morale:</b> 53/100 (📉 -27 so với tuần trước)
+⚠️ <b>Điểm nóng:</b> Kỹ Thuật & AI (Tỷ lệ Stress: 53%)
+
+🧠 <b>AI Cố Vấn Khẩn:</b>
+Phát hiện dấu hiệu quá tải nghiêm trọng tại phòng Kỹ Thuật do chạy nước rút Sprint release.
+
+⚡ <i>Ban Điều Hành cần chỉ đạo can thiệp giảm tải ngay trong sáng Thứ Hai!</i>
+```
+</details>
+
+<a id="node-4-11"></a>
+##### 🔹 Node 11: `Telegram Management Digest`
+* **Loại node:** `n8n-nodes-base.telegram`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Trong trường hợp chỉ số toàn công ty ổn định, node này gửi thẻ tin Radar Tinh thần tuần với phong cách trang nhã, biểu đồ emoji phân bổ năng lượng và lời tổng kết tuần tích cực."*
+<details>
+<summary><b>🔍 Xem Cấu trúc Bản tin Radar Tinh thần Tuần Định kỳ</b></summary>
+
+```html
+<b>WEEKLY MORALE RADAR · TUẦN 41</b>
+━━━━━━━━━━━━━━━━━━━━
+📊 <b>Chỉ số Morale Toàn Công Ty:</b> 89/100 (📈 +14 so với tuần trước)
+📈 <b>Tỷ lệ tham gia:</b> 92% | <b>Task Onboarding trễ:</b> 0
+🟢 <b>Phân bổ:</b> 😊 78% | 😐 17% | 😫 4%
+🛡️ <b>Điểm nóng:</b> Không có phòng ban nguy cơ cao
+
+💡 <b>Khuyến nghị AI:</b> Duy trì đà phát triển và biểu dương tinh thần làm việc xuất sắc của đội ngũ.
+```
+</details>
+
+<a id="node-4-12"></a>
+##### 🔹 Node 12: `Email HR Director Report`
+* **Loại node:** `n8n-nodes-base.emailSend` (SMTP)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Cả hai nhánh đều hội tụ về đây để gửi một email báo cáo HTML trang trọng và toàn diện tới hòm thư Giám đốc Nhân sự, đóng vai trò tài liệu chính thức cho buổi họp giao ban đầu tuần tới."*
+<details>
+<summary><b>🔍 Xem Cấu hình Gửi Email SMTP Báo cáo Tuần</b></summary>
+
+* **From:** `onboarding-automation@company.internal`
+* **To:** `hr-director@company.com`
+* **Subject:** `=[BÁO CÁO TUẦN] Morale Digest Tuần {{ $now.weekNumber }} (Điểm: {{ $json.companyScore }}/100)`
+* **Format:** HTML Responsive Template kèm bảng thống kê từng ban và đề xuất của Gemini AI.
+</details>
+
+<a id="node-4-13"></a>
+##### 🔹 Node 13: `MySQL Archive Morale Metrics`
+* **Loại node:** `n8n-nodes-base.mySql`
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Dữ liệu tuần được lưu trữ bền vững vào bảng morale_reports qua mệnh đề ON DUPLICATE KEY UPDATE, vừa làm cơ sở dữ liệu lịch sử vừa cung cấp dữ liệu tức thì cho Widget hiển thị trên giao diện Web của Manager."*
+<details>
+<summary><b>🔍 Xem câu lệnh SQL Lưu trữ Báo cáo Tuần (ON DUPLICATE KEY UPDATE)</b></summary>
+
 ```sql
 INSERT INTO morale_reports (
-  week_start, company_score, total_checkins, participation_pct, 
-  great_pct, normal_pct, stressed_pct, overdue_tasks, burnout_flags
+  week_start_date, week_end_date, overall_score, total_responses, 
+  sentiment_summary, risk_department, created_at
 ) VALUES (
-  '{{ $('Morale Analytics Engine').first().json.weekStart }}', 
-  {{ $('Morale Analytics Engine').first().json.score ?? 'NULL' }}, 
-  {{ $('Morale Analytics Engine').first().json.totalCheckins }}, 
-  {{ $('Morale Analytics Engine').first().json.participationPct ?? 'NULL' }}, 
-  {{ $('Morale Analytics Engine').first().json.greatPct }}, 
-  {{ $('Morale Analytics Engine').first().json.normalPct }}, 
-  {{ $('Morale Analytics Engine').first().json.stressedPct }}, 
-  {{ $('Morale Analytics Engine').first().json.overdueTasks }}, 
-  {{ $('Morale Analytics Engine').first().json.burnoutFlags }}
-) 
-ON DUPLICATE KEY UPDATE 
-  company_score = VALUES(company_score), 
-  total_checkins = VALUES(total_checkins), 
-  participation_pct = VALUES(participation_pct), 
-  great_pct = VALUES(great_pct), 
-  normal_pct = VALUES(normal_pct), 
-  stressed_pct = VALUES(stressed_pct), 
-  overdue_tasks = VALUES(overdue_tasks), 
-  burnout_flags = VALUES(burnout_flags);
+  {{ $json.weekStartDate }}, {{ $json.weekEndDate }}, {{ $json.companyScore }}, 
+  {{ $json.totalCheckins }}, {{ $json.aiSummary }}, {{ $json.hotspotDept }}, NOW()
+)
+ON DUPLICATE KEY UPDATE
+  overall_score = VALUES(overall_score),
+  total_responses = VALUES(total_responses),
+  sentiment_summary = VALUES(sentiment_summary),
+  risk_department = VALUES(risk_department),
+  updated_at = NOW();
 ```
+</details>
+
+<a id="node-4-14"></a>
+##### 🔹 Node 14: `Summary Audit Logger`
+* **Loại node:** `n8n-nodes-base.code` (JavaScript)
+* 🎙️ **Cách nói tự nhiên:**
+  > *"Node cuối cùng ghi nhận nhật ký kiểm toán hệ thống (Audit Log), theo dõi thời gian thực thi, số lượng phòng ban đã phân tích và trạng thái xuất bản đa kênh, đảm bảo toàn bộ chu trình vận hành đạt chuẩn Enterprise Observability."*
+<details>
+<summary><b>🔍 Xem Mã nguồn JavaScript Kiểm toán Hệ thống</b></summary>
+
+```javascript
+const report = $('Build Digest Card').first().json;
+return [{
+  json: {
+    status: 'COMPLETED',
+    workflow: 'WF-04 Weekly Morale Digest',
+    companyScore: report.companyScore,
+    hasHotspots: report.hasHotspots,
+    hotspotDept: report.hotspotDept,
+    totalCheckins: report.totalCheckins,
+    archivedAt: $now.toISO(),
+    message: 'Weekly morale digest published and archived successfully'
+  }
+}];
+```
+</details>
+
+[⬆ Trở về Mục lục](#muc-luc)
 
 ---
 
@@ -1794,8 +1630,9 @@ Invoke-RestMethod -Uri "http://localhost:5678/webhook-test/weekly-morale-digest"
   -Body '{"mockGreat":18,"mockNormal":4,"mockStressed":1,"mockPrevScore":75,"mockDept":"Kỹ Thuật & AI"}'
 ```
 * **Kết quả quan sát được:**
-  * Tất cả 11 nodes trên canvas n8n sáng xanh lá cây 100%.
+  * Tất cả các node trên nhánh chính (13/14 nodes) sáng xanh lá cây 100%, nhánh FALSE của Node 09 (`Switch Hotspot Tier`) dẫn tới Node 11 (`Telegram Management Digest`) được kích hoạt.
   * Thẻ Telegram hiển thị: Biểu tượng 🟢, Điểm Morale `89/100 (📈 +14 so với tuần trước)`, Phân bổ `😊 78% | 😐 17% | 😫 4%`, Điểm nóng: `Không có`.
+  * Node 14 (`Summary Audit Logger`) ghi nhận log kiểm toán: `status: 'COMPLETED'`, `hasHotspots: false`.
   * Gemini AI chúc mừng tinh thần tích cực và đề xuất duy trì phong độ cho tuần tiếp theo.
 
 ---
@@ -1823,8 +1660,10 @@ Invoke-RestMethod -Uri "http://localhost:5678/webhook-test/weekly-morale-digest"
   -Body '{"mockGreat":3,"mockNormal":4,"mockStressed":8,"mockPrevScore":80,"mockDept":"Kỹ Thuật & AI"}'
 ```
 * **Kết quả quan sát được:**
+  * Nhánh TRUE của Node 09 (`Switch Hotspot Tier`) được kích hoạt: Node 10 (`Telegram Hotspot Warning`) bắn ngay thẻ tin báo động đỏ `🚨 [CẢNH BÁO ĐIỂM NÓNG KHẨN CẤP]` gửi tới Ban Lãnh đạo C-Level.
   * Thẻ Telegram hiển thị: Biểu tượng 🔴, Điểm Morale `53/100 (📉 -27 so với tuần trước)`.
-  * Dòng Điểm nóng xuất hiện: `🔥 Điểm nóng: Kỹ Thuật & AI ⚠️`.
+  * Dòng Điểm nóng xuất hiện: `🔥 Điểm nóng: Kỹ Thuật & AI ⚠️ (Tỷ lệ Stress: 53%)`.
+  * Node 14 (`Summary Audit Logger`) ghi nhận log kiểm toán: `status: 'COMPLETED'`, `hasHotspots: true`, `hotspotDept: 'Kỹ Thuật & AI'`.
   * Gemini AI phân tích: Nhấn mạnh tình trạng quá tải tại phòng Kỹ Thuật, cảnh báo rủi ro kiệt sức nhân tài và đề xuất Giám đốc Nhân sự rà soát ngay khối lượng công việc Sprint vào sáng Thứ Hai.
 
 ---
@@ -2098,6 +1937,21 @@ Dưới đây là 10 câu hỏi hóc búa nhất mà các Giảng viên chấm t
   * Thành viên 2 phụ trách **Tầng Trải nghiệm Người dùng** (React Frontend).
   * Còn em (Thành viên 3) phụ trách **Tầng Trí tuệ Nhân tạo & Tự động hóa Doanh nghiệp** (AI & Automation Layer).
   Nếu không có phân hệ của em, dự án sẽ chỉ dừng lại ở một ứng dụng quản lý nhân sự tĩnh thông thường — nhân viên nhập dữ liệu vào CSDL rồi để đó. Chính 4 luồng tự động hóa của em đã **thổi sức sống vào dữ liệu**, biến hệ thống thành một **Trợ lý Ảo Onboarding & Radar Tinh Thần** chủ động tương tác hai chiều, đồng hành cùng nhân viên và tư vấn chiến lược cho Ban Giám Đốc."*
+
+---
+
+#### ❓ Câu 11: Em hãy mở trực tiếp Source Code trong Project NestJS / React chỉ cho thầy chỗ nào kết nối và gọi sang n8n?
+* **✅ Câu trả lời chuẩn Kỹ sư (Điểm 10):**  
+  *"Dạ thưa thầy/cô, hệ thống kết nối với n8n theo 2 cơ chế kiến trúc rõ ràng:
+
+  **1. Cơ chế 1: Event-Driven Webhook (Thời gian thực) — Luồng 1 (Burnout Alert):**
+  * Em mở file [`backend/src/modules/onboarding/onboarding.service.ts`](file:///f:/HumanResources/backend/src/modules/onboarding/onboarding.service.ts#L253-L276) (Hàm `recordMoodCheckIn`, dòng 253 - 276): Khi nhân viên check-in tâm trạng, nếu số ngày stress $\ge 3$ (`totalStressDays >= 3`), hệ thống đánh dấu `isBurnoutRisk = true` và gọi `this.n8nService.triggerBurnoutAlert(...)`.
+  * Tiếp tục mở file [`backend/src/modules/core/automation/n8n.service.ts`](file:///f:/HumanResources/backend/src/modules/core/automation/n8n.service.ts#L75-L110) (Hàm `triggerBurnoutAlert` & `postWebhook`, dòng 75 - 110): Backend thực hiện lệnh `fetch` HTTP POST tới endpoint `http://localhost:5678/webhook/burnout-alert`. Đặc biệt, lệnh này được gọi bất đồng bộ với Timeout 10s và khối `catch` độc lập, đảm bảo không bao giờ làm nghẽn request của người dùng web.
+
+  **2. Cơ chế 2: Data-Driven Polling qua n8n Cron — Luồng 2, 3 và 4:**
+  * Các luồng này **không cần Backend gọi sang n8n**. Người dùng tương tác qua giao diện React ([`EmployeeWorkspacePage.tsx`](file:///f:/HumanResources/frontend/src/pages/EmployeeWorkspacePage.tsx)), dữ liệu ghi vào bảng `employee_moods` và `onboarding_tasks`.
+  * Định kỳ theo lịch Cron (09:00 sáng, 08:30 sáng Thứ Hai, 17:00 chiều Thứ Sáu), n8n tự động kết nối trực tiếp MySQL để quét dữ liệu. Sau khi xử lý xong, n8n ghi ngược kết quả vào bảng `morale_reports` để hiển thị trên Dashboard Quản trị ([`ManagerTeamMoodWidget.tsx`](file:///f:/HumanResources/frontend/src/features/team-mood/ManagerTeamMoodWidget.tsx) & [`WeeklyMoodAnalyticsWidget.tsx`](file:///f:/HumanResources/frontend/src/features/team-mood/components/WeeklyMoodAnalyticsWidget.tsx)).
+  * Thiết kế này giải phóng 100% tài nguyên CPU của Backend NestJS khỏi các tác vụ Cron quét CSDL định kỳ."*
 
 ---
 

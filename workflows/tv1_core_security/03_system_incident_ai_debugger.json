@@ -97,7 +97,7 @@
     {
       "parameters": {
         "chatId": "8928574834",
-        "text": "=🗄️ *[DBA BÁO ĐỘNG] SỰ CỐ CƠ SỞ DỮ LIỆU MYSQL*\n\n• *Mã sự cố:* `{{ $json.incidentRef }}`\n• *API:* `{{ $json.method }} {{ $json.endpoint }}`\n• *Vị trí:* `{{ $json.culpritFile }}:{{ $json.culpritLine }}`\n• *Chi tiết:* `{{ $json.errorMessage }}`\n• *Chẩn đoán AI:* {{ $json.aiDiagnostic.rootCause }}\n• *Đề xuất:* {{ $json.aiDiagnostic.suggestedFix }}\n\n_Vui lòng kiểm tra ngay connection pool và transaction timeout._",
+        "text": "=🗄️ *[DBA BÁO ĐỘNG] SỰ CỐ CƠ SỞ DỮ LIỆU MYSQL*\n\n• *Mã sự cố:* `{{ $('6. Format Actionable Playbook').first().json.incidentRef }}`\n• *API:* `{{ $('6. Format Actionable Playbook').first().json.method }} {{ $('6. Format Actionable Playbook').first().json.endpoint }}`\n• *Vị trí:* `{{ $('6. Format Actionable Playbook').first().json.culpritFile }}:{{ $('6. Format Actionable Playbook').first().json.culpritLine }}`\n• *Chi tiết:* `{{ $('6. Format Actionable Playbook').first().json.errorMessage }}`\n• *Chẩn đoán AI:* {{ $('6. Format Actionable Playbook').first().json.aiDiagnostic ? $('6. Format Actionable Playbook').first().json.aiDiagnostic.rootCause : 'Đang phân tích' }}\n• *Đề xuất:* {{ $('6. Format Actionable Playbook').first().json.aiDiagnostic ? $('6. Format Actionable Playbook').first().json.aiDiagnostic.suggestedFix : 'Kiểm tra kết nối CSDL' }}\n\n_Vui lòng kiểm tra ngay connection pool và transaction timeout._",
         "additionalFields": {
           "parse_mode": "Markdown"
         }
@@ -112,7 +112,7 @@
     {
       "parameters": {
         "chatId": "8928574834",
-        "text": "=⚠️ *[DEV BÁO ĐỘNG] SỰ CỐ CODE LOGIC BACKEND*\n\n• *Mã sự cố:* `{{ $json.incidentRef }}`\n• *API:* `{{ $json.method }} {{ $json.endpoint }}`\n• *Module:* `{{ $json.culpritFile }}` (Dòng {{ $json.culpritLine }})\n• *Lỗi:* `{{ $json.errorMessage }}`\n• *AI Gợi ý:* {{ $json.aiDiagnostic.suggestedFix }}\n\n_Đã tạo ticket theo dõi sự cố trên hệ thống kiểm toán._",
+        "text": "=⚠️ *[DEV BÁO ĐỘNG] SỰ CỐ CODE LOGIC BACKEND*\n\n• *Mã sự cố:* `{{ $('6. Format Actionable Playbook').first().json.incidentRef }}`\n• *API:* `{{ $('6. Format Actionable Playbook').first().json.method }} {{ $('6. Format Actionable Playbook').first().json.endpoint }}`\n• *Module:* `{{ $('6. Format Actionable Playbook').first().json.culpritFile }}` (Dòng {{ $('6. Format Actionable Playbook').first().json.culpritLine }})\n• *Lỗi:* `{{ $('6. Format Actionable Playbook').first().json.errorMessage }}`\n• *AI Gợi ý:* {{ $('6. Format Actionable Playbook').first().json.aiDiagnostic ? $('6. Format Actionable Playbook').first().json.aiDiagnostic.suggestedFix : 'Kiểm tra logic backend' }}\n\n_Đã tạo ticket theo dõi sự cố trên hệ thống kiểm toán._",
         "additionalFields": {
           "parse_mode": "Markdown"
         }

@@ -115,7 +115,7 @@
     {
       "parameters": {
         "chatId": "8928574834",
-        "text": "=🚨 *[DEVSECOPS BÁO ĐỘNG ĐỎ] TỰ ĐỘNG CHẶN BRUTE-FORCE*\n\n• *Mã sự cố:* `{{ $json.incidentId }}`\n• *Mức độ:* `{{ $json.riskTier }}`\n• *IP bị cấm:* `{{ $json.ip }}`\n• *Mục tiêu:* `{{ $json.email }}` (Role: `{{ $json.targetRole }}`)\n• *Số lần gõ sai:* `{{ $json.failedAttempts }} lần` / 15 phút\n• *Thời gian khóa:* `{{ $json.banMinutes }} phút` (Hết hạn: `{{ $json.banUntil }}`)\n• *Nhận định AI:* {{ $json.aiAssessment }}\n\n_Hệ thống đã tự động thêm IP vào tường lửa Blacklist Backend._",
+        "text": "=🚨 *[DEVSECOPS BÁO ĐỘNG ĐỎ] TỰ ĐỘNG CHẶN BRUTE-FORCE*\n\n• *Mã sự cố:* `{{ $('7. Gemini AI Threat Classifier').first().json.incidentId }}`\n• *Mức độ:* `{{ $('7. Gemini AI Threat Classifier').first().json.riskTier }}`\n• *IP bị cấm:* `{{ $('7. Gemini AI Threat Classifier').first().json.ip }}`\n• *Mục tiêu:* `{{ $('7. Gemini AI Threat Classifier').first().json.email }}` (Role: `{{ $('7. Gemini AI Threat Classifier').first().json.targetRole || 'ADMIN' }}`)\n• *Số lần gõ sai:* `{{ $('7. Gemini AI Threat Classifier').first().json.failedAttempts }}` lần / 15 phút\n• *Thời gian khóa:* `{{ $('7. Gemini AI Threat Classifier').first().json.banMinutes }}` phút (Hết hạn: `{{ $('7. Gemini AI Threat Classifier').first().json.banUntil }}`)\n• *Nhận định AI:* {{ $('7. Gemini AI Threat Classifier').first().json.aiAssessment }}\n\n_Hệ thống đã tự động thêm IP vào tường lửa Blacklist Backend._",
         "additionalFields": {
           "parse_mode": "Markdown"
         }

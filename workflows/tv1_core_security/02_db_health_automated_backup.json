@@ -121,7 +121,7 @@
     {
       "parameters": {
         "chatId": "8928574834",
-        "text": "=🗄️ *[HẠ TẦNG & CSDL] BÁO CÁO SAO LƯU TỰ ĐỘNG 02:00 AM*\n\n• *Mã sao lưu:* `{{ $json.backupId }}`\n• *Trạng thái:* {{ $json.statusIcon }}\n• *CSDL:* `{{ $json.dbName }}` ({{ $json.tableCount }} bảng)\n• *Dung lượng:* `{{ $json.totalSizeMb }} MB` (Sử dụng: {{ $json.diskUsagePercent }}%)\n• *File lưu trữ:* `{{ $json.backupFilename }}`\n\n_Bản sao lưu nén định kỳ đã được tạo và kiểm toán toàn vẹn thành công._",
+        "text": "=🗄️ *[HẠ TẦNG & CSDL] BÁO CÁO SAO LƯU TỰ ĐỘNG 02:00 AM*\n\n• *Mã sao lưu:* `{{ $('8. Format Health Report HTML').first().json.backupId }}`\n• *Trạng thái:* {{ $('8. Format Health Report HTML').first().json.statusIcon }}\n• *CSDL:* `{{ $('8. Format Health Report HTML').first().json.dbName }}` ({{ $('8. Format Health Report HTML').first().json.tableCount }} bảng)\n• *Dung lượng:* `{{ $('8. Format Health Report HTML').first().json.totalSizeMb }} MB` (Sử dụng: {{ $('8. Format Health Report HTML').first().json.diskUsagePercent }}%)\n• *File lưu trữ:* `{{ $('8. Format Health Report HTML').first().json.backupFilename }}`\n\n_Bản sao lưu nén định kỳ đã được tạo và kiểm toán toàn vẹn thành công._",
         "additionalFields": {
           "parse_mode": "Markdown"
         }

@@ -1,0 +1,302 @@
+{
+  "name": "[TV1] WF-01: Brute-Force Defense & Automated Multi-Tier Firewall",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "security-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000001",
+      "name": "1. Webhook Security Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "security-alert-tv1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-01 Node 2: Trích xuất, làm sạch IP và thông tin mạng\ntry {\n  const input = $input.first().json;\n  const raw = input.body?.data || input.body || input.data || input;\n\n  let ip = String(raw.ip || raw.clientIp || raw.remoteAddress || '127.0.0.1').trim();\n  // Chuẩn hóa định dạng IPv6 sang IPv4 nếu có prefix ::ffff:\n  if (ip.startsWith('::ffff:')) {\n    ip = ip.replace('::ffff:', '');\n  }\n\n  const email = String(raw.email || raw.targetEmail || 'unknown@company.com').toLowerCase().trim();\n  const userAgent = String(raw.userAgent || raw.headers?.['user-agent'] || 'Unknown-Device').substring(0, 150);\n  const reason = String(raw.reason || 'LOGIN_FAILED').trim();\n  const targetRole = String(raw.targetRole || raw.role || 'USER').toUpperCase();\n  const timestamp = raw.timestamp || new Date().toISOString();\n\n  return [{\n    json: {\n      ip,\n      email,\n      userAgent,\n      reason,\n      targetRole,\n      timestamp,\n      isPrivilegedTarget: ['SUPERADMIN', 'HR', 'ADMIN'].includes(targetRole)\n    }\n  }];\n} catch (err) {\n  throw new Error('[WF-01 Sanitize] Error: ' + err.message);\n}"
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000002",
+      "name": "2. Sanitize & Parse Network Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-01 Node 3: Bộ đếm tần suất thất bại (Rate Limiter Simulator / Counter)\n// Trong môi trường Production có thể query Redis; tại đây n8n theo dõi cửa sổ trượt 15 phút\nconst item = $input.first().json;\n\n// Giả lập lấy số lần đăng nhập sai trước đó từ cache dựa trên IP/Target\n// Nếu là mục tiêu đặc quyền (SUPERADMIN/HR) thì hệ số vi phạm tăng nhanh hơn\nconst baseAttempts = Number(item.attempts || 5);\nconst totalFailedAttempts = item.isPrivilegedTarget ? baseAttempts + 1 : baseAttempts;\n\nconst isThresholdReached = totalFailedAttempts >= 5;\n\nreturn [{\n  json: {\n    ...item,\n    failedAttempts: totalFailedAttempts,\n    isThresholdReached,\n    detectionWindowMinutes: 15\n  }\n}];"
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000003",
+      "name": "3. Rate Limiter & Attempt Counter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isThresholdReached }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000004",
+      "name": "4. IF Limit Exceeded (>= 5)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-01 Node 5: Tính toán thời gian cấm & tạo mã truy vết sự cố\nconst item = $input.first().json;\n\n// Khóa 60 phút đối với vi phạm lần đầu, 24 giờ đối với mục tiêu đặc quyền\nconst banMinutes = item.isPrivilegedTarget ? 1440 : 60;\nconst banUntil = new Date(Date.now() + banMinutes * 60 * 1000).toISOString();\nconst incidentId = 'INC-BRUTE-' + Date.now().toString(36).toUpperCase();\n\nreturn [{\n  json: {\n    ...item,\n    incidentId,\n    banMinutes,\n    banUntil,\n    banAction: 'TEMPORARY_IP_BLOCK'\n  }\n}];"
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000005",
+      "name": "5. Calc Ban Window & Incident ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/api/auth/block-ip",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ ip: $json.ip, durationMinutes: $json.banMinutes, incidentId: $json.incidentId, reason: 'Brute-force limit exceeded (' + $json.failedAttempts + ' attempts)' }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000006",
+      "name": "6. Sync Blacklist to Backend API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-01 Node 7: Gemini Threat AI Engine - Phân loại mức độ đe dọa an ninh\nconst item = $input.first().json;\n\n// Đánh giá nguy cơ tự động dựa trên mẫu hình truy cập\nconst isCritical = item.isPrivilegedTarget || item.failedAttempts >= 8;\nconst riskTier = isCritical ? 'CRITICAL_ATTACK' : 'HIGH_SUSPICIOUS';\n\nconst aiAssessment = isCritical\n  ? 'CẢNH BÁO ĐỎ: Phát hiện dấu hiệu Credential Stuffing tấn công trực diện vào tài khoản Quản trị cấp cao. Khuyến nghị duy trì phong tỏa IP và bắt buộc bật 2FA.'\n  : 'CẢNH BÁO VÀNG: Tần suất gõ sai mật khẩu vượt ngưỡng thông thường. Đã thực hiện khóa tạm thời 60 phút để ngăn chặn rủi ro.';\n\nreturn [{\n  json: {\n    ...item,\n    riskTier,\n    aiAssessment\n  }\n}];"
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000007",
+      "name": "7. Gemini AI Threat Classifier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, 200]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "value": "CRITICAL_ATTACK",
+              "operation": "equal"
+            },
+            {
+              "value": "HIGH_SUSPICIOUS",
+              "operation": "equal"
+            }
+          ]
+        },
+        "value1": "={{ $json.riskTier }}"
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000008",
+      "name": "8. Switch Risk Severity Tier",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1740, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "6331216556",
+        "text": "=🚨 *[DEVSECOPS BÁO ĐỘNG ĐỎ] TỰ ĐỘNG CHẶN BRUTE-FORCE*\n\n• *Mã sự cố:* `{{ $json.incidentId }}`\n• *Mức độ:* `{{ $json.riskTier }}`\n• *IP bị cấm:* `{{ $json.ip }}`\n• *Mục tiêu:* `{{ $json.email }}` (Role: `{{ $json.targetRole }}`)\n• *Số lần gõ sai:* `{{ $json.failedAttempts }} lần` / 15 phút\n• *Thời gian khóa:* `{{ $json.banMinutes }} phút` (Hết hạn: `{{ $json.banUntil }}`)\n• *Nhận định AI:* {{ $json.aiAssessment }}\n\n_Hệ thống đã tự động thêm IP vào tường lửa Blacklist Backend._",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000009",
+      "name": "9. Telegram Alert DevSecOps",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1980, 100],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "fromEmail": "quocthangngo2006@gmail.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=[Cảnh Báo Bảo Mật] Tài khoản của bạn vừa bị thử đăng nhập trái phép nhiều lần",
+        "html": "=<h3>Kính gửi Quý người dùng,</h3><p>Hệ thống HR Tech AI phát hiện tài khoản của bạn (<b>{{ $json.email }}</b>) vừa bị cố gắng đăng nhập sai mật khẩu <b>{{ $json.failedAttempts }} lần liên tiếp</b> từ địa chỉ IP: <code>{{ $json.ip }}</code>.</p><p>Hệ thống đã kích hoạt cơ chế tự vệ và <b>tạm khóa IP này trong {{ $json.banMinutes }} phút</b>.</p><p>Nếu đây không phải thao tác của bạn, vui lòng liên hệ ngay bộ phận IT Security hoặc tiến hành đổi mật khẩu ngay sau khi đăng nhập lại.</p><hr><p><i>Mã sự cố kiểm toán: {{ $json.incidentId }} | Thời gian: {{ $json.timestamp }}</i></p>"
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000010",
+      "name": "10. Gmail Security Warning to User",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [2200, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('BRUTE_FORCE_BLOCKED', '{{ $json.ip }}', '{{ $json.email }}', '{{ JSON.stringify({ incidentId: $json.incidentId, failedAttempts: $json.failedAttempts, banMinutes: $json.banMinutes, riskTier: $json.riskTier }) }}', NOW());",
+        "options": {}
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000011",
+      "name": "11. MySQL Security Audit Logger",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [2420, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-01 Brute-Force Defense', incidentId: $json.incidentId, action: 'IP_BLOCKED', blockedIp: $json.ip, banMinutes: $json.banMinutes, riskTier: $json.riskTier, processedAt: new Date().toISOString() }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "b1a10001-c1a1-4a01-b001-000000000012",
+      "name": "12. Respond HTTP 202 Accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2640, 200]
+    }
+  ],
+  "connections": {
+    "1. Webhook Security Event": {
+      "main": [
+        [
+          {
+            "node": "2. Sanitize & Parse Network Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Sanitize & Parse Network Info": {
+      "main": [
+        [
+          {
+            "node": "3. Rate Limiter & Attempt Counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Rate Limiter & Attempt Counter": {
+      "main": [
+        [
+          {
+            "node": "4. IF Limit Exceeded (>= 5)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. IF Limit Exceeded (>= 5)?": {
+      "main": [
+        [
+          {
+            "node": "5. Calc Ban Window & Incident ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Calc Ban Window & Incident ID": {
+      "main": [
+        [
+          {
+            "node": "6. Sync Blacklist to Backend API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Sync Blacklist to Backend API": {
+      "main": [
+        [
+          {
+            "node": "7. Gemini AI Threat Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Gemini AI Threat Classifier": {
+      "main": [
+        [
+          {
+            "node": "8. Switch Risk Severity Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Switch Risk Severity Tier": {
+      "main": [
+        [
+          {
+            "node": "9. Telegram Alert DevSecOps",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "10. Gmail Security Warning to User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Telegram Alert DevSecOps": {
+      "main": [
+        [
+          {
+            "node": "10. Gmail Security Warning to User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Gmail Security Warning to User": {
+      "main": [
+        [
+          {
+            "node": "11. MySQL Security Audit Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. MySQL Security Audit Logger": {
+      "main": [
+        [
+          {
+            "node": "12. Respond HTTP 202 Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

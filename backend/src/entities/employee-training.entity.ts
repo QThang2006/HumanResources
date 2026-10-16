@@ -45,6 +45,21 @@ export class EmployeeTraining {
   @Column({ name: 'completed_at', type: 'datetime', nullable: true })
   completedAt: Date;
 
+  @Column({ name: 'due_at', type: 'datetime', nullable: true })
+  dueAt: Date;
+
+  @Column({ name: 'last_reminder_at', type: 'datetime', nullable: true })
+  lastReminderAt: Date;
+
+  @Column({ name: 'reminder_count', type: 'int', default: 0 })
+  reminderCount: number;
+
+  @Column({ name: 'manager_escalated_at', type: 'datetime', nullable: true })
+  managerEscalatedAt: Date;
+
+  @Column({ name: 'last_reminder_run_id', type: 'varchar', length: 100, nullable: true })
+  lastReminderRunId: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

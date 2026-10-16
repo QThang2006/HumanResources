@@ -106,13 +106,36 @@ export class N8nService {
     return this.postWebhook(url, fullPayload, 'Cảnh báo nguy cơ kiệt sức');
   }
 
-  private async postWebhook(url: string, data: any, actionName: string): Promise<boolean> {
+  /**
+   * Kích hoạt quy trình thôi việc liên phòng ban sau khi HR đã duyệt.
+   */
+  async triggerOffboardingApproved(payload: { caseId: number }): Promise<boolean> {
+    const url = `${this.webhookBaseUrl}/tv4-offboarding`;
+    const automationSecret = this.configService
+      .get<string>('N8N_AUTOMATION_SECRET')
+      ?.trim();
+    return this.postWebhook(
+      url,
+      payload,
+      'Điều phối thôi việc liên phòng ban',
+      automationSecret
+        ? { 'X-Automation-Secret': automationSecret }
+        : undefined,
+    );
+  }
+
+  private async postWebhook(
+    url: string,
+    data: any,
+    actionName: string,
+    extraHeaders?: Record<string, string>,
+  ): Promise<boolean> {
     try {
       this.logger.log(`[n8n Dispatcher] Bắn webhook [${actionName}] tới: ${url}`);
       // Gọi fetch bất đồng bộ, không làm nghẽn luồng xử lý chính của người dùng
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...extraHeaders },
         signal: AbortSignal.timeout(10000),
         body: JSON.stringify({
           event: actionName,

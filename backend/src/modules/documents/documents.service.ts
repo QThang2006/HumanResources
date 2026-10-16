@@ -97,7 +97,7 @@ export class DocumentsService {
                 title: savedDocument.title,
                 status: savedDocument.status,
                 chunkCount: chunks.length,
-                message: 'Tài liệu đã được xử lý và đưa vào Knowledge Base.',
+                message: 'Tài liệu đã được xử lý và đưa vào Kho tri thức.',
             };
         } catch (error) {
             savedDocument.status = DocumentStatus.FAILED;

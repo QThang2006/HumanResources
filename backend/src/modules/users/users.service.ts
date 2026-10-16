@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+    Injectable,
+    NotFoundException,
+    BadRequestException,
+    ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../../entities/user.entity';
 import { Department } from '../../entities/department.entity';
-
 @Injectable()
 export class UsersService {
   constructor(
@@ -42,7 +46,261 @@ export class UsersService {
     }
     return user;
   }
+    async getDepartments() {
+        const departments = await this.deptRepository.find({
+            order: {
+                name: 'ASC',
+            },
+        });
 
+        return departments.map(department => ({
+            id: department.id,
+            name: department.name,
+            code: department.code,
+            description: department.description,
+        }));
+    }
+    async createDepartment(data: {
+        name: string;
+        code: string;
+        description?: string;
+    }) {
+        const name = data.name.trim();
+        const code = data.code.trim().toUpperCase();
+
+        if (!name || !code) {
+            throw new BadRequestException(
+                'Tên phòng ban và mã phòng ban không được để trống.',
+            );
+        }
+
+        const existing = await this.deptRepository.findOne({
+            where: [
+                { name },
+                { code },
+            ],
+        });
+
+        if (existing) {
+            throw new ConflictException(
+                'Tên hoặc mã phòng ban đã tồn tại.',
+            );
+        }
+
+        const department = this.deptRepository.create({
+            name,
+            code,
+            description: data.description?.trim() || undefined,
+        });
+
+        const saved = await this.deptRepository.save(department);
+
+        return {
+            success: true,
+            message: `Đã tạo phòng ban "${saved.name}".`,
+            department: saved,
+        };
+    }
+    async createUser(data: {
+        fullName: string;
+        email: string;
+        password: string;
+        phone?: string;
+        jobTitle?: string;
+        departmentId?: number;
+        role: UserRole;
+    }) {
+        const fullName = data.fullName.trim();
+        const email = data.email.trim().toLowerCase();
+        const password = data.password;
+
+        if (!fullName || !email || !password.trim()) {
+            throw new BadRequestException(
+                'Họ tên, email và mật khẩu không được để trống.',
+            );
+        }
+
+        if (!email.includes('@')) {
+            throw new BadRequestException(
+                'Email không hợp lệ.',
+            );
+        }
+
+        if (password.length < 6) {
+            throw new BadRequestException(
+                'Mật khẩu phải có ít nhất 6 ký tự.',
+            );
+        }
+
+        const validRoles = Object.values(UserRole);
+
+        if (!validRoles.includes(data.role)) {
+            throw new BadRequestException(
+                'Vai trò người dùng không hợp lệ.',
+            );
+        }
+
+        const existingUser = await this.userRepository.findOne({
+            where: { email },
+        });
+
+        if (existingUser) {
+            throw new ConflictException(
+                'Email này đã được sử dụng.',
+            );
+        }
+
+        if (data.departmentId !== undefined) {
+            const department = await this.deptRepository.findOne({
+                where: { id: data.departmentId },
+            });
+
+            if (!department) {
+                throw new NotFoundException(
+                    'Không tìm thấy phòng ban.',
+                );
+            }
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        const user = this.userRepository.create({
+            fullName,
+            email,
+            passwordHash,
+            phone: data.phone?.trim() || undefined,
+            jobTitle: data.jobTitle?.trim() || undefined,
+            departmentId: data.departmentId,
+            role: data.role,
+            isActive: true,
+        });
+
+        const savedUser = await this.userRepository.save(user);
+
+        const createdUser = await this.userRepository.findOne({
+            where: { id: savedUser.id },
+            relations: ['department'],
+        });
+
+        return {
+            success: true,
+            message: `Đã tạo người dùng "${savedUser.fullName}" thành công.`,
+            user: {
+                id: createdUser!.id,
+                fullName: createdUser!.fullName,
+                email: createdUser!.email,
+                phone: createdUser!.phone,
+                jobTitle: createdUser!.jobTitle,
+                departmentId: createdUser!.departmentId,
+                department: createdUser!.department
+                    ? {
+                        id: createdUser!.department.id,
+                        name: createdUser!.department.name,
+                        description: createdUser!.department.description,
+                    }
+                    : undefined,
+                role: createdUser!.role,
+                isActive: createdUser!.isActive,
+            },
+        };
+    }
+    async updateUser(
+        userId: number,
+        data: {
+            departmentId?: number;
+            jobTitle?: string;
+            role?: UserRole;
+            isActive?: boolean;
+        },
+    ) {
+        const user = await this.findById(userId);
+
+        if (data.departmentId !== undefined) {
+            const department = await this.deptRepository.findOne({
+                where: { id: data.departmentId },
+            });
+
+            if (!department) {
+                throw new NotFoundException('Không tìm thấy phòng ban.');
+            }
+
+            user.departmentId = department.id;
+        }
+
+        if (data.jobTitle !== undefined) {
+            user.jobTitle = data.jobTitle.trim();
+        }
+
+        if (data.role !== undefined) {
+            if (user.id === 1 && data.role !== UserRole.SUPERADMIN) {
+                throw new BadRequestException(
+                    'Không thể thay đổi vai trò của tài khoản Quản trị viên gốc.',
+                );
+            }
+
+            user.role = data.role;
+        }
+
+        if (data.isActive !== undefined) {
+            if (user.id === 1 && data.isActive === false) {
+                throw new BadRequestException(
+                    'Không thể khóa tài khoản Quản trị viên gốc.',
+                );
+            }
+
+            user.isActive = data.isActive;
+        }
+
+        await this.userRepository.save(user);
+
+        const updatedUser = await this.userRepository.findOne({
+            where: { id: user.id },
+            relations: ['department'],
+        });
+
+        return {
+            success: true,
+            message: `Đã cập nhật nhân sự "${user.fullName}" thành công.`,
+            user: {
+                id: updatedUser!.id,
+                fullName: updatedUser!.fullName,
+                email: updatedUser!.email,
+                departmentId: updatedUser!.departmentId,
+                department: updatedUser!.department?.name ?? null,
+                jobTitle: updatedUser!.jobTitle,
+                role: updatedUser!.role,
+                isActive: updatedUser!.isActive,
+            },
+        };
+    }
+    async deleteUser(userId: number, currentUserId: number) {
+        if (userId === currentUserId) {
+            throw new BadRequestException(
+                'Bạn không thể tự xóa tài khoản đang đăng nhập.',
+            );
+        }
+
+        const user = await this.findById(userId);
+
+        if (user.id === 1) {
+            throw new BadRequestException(
+                'Không thể xóa tài khoản Quản trị viên gốc.',
+            );
+        }
+
+        try {
+            await this.userRepository.remove(user);
+
+            return {
+                success: true,
+                message: `Đã xóa vĩnh viễn người dùng "${user.fullName}".`,
+            };
+        } catch (error) {
+            throw new BadRequestException(
+                'Không thể xóa người dùng này vì vẫn còn dữ liệu liên quan trong hệ thống.',
+            );
+        }
+    }
   // Đây chính là hàm SuperAdmin thay đổi Role của nhân sự
   async updateRole(userId: number, newRole: UserRole) {
     const user = await this.findById(userId);

@@ -57,6 +57,7 @@ export const TrainingPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savingCourse, setSavingCourse] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [aiSuggesting, setAiSuggesting] = useState(false);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
 
@@ -148,7 +149,42 @@ export const TrainingPanel: React.FC = () => {
       setSavingCourse(false);
     }
   };
+  const handleAiSuggestCourse = async () => {
+    if (!selectedUserId) {
+      setMessage('Vui lòng chọn nhân viên trước khi dùng AI.');
+      return;
+    }
 
+    try {
+      setAiSuggesting(true);
+      setMessage('');
+
+      const suggestion = await trainingApi.aiSuggestCourse(
+          Number(selectedUserId),
+      );
+
+      setSelectedCourseId(String(suggestion.courseId));
+      setAssignedByAi(true);
+      setAiReason(suggestion.reason);
+
+      setMessage(
+          `AI đề xuất khóa "${suggestion.courseTitle}" cho nhân viên. Vui lòng kiểm tra trước khi gán.`,
+      );
+    } catch (error) {
+      console.error(error);
+
+      setAssignedByAi(false);
+      setAiReason('');
+
+      setMessage(
+          error instanceof Error
+              ? error.message
+              : 'AI chưa thể đề xuất khóa học.',
+      );
+    } finally {
+      setAiSuggesting(false);
+    }
+  };
   const handleAssignCourse = async () => {
     if (!selectedUserId || !selectedCourseId) {
       setMessage('Vui lòng chọn nhân viên và khóa học.');
@@ -239,7 +275,7 @@ export const TrainingPanel: React.FC = () => {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
-                Learning & development
+                Đào tạo & Phát triển
               </h2>
             </div>
 
@@ -270,13 +306,13 @@ export const TrainingPanel: React.FC = () => {
           <MetricCard
             label="Hoàn thành"
             value={summary.completed}
-            sub={`${summary.completionRate}% completion`}
+            sub={`${summary.completionRate}% hoàn thành`}
             icon={<CheckCircle2 className="h-4 w-4" />}
           />
           <MetricCard
             label="Tiến độ TB"
             value={`${summary.averageProgress}%`}
-            sub={`${courseStats.ai} khóa AI chỉ định`}
+            sub={`${courseStats.ai} khóa AI CHỈ ĐỊNH`}
             icon={<GraduationCap className="h-4 w-4" />}
           />
         </div>
@@ -312,7 +348,7 @@ export const TrainingPanel: React.FC = () => {
                 className={inputClass}
               >
                 <option value="MANDATORY">BẮT BUỘC</option>
-                <option value="AI_SKILL_GAP">AI CHỈ ĐỊNH (SKILL-GAP)</option>
+                <option value="AI_SKILL_GAP">AI CHỈ ĐỊNH (KỸ NĂNG)</option>
                 <option value="SOFT_SKILL">KỸ NĂNG MỀM</option>
               </select>
             </FormField>
@@ -411,18 +447,22 @@ export const TrainingPanel: React.FC = () => {
             </FormField>
           </div>
 
-          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-[#E1E4E5] bg-[#FFFFFF] p-3.5">
-            <input
-              type="checkbox"
-              checked={assignedByAi}
-              onChange={event => setAssignedByAi(event.target.checked)}
-              className="h-4 w-4 accent-[#6F3042]"
-            />
-            <div className="flex items-center gap-2">
-              <BrainCircuit className="h-4 w-4 text-[#9A6A2F]" />
-              <span className="text-xs font-black text-[#554E48]">AI chỉ định do Skill Gap</span>
-            </div>
-          </label>
+          <button
+              type="button"
+              onClick={handleAiSuggestCourse}
+              disabled={!selectedUserId || aiSuggesting}
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#E6D7BF] bg-[#FBF6ED] px-4 text-sm font-black text-[#936A38] transition hover:bg-[#F5EAD8] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {aiSuggesting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+                <BrainCircuit className="h-4 w-4" />
+            )}
+
+            {aiSuggesting
+                ? 'AI đang phân tích...'
+                : 'AI Phân tích & Gợi ý Khóa học'}
+          </button>
 
           {assignedByAi && (
             <textarea

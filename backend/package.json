@@ -17,6 +17,7 @@
     "seed:recruitment": "node dist/seeds/recruitment-demo.cli.js",
     "seed:tv2-three-cv": "node dist/seeds/tv2-three-cv-demo.cli.js",
     "seed:all": "node scripts/seed_users.js && node scripts/seed_knowledge_base.js && node dist/seeds/recruitment-demo.cli.js",
+    "reset:tv3": "node scripts/reset_demo_tv3.js",
     "demo:recruitment": "node test/recruitment-demo.cjs",
     "test:recruitment-seed": "node --test test/recruitment-demo-seed.test.cjs"
   },

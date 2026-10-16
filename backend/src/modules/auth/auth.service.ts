@@ -56,12 +56,26 @@ export class AuthService {
 
     // Sai email hoặc sai mật khẩu
     if (!user) {
-      // Bắn security alert sang n8n WF-01 bất đồng bộ (Fire-and-forget)
+      const targetIp = clientIp || '127.0.0.1';
+      const now = Date.now();
+      const windowMs = 15 * 60 * 1000; // Khung trượt 15 phút
+
+      const currentRecord = this.loginAttempts.get(targetIp) || { count: 0, firstAttempt: now };
+      if (now - currentRecord.firstAttempt > windowMs) {
+        currentRecord.count = 1;
+        currentRecord.firstAttempt = now;
+      } else {
+        currentRecord.count++;
+      }
+      this.loginAttempts.set(targetIp, currentRecord);
+
+      // Bắn security alert sang n8n WF-01 bất đồng bộ kèm số lần thử sai lũy kế
       this.dispatchSecurityAlertToN8n({
-        ip: clientIp || '127.0.0.1',
+        ip: targetIp,
         email,
         userAgent: userAgent || 'Unknown-Browser',
         reason: 'LOGIN_FAILED_CREDENTIALS_MISMATCH',
+        failedAttempts: currentRecord.count,
         timestamp: new Date().toISOString(),
       });
 
@@ -96,6 +110,9 @@ export class AuthService {
       },
     };
   }
+
+  // Bộ đếm số lần đăng nhập sai theo IP (Rate Limiter In-memory: IP -> { count, firstAttempt })
+  private loginAttempts = new Map<string, { count: number; firstAttempt: number }>();
 
   // Danh sách IP bị phong tỏa tạm thời (In-memory IP Blacklist)
   private blockedIps = new Map<string, { banUntil: Date; reason: string; incidentId: string }>();

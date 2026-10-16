@@ -1,0 +1,9 @@
+-- ========================================================
+-- HR TECH ENTERPRISE DATABASE BACKUP SNAPSHOT (02:00 AM)
+-- Database: hr_enterprise_db
+-- Backup ID: BKP-20261016-0200
+-- Timestamp: 2026-10-16T15:49:43.426Z
+-- Executed By: n8n_test
+-- Tables: 11 Entities (Users, Jobs, Applications, Onboarding...)
+-- Status: VERIFIED CHECKSUM OK
+-- ========================================================

@@ -220,7 +220,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-02 Daily Mood Omnichannel', status: 'BATCH_TRIGGERED', triggeredAt: .toISO() }) }}",
+        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-02 Daily Mood Omnichannel', status: 'BATCH_TRIGGERED', triggeredAt: $now.toISO() }) }}",
         "options": {
           "responseCode": 202
         }

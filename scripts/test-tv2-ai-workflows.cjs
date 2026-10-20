@@ -8,8 +8,8 @@ const score = load('candidate-intake-ai.json');
 const interview = load('interview-schedule-ai.json');
 const find = (workflow, prefix) => workflow.nodes.find(node => node.name.startsWith(prefix + '.'));
 const origin = { applicationId: 1, interviewId: 2, requestId: 'test-request' };
-const run = (node, json) => new Function('$json', '$', '$execution', node.parameters.jsCode)(
-  json, () => ({ item: { json: origin } }), { id: 'test-execution' },
+const run = (node, json, context = origin) => new Function('$json', '$', '$execution', node.parameters.jsCode)(
+  json, () => ({ item: { json: context } }), { id: 'test-execution' },
 ).json;
 let cases = 0;
 for (const workflow of [score, interview]) {
@@ -74,4 +74,42 @@ assert.equal(native.parameters.jsonOutput, true);
 assert.equal(find(score, 'AI-07').parameters.jsonBody, '={{ $json.geminiRequest }}');
 assert.equal(find(score, 'AI-11').parameters.jsonBody, '={{ $json.callbackResult }}');
 cases++;
+const prepare = find(interview, 'AI-QR01');
+const classify = find(interview, 'AI-QR02');
+assert.equal(native.retryOnFail, false, 'The explicit loop owns the total call budget');
+assert.deepEqual(destinations(interview, 'AI-QR03'), [find(interview, 'AI-QR04').name]);
+assert.deepEqual(destinations(interview, 'AI-QR03', 1), [find(interview, 'AI-Q08').name]);
+assert.deepEqual(destinations(interview, 'AI-QR04'), [prepare.name]);
+let context = { ...origin, geminiPrompt: 'Synthetic prompt', systemPrompt: 'Synthetic system prompt' };
+for (let attempt = 1; attempt <= 4; attempt++) {
+  context = run(prepare, attempt === 1 ? context : { retryContext: context });
+  assert.equal(context.geminiAttempt, attempt);
+  assert.equal(context.requestId, origin.requestId);
+  const result = run(classify, { error: 'Service unavailable' }, context);
+  assert.equal(result.shouldRetry, attempt < 4);
+  assert.equal(result.retryDelaySeconds, [15, 30, 60, 0][attempt - 1]);
+  assert.equal(result.retryExhausted, attempt === 4);
+  cases++;
+}
+assert.throws(() => run(prepare, { retryContext: context }), /limit/);
+for (const status of [400, 401, 403, 404]) {
+  assert.equal(run(classify, { error: { status, message: 'Rejected request' } }, { ...origin, geminiAttempt: 1 }).shouldRetry, false);
+  cases++;
+}
+for (const error of ['API key invalid', 'Invalid API key', 'Permission denied', 'Bad request']) {
+  assert.equal(run(classify, { error }, { ...origin, geminiAttempt: 1 }).shouldRetry, false);
+  cases++;
+}
+for (const status of [429, 502, 503, 504]) {
+  assert.equal(run(classify, { error: { status, message: 'Transient failure' } }, { ...origin, geminiAttempt: 1 }).shouldRetry, true);
+  cases++;
+}
+const successfulProvider = run(classify, { mergedResponse: JSON.stringify(questions) }, { ...origin, geminiAttempt: 3 });
+assert.equal(successfulProvider.shouldRetry, false);
+const success = run(find(interview, 'AI-Q08'), successfulProvider);
+assert.equal(success.valid, true); assert.equal(success.geminiAttempts, 3); assert.equal(success.requestId, origin.requestId);
+const malformedProvider = run(classify, { mergedResponse: 'not JSON' }, { ...origin, geminiAttempt: 1 });
+assert.equal(malformedProvider.shouldRetry, false);
+assert.equal(run(find(interview, 'AI-Q08'), malformedProvider).valid, false);
+cases += 3;
 console.log(`${cases} workflow regression cases passed; no external calls.`);

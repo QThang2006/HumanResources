@@ -1,0 +1,238 @@
+{
+  "generatedAt": "2026-10-20T15:17:37.734Z",
+  "nativeModel": "models/gemini-3.6-flash",
+  "published": false,
+  "liveChecks": [
+    {
+      "id": "hrTv2InterviewAiV3",
+      "unchanged": true,
+      "versionId": "62894aa2-fd69-4831-a61a-963861be4342",
+      "activeVersionId": "62894aa2-fd69-4831-a61a-963861be4342"
+    },
+    {
+      "id": "hrTv2IntakeAiV3",
+      "unchanged": true,
+      "versionId": "799870da-c59d-4212-8560-75d660e35b9e",
+      "activeVersionId": "799870da-c59d-4212-8560-75d660e35b9e"
+    }
+  ],
+  "offlineRegressionCases": 58,
+  "faultCasesPassed": true,
+  "allRealCallsSucceeded": false,
+  "tests": [
+    {
+      "kind": "real",
+      "provider": "REAL native Gemini",
+      "executionId": 299,
+      "interviewId": 101,
+      "providerCalls": 2,
+      "ats": {
+        "id": 101,
+        "ai_questions_status": "COMPLETED",
+        "ai_questions_error": null,
+        "ai_questions_request_id": "backoff-real-1792509082550",
+        "questionCount": 5
+      },
+      "attempts": [
+        {
+          "error": "Service unavailable - try again later or consider setting this node to retry automatically (in the node settings)",
+          "attempt": 1,
+          "shouldRetry": true,
+          "retryDelaySeconds": 15
+        },
+        {
+          "attempt": 2,
+          "shouldRetry": false,
+          "retryDelaySeconds": 0
+        }
+      ],
+      "callbackCompleted": true,
+      "callbackFailed": false,
+      "actualNativeOutput": {
+        "keys": [
+          "content",
+          "finishReason",
+          "index",
+          "mergedResponse"
+        ],
+        "finishReason": "STOP",
+        "mergedResponseType": "string",
+        "mergedResponseEqualsPartsText": true,
+        "sha256": "f61a6787fd034fa620cda1bef21bf484b4d272b3a9d7a59827cd3bdb9bed6b89",
+        "questions": [
+          "Bạn có thể giải thích cách NestJS quản lý Dependency Injection (DI) và cách bạn tối ưu hóa hiệu năng ứng dụng TypeScript/NestJS khi tương tác với cơ sở dữ liệu MySQL không?",
+          "Trong các dự án backend đã thực hiện, hãy chia sẻ về một hệ thống REST API mà bạn xây dựng bằng NestJS và đóng gói bằng Docker. Bạn đã cấu hình Dockerfile như thế nào để đảm bảo tối ưu dung lượng và bảo mật cho môi trường production?",
+          "Giả sử hệ thống REST API (NestJS + MySQL) của bạn gặp sự cố nghẽn kết nối (connection bottleneck) làm response time tăng đột biến khi truy cập tăng cao. Bạn sẽ từng bước chẩn đoán và khắc phục sự cố này như thế nào?",
+          "Hãy kể về một lần bạn và đồng nghiệp bất đồng ý kiến về thiết kế kiến trúc REST API hoặc sơ đồ CSDL MySQL. Bạn đã xử lý xung đột đó như thế nào để đi đến thống nhất?",
+          "Tiếp nối giải pháp xử lý CSDL: Nếu bảng MySQL đã được tối ưu index nhưng dung lượng dữ liệu quá lớn khiến tác vụ ghi (write) trở thành điểm nghẽn, bạn sẽ đề xuất thay đổi kiến trúc gì cho hệ thống NestJS để xử lý vấn đề này?"
+        ]
+      }
+    },
+    {
+      "kind": "recover",
+      "provider": "INJECTED FAULT/OUTPUT: not a real provider result",
+      "executionId": 298,
+      "interviewId": 102,
+      "providerCalls": 3,
+      "ats": {
+        "id": 102,
+        "ai_questions_status": "COMPLETED",
+        "ai_questions_error": null,
+        "ai_questions_request_id": "backoff-recover-1792509082555",
+        "questionCount": 5
+      },
+      "attempts": [
+        {
+          "error": "TEST INJECTED: Service unavailable",
+          "attempt": 1,
+          "shouldRetry": true,
+          "retryDelaySeconds": 15
+        },
+        {
+          "error": "TEST INJECTED: Service unavailable",
+          "attempt": 2,
+          "shouldRetry": true,
+          "retryDelaySeconds": 30
+        },
+        {
+          "attempt": 3,
+          "shouldRetry": false,
+          "retryDelaySeconds": 0
+        }
+      ],
+      "callbackCompleted": true,
+      "callbackFailed": false
+    },
+    {
+      "kind": "exhaust",
+      "provider": "INJECTED FAULT/OUTPUT: not a real provider result",
+      "executionId": 300,
+      "interviewId": 103,
+      "providerCalls": 4,
+      "ats": {
+        "id": 103,
+        "ai_questions_status": "FAILED",
+        "ai_questions_error": "Gemini returned invalid result: TEST INJECTED: Service unavailable",
+        "ai_questions_request_id": "backoff-exhaust-1792509082560",
+        "questionCount": null
+      },
+      "attempts": [
+        {
+          "error": "TEST INJECTED: Service unavailable",
+          "attempt": 1,
+          "shouldRetry": true,
+          "retryDelaySeconds": 15
+        },
+        {
+          "error": "TEST INJECTED: Service unavailable",
+          "attempt": 2,
+          "shouldRetry": true,
+          "retryDelaySeconds": 30
+        },
+        {
+          "error": "TEST INJECTED: Service unavailable",
+          "attempt": 3,
+          "shouldRetry": true,
+          "retryDelaySeconds": 60
+        },
+        {
+          "error": "TEST INJECTED: Service unavailable",
+          "attempt": 4,
+          "shouldRetry": false,
+          "retryDelaySeconds": 0
+        }
+      ],
+      "callbackCompleted": false,
+      "callbackFailed": true
+    },
+    {
+      "kind": "unauthorized",
+      "provider": "INJECTED FAULT/OUTPUT: not a real provider result",
+      "executionId": 301,
+      "interviewId": 104,
+      "providerCalls": 1,
+      "ats": {
+        "id": 104,
+        "ai_questions_status": "FAILED",
+        "ai_questions_error": "Gemini returned invalid result: TEST INJECTED: API key invalid",
+        "ai_questions_request_id": "backoff-unauthorized-1792509082564",
+        "questionCount": null
+      },
+      "attempts": [
+        {
+          "error": "TEST INJECTED: API key invalid",
+          "attempt": 1,
+          "shouldRetry": false,
+          "retryDelaySeconds": 0
+        }
+      ],
+      "callbackCompleted": false,
+      "callbackFailed": true
+    },
+    {
+      "kind": "invalidJson",
+      "provider": "INJECTED FAULT/OUTPUT: not a real provider result",
+      "executionId": 302,
+      "interviewId": 105,
+      "providerCalls": 1,
+      "ats": {
+        "id": 105,
+        "ai_questions_status": "FAILED",
+        "ai_questions_error": "Gemini returned invalid result: Unexpected token 'o', \"not JSON - \"... is not valid JSON",
+        "ai_questions_request_id": "backoff-invalidJson-1792509082570",
+        "questionCount": null
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "shouldRetry": false,
+          "retryDelaySeconds": 0
+        }
+      ],
+      "callbackCompleted": false,
+      "callbackFailed": true
+    },
+    {
+      "kind": "realSecond",
+      "provider": "REAL native Gemini",
+      "executionId": 303,
+      "interviewId": 106,
+      "providerCalls": 4,
+      "ats": {
+        "id": 106,
+        "ai_questions_status": "FAILED",
+        "ai_questions_error": "Gemini returned invalid result: The service is receiving too many requests from you",
+        "ai_questions_request_id": "backoff-real-second-1792509185180",
+        "questionCount": null
+      },
+      "attempts": [
+        {
+          "error": "Service unavailable - try again later or consider setting this node to retry automatically (in the node settings)",
+          "attempt": 1,
+          "shouldRetry": true,
+          "retryDelaySeconds": 15
+        },
+        {
+          "error": "Service unavailable - try again later or consider setting this node to retry automatically (in the node settings)",
+          "attempt": 2,
+          "shouldRetry": true,
+          "retryDelaySeconds": 30
+        },
+        {
+          "error": "The service is receiving too many requests from you",
+          "attempt": 3,
+          "shouldRetry": true,
+          "retryDelaySeconds": 60
+        },
+        {
+          "error": "The service is receiving too many requests from you",
+          "attempt": 4,
+          "shouldRetry": false,
+          "retryDelaySeconds": 0
+        }
+      ],
+      "callbackCompleted": false,
+      "callbackFailed": true
+    }
+  ]
+}

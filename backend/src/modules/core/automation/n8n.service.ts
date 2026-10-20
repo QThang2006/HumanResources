@@ -131,6 +131,19 @@ export class N8nService {
     );
   }
 
+  private aiHeaders(): Record<string, string> | undefined {
+    const key = this.configService.get<string>('N8N_AI_KEY') || this.configService.get<string>('N8N_INTAKE_KEY');
+    return key ? { 'x-n8n-ai-key': key } : undefined;
+  }
+
+  async triggerAiResumeScore(payload: { applicationId: number; requestId?: string }): Promise<boolean> {
+    return this.postWebhook(this.webhookBaseUrl + '/ai-resume-score', payload, 'AI chấm điểm CV', this.aiHeaders());
+  }
+
+  async triggerAiInterviewQuestions(payload: { interviewId: number; requestId?: string }): Promise<boolean> {
+    return this.postWebhook(this.webhookBaseUrl + '/ai-interview-questions', payload, 'AI tạo câu hỏi phỏng vấn', this.aiHeaders());
+  }
+
   private async postWebhook(
     url: string,
     data: any,

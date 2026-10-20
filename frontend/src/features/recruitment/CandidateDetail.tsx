@@ -114,8 +114,11 @@ export function CandidateDetail({
   const waitingForDelivery = !!candidate?.interviews.some((i) =>
     ['PENDING', 'RUNNING'].includes(i.automation?.status || ''),
   );
+  const waitingForAi =
+    candidate?.aiScoreStatus === 'PROCESSING' ||
+    !!candidate?.interviews.some((i) => i.aiQuestionsStatus === 'PROCESSING');
   useEffect(() => {
-    if (!waitingForDelivery || busy) return;
+    if ((!waitingForDelivery && !waitingForAi) || busy) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
     const refresh = async () => {
@@ -136,7 +139,7 @@ export function CandidateDetail({
       active = false;
       clearTimeout(timer);
     };
-  }, [id, busy, waitingForDelivery]);
+  }, [id, busy, waitingForDelivery, waitingForAi]);
   useEffect(() => {
     let active = true;
     api
@@ -276,6 +279,12 @@ export function CandidateDetail({
                   {candidate.matchScore === null ? 'Chưa chấm' : candidate.matchScore + '/100'}
                 </strong>
               </p>
+              {candidate.aiScoreStatus === 'PROCESSING' && (
+                <p className="text-sm text-indigo-700">n8n đang phân tích CV theo JD...</p>
+              )}
+              {candidate.aiScoreStatus === 'FAILED' && (
+                <p className="text-sm text-amber-700">n8n chưa chấm được CV. Bạn có thể thử lại.</p>
+              )}
               {candidate.aiSummary && (
                 <p className="whitespace-pre-wrap text-sm">{candidate.aiSummary}</p>
               )}
@@ -289,14 +298,14 @@ export function CandidateDetail({
                   onClick={() =>
                     act(async () => {
                       const result = await api.score(id);
-                      setScorePreview(
-                        result.mode === 'MOCK'
-                          ? result.data.matchScore + '/100 · ' + result.data.summary
-                          : '',
-                      );
+                      setScorePreview(result.mode === 'MOCK'
+                        ? result.data.matchScore + '/100 · ' + result.data.summary
+                        : result.mode === 'N8N' ? 'n8n đang xử lý; kết quả sẽ cập nhật tự động.' : '');
                       return result.saved
                         ? 'Đã lưu đánh giá AI.'
-                        : 'Kết quả mô phỏng chỉ để xem trước, không lưu vào hồ sơ.';
+                        : result.mode === 'N8N'
+                          ? 'Đã gửi yêu cầu cho n8n. Kết quả sẽ xuất hiện sau khi workflow hoàn tất.'
+                          : 'Kết quả mô phỏng chỉ để xem trước, không lưu vào hồ sơ.';
                     })
                   }
                 >
@@ -306,7 +315,7 @@ export function CandidateDetail({
               {operator && !capabilities?.score && (
                 <p className="text-xs text-slate-500">Chấm CV bằng AI đang chờ tích hợp.</p>
               )}
-              {scorePreview && <Alert>Bản xem trước MOCK: {scorePreview}</Alert>}
+              {scorePreview && <Alert>{scorePreview}</Alert>}
               <p className="text-xs text-slate-500">
                 Điểm AI là thông tin tham khảo. HR và người phỏng vấn quyết định dựa trên hồ sơ và
                 trao đổi thực tế.
@@ -424,6 +433,12 @@ export function CandidateDetail({
                             ? 'Google Meet: Đang chờ workflow.'
                             : 'Google Meet: Chưa nhận xác nhận từ workflow.'}
                     </p>
+                    {interview.aiQuestionsStatus === 'PROCESSING' && (
+                      <p className="text-indigo-700">n8n đang tạo câu hỏi theo CV và JD...</p>
+                    )}
+                    {interview.aiQuestionsStatus === 'FAILED' && (
+                      <p className="text-amber-700">n8n tạo câu hỏi thất bại. Có thể thử lại.</p>
+                    )}
                     <p>
                       {interview.automation?.emailStatus === 'SMTP_ACCEPTED'
                         ? 'Thư mời: Máy chủ email đã chấp nhận gửi.'
@@ -480,7 +495,9 @@ export function CandidateDetail({
                           setQuestionPreview(result.mode === 'MOCK' ? result.data : []);
                           return result.saved
                             ? 'Đã lưu bộ câu hỏi.'
-                            : 'Câu hỏi MOCK chỉ để xem trước.';
+                            : result.mode === 'N8N'
+                              ? 'Đã gửi yêu cầu cho n8n. Câu hỏi sẽ cập nhật tự động.'
+                              : 'Câu hỏi MOCK chỉ để xem trước.';
                         })
                       }
                     >

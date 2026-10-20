@@ -1,4 +1,6 @@
 import { IntakeController, IntakeGuard } from './intake.controller';
+import { N8nAiController } from './n8n-ai.controller';
+import { N8nAiGuard } from './n8n-ai.guard';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApplicationsService } from './applications.service';
@@ -38,7 +40,7 @@ import {
       Offer,
     ]),
   ],
-  controllers: [IntakeController, ApplicationsController, InterviewScheduleController, OfferController],
+  controllers: [IntakeController, ApplicationsController, N8nAiController, InterviewScheduleController, OfferController],
   providers: [
     ApplicationsService,
     CvStorageService,
@@ -47,6 +49,7 @@ import {
     InterviewScheduleService,
     OfferService,
     IntakeGuard,
+    N8nAiGuard,
   ],
   exports: [ApplicationsService],
 })

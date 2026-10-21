@@ -75,3 +75,5 @@ Execution 321 (ca fallback độc lập thứ hai): 2 lỗi primary được inj
 Probe trực tiếp với cùng credential và JSON prompt: gemini-3.5-flash-lite trả 5 câu, HTTP 200, khoảng 8,2 giây; gemini-3.1-flash-lite trả 5 câu, HTTP 200, khoảng 28,2 giây. gemini-3.5-flash vẫn 503 nên không chọn.
 
 Execution 417 chạy thật trên node Gemini native với gemini-3.5-flash-lite: 1 lần gọi, Q07 trả content.parts[0].text JSON, Q08 valid=true, Q10 true, Q11 callback COMPLETED; ATS phỏng vấn 114 có 5 câu hỏi. Bản fallback dùng gemini-3.1-flash-lite. Bằng chứng probe ở AI-FALLBACK-TEST-2026-10-21.json và model-probes-lower.json.
+
+Probe bổ sung 21/10/2026: gemini-2.5-flash và gemini-2.5-flash-lite đều HTTP 404 với credential hiện tại, API trả thông báo model không còn khả dụng cho người dùng mới. Không đưa 2.5 vào workflow.

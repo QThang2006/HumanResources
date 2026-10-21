@@ -40,6 +40,26 @@
       "questionCount": 5,
       "error": null,
       "modelVersion": "gemini-3-flash-preview"
+    },
+    {
+      "testedAt": "2026-10-21T15:28:52.807Z",
+      "model": "gemini-2.5-flash",
+      "status": 404,
+      "elapsedMs": 655,
+      "error": "This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).",
+      "modelVersion": null,
+      "hasCandidate": false,
+      "textLength": 0,
+      "questionCount": 0
+    },
+    {
+      "testedAt": "2026-10-21T15:29:36.423Z",
+      "model": "gemini-2.5-flash-lite",
+      "status": 404,
+      "elapsedMs": 526,
+      "error": "This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).",
+      "modelVersion": null,
+      "questionCount": 0
     }
   ]
 }

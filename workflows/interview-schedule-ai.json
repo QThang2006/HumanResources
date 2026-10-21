@@ -702,7 +702,7 @@
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const context=$json.retryContext||$json;\nconst previous=Number(context.geminiAttempt||0);\nif(!Number.isInteger(previous)||previous<0||previous>=4)throw Error('Gemini attempt limit reached');\nconst geminiAttempt=previous+1;\n// Only the transient-error branch returns here. Never accept a model from request data.\nconst geminiModel=geminiAttempt<=2?'models/gemini-3.6-flash':'models/gemini-3.8-flash';\nreturn {json:{...context,geminiAttempt,geminiModel,geminiFallbackUsed:geminiAttempt>2}};"
+        "jsCode": "const context=$json.retryContext||$json;\nconst previous=Number(context.geminiAttempt||0);\nif(!Number.isInteger(previous)||previous<0||previous>=4)throw Error('Gemini attempt limit reached');\nconst geminiAttempt=previous+1;\n// Only the transient-error branch returns here. Never accept a model from request data.\nconst geminiModel=geminiAttempt<=2?'models/gemini-3.5-flash-lite':'models/gemini-3.1-flash-lite';\nreturn {json:{...context,geminiAttempt,geminiModel,geminiFallbackUsed:geminiAttempt>2}};"
       },
       "onError": "continueErrorOutput"
     },

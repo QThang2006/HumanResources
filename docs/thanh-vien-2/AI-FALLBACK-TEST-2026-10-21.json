@@ -3,8 +3,8 @@
   "generatedAt": "2026-10-21T07:14:16.124Z",
   "published": false,
   "policy": {
-    "primary": "gemini-3.6-flash",
-    "fallback": "gemini-3.8-flash",
+    "primary": "gemini-3.5-flash-lite",
+    "fallback": "gemini-3.1-flash-lite",
     "primaryAttempts": 2,
     "totalAttempts": 4,
     "waitSeconds": [
@@ -595,6 +595,48 @@
         "status": "FAILED"
       },
       "active": false
+    },
+    {
+      "kind": "liteNativeReal",
+      "provider": "REAL native Gemini",
+      "executionId": 417,
+      "interviewId": 114,
+      "executionStatus": "success",
+      "passed": true,
+      "providerCalls": 1,
+      "ats": {
+        "id": 114,
+        "ai_questions_status": "COMPLETED",
+        "questionCount": 5,
+        "ai_questions_request_id": "lite-native-20261021"
+      },
+      "nativeOutputShape": {
+        "fields": [
+          "content",
+          "finishReason",
+          "index"
+        ],
+        "contentPartFields": [
+          "text"
+        ],
+        "questionCount": 5
+      },
+      "parser": {
+        "valid": true,
+        "geminiModel": "models/gemini-3.5-flash-lite",
+        "geminiFallbackUsed": false,
+        "geminiAttempts": 1
+      },
+      "conditionOutputs": [
+        1,
+        0
+      ],
+      "callback": {
+        "recorded": true,
+        "interviewId": 114,
+        "status": "COMPLETED"
+      },
+      "active": false
     }
   ],
   "limits": [
@@ -602,6 +644,8 @@
     "Four fault scenarios use injected provider outputs and accelerated waits.",
     "No live publication. Shared provider quota or outage can still affect both models.",
     "This follow-up tests the AI branch; unchanged Calendar/email nodes were not rerun.",
-    "After execution 321, the classifier was extended for connection-closed/socket-hang-up messages. This final small change passed offline tests; real-provider executions above preceded it."
-  ]
+    "After execution 321, the classifier was extended for connection-closed/socket-hang-up messages. This final small change passed offline tests; real-provider executions above preceded it.",
+    "Execution 417 is the real native lite-model demo test: 3.5-flash-lite completed in one call."
+  ],
+  "modelProbeFile": "model-probes-lower.json"
 }

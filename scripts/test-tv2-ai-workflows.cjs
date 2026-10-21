@@ -86,7 +86,7 @@ for (let attempt = 1; attempt <= 4; attempt++) {
   context = run(prepare, attempt === 1 ? context : { retryContext: context });
   assert.equal(context.geminiAttempt, attempt);
   assert.equal(context.requestId, origin.requestId);
-  assert.equal(context.geminiModel, attempt <= 2 ? 'models/gemini-3.6-flash' : 'models/gemini-3.8-flash');
+  assert.equal(context.geminiModel, attempt <= 2 ? 'models/gemini-3.5-flash-lite' : 'models/gemini-3.1-flash-lite');
   assert.equal(context.geminiFallbackUsed, attempt > 2);
   const result = run(classify, { error: 'Service unavailable' }, context);
   assert.equal(result.shouldRetry, attempt < 4);
@@ -117,12 +117,12 @@ assert.equal(run(find(interview, 'AI-Q08'), malformedProvider).valid, false);
 cases += 3;
 // A request cannot select its own model or skip the attempt budget.
 const untrusted = run(prepare, { ...origin, geminiModel: 'attacker-model', geminiFallbackUsed: true });
-assert.equal(untrusted.geminiModel, 'models/gemini-3.6-flash');
+assert.equal(untrusted.geminiModel, 'models/gemini-3.5-flash-lite');
 assert.equal(untrusted.geminiFallbackUsed, false);
 const fallbackContext = run(prepare, { retryContext: { ...origin, geminiAttempt: 2 } });
 const fallbackOutput = run(classify, { mergedResponse: JSON.stringify(questions) }, fallbackContext);
 const fallbackParsed = run(find(interview, 'AI-Q08'), fallbackOutput);
-assert.equal(fallbackParsed.geminiModel, 'models/gemini-3.8-flash');
+assert.equal(fallbackParsed.geminiModel, 'models/gemini-3.1-flash-lite');
 assert.equal(fallbackParsed.geminiFallbackUsed, true);
 assert.equal(fallbackParsed.geminiAttempts, 3);
 assert.equal(fallbackParsed.requestId, origin.requestId);

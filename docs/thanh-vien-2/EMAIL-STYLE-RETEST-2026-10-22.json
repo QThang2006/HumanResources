@@ -1,0 +1,3470 @@
+{
+  "generatedAt": "2026-10-21T23:09:50.338Z",
+  "localDate": "2026-10-22",
+  "timezone": "Asia/Saigon",
+  "fixtures": {
+    "jobIds": [
+      23,
+      24
+    ],
+    "applicationIds": [
+      143,
+      144,
+      145
+    ],
+    "interviewId": 122,
+    "offerId": 6
+  },
+  "ui": {
+    "method": "Read-only browser verification after test actions; demo SuperAdmin login through FE",
+    "page": "/admin/recruitment",
+    "observations": [
+      {
+        "applicationId": 143,
+        "displayedScore": "95/100",
+        "displayedQuestionCount": 5,
+        "meet": "Đã tạo và xác nhận lịch",
+        "interviewEmail": "Máy chủ email đã chấp nhận gửi",
+        "offer": "Đã đồng ý nhận việc"
+      },
+      {
+        "applicationId": 144,
+        "displayedScore": "95/100"
+      },
+      {
+        "applicationId": 145,
+        "displayedScore": "Chưa chấm",
+        "message": "n8n chưa chấm được CV. Bạn có thể thử lại.",
+        "processingStuck": false
+      }
+    ],
+    "screenshots": [
+      "fe-interview-offer.png",
+      "fe-scoring-rate-limit.png"
+    ],
+    "limit": "Creation/scheduling/offer actions used FE backend endpoints; no claim of complete FE clickthrough. No retry or hiring decision performed in browser."
+  },
+  "scope": {
+    "liveProviders": true,
+    "syntheticDataOnly": true,
+    "frontendActions": "Backend endpoints used by FE; this retest is not a complete FE clickthrough.",
+    "formInput": "Real response Sheet append and actual Drive download; no Google Form UI submission this run.",
+    "offer": "Synthetic interview marked PASSED after AI finished; test offer response submitted through API.",
+    "timers": "Real SMTP, isolated SQLite and disposable MySQL; accelerated deadlines, not 24/48h elapsed."
+  },
+  "liveWorkflowCount": 4,
+  "allFourActive": true,
+  "workflows": [
+    {
+      "id": "hrTv2JobSyncV2",
+      "name": "01 | TV2 2.0 – Đồng bộ vị trí tuyển dụng vào Google Form",
+      "active": true,
+      "versionId": "6bc3a83f-5fdc-4f9b-bdb9-2f0a04371822",
+      "activeVersionId": "6bc3a83f-5fdc-4f9b-bdb9-2f0a04371822",
+      "definitionUnchanged": true,
+      "totalNodes": 14,
+      "coveredLive": 12,
+      "brokenConnections": [],
+      "coverage": [
+        {
+          "name": "01. Nhận thông báo thay đổi vị trí tuyển dụng",
+          "executions": [
+            447,
+            449,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "02. Chuẩn hóa sự kiện tuyển dụng",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "03. Lấy danh sách vị trí đang mở từ Backend",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "04. Kiểm tra và lọc vị trí đang mở",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "05. Tạo lựa chọn mã vị trí – tên công việc",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "07. Cập nhật danh sách chọn trên Google Form",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "08. Kiểm tra kết quả cập nhật Google Form",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "09. Xác định đồng bộ thành công",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "10. Tổng hợp kết quả đồng bộ thành công",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "11. Phản hồi đồng bộ thành công",
+          "executions": [
+            447,
+            449,
+            454,
+            456,
+            457,
+            458
+          ]
+        },
+        {
+          "name": "12. Tổng hợp lỗi đồng bộ",
+          "executions": []
+        },
+        {
+          "name": "13. Phản hồi đồng bộ thất bại",
+          "executions": []
+        },
+        {
+          "name": "14. Đồng bộ dự phòng mỗi 5 phút",
+          "executions": [
+            454,
+            456
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hrTv2IntakeAiV3",
+      "name": "02 | TV2 2.1 – Tiếp nhận CV, xác nhận và chấm điểm AI",
+      "active": true,
+      "versionId": "1dfc87f2-a1f7-4787-ae78-e44ce004b985",
+      "activeVersionId": "1dfc87f2-a1f7-4787-ae78-e44ce004b985",
+      "definitionUnchanged": true,
+      "totalNodes": 27,
+      "coveredLive": 26,
+      "brokenConnections": [],
+      "coverage": [
+        {
+          "name": "01. Theo dõi CV mới trong Gmail tuyển dụng",
+          "executions": [
+            451
+          ]
+        },
+        {
+          "name": "02. Chuẩn hóa hồ sơ nhận qua Gmail",
+          "executions": [
+            451
+          ]
+        },
+        {
+          "name": "03. Phát hiện câu trả lời Google Form mới",
+          "executions": [
+            452
+          ]
+        },
+        {
+          "name": "04. Chuẩn hóa hồ sơ và mã vị trí từ Form",
+          "executions": [
+            452
+          ]
+        },
+        {
+          "name": "05. Tải CV từ Google Drive",
+          "executions": [
+            452
+          ]
+        },
+        {
+          "name": "06. Kiểm tra thông tin ứng viên và tệp CV",
+          "executions": [
+            451,
+            452
+          ]
+        },
+        {
+          "name": "07. Lưu hồ sơ và CV vào ATS",
+          "executions": [
+            451,
+            452
+          ]
+        },
+        {
+          "name": "08. Kiểm tra hồ sơ cần gửi xác nhận",
+          "executions": [
+            451,
+            452
+          ]
+        },
+        {
+          "name": "09. Soạn thư xác nhận đã nhận hồ sơ",
+          "executions": [
+            451,
+            452
+          ]
+        },
+        {
+          "name": "10. Gửi thư xác nhận cho ứng viên",
+          "executions": [
+            451,
+            452
+          ]
+        },
+        {
+          "name": "11. Lưu kết quả gửi thư xác nhận",
+          "executions": [
+            451,
+            452
+          ]
+        },
+        {
+          "name": "12. Kiểm tra hồ sơ đến từ Gmail",
+          "executions": [
+            451,
+            452
+          ]
+        },
+        {
+          "name": "13. Đánh dấu email tuyển dụng đã xử lý",
+          "executions": [
+            451
+          ]
+        },
+        {
+          "name": "AI-01. Nhận yêu cầu chấm điểm CV",
+          "executions": [
+            448,
+            455
+          ]
+        },
+        {
+          "name": "AI-02. Hợp nhất yêu cầu chấm điểm",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-03. Đánh dấu AI đang xử lý",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-04. Lấy context CV và JD chuẩn",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-05. Kiểm tra và làm sạch dữ liệu",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-06. Xây dựng khung tiêu chí",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-07. Gọi Gemini chấm điểm CV",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-08. Parse JSON kết quả AI",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-09. Kiểm tra schema và giới hạn điểm",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-10. Kết quả AI hợp lệ?",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-11. Callback kết quả vào ATS",
+          "executions": [
+            448,
+            451
+          ]
+        },
+        {
+          "name": "AI-12. Callback lỗi vào ATS",
+          "executions": [
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-13. Ghi log hoàn tất chấm điểm",
+          "executions": [
+            448,
+            451,
+            452,
+            455
+          ]
+        },
+        {
+          "name": "AI-E01. Chuẩn hóa lỗi để gỡ trạng thái AI",
+          "executions": []
+        }
+      ]
+    },
+    {
+      "id": "hrTv2InterviewAiV3",
+      "name": "03 | TV2 2.2 – Xếp lịch, Google Meet, email và câu hỏi AI",
+      "active": true,
+      "versionId": "62894aa2-fd69-4831-a61a-963861be4342",
+      "activeVersionId": "62894aa2-fd69-4831-a61a-963861be4342",
+      "definitionUnchanged": true,
+      "totalNodes": 30,
+      "coveredLive": 23,
+      "brokenConnections": [],
+      "coverage": [
+        {
+          "name": "01. Nhận yêu cầu xếp lịch phỏng vấn",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "02. Kiểm tra quyền xử lý yêu cầu phỏng vấn",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "03. Nhận quyền xử lý lịch phỏng vấn",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "04. Nạp thông tin buổi phỏng vấn",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "05. Tạo lịch phỏng vấn và Google Meet",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "07. Đọc lại sự kiện trên Google Calendar",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "08. Xác minh lịch và liên kết Google Meet",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "09. Lưu lịch và liên kết Meet vào ATS",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "10. Soạn thư mời và tệp lịch ICS",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "11. Gửi thư mời phỏng vấn",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "12. Xác minh kết quả gửi thư mời",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "13. Lưu trạng thái gửi thư vào ATS",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "14. Tổng hợp lỗi tạo lịch phỏng vấn",
+          "executions": []
+        },
+        {
+          "name": "16. Tổng hợp lỗi gửi thư mời",
+          "executions": []
+        },
+        {
+          "name": "15. Lưu lỗi tạo lịch vào ATS",
+          "executions": []
+        },
+        {
+          "name": "17. Lưu lỗi gửi thư vào ATS",
+          "executions": []
+        },
+        {
+          "name": "18. Hoàn tất xử lý yêu cầu",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "06. Chờ Google khởi tạo phòng Meet",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-Q01. Nhận yêu cầu tạo câu hỏi",
+          "executions": []
+        },
+        {
+          "name": "AI-Q03. Đánh dấu AI đang xử lý",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-Q04. Lấy CV, JD và context vòng",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-Q05. Chuẩn bị dữ liệu và dựng prompt",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-Q07. Gọi Gemini tạo câu hỏi",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-Q08. Parse JSON và kiểm tra chất lượng",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-Q10. Bộ câu hỏi hợp lệ?",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-Q11. Callback câu hỏi vào ATS",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-Q12. Callback lỗi tạo câu hỏi",
+          "executions": []
+        },
+        {
+          "name": "AI-Q13. Ghi log hoàn tất tạo câu hỏi",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-Q02. Chuẩn hóa yêu cầu tạo câu hỏi",
+          "executions": [
+            450
+          ]
+        },
+        {
+          "name": "AI-QE01. Chuẩn hóa lỗi để gỡ trạng thái AI",
+          "executions": []
+        }
+      ]
+    },
+    {
+      "id": "hrTv2OfferV2",
+      "name": "04 | TV2 2.3 – Phát hành thư mời nhận việc và nhắc hạn 24–48 giờ",
+      "active": true,
+      "versionId": "8fa929f2-acf7-4ac4-8be1-0e96d7cd612e",
+      "activeVersionId": "8fa929f2-acf7-4ac4-8be1-0e96d7cd612e",
+      "definitionUnchanged": true,
+      "totalNodes": 15,
+      "coveredLive": 6,
+      "brokenConnections": [],
+      "coverage": [
+        {
+          "name": "01. Nhận yêu cầu phát hành thư mời nhận việc",
+          "executions": [
+            453
+          ]
+        },
+        {
+          "name": "02. Kiểm tra quyền phát hành thư mời nhận việc",
+          "executions": [
+            453
+          ]
+        },
+        {
+          "name": "03. Nhận nội dung thư mời từ Backend",
+          "executions": [
+            453
+          ]
+        },
+        {
+          "name": "04. Gửi thư mời nhận việc cho ứng viên",
+          "executions": [
+            453
+          ]
+        },
+        {
+          "name": "05. Lưu kết quả gửi và bắt đầu hạn 48 giờ",
+          "executions": [
+            453
+          ]
+        },
+        {
+          "name": "06. Chờ đến mốc 24 giờ",
+          "executions": [
+            453
+          ]
+        },
+        {
+          "name": "07. Kiểm tra phản hồi ứng viên sau 24 giờ",
+          "executions": []
+        },
+        {
+          "name": "08. Kiểm tra có cần gửi thư nhắc",
+          "executions": []
+        },
+        {
+          "name": "09. Gửi thư nhắc ứng viên và thông báo HR",
+          "executions": []
+        },
+        {
+          "name": "10. Lưu kết quả gửi thư nhắc",
+          "executions": []
+        },
+        {
+          "name": "11. Chờ đến hạn 48 giờ",
+          "executions": []
+        },
+        {
+          "name": "12. Kiểm tra và đóng thư mời đã hết hạn",
+          "executions": []
+        },
+        {
+          "name": "13. Kiểm tra thư mời hết hạn cần báo HR",
+          "executions": []
+        },
+        {
+          "name": "14. Thông báo HR về thư mời hết hạn",
+          "executions": []
+        },
+        {
+          "name": "15. Lưu kết quả thông báo hết hạn",
+          "executions": []
+        }
+      ]
+    }
+  ],
+  "executions": [
+    {
+      "id": 447,
+      "workflowId": "hrTv2JobSyncV2",
+      "mode": "webhook",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "01. Nhận thông báo thay đổi vị trí tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02. Chuẩn hóa sự kiện tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03. Lấy danh sách vị trí đang mở từ Backend",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04. Kiểm tra và lọc vị trí đang mở",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05. Tạo lựa chọn mã vị trí – tên công việc",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07. Cập nhật danh sách chọn trên Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08. Kiểm tra kết quả cập nhật Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09. Xác định đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10. Tổng hợp kết quả đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11. Phản hồi đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 448,
+      "workflowId": "hrTv2IntakeAiV3",
+      "mode": "webhook",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "AI-01. Nhận yêu cầu chấm điểm CV",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-02. Hợp nhất yêu cầu chấm điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-03. Đánh dấu AI đang xử lý",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-04. Lấy context CV và JD chuẩn",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-05. Kiểm tra và làm sạch dữ liệu",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-06. Xây dựng khung tiêu chí",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-07. Gọi Gemini chấm điểm CV",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-08. Parse JSON kết quả AI",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "matchScore": 95
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-09. Kiểm tra schema và giới hạn điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "valid": true,
+                    "matchScore": 95
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-10. Kết quả AI hợp lệ?",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "valid": true,
+                    "matchScore": 95
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-11. Callback kết quả vào ATS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-13. Ghi log hoàn tất chấm điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 449,
+      "workflowId": "hrTv2JobSyncV2",
+      "mode": "webhook",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "01. Nhận thông báo thay đổi vị trí tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02. Chuẩn hóa sự kiện tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03. Lấy danh sách vị trí đang mở từ Backend",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04. Kiểm tra và lọc vị trí đang mở",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05. Tạo lựa chọn mã vị trí – tên công việc",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07. Cập nhật danh sách chọn trên Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08. Kiểm tra kết quả cập nhật Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09. Xác định đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10. Tổng hợp kết quả đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11. Phản hồi đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 450,
+      "workflowId": "hrTv2InterviewAiV3",
+      "mode": "webhook",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "01. Nhận yêu cầu xếp lịch phỏng vấn",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02. Kiểm tra quyền xử lý yêu cầu phỏng vấn",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "interviewId": 122
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03. Nhận quyền xử lý lịch phỏng vấn",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04. Nạp thông tin buổi phỏng vấn",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143,
+                    "interviewId": 122
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05. Tạo lịch phỏng vấn và Google Meet",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "status": "confirmed"
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Chờ Google khởi tạo phòng Meet",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "status": "confirmed"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07. Đọc lại sự kiện trên Google Calendar",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "status": "confirmed"
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08. Xác minh lịch và liên kết Google Meet",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "status": "confirmed"
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09. Lưu lịch và liên kết Meet vào ATS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143,
+                    "interviewId": 122
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10. Soạn thư mời và tệp lịch ICS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11. Gửi thư mời phỏng vấn",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "acceptedCount": 1,
+                    "rejectedCount": 0
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "12. Xác minh kết quả gửi thư mời",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "13. Lưu trạng thái gửi thư vào ATS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143,
+                    "interviewId": 122
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "18. Hoàn tất xử lý yêu cầu",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143,
+                    "interviewId": 122
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-Q02. Chuẩn hóa yêu cầu tạo câu hỏi",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "interviewId": 122
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-Q03. Đánh dấu AI đang xử lý",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "interviewId": 122
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-Q04. Lấy CV, JD và context vòng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 143,
+                    "interviewId": 122
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-Q05. Chuẩn bị dữ liệu và dựng prompt",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "interviewId": 122
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-Q07. Gọi Gemini tạo câu hỏi",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-Q08. Parse JSON và kiểm tra chất lượng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "interviewId": 122,
+                    "valid": true,
+                    "questionCount": 5
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-Q10. Bộ câu hỏi hợp lệ?",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "interviewId": 122,
+                    "valid": true,
+                    "questionCount": 5
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-Q11. Callback câu hỏi vào ATS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "interviewId": 122
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-Q13. Ghi log hoàn tất tạo câu hỏi",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "interviewId": 122
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 451,
+      "workflowId": "hrTv2IntakeAiV3",
+      "mode": "trigger",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "01. Theo dõi CV mới trong Gmail tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02. Chuẩn hóa hồ sơ nhận qua Gmail",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Kiểm tra thông tin ứng viên và tệp CV",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07. Lưu hồ sơ và CV vào ATS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08. Kiểm tra hồ sơ cần gửi xác nhận",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09. Soạn thư xác nhận đã nhận hồ sơ",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10. Gửi thư xác nhận cho ứng viên",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "acceptedCount": 1,
+                    "rejectedCount": 0
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11. Lưu kết quả gửi thư xác nhận",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "12. Kiểm tra hồ sơ đến từ Gmail",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "13. Đánh dấu email tuyển dụng đã xử lý",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-02. Hợp nhất yêu cầu chấm điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-03. Đánh dấu AI đang xử lý",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-04. Lấy context CV và JD chuẩn",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-05. Kiểm tra và làm sạch dữ liệu",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-06. Xây dựng khung tiêu chí",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-07. Gọi Gemini chấm điểm CV",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-08. Parse JSON kết quả AI",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "matchScore": 95
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-09. Kiểm tra schema và giới hạn điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "valid": true,
+                    "matchScore": 95
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-10. Kết quả AI hợp lệ?",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "valid": true,
+                    "matchScore": 95
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-11. Callback kết quả vào ATS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-13. Ghi log hoàn tất chấm điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 144
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 452,
+      "workflowId": "hrTv2IntakeAiV3",
+      "mode": "trigger",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "03. Phát hiện câu trả lời Google Form mới",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04. Chuẩn hóa hồ sơ và mã vị trí từ Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05. Tải CV từ Google Drive",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Kiểm tra thông tin ứng viên và tệp CV",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07. Lưu hồ sơ và CV vào ATS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08. Kiểm tra hồ sơ cần gửi xác nhận",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09. Soạn thư xác nhận đã nhận hồ sơ",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10. Gửi thư xác nhận cho ứng viên",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "acceptedCount": 1,
+                    "rejectedCount": 0
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11. Lưu kết quả gửi thư xác nhận",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "12. Kiểm tra hồ sơ đến từ Gmail",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [],
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-02. Hợp nhất yêu cầu chấm điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-03. Đánh dấu AI đang xử lý",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-04. Lấy context CV và JD chuẩn",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-05. Kiểm tra và làm sạch dữ liệu",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-06. Xây dựng khung tiêu chí",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-07. Gọi Gemini chấm điểm CV",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "error": "Try spacing your requests out using the batching settings under 'Options'"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-08. Parse JSON kết quả AI",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "valid": false,
+                    "error": "Gemini trả về kết quả không hợp lệ: Try spacing your requests out using the batching settings under 'Options'"
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-09. Kiểm tra schema và giới hạn điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "valid": false,
+                    "matchScore": null,
+                    "error": "Gemini trả về kết quả không hợp lệ: Try spacing your requests out using the batching settings under 'Options'"
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-10. Kết quả AI hợp lệ?",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [],
+                [
+                  {
+                    "valid": false,
+                    "matchScore": null,
+                    "error": "Gemini trả về kết quả không hợp lệ: Try spacing your requests out using the batching settings under 'Options'"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-12. Callback lỗi vào ATS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-13. Ghi log hoàn tất chấm điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 453,
+      "workflowId": "hrTv2OfferV2",
+      "mode": "webhook",
+      "status": "waiting",
+      "waitTill": "2026-10-22 23:00:07.546",
+      "error": "",
+      "nodes": [
+        {
+          "name": "01. Nhận yêu cầu phát hành thư mời nhận việc",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02. Kiểm tra quyền phát hành thư mời nhận việc",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03. Nhận nội dung thư mời từ Backend",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04. Gửi thư mời nhận việc cho ứng viên",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "acceptedCount": 1,
+                    "rejectedCount": 0
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05. Lưu kết quả gửi và bắt đầu hạn 48 giờ",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Chờ đến mốc 24 giờ",
+          "runs": [
+            {
+              "status": "waiting",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 454,
+      "workflowId": "hrTv2JobSyncV2",
+      "mode": "trigger",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "14. Đồng bộ dự phòng mỗi 5 phút",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02. Chuẩn hóa sự kiện tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03. Lấy danh sách vị trí đang mở từ Backend",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04. Kiểm tra và lọc vị trí đang mở",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05. Tạo lựa chọn mã vị trí – tên công việc",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07. Cập nhật danh sách chọn trên Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08. Kiểm tra kết quả cập nhật Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09. Xác định đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10. Tổng hợp kết quả đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11. Phản hồi đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 455,
+      "workflowId": "hrTv2IntakeAiV3",
+      "mode": "webhook",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "AI-01. Nhận yêu cầu chấm điểm CV",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-02. Hợp nhất yêu cầu chấm điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-03. Đánh dấu AI đang xử lý",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-04. Lấy context CV và JD chuẩn",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-05. Kiểm tra và làm sạch dữ liệu",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-06. Xây dựng khung tiêu chí",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "applicationId": 145
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-07. Gọi Gemini chấm điểm CV",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "error": "Try spacing your requests out using the batching settings under 'Options'"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-08. Parse JSON kết quả AI",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "valid": false,
+                    "error": "Gemini trả về kết quả không hợp lệ: Try spacing your requests out using the batching settings under 'Options'"
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-09. Kiểm tra schema và giới hạn điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {
+                    "valid": false,
+                    "matchScore": null,
+                    "error": "Gemini trả về kết quả không hợp lệ: Try spacing your requests out using the batching settings under 'Options'"
+                  }
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-10. Kết quả AI hợp lệ?",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [],
+                [
+                  {
+                    "valid": false,
+                    "matchScore": null,
+                    "error": "Gemini trả về kết quả không hợp lệ: Try spacing your requests out using the batching settings under 'Options'"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-12. Callback lỗi vào ATS",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "AI-13. Ghi log hoàn tất chấm điểm",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 456,
+      "workflowId": "hrTv2JobSyncV2",
+      "mode": "trigger",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "14. Đồng bộ dự phòng mỗi 5 phút",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02. Chuẩn hóa sự kiện tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03. Lấy danh sách vị trí đang mở từ Backend",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04. Kiểm tra và lọc vị trí đang mở",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05. Tạo lựa chọn mã vị trí – tên công việc",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07. Cập nhật danh sách chọn trên Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08. Kiểm tra kết quả cập nhật Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09. Xác định đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10. Tổng hợp kết quả đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11. Phản hồi đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 457,
+      "workflowId": "hrTv2JobSyncV2",
+      "mode": "webhook",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "01. Nhận thông báo thay đổi vị trí tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02. Chuẩn hóa sự kiện tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03. Lấy danh sách vị trí đang mở từ Backend",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04. Kiểm tra và lọc vị trí đang mở",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05. Tạo lựa chọn mã vị trí – tên công việc",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07. Cập nhật danh sách chọn trên Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08. Kiểm tra kết quả cập nhật Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09. Xác định đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10. Tổng hợp kết quả đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11. Phản hồi đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 458,
+      "workflowId": "hrTv2JobSyncV2",
+      "mode": "webhook",
+      "status": "success",
+      "waitTill": null,
+      "error": "",
+      "nodes": [
+        {
+          "name": "01. Nhận thông báo thay đổi vị trí tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02. Chuẩn hóa sự kiện tuyển dụng",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03. Lấy danh sách vị trí đang mở từ Backend",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04. Kiểm tra và lọc vị trí đang mở",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05. Tạo lựa chọn mã vị trí – tên công việc",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07. Cập nhật danh sách chọn trên Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08. Kiểm tra kết quả cập nhật Google Form",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09. Xác định đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ],
+                []
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10. Tổng hợp kết quả đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11. Phản hồi đồng bộ thành công",
+          "runs": [
+            {
+              "status": "success",
+              "error": "",
+              "outputs": [
+                [
+                  {}
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sync": [
+    {
+      "executionId": 447,
+      "status": "success",
+      "action": "CREATED",
+      "includesTestJob24": false,
+      "success": true,
+      "optionCount": 21
+    },
+    {
+      "executionId": 449,
+      "status": "success",
+      "action": "CREATED",
+      "includesTestJob24": true,
+      "success": true,
+      "optionCount": 22
+    },
+    {
+      "executionId": 454,
+      "status": "success",
+      "action": "UPDATED",
+      "includesTestJob24": true,
+      "success": true,
+      "optionCount": 22
+    },
+    {
+      "executionId": 456,
+      "status": "success",
+      "action": "UPDATED",
+      "includesTestJob24": true,
+      "success": true,
+      "optionCount": 22
+    },
+    {
+      "executionId": 457,
+      "status": "success",
+      "action": "STATUS_CHANGED",
+      "includesTestJob24": false,
+      "success": true,
+      "optionCount": 21
+    },
+    {
+      "executionId": 458,
+      "status": "success",
+      "action": "STATUS_CHANGED",
+      "includesTestJob24": true,
+      "success": true,
+      "optionCount": 22
+    }
+  ],
+  "applications": [
+    {
+      "id": 143,
+      "job_id": 23,
+      "intakeChannel": null,
+      "acknowledgementStatus": null,
+      "match_score": "95.00",
+      "ai_score_status": "COMPLETED",
+      "ai_score_error": null
+    },
+    {
+      "id": 144,
+      "job_id": 23,
+      "intakeChannel": "GMAIL",
+      "acknowledgementStatus": "SMTP_ACCEPTED",
+      "match_score": "95.00",
+      "ai_score_status": "COMPLETED",
+      "ai_score_error": null
+    },
+    {
+      "id": 145,
+      "job_id": 24,
+      "intakeChannel": "GOOGLE_FORM",
+      "acknowledgementStatus": "SMTP_ACCEPTED",
+      "match_score": null,
+      "ai_score_status": "FAILED",
+      "ai_score_error": "Gemini trả về kết quả không hợp lệ: Try spacing your requests out using the batching settings under 'Options'"
+    }
+  ],
+  "interviews": [
+    {
+      "id": 122,
+      "application_id": 143,
+      "result": "PASSED",
+      "ai_questions_status": "COMPLETED",
+      "ai_questions_error": null,
+      "questionCount": 5,
+      "hasMeetingLink": 1
+    }
+  ],
+  "deliveries": [
+    {
+      "interview_id": 122,
+      "status": "COMPLETED",
+      "calendar_status": "CONFIRMED",
+      "email_status": "SMTP_ACCEPTED",
+      "failure_stage": null
+    }
+  ],
+  "offers": [
+    {
+      "id": 6,
+      "status": "ACCEPTED",
+      "deliveryStatus": "SMTP_ACCEPTED",
+      "sentAt": "2026-10-21T23:00:08.000Z",
+      "remindedAt": null,
+      "expiryNotifiedAt": null
+    }
+  ],
+  "mailProof": [
+    {
+      "executionId": 451,
+      "applicationId": 144,
+      "sentCopyFound": true,
+      "inOwnInbox": true,
+      "htmlTitleVerified": true,
+      "brandVerified": true,
+      "htmlLength": 2844
+    },
+    {
+      "executionId": 452,
+      "applicationId": 145,
+      "sentCopyFound": true,
+      "inOwnInbox": false,
+      "htmlTitleVerified": true,
+      "brandVerified": true,
+      "htmlLength": 2881
+    }
+  ],
+  "timers": {
+    "startedAt": "2026-10-21T22:58:11.012Z",
+    "sourceWorkflow": "hrTv2OfferV2",
+    "provider": "REAL existing n8n SMTP credential",
+    "scope": "Isolated SQLite snapshot with SMTP credentials; inactive workflow copies; disposable MySQL; accelerated deadlines",
+    "liveBefore": {
+      "count": 4,
+      "sha256": "cafa7305791c6ea1f22980985953d636a0500b4bd20ef0690a38414a8fc0fd81"
+    },
+    "cases": [
+      {
+        "kind": "pending",
+        "workflowId": "hrRetestTimerpending20261022",
+        "earlyReminderBlocked": true,
+        "status": "EXPIRED",
+        "deliveryStatus": "SMTP_ACCEPTED",
+        "sent": true,
+        "reminded": true,
+        "expiryNotified": true
+      },
+      {
+        "kind": "accepted",
+        "workflowId": "hrRetestTimeraccepted20261022",
+        "earlyReminderBlocked": true,
+        "responseStatus": "ACCEPTED",
+        "status": "ACCEPTED",
+        "deliveryStatus": "SMTP_ACCEPTED",
+        "sent": true,
+        "reminded": false,
+        "expiryNotified": false
+      },
+      {
+        "kind": "declined",
+        "workflowId": "hrRetestTimerdeclined20261022",
+        "earlyReminderBlocked": true,
+        "responseStatus": "DECLINED",
+        "status": "DECLINED",
+        "deliveryStatus": "SMTP_ACCEPTED",
+        "sent": true,
+        "reminded": false,
+        "expiryNotified": false
+      }
+    ],
+    "liveAfter": {
+      "count": 4,
+      "sha256": "cafa7305791c6ea1f22980985953d636a0500b4bd20ef0690a38414a8fc0fd81"
+    },
+    "passed": true,
+    "finishedAt": "2026-10-21T22:59:05.708Z",
+    "liveDefinitionsUnchanged": true,
+    "clock": "Only disposable test database deadlines accelerated; not 24/48 hour wall time",
+    "definitionCheck": {
+      "columns": "id,name,nodes,connections,settings,versionId,activeVersionId",
+      "note": "Snapshot workflows deliberately inactive. Active flags verified by successful full live before/after equality during run.",
+      "before": {
+        "count": 4,
+        "sha256": "9258cf129e97fd76bcf6f09c260924aa163b1ff5632f911510c9cecd211ba2c0"
+      },
+      "after": {
+        "count": 4,
+        "sha256": "9258cf129e97fd76bcf6f09c260924aa163b1ff5632f911510c9cecd211ba2c0"
+      },
+      "unchanged": true
+    }
+  },
+  "limits": [
+    "Application 145 hit provider rate limiting, including one manual scoring retry; acknowledgement was delivered independently.",
+    "Production Gemini model/retry policy was not changed or published in this retest.",
+    "SMTP accepted and Gmail sent copy are not proof that the external recipient opened or received it in Inbox.",
+    "Calendar/SMTP failure paths and early-context-error nodes were not forced on live.",
+    "Execution success may mean FAILED callback succeeded; ATS status is the business result."
+  ]
+}

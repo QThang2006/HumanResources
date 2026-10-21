@@ -86,7 +86,7 @@ for (let attempt = 1; attempt <= 4; attempt++) {
   context = run(prepare, attempt === 1 ? context : { retryContext: context });
   assert.equal(context.geminiAttempt, attempt);
   assert.equal(context.requestId, origin.requestId);
-  assert.equal(context.geminiModel, attempt <= 2 ? 'models/gemini-3.5-flash-lite' : 'models/gemini-3.1-flash-lite');
+  assert.equal(context.geminiModel, attempt <= 2 ? 'models/gemini-3.5-flash-lite' : 'models/gemini-3-flash-preview');
   assert.equal(context.geminiFallbackUsed, attempt > 2);
   const result = run(classify, { error: 'Service unavailable' }, context);
   assert.equal(result.shouldRetry, attempt < 4);
@@ -103,7 +103,7 @@ for (const error of ['API key invalid', 'Invalid API key', 'Permission denied', 
   assert.equal(run(classify, { error }, { ...origin, geminiAttempt: 1 }).shouldRetry, false);
   cases++;
 }
-for (const status of [429, 502, 503, 504]) {
+for (const status of [429, 500, 502, 503, 504]) {
   assert.equal(run(classify, { error: { status, message: 'Transient failure' } }, { ...origin, geminiAttempt: 1 }).shouldRetry, true);
   cases++;
 }
@@ -122,7 +122,7 @@ assert.equal(untrusted.geminiFallbackUsed, false);
 const fallbackContext = run(prepare, { retryContext: { ...origin, geminiAttempt: 2 } });
 const fallbackOutput = run(classify, { mergedResponse: JSON.stringify(questions) }, fallbackContext);
 const fallbackParsed = run(find(interview, 'AI-Q08'), fallbackOutput);
-assert.equal(fallbackParsed.geminiModel, 'models/gemini-3.1-flash-lite');
+assert.equal(fallbackParsed.geminiModel, 'models/gemini-3-flash-preview');
 assert.equal(fallbackParsed.geminiFallbackUsed, true);
 assert.equal(fallbackParsed.geminiAttempts, 3);
 assert.equal(fallbackParsed.requestId, origin.requestId);
@@ -140,4 +140,46 @@ for (const error of ['The connection to the server was closed unexpectedly, perh
   assert.equal(last.retryExhausted, true);
   cases++;
 }
+assert.equal(find(score, 'AI-07').retryOnFail, false);
+assert.equal(native.alwaysOutputData, true, 'Empty native candidates must reach validation');
+const scorePrepare = find(score, 'AI-R01');
+const scoreClassify = find(score, 'AI-R02');
+const cleanedContext = run(find(score, 'AI-05'), { data: { applicationId: origin.applicationId, candidateName: 'Synthetic', rawCvText: '', cvFileUrl: 'owned-synthetic.pdf', cvAttachment: { mimeType: 'application/pdf', data: 'JVBERi0=' }, job: { requirements: 'Backend development' } } });
+assert.equal(cleanedContext.requestId, origin.requestId, 'Canonical requestId must survive the context API and cleaning step');
+let scoreContext = run(find(score, 'AI-06'), cleanedContext);
+for (let attempt = 1; attempt <= 4; attempt++) {
+  scoreContext = run(scorePrepare, attempt === 1 ? scoreContext : { retryContext: scoreContext });
+  const response = run(scoreClassify, { error: { cause: { status: 500, message: 'Internal error' } } }, scoreContext);
+  assert.equal(response.shouldRetry, attempt < 4);
+  assert.equal(response.retryExhausted, attempt === 4);
+  assert.equal(scoreContext.requestId, origin.requestId);
+  assert.equal(scoreContext.geminiModel, attempt <= 2 ? 'models/gemini-3.5-flash-lite' : 'models/gemini-3-flash-preview');
+  assert.equal(scoreContext.geminiRequest.generationConfig.maxOutputTokens, 4096);
+  assert.deepEqual(scoreContext.geminiRequest.contents[0].parts[1].inlineData, { mimeType: 'application/pdf', data: 'JVBERi0=' });
+  cases++;
+}
+assert.throws(() => run(scorePrepare, { retryContext: scoreContext }), /limit/);
+for (const node of [scoreClassify, classify]) {
+  assert.equal(run(node, { error: { cause: { status: 500, message: 'Internal error' } } }, { ...origin, geminiAttempt: 1 }).shouldRetry, true);
+  assert.equal(run(node, { error: { status: 401, message: '503 but API key invalid' } }, { ...origin, geminiAttempt: 1 }).shouldRetry, false);
+  assert.equal(run(node, {}, { ...origin, geminiAttempt: 1 }).shouldRetry, false);
+  cases++;
+}
+const scoreResponse = run(scoreClassify, { text: JSON.stringify({ ...good, applicationId: 999, requestId: 'provider-value' }) }, scoreContext);
+const scoreParsed = run(find(score, 'AI-08'), scoreResponse);
+const scoreValid = run(find(score, 'AI-09'), scoreParsed);
+assert.equal(scoreValid.valid, true);
+assert.equal(scoreParsed.requestId, origin.requestId);
+assert.equal(scoreParsed.applicationId, origin.applicationId);
+assert.equal(scoreParsed.geminiAttempts, 4);
+assert.equal(scoreValid.callbackResult.requestId, origin.requestId);
+assert.equal(run(find(score, 'AI-09'), run(find(score, 'AI-08'), {})).valid, false);
+cases++;
+const exhaustedResponse = run(scoreClassify, { error: { status: 503, message: 'Service unavailable' } }, scoreContext);
+const exhaustedParsed = run(find(score, 'AI-09'), run(find(score, 'AI-08'), exhaustedResponse));
+assert.equal(exhaustedParsed.valid, false);
+assert.equal(exhaustedParsed.requestId, origin.requestId);
+assert.equal(exhaustedParsed.applicationId, origin.applicationId);
+assert.equal(exhaustedParsed.retryExhausted, true);
+cases++;
 console.log(`${cases} workflow regression cases passed; no external calls.`);

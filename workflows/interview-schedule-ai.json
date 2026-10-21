@@ -499,7 +499,7 @@
     },
     {
       "parameters": {
-        "modelId": "models/gemini-3.6-flash",
+        "modelId": "={{ $json.geminiModel }}",
         "messages": {
           "values": [
             {
@@ -525,8 +525,8 @@
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1.2,
       "position": [
-        1392,
-        944
+        1608,
+        912
       ],
       "retryOnFail": false,
       "credentials": {
@@ -540,7 +540,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const origin=$json.retryContext||$(\"AI-Q02. Chuẩn hóa yêu cầu tạo câu hỏi\").item.json;\nconst base={interviewId:origin.interviewId,requestId:origin.requestId,geminiAttempts:Number($json.retryAttempt||1),retryExhausted:Boolean($json.retryExhausted)};\ntry{\n  if($json.error)throw Error(typeof $json.error==='string'?$json.error:($json.error.message||'Gemini request failed'));\n  let raw=$json;\n  if(!Object.hasOwn(raw,'questions'))raw=raw.mergedResponse??raw.text??raw.output??raw.response??raw.content?.parts?.map(p=>p.text||'').join('')??raw.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('');\n  if(typeof raw==='string')raw=JSON.parse(raw.trim().replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'').trim());\n  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Expected JSON object');\n  const list=Array.isArray(raw.questions)?raw.questions:[];const seen=new Set();const questions=[];\n  for(const item of list){const q=typeof item==='string'?item.trim():String(item?.question||'').trim();const key=q.toLocaleLowerCase();if(q.length>=20&&!seen.has(key)){seen.add(key);questions.push(q);}}\n  const valid=questions.length>=3&&questions.length<=10;\n  return {json:{...raw,...base,questions,valid,error:valid?undefined:'Need 3-10 unique questions, got '+questions.length}};\n}catch(e){return {json:{...base,valid:false,questions:[],error:'Gemini returned invalid result: '+e.message}};}"
+        "jsCode": "const origin=$json.retryContext||$(\"AI-Q02. Chuẩn hóa yêu cầu tạo câu hỏi\").item.json;\nconst base={interviewId:origin.interviewId,requestId:origin.requestId,geminiAttempts:Number($json.retryAttempt||1),retryExhausted:Boolean($json.retryExhausted),geminiModel:origin.geminiModel||null,geminiFallbackUsed:Boolean(origin.geminiFallbackUsed)};\ntry{\n  if($json.error)throw Error(typeof $json.error==='string'?$json.error:($json.error.message||'Gemini request failed'));\n  let raw=$json;\n  if(!Object.hasOwn(raw,'questions'))raw=raw.mergedResponse??raw.text??raw.output??raw.response??raw.content?.parts?.map(p=>p.text||'').join('')??raw.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('');\n  if(typeof raw==='string')raw=JSON.parse(raw.trim().replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'').trim());\n  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Expected JSON object');\n  const list=Array.isArray(raw.questions)?raw.questions:[];const seen=new Set();const questions=[];\n  for(const item of list){const q=typeof item==='string'?item.trim():String(item?.question||'').trim();const key=q.toLocaleLowerCase();if(q.length>=20&&!seen.has(key)){seen.add(key);questions.push(q);}}\n  const valid=questions.length>=3&&questions.length<=10;\n  return {json:{...raw,...base,questions,valid,error:valid?undefined:'Need 3-10 unique questions, got '+questions.length}};\n}catch(e){return {json:{...base,valid:false,questions:[],error:'Gemini returned invalid result: '+e.message}};}"
       },
       "id": "hrTv2InterviewAiV3-parse",
       "name": "AI-Q08. Parse JSON và kiểm tra chất lượng",
@@ -702,7 +702,7 @@
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const context=$json.retryContext||$json;\nconst previous=Number(context.geminiAttempt||0);\nif(!Number.isInteger(previous)||previous<0||previous>=4)throw Error('Gemini attempt limit reached');\nreturn {json:{...context,geminiAttempt:previous+1}};"
+        "jsCode": "const context=$json.retryContext||$json;\nconst previous=Number(context.geminiAttempt||0);\nif(!Number.isInteger(previous)||previous<0||previous>=4)throw Error('Gemini attempt limit reached');\nconst geminiAttempt=previous+1;\n// Only the transient-error branch returns here. Never accept a model from request data.\nconst geminiModel=geminiAttempt<=2?'models/gemini-3.6-flash':'models/gemini-3.8-flash';\nreturn {json:{...context,geminiAttempt,geminiModel,geminiFallbackUsed:geminiAttempt>2}};"
       },
       "onError": "continueErrorOutput"
     },
@@ -717,7 +717,7 @@
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const context=$(\"AI-QR01. Chuẩn bị lần gọi Gemini\").item.json;\nconst error=$json.error;\nconst message=error?(typeof error==='string'?error:String(error.message||error.description||'Gemini request failed')):'';\nconst status=Number(error?.httpCode||error?.statusCode||error?.status||0);\nconst permanent=[400,401,403,404].includes(status)||/unauthori[sz]ed|forbidden|permission denied|(?:api.?key|credential).*(?:invalid|expired)|invalid.*api.?key|invalid argument|bad request|model.*not found/i.test(message);\nconst transient=Boolean(error)&&!permanent&&([429,502,503,504].includes(status)||/service unavailable|too many requests|resource.exhausted|overload|high demand|timed? ?out|timeout|econnreset|etimedout|\\b50[234]\\b|\\b429\\b/i.test(message));\nconst attempt=Number(context.geminiAttempt);\nif(!Number.isInteger(attempt)||attempt<1||attempt>4)throw Error('Invalid Gemini attempt state');\nconst shouldRetry=transient&&attempt<4;\nreturn {json:{...$json,retryContext:context,retryAttempt:attempt,retryable:transient,shouldRetry,retryDelaySeconds:shouldRetry?[15,30,60][attempt-1]:0,retryExhausted:transient&&attempt===4}};"
+        "jsCode": "const context=$(\"AI-QR01. Chuẩn bị lần gọi Gemini\").item.json;\nconst error=$json.error;\nconst message=error?(typeof error==='string'?error:String(error.message||error.description||'Gemini request failed')):'';\nconst status=Number(error?.httpCode||error?.statusCode||error?.status||0);\nconst permanent=[400,401,403,404].includes(status)||/unauthori[sz]ed|forbidden|permission denied|(?:api.?key|credential).*(?:invalid|expired)|invalid.*api.?key|invalid argument|bad request|model.*not found/i.test(message);\nconst transient=Boolean(error)&&!permanent&&([429,502,503,504].includes(status)||/service unavailable|too many requests|resource.exhausted|overload|high demand|timed? ?out|timeout|econnreset|etimedout|connection.*(?:closed|reset)|socket hang up|network error|\\b50[234]\\b|\\b429\\b/i.test(message));\nconst attempt=Number(context.geminiAttempt);\nif(!Number.isInteger(attempt)||attempt<1||attempt>4)throw Error('Invalid Gemini attempt state');\nconst shouldRetry=transient&&attempt<4;\nreturn {json:{...$json,retryContext:context,retryAttempt:attempt,retryable:transient,shouldRetry,retryDelaySeconds:shouldRetry?[15,30,60][attempt-1]:0,retryExhausted:transient&&attempt===4}};"
       },
       "onError": "continueErrorOutput"
     },

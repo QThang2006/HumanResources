@@ -71,6 +71,7 @@ assert.equal(native.typeVersion, 1.2);
 assert(native.credentials.googlePalmApi);
 assert.equal(native.parameters.operation, 'message');
 assert.equal(native.parameters.jsonOutput, true);
+assert.equal(native.parameters.modelId, '={{ $json.geminiModel }}');
 assert.equal(find(score, 'AI-07').parameters.jsonBody, '={{ $json.geminiRequest }}');
 assert.equal(find(score, 'AI-11').parameters.jsonBody, '={{ $json.callbackResult }}');
 cases++;
@@ -85,6 +86,8 @@ for (let attempt = 1; attempt <= 4; attempt++) {
   context = run(prepare, attempt === 1 ? context : { retryContext: context });
   assert.equal(context.geminiAttempt, attempt);
   assert.equal(context.requestId, origin.requestId);
+  assert.equal(context.geminiModel, attempt <= 2 ? 'models/gemini-3.6-flash' : 'models/gemini-3.8-flash');
+  assert.equal(context.geminiFallbackUsed, attempt > 2);
   const result = run(classify, { error: 'Service unavailable' }, context);
   assert.equal(result.shouldRetry, attempt < 4);
   assert.equal(result.retryDelaySeconds, [15, 30, 60, 0][attempt - 1]);
@@ -112,4 +115,29 @@ const malformedProvider = run(classify, { mergedResponse: 'not JSON' }, { ...ori
 assert.equal(malformedProvider.shouldRetry, false);
 assert.equal(run(find(interview, 'AI-Q08'), malformedProvider).valid, false);
 cases += 3;
+// A request cannot select its own model or skip the attempt budget.
+const untrusted = run(prepare, { ...origin, geminiModel: 'attacker-model', geminiFallbackUsed: true });
+assert.equal(untrusted.geminiModel, 'models/gemini-3.6-flash');
+assert.equal(untrusted.geminiFallbackUsed, false);
+const fallbackContext = run(prepare, { retryContext: { ...origin, geminiAttempt: 2 } });
+const fallbackOutput = run(classify, { mergedResponse: JSON.stringify(questions) }, fallbackContext);
+const fallbackParsed = run(find(interview, 'AI-Q08'), fallbackOutput);
+assert.equal(fallbackParsed.geminiModel, 'models/gemini-3.8-flash');
+assert.equal(fallbackParsed.geminiFallbackUsed, true);
+assert.equal(fallbackParsed.geminiAttempts, 3);
+assert.equal(fallbackParsed.requestId, origin.requestId);
+assert.equal(fallbackParsed.valid, true);
+for (const status of [400, 401, 403, 404]) {
+  assert.equal(run(classify, { error: { status, message: 'Rejected' } }, fallbackContext).shouldRetry, false);
+  cases++;
+}
+cases += 2;
+for (const error of ['The connection to the server was closed unexpectedly, perhaps it is offline.', 'socket hang up', 'ECONNRESET']) {
+  const first = run(classify, { error }, { ...origin, geminiAttempt: 1 });
+  assert.equal(first.shouldRetry, true);
+  const last = run(classify, { error }, { ...origin, geminiAttempt: 4 });
+  assert.equal(last.shouldRetry, false);
+  assert.equal(last.retryExhausted, true);
+  cases++;
+}
 console.log(`${cases} workflow regression cases passed; no external calls.`);

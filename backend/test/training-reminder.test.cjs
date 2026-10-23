@@ -282,4 +282,12 @@ test('workflow 4.1 giữ đúng 12 node và ghi nhận cả kết quả Telegram
     nodeByName.get('Lưu kết quả về hệ thống').parameters.body,
     /telegramNotified/,
   );
+  assert.equal(
+    nodeByName.get('Có trường hợp cần nhắc?').notesInFlow,
+    true,
+  );
+  assert.match(
+    nodeByName.get('Có trường hợp cần nhắc?').notes,
+    /false kết thúc bình thường/,
+  );
 });

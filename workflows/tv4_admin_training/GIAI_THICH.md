@@ -110,7 +110,7 @@ GEMINI_API_KEY=THAY_BẰNG_API_KEY_GEMINI
 | `automationSecret` | Phải giống `N8N_AUTOMATION_SECRET` của backend | Giá trị thật trong n8n | Giá trị thật trong n8n |
 | `senderEmail` | Địa chỉ người gửi SMTP | Email đã cấu hình credential | Email đã cấu hình credential |
 | `telegramChatId` | Mã nhóm Telegram nhận thông báo | Mã nhóm thử nghiệm | Mã nhóm thử nghiệm |
-| Các trường `test...Email` | Chuyển toàn bộ thư về một hộp thư thử nghiệm | Nên dùng khi demo | Nên dùng khi demo |
+| Các trường `test...Email` | Ghi đè riêng email của từng nhóm người nhận trong lúc thử nghiệm | Nên dùng khi demo | Nên dùng khi demo |
 
 ### 3.4. Credential bắt buộc trên n8n
 
@@ -322,7 +322,7 @@ Backend chỉ đưa một lượt đào tạo vào danh sách nhắc khi thỏa 
 | 2 | `Nạp cấu hình an toàn` | Set | Nạp API base, khóa tự động hóa, email gửi, email kiểm thử và Telegram chat ID |
 | 3 | `Lấy danh sách cần nhắc` | HTTP Request | Gọi backend bằng `X-Automation-Secret` để lấy các lượt đủ điều kiện |
 | 4 | `Tách từng lượt đào tạo` | Code | Mỗi lượt đào tạo trở thành một item; nếu rỗng tạo item `skip = true` |
-| 5 | `Có trường hợp cần nhắc?` | IF | Chỉ đi tiếp khi `skip = false` |
+| 5 | `Có trường hợp cần nhắc?` | IF | Nhánh `true` tiếp tục gửi; nhánh `false` kết thúc bình thường khi danh sách cần nhắc rỗng, không phải lỗi |
 | 6 | `Soạn nội dung nhắc bằng tiếng Việt` | Code | Tạo tiêu đề, email HTML, tin Telegram, nhãn còn hạn/quá hạn và chọn người nhận thử nghiệm |
 | 7 | `Gửi thư nhắc nhân viên` | Email Send | Gửi email cho nhân viên; thử lại tối đa ba lần, cách nhau hai giây |
 | 8 | `Có quản lý trực tiếp?` | IF | Kiểm tra có người quản lý hợp lệ để nhận thư hay không |
@@ -346,7 +346,7 @@ Backend chỉ đưa một lượt đào tạo vào danh sách nhắc khi thỏa 
 1. Tạo hoặc chọn một khóa bắt buộc.
 2. Gán cho nhân viên với hạn còn từ một đến ba ngày.
 3. Đặt tiến độ dưới 50%.
-4. Trong node `Nạp cấu hình an toàn`, đặt email thử nghiệm để tránh gửi nhầm dữ liệu thật.
+4. Trong node `Nạp cấu hình an toàn`, để trống `testEmployeeEmail` nếu muốn gửi theo email thật của nhân viên và đặt `testManagerEmail` nếu tài khoản quản lý vẫn dùng email đăng nhập mẫu.
 5. Bấm `Execute workflow`.
 6. Kiểm tra:
    - Node `Lấy danh sách cần nhắc` trả `count = 1` hoặc lớn hơn.
@@ -394,7 +394,7 @@ Hạn hoàn thành được backend tính là ngày cuối cùng của tháng.
 | 4 | `Xác định đợt thông báo` | Code | Tính ngày theo giờ Việt Nam, xác định phase và tạo run ID |
 | 5 | `Lấy danh sách quản lý cần nhắc` | HTTP Request | Gọi backend với `asOf` và `phase` |
 | 6 | `Tách từng quản lý phụ trách` | Code | Mỗi quản lý cùng danh sách nhân viên chưa nộp trở thành một item |
-| 7 | `Có quản lý cần thông báo?` | IF | Dừng an toàn khi không còn đánh giá thiếu |
+| 7 | `Có quản lý cần thông báo?` | IF | Nhánh `true` tiếp tục gửi; nhánh `false` dừng an toàn khi không còn đánh giá thiếu |
 | 8 | `Soạn nội dung đánh giá bằng tiếng Việt` | Code | Tạo bảng HTML nhân viên, hạn hoàn thành, email và Telegram |
 | 9 | `Gửi thư cho quản lý` | Email Send | Gửi danh sách đánh giá còn thiếu tới người phụ trách |
 | 10 | `Thông báo kênh đánh giá` | Telegram | Thông báo kỳ, người phụ trách, số lượng còn thiếu và hạn |

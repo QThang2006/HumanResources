@@ -50,10 +50,16 @@
               "value": "automation@example.com"
             },
             {
-              "id": "test-recipient-email",
-              "name": "testRecipientEmail",
+              "id": "test-employee-email",
+              "name": "testEmployeeEmail",
               "type": "string",
-              "value": "test-recipient@example.com"
+              "value": ""
+            },
+            {
+              "id": "test-manager-email",
+              "name": "testManagerEmail",
+              "type": "string",
+              "value": "test-manager@example.com"
             }
           ]
         },
@@ -133,6 +139,8 @@
       "name": "Có trường hợp cần nhắc?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
+      "notes": "Nhánh true tiếp tục gửi thông báo. Nhánh false kết thúc bình thường vì backend không trả về lượt đào tạo nào cần nhắc; đây không phải lỗi.",
+      "notesInFlow": true,
       "position": [
         880,
         300
@@ -140,7 +148,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $json;\nconst employee = item.employee;\nconst manager = item.manager;\nconst course = item.course;\nconst testRecipientEmail = String(item.testRecipientEmail || '').trim();\nconst employeeEmail = testRecipientEmail || employee.email;\nconst managerEmail = manager ? (testRecipientEmail || manager.email || '') : '';\nconst overdue = item.daysRemaining < 0;\nconst dueLabel = overdue\n  ? `đã quá hạn ${Math.abs(item.daysRemaining)} ngày`\n  : item.daysRemaining === 0\n    ? 'đến hạn hôm nay'\n    : `còn ${item.daysRemaining} ngày`;\nconst courseLink = course.courseUrl || 'http://localhost:5173/employee/workspace';\nconst subject = overdue\n  ? `[Quá hạn] Khóa học bắt buộc: ${course.title}`\n  : `[Nhắc hạn] Khóa học bắt buộc: ${course.title}`;\nconst employeeHtml = `<p>Chào <strong>${employee.fullName}</strong>,</p><p>Khóa học bắt buộc <strong>${course.title}</strong> ${dueLabel}, nhưng tiến độ hiện tại mới đạt <strong>${item.progressPercent}%</strong>.</p><p>Vui lòng tiếp tục học và hoàn thành đúng hạn.</p><p><a href=\"${courseLink}\">Mở khóa học</a></p><p>Đây là thông báo tự động từ hệ thống Đào tạo nội bộ.</p>`;\nconst managerHtml = manager\n  ? `<p>Chào <strong>${manager.fullName}</strong>,</p><p>Nhân viên <strong>${employee.fullName}</strong> đang có khóa học bắt buộc <strong>${course.title}</strong> ${dueLabel}; tiến độ hiện tại là <strong>${item.progressPercent}%</strong>.</p><p>Vui lòng hỗ trợ đôn đốc nhân viên hoàn thành.</p>`\n  : '';\nconst managerLabel = item.managerSource === 'DEPARTMENT' ? 'Quản lý phòng ban' : 'Quản lý trực tiếp';\nconst telegramText = `📚 <b>NHẮC TIẾN ĐỘ ĐÀO TẠO</b>\\n\\nNhân viên: <b>${employee.fullName}</b>\\nKhóa học: <b>${course.title}</b>\\nTiến độ: <b>${item.progressPercent}%</b>\\nHạn: <b>${dueLabel}</b>${manager ? `\\n${managerLabel}: <b>${manager.fullName}</b>` : '\\n⚠️ Chưa khai báo quản lý cho nhân viên'}`;\n\nreturn [{ json: {\n  ...item,\n  employeeEmail,\n  managerEmail,\n  hasManager: Boolean(manager && managerEmail),\n  emailSubject: subject,\n  employeeHtml,\n  managerHtml,\n  telegramText\n} }];"
+        "jsCode": "const item = $json;\nconst employee = item.employee;\nconst manager = item.manager;\nconst course = item.course;\nconst testEmployeeEmail = String(item.testEmployeeEmail || '').trim();\nconst testManagerEmail = String(item.testManagerEmail || '').trim();\nconst employeeEmail = testEmployeeEmail || employee.email;\nconst managerEmail = manager ? (testManagerEmail || manager.email || '') : '';\nconst overdue = item.daysRemaining < 0;\nconst dueLabel = overdue\n  ? `đã quá hạn ${Math.abs(item.daysRemaining)} ngày`\n  : item.daysRemaining === 0\n    ? 'đến hạn hôm nay'\n    : `còn ${item.daysRemaining} ngày`;\nconst courseLink = course.courseUrl || 'http://localhost:5173/employee/workspace';\nconst subject = overdue\n  ? `[Quá hạn] Khóa học bắt buộc: ${course.title}`\n  : `[Nhắc hạn] Khóa học bắt buộc: ${course.title}`;\nconst employeeHtml = `<p>Chào <strong>${employee.fullName}</strong>,</p><p>Khóa học bắt buộc <strong>${course.title}</strong> ${dueLabel}, nhưng tiến độ hiện tại mới đạt <strong>${item.progressPercent}%</strong>.</p><p>Vui lòng tiếp tục học và hoàn thành đúng hạn.</p><p><a href=\"${courseLink}\">Mở khóa học</a></p><p>Đây là thông báo tự động từ hệ thống Đào tạo nội bộ.</p>`;\nconst managerHtml = manager\n  ? `<p>Chào <strong>${manager.fullName}</strong>,</p><p>Nhân viên <strong>${employee.fullName}</strong> đang có khóa học bắt buộc <strong>${course.title}</strong> ${dueLabel}; tiến độ hiện tại là <strong>${item.progressPercent}%</strong>.</p><p>Vui lòng hỗ trợ đôn đốc nhân viên hoàn thành.</p>`\n  : '';\nconst managerLabel = item.managerSource === 'DEPARTMENT' ? 'Quản lý phòng ban' : 'Quản lý trực tiếp';\nconst telegramText = `📚 <b>NHẮC TIẾN ĐỘ ĐÀO TẠO</b>\\n\\nNhân viên: <b>${employee.fullName}</b>\\nKhóa học: <b>${course.title}</b>\\nTiến độ: <b>${item.progressPercent}%</b>\\nHạn: <b>${dueLabel}</b>${manager ? `\\n${managerLabel}: <b>${manager.fullName}</b>` : '\\n⚠️ Chưa khai báo quản lý cho nhân viên'}`;\n\nreturn [{ json: {\n  ...item,\n  employeeEmail,\n  managerEmail,\n  hasManager: Boolean(manager && managerEmail),\n  emailSubject: subject,\n  employeeHtml,\n  managerHtml,\n  telegramText\n} }];"
       },
       "id": "tv4-training-06-compose",
       "name": "Soạn nội dung nhắc bằng tiếng Việt",

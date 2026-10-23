@@ -9,6 +9,9 @@ const { PerformanceReviewService } = require(
 const { OffboardingService } = require(
   '../dist/modules/offboarding/offboarding.service.js',
 );
+const { N8nService } = require(
+  '../dist/modules/core/automation/n8n.service.js',
+);
 const {
   AutomationDeliveryStatus,
   ReviewReminderPhase,
@@ -21,6 +24,24 @@ const workflow = (file) => JSON.parse(
     'utf8',
   ),
 );
+
+test('workflow 4.1 tách riêng email thử nghiệm của nhân viên và quản lý', () => {
+  const value = workflow('02_mandatory_training_reminder.json');
+  const nodes = new Map(value.nodes.map((node) => [node.name, node]));
+  const assignments = nodes
+    .get('Nạp cấu hình an toàn')
+    .parameters.assignments.assignments;
+  const configNames = assignments.map((item) => item.name);
+  const composeCode = nodes
+    .get('Soạn nội dung nhắc bằng tiếng Việt')
+    .parameters.jsCode;
+
+  assert.ok(configNames.includes('testEmployeeEmail'));
+  assert.ok(configNames.includes('testManagerEmail'));
+  assert.ok(!configNames.includes('testRecipientEmail'));
+  assert.match(composeCode, /testEmployeeEmail \|\| employee\.email/);
+  assert.match(composeCode, /testManagerEmail \|\| manager\.email/);
+});
 
 test('workflow 4.2 có 12 node, hai lịch đúng ngày và ghi kết quả về backend', () => {
   const value = workflow('03_monthly_performance_review_reminder.json');
@@ -63,6 +84,41 @@ test('workflow 4.3 có 12 node, dùng hồ sơ backend và theo dõi đủ bốn
   assert.match(summaryCode, /financeNotified/);
   assert.match(summaryCode, /employeeNotified/);
   assert.match(summaryCode, /telegramNotified/);
+});
+
+test('dịch vụ 4.3 chuẩn hóa URL webhook khi cấu hình còn đường dẫn thử nghiệm', async () => {
+  const config = {
+    get: (key) => ({
+      N8N_WEBHOOK_URL: 'http://localhost:5678/webhook/hr-admin-test',
+      N8N_AUTOMATION_SECRET: 'automation-test-secret',
+    })[key],
+  };
+  const service = new N8nService(config);
+  const originalFetch = global.fetch;
+  let requestUrl = '';
+  let requestHeaders = {};
+
+  global.fetch = async (url, options) => {
+    requestUrl = String(url);
+    requestHeaders = options.headers;
+    return { ok: true, status: 200 };
+  };
+
+  try {
+    const accepted = await service.triggerOffboardingApproved({ caseId: 9 });
+
+    assert.equal(accepted, true);
+    assert.equal(
+      requestUrl,
+      'http://localhost:5678/webhook/tv4-offboarding',
+    );
+    assert.equal(
+      requestHeaders['X-Automation-Secret'],
+      'automation-test-secret',
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 
 test('dịch vụ 4.2 gom nhân viên chưa được đánh giá theo quản lý', async () => {

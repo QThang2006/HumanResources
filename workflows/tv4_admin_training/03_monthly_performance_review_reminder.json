@@ -197,6 +197,8 @@
       "name": "Có quản lý cần thông báo?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
+      "notes": "Nhánh true tiếp tục gửi thông báo. Nhánh false kết thúc bình thường vì không có quản lý nào còn nhân viên chưa hoàn thành đánh giá.",
+      "notesInFlow": true,
       "position": [
         1160,
         300

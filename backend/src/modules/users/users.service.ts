@@ -233,7 +233,12 @@ export class UsersService {
                 throw new NotFoundException('Không tìm thấy phòng ban.');
             }
 
+            // findById() nạp sẵn quan hệ department. Nếu chỉ đổi khóa ngoại,
+            // TypeORM có thể dùng lại quan hệ cũ khi save() và ghi đè thay đổi.
+            // Cập nhật đồng thời cả khóa ngoại lẫn quan hệ để phòng ban được lưu
+            // nhất quán và vẫn đúng sau khi tải lại danh sách người dùng.
             user.departmentId = department.id;
+            user.department = department;
         }
 
         if (data.jobTitle !== undefined) {

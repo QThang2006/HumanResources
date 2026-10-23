@@ -122,12 +122,8 @@ export const TrainingPanel: React.FC = () => {
     [users],
   );
 
-  const loadData = useCallback(async (showLoading = false) => {
+  const loadData = useCallback(async () => {
     try {
-      if (showLoading) {
-        setLoading(true);
-      }
-
       const [courseData, assignmentData, summaryData, userData] =
         await Promise.all([
           trainingApi.getCourses(),
@@ -144,14 +140,16 @@ export const TrainingPanel: React.FC = () => {
       console.error(error);
       setMessage('Không thể tải dữ liệu đào tạo.');
     } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData(true);
+    const loadTimer = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
   }, [loadData]);
 
   const handleCreateCourse = async () => {
@@ -473,7 +471,7 @@ export const TrainingPanel: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => loadData(false)}
+              onClick={() => void loadData()}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D8DCDE] bg-white px-3.5 text-xs font-black text-[#666D72] transition hover:bg-[#F2F4F4]"
             >
               <RefreshCw className="h-3.5 w-3.5" />

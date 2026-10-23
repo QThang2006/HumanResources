@@ -117,7 +117,7 @@ export class N8nService {
    * Kích hoạt quy trình thôi việc liên phòng ban sau khi HR đã duyệt.
    */
   async triggerOffboardingApproved(payload: { caseId: number }): Promise<boolean> {
-    const url = `${this.webhookBaseUrl}/tv4-offboarding`;
+    const url = this.buildTv4WebhookUrl('tv4-offboarding');
     const automationSecret = this.configService
       .get<string>('N8N_AUTOMATION_SECRET')
       ?.trim();
@@ -129,6 +129,34 @@ export class N8nService {
         ? { 'X-Automation-Secret': automationSecret }
         : undefined,
     );
+  }
+
+  /**
+   * Chuẩn hóa riêng URL workflow TV4 để cấu hình cũ có thêm đường dẫn thử nghiệm
+   * (ví dụ /webhook/hr-admin-test) không tạo thành một webhook không tồn tại.
+   */
+  private buildTv4WebhookUrl(workflowPath: string): string {
+    const configuredUrl = this.webhookBaseUrl.trim().replace(/\/+$/, '');
+
+    try {
+      const parsedUrl = new URL(configuredUrl);
+      const webhookMarker = '/webhook';
+      const markerIndex = parsedUrl.pathname.indexOf(webhookMarker);
+
+      if (markerIndex >= 0) {
+        parsedUrl.pathname = `${parsedUrl.pathname.slice(
+          0,
+          markerIndex + webhookMarker.length,
+        )}/${workflowPath}`;
+        parsedUrl.search = '';
+        parsedUrl.hash = '';
+        return parsedUrl.toString().replace(/\/$/, '');
+      }
+    } catch {
+      // postWebhook sẽ ghi log lỗi kết nối nếu URL cấu hình không hợp lệ.
+    }
+
+    return `${configuredUrl}/${workflowPath}`;
   }
 
   private async postWebhook(

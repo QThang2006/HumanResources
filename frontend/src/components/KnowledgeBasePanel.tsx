@@ -77,7 +77,6 @@ export const KnowledgeBasePanel: React.FC = () => {
 
   const loadDocuments = useCallback(async () => {
     try {
-      setLoading(true);
       const data = await documentsApi.getAll();
       setDocuments(data);
     } catch (error) {
@@ -92,7 +91,11 @@ export const KnowledgeBasePanel: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadDocuments();
+    const loadTimer = window.setTimeout(() => {
+      void loadDocuments();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
   }, [loadDocuments]);
 
   const handleUpload = async () => {

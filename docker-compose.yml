@@ -29,6 +29,10 @@ services:
       - N8N_PROTOCOL=http
       - WEBHOOK_URL=http://localhost:5678/
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    env_file:
+      - ./backend/.env
     volumes:
       - n8n_data:/home/node/.n8n
 

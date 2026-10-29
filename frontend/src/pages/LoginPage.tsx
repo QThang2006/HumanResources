@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/auth.api';
 import type { UserRole } from '../types';
-import { Bot, ShieldCheck, UserCheck, Briefcase, User, LogIn, KeyRound, Mail, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
+import { Bot, ShieldCheck, UserCheck, Briefcase, User, LogIn, KeyRound, Mail, CheckCircle2, Loader2 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { user, setAuthSession, logout, isAuthenticated } = useAuth();
@@ -105,6 +105,22 @@ export const LoginPage: React.FC = () => {
           {errorMessage && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
               {errorMessage}
+              {errorMessage.includes('phong tỏa') && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await authApi.unblockIp('127.0.0.1');
+                      setErrorMessage('Đã mở khóa IP [127.0.0.1]. Bạn có thể đăng nhập lại.');
+                    } catch (e: any) {
+                      setErrorMessage('Lỗi khi mở khóa: ' + (e.message || 'Không thể kết nối Backend'));
+                    }
+                  }}
+                  className="mt-2 w-full py-1.5 px-3 bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-semibold rounded-lg transition block text-center"
+                >
+                  Mở khóa IP cho phiên này
+                </button>
+              )}
             </div>
           )}
 
@@ -150,12 +166,12 @@ export const LoginPage: React.FC = () => {
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Đang xác thực bảo mật...
+                Đang xác thực...
               </>
             ) : (
               <>
                 <LogIn className="w-4 h-4" />
-                Đăng Nhập Ngay
+                Đăng Nhập
               </>
             )}
           </button>
@@ -166,8 +182,8 @@ export const LoginPage: React.FC = () => {
             <div className="w-full border-t border-slate-200"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-2 text-slate-400 font-semibold flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-500" /> Hoặc Đăng Nhập Nhanh Theo Vai Trò (Tự Điền & Xác Thực Thật)
+            <span className="bg-white px-3 text-slate-400 font-medium text-xs">
+              Hoặc chọn tài khoản theo vai trò (RBAC)
             </span>
           </div>
         </div>

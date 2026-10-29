@@ -1,0 +1,651 @@
+{
+  "testedOn": "2026-10-21 Asia/Saigon",
+  "generatedAt": "2026-10-21T07:14:16.124Z",
+  "published": false,
+  "policy": {
+    "primary": "gemini-3.5-flash-lite",
+    "fallback": "gemini-3.1-flash-lite",
+    "primaryAttempts": 2,
+    "totalAttempts": 4,
+    "waitSeconds": [
+      15,
+      30,
+      60
+    ],
+    "fallbackOnlyOnTransientError": true
+  },
+  "offlineCases": 67,
+  "validation": {
+    "checkedAt": "2026-10-21T07:06:25.664Z",
+    "live": [
+      {
+        "id": "hrTv2InterviewAiV3",
+        "active": true,
+        "versionId": "62894aa2-fd69-4831-a61a-963861be4342",
+        "activeVersionId": "62894aa2-fd69-4831-a61a-963861be4342",
+        "unchanged": true
+      },
+      {
+        "id": "hrTv2IntakeAiV3",
+        "active": true,
+        "versionId": "799870da-c59d-4212-8560-75d660e35b9e",
+        "activeVersionId": "799870da-c59d-4212-8560-75d660e35b9e",
+        "unchanged": true
+      }
+    ],
+    "connectionsUnchanged": true,
+    "changedNodes": [
+      "AI-Q07. Gọi Gemini tạo câu hỏi",
+      "AI-Q08. Parse JSON và kiểm tra chất lượng",
+      "AI-QR01. Chuẩn bị lần gọi Gemini",
+      "AI-QR02. Phân loại lỗi và giới hạn thử lại"
+    ],
+    "nodeCount": 34,
+    "connectionsChangedFromLive": [
+      {
+        "name": "AI-Q07. Gọi Gemini tạo câu hỏi",
+        "before": {
+          "main": [
+            [
+              {
+                "node": "AI-Q08. Parse JSON và kiểm tra chất lượng",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "after": {
+          "main": [
+            [
+              {
+                "node": "AI-QR02. Phân loại lỗi và giới hạn thử lại",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "name": "AI-Q05. Chuẩn bị dữ liệu và dựng prompt",
+        "before": {
+          "main": [
+            [
+              {
+                "node": "AI-Q07. Gọi Gemini tạo câu hỏi",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "AI-QE01. Chuẩn hóa lỗi để gỡ trạng thái AI",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "after": {
+          "main": [
+            [
+              {
+                "node": "AI-QR01. Chuẩn bị lần gọi Gemini",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "AI-QE01. Chuẩn hóa lỗi để gỡ trạng thái AI",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "name": "AI-QR01. Chuẩn bị lần gọi Gemini",
+        "before": null,
+        "after": {
+          "main": [
+            [
+              {
+                "node": "AI-Q07. Gọi Gemini tạo câu hỏi",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "AI-QE01. Chuẩn hóa lỗi để gỡ trạng thái AI",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "name": "AI-QR02. Phân loại lỗi và giới hạn thử lại",
+        "before": null,
+        "after": {
+          "main": [
+            [
+              {
+                "node": "AI-QR03. Có thể thử lại Gemini?",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "AI-QE01. Chuẩn hóa lỗi để gỡ trạng thái AI",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "name": "AI-QR03. Có thể thử lại Gemini?",
+        "before": null,
+        "after": {
+          "main": [
+            [
+              {
+                "node": "AI-QR04. Chờ trước khi gọi lại Gemini",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "AI-Q08. Parse JSON và kiểm tra chất lượng",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "name": "AI-QR04. Chờ trước khi gọi lại Gemini",
+        "before": null,
+        "after": {
+          "main": [
+            [
+              {
+                "node": "AI-QR01. Chuẩn bị lần gọi Gemini",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      }
+    ],
+    "scheduleNodes01to18Unchanged": true,
+    "referenceCount": 22,
+    "reachableNodes": 34,
+    "networkClassifierFollowup": "Connection closed/socket hang up are transient; at attempt 4 retryExhausted=true. Offline regression verified after execution 321."
+  },
+  "allPassed": false,
+  "results": [
+    {
+      "kind": "real",
+      "provider": "REAL primary/fallback native Gemini",
+      "executionId": 307,
+      "interviewId": 107,
+      "executionStatus": "success",
+      "passed": true,
+      "providerCalls": 2,
+      "injectedPrimaryCalls": 0,
+      "providerExecutionTimesMs": [
+        1028,
+        18272
+      ],
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        },
+        {
+          "attempt": 2,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        }
+      ],
+      "ats": {
+        "id": 107,
+        "ai_questions_status": "COMPLETED",
+        "ai_questions_error": null,
+        "ai_questions_request_id": "backoff-real-1792509851972",
+        "questionCount": 5
+      },
+      "nativeOutputShape": {
+        "fields": [
+          "content",
+          "finishReason",
+          "index",
+          "mergedResponse"
+        ],
+        "mergedResponseType": "string",
+        "contentPartFields": [
+          [
+            "text"
+          ]
+        ],
+        "textMatchesMerged": true,
+        "questionCount": 5,
+        "firstQuestion": "Bạn có thể giải thích cơ chế Dependency Injection (DI) trong NestJS hoạt động như thế nào và cách bạn tối ưu hóa việc kết nối, truy vấn cơ sở dữ liệu MySQL trong ứng dụng NestJS?"
+      },
+      "parser": {
+        "valid": true,
+        "model": "models/gemini-3.6-flash",
+        "fallback": false,
+        "questionCount": 5
+      },
+      "conditionOutputs": [
+        1,
+        0
+      ],
+      "callback": {
+        "recorded": true,
+        "status": "COMPLETED"
+      },
+      "active": false
+    },
+    {
+      "kind": "fallbackReal",
+      "provider": "REAL native fallback, first 2 primary errors INJECTED",
+      "executionId": 320,
+      "interviewId": 108,
+      "executionStatus": "success",
+      "passed": true,
+      "providerCalls": 1,
+      "injectedPrimaryCalls": 2,
+      "providerExecutionTimesMs": [
+        196554
+      ],
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        },
+        {
+          "attempt": 2,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        },
+        {
+          "attempt": 3,
+          "model": "models/gemini-3.8-flash",
+          "fallback": true
+        }
+      ],
+      "ats": {
+        "id": 108,
+        "ai_questions_status": "COMPLETED",
+        "ai_questions_error": null,
+        "ai_questions_request_id": "backoff-fallbackReal-1792509851977",
+        "questionCount": 5
+      },
+      "nativeOutputShape": {
+        "fields": [
+          "content",
+          "finishReason",
+          "index",
+          "mergedResponse"
+        ],
+        "mergedResponseType": "string",
+        "contentPartFields": [
+          [
+            "text"
+          ]
+        ],
+        "textMatchesMerged": true,
+        "questionCount": 5,
+        "firstQuestion": "Trong NestJS, Dependency Injection (DI) hoạt động như thế nào và sự khác biệt giữa các Scope của Provider (DEFAULT, REQUEST, TRANSIENT) ảnh hưởng ra sao đến hiệu năng của ứng dụng?"
+      },
+      "parser": {
+        "valid": true,
+        "model": "models/gemini-3.8-flash",
+        "fallback": true,
+        "questionCount": 5
+      },
+      "conditionOutputs": [
+        1,
+        0
+      ],
+      "callback": {
+        "recorded": true,
+        "status": "COMPLETED"
+      },
+      "active": false
+    },
+    {
+      "kind": "fallbackSecond",
+      "provider": "REAL native fallback, first 2 primary errors INJECTED",
+      "executionId": 321,
+      "interviewId": 109,
+      "executionStatus": "success",
+      "passed": false,
+      "providerCalls": 2,
+      "injectedPrimaryCalls": 2,
+      "providerExecutionTimesMs": [
+        4267,
+        69357
+      ],
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        },
+        {
+          "attempt": 2,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        },
+        {
+          "attempt": 3,
+          "model": "models/gemini-3.8-flash",
+          "fallback": true
+        },
+        {
+          "attempt": 4,
+          "model": "models/gemini-3.8-flash",
+          "fallback": true
+        }
+      ],
+      "ats": {
+        "id": 109,
+        "ai_questions_status": "FAILED",
+        "ai_questions_error": "Gemini returned invalid result: The connection to the server was closed unexpectedly, perhaps it is offline. You can retry the request immediately or wait and retry later.",
+        "ai_questions_request_id": "backoff-fallbackSecond-1792509851981",
+        "questionCount": null
+      },
+      "nativeOutputShape": {
+        "fields": [
+          "error"
+        ],
+        "mergedResponseType": "undefined",
+        "textMatchesMerged": true
+      },
+      "parser": {
+        "valid": false,
+        "error": "Gemini returned invalid result: The connection to the server was closed unexpectedly, perhaps it is offline. You can retry the request immediately or wait and retry later.",
+        "model": "models/gemini-3.8-flash",
+        "fallback": true,
+        "questionCount": 0
+      },
+      "conditionOutputs": [
+        0,
+        1
+      ],
+      "callback": {
+        "recorded": true,
+        "status": "FAILED"
+      },
+      "active": false
+    },
+    {
+      "kind": "recover",
+      "provider": "INJECTED FAULT/OUTPUT: not a real provider result",
+      "executionId": 306,
+      "interviewId": 110,
+      "executionStatus": "success",
+      "passed": true,
+      "providerCalls": 3,
+      "injectedPrimaryCalls": 0,
+      "providerExecutionTimesMs": [
+        11,
+        9,
+        10
+      ],
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        },
+        {
+          "attempt": 2,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        },
+        {
+          "attempt": 3,
+          "model": "models/gemini-3.8-flash",
+          "fallback": true
+        }
+      ],
+      "ats": {
+        "id": 110,
+        "ai_questions_status": "COMPLETED",
+        "ai_questions_error": null,
+        "ai_questions_request_id": "backoff-recover-1792509851987",
+        "questionCount": 5
+      },
+      "parser": {
+        "valid": true,
+        "model": "models/gemini-3.8-flash",
+        "fallback": true,
+        "questionCount": 5
+      },
+      "conditionOutputs": [
+        1,
+        0
+      ],
+      "callback": {
+        "recorded": true,
+        "status": "COMPLETED"
+      },
+      "active": false
+    },
+    {
+      "kind": "exhaust",
+      "provider": "INJECTED FAULT/OUTPUT: not a real provider result",
+      "executionId": 308,
+      "interviewId": 111,
+      "executionStatus": "success",
+      "passed": true,
+      "providerCalls": 4,
+      "injectedPrimaryCalls": 0,
+      "providerExecutionTimesMs": [
+        10,
+        8,
+        11,
+        9
+      ],
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        },
+        {
+          "attempt": 2,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        },
+        {
+          "attempt": 3,
+          "model": "models/gemini-3.8-flash",
+          "fallback": true
+        },
+        {
+          "attempt": 4,
+          "model": "models/gemini-3.8-flash",
+          "fallback": true
+        }
+      ],
+      "ats": {
+        "id": 111,
+        "ai_questions_status": "FAILED",
+        "ai_questions_error": "Gemini returned invalid result: TEST INJECTED: Service unavailable",
+        "ai_questions_request_id": "backoff-exhaust-1792509851991",
+        "questionCount": null
+      },
+      "parser": {
+        "valid": false,
+        "error": "Gemini returned invalid result: TEST INJECTED: Service unavailable",
+        "model": "models/gemini-3.8-flash",
+        "fallback": true,
+        "questionCount": 0
+      },
+      "conditionOutputs": [
+        0,
+        1
+      ],
+      "callback": {
+        "recorded": true,
+        "status": "FAILED"
+      },
+      "active": false
+    },
+    {
+      "kind": "unauthorized",
+      "provider": "INJECTED FAULT/OUTPUT: not a real provider result",
+      "executionId": 309,
+      "interviewId": 112,
+      "executionStatus": "success",
+      "passed": true,
+      "providerCalls": 1,
+      "injectedPrimaryCalls": 0,
+      "providerExecutionTimesMs": [
+        10
+      ],
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        }
+      ],
+      "ats": {
+        "id": 112,
+        "ai_questions_status": "FAILED",
+        "ai_questions_error": "Gemini returned invalid result: TEST INJECTED: API key invalid",
+        "ai_questions_request_id": "backoff-unauthorized-1792509851996",
+        "questionCount": null
+      },
+      "parser": {
+        "valid": false,
+        "error": "Gemini returned invalid result: TEST INJECTED: API key invalid",
+        "model": "models/gemini-3.6-flash",
+        "fallback": false,
+        "questionCount": 0
+      },
+      "conditionOutputs": [
+        0,
+        1
+      ],
+      "callback": {
+        "recorded": true,
+        "status": "FAILED"
+      },
+      "active": false
+    },
+    {
+      "kind": "invalidJson",
+      "provider": "INJECTED FAULT/OUTPUT: not a real provider result",
+      "executionId": 310,
+      "interviewId": 113,
+      "executionStatus": "success",
+      "passed": true,
+      "providerCalls": 1,
+      "injectedPrimaryCalls": 0,
+      "providerExecutionTimesMs": [
+        10
+      ],
+      "attempts": [
+        {
+          "attempt": 1,
+          "model": "models/gemini-3.6-flash",
+          "fallback": false
+        }
+      ],
+      "ats": {
+        "id": 113,
+        "ai_questions_status": "FAILED",
+        "ai_questions_error": "Gemini returned invalid result: Unexpected token 'o', \"not JSON - \"... is not valid JSON",
+        "ai_questions_request_id": "backoff-invalidJson-1792509852000",
+        "questionCount": null
+      },
+      "parser": {
+        "valid": false,
+        "error": "Gemini returned invalid result: Unexpected token 'o', \"not JSON - \"... is not valid JSON",
+        "model": "models/gemini-3.6-flash",
+        "fallback": false,
+        "questionCount": 0
+      },
+      "conditionOutputs": [
+        0,
+        1
+      ],
+      "callback": {
+        "recorded": true,
+        "status": "FAILED"
+      },
+      "active": false
+    },
+    {
+      "kind": "liteNativeReal",
+      "provider": "REAL native Gemini",
+      "executionId": 417,
+      "interviewId": 114,
+      "executionStatus": "success",
+      "passed": true,
+      "providerCalls": 1,
+      "ats": {
+        "id": 114,
+        "ai_questions_status": "COMPLETED",
+        "questionCount": 5,
+        "ai_questions_request_id": "lite-native-20261021"
+      },
+      "nativeOutputShape": {
+        "fields": [
+          "content",
+          "finishReason",
+          "index"
+        ],
+        "contentPartFields": [
+          "text"
+        ],
+        "questionCount": 5
+      },
+      "parser": {
+        "valid": true,
+        "geminiModel": "models/gemini-3.5-flash-lite",
+        "geminiFallbackUsed": false,
+        "geminiAttempts": 1
+      },
+      "conditionOutputs": [
+        1,
+        0
+      ],
+      "callback": {
+        "recorded": true,
+        "interviewId": 114,
+        "status": "COMPLETED"
+      },
+      "active": false
+    }
+  ],
+  "limits": [
+    "Fallback tests deliberately inject the first two primary 503s; the fallback native Gemini response and ATS persistence are real.",
+    "Four fault scenarios use injected provider outputs and accelerated waits.",
+    "No live publication. Shared provider quota or outage can still affect both models.",
+    "This follow-up tests the AI branch; unchanged Calendar/email nodes were not rerun.",
+    "After execution 321, the classifier was extended for connection-closed/socket-hang-up messages. This final small change passed offline tests; real-provider executions above preceded it.",
+    "Execution 417 is the real native lite-model demo test: 3.5-flash-lite completed in one call."
+  ],
+  "modelProbeFile": "model-probes-lower.json"
+}

@@ -34,6 +34,7 @@ import { usersApi } from '../api/users.api';
 import type { User } from '../types';
 import { CourseLearnersPanel } from './CourseLearnersPanel';
 import { CourseRemoveDialog } from './CourseRemoveDialog';
+import { CoursePermanentDeleteDialog } from './CoursePermanentDeleteDialog';
 
 const COURSE_TYPE_LABELS: Record<TrainingCourseType, string> = {
   MANDATORY: 'BẮT BUỘC',
@@ -116,6 +117,9 @@ export const TrainingPanel: React.FC = () => {
   const [pendingRemove, setPendingRemove] = useState<TrainingCourse | null>(null);
   const [courseMutationId, setCourseMutationId] = useState<number | null>(null);
   const [removeError, setRemoveError] = useState('');
+  const [pendingPermanentDelete, setPendingPermanentDelete] = useState<TrainingCourse | null>(null);
+  const [permanentDeleteError, setPermanentDeleteError] = useState('');
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
   const [assignmentCourseId, setAssignmentCourseId] = useState<number | null>(null);
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [assignmentFilter, setAssignmentFilter] =
@@ -238,6 +242,31 @@ export const TrainingPanel: React.FC = () => {
       setRemoveError(error instanceof Error ? error.message : 'Không thể gỡ khóa học. Vui lòng thử lại.');
     } finally {
       setCourseMutationId(null);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!pendingPermanentDelete || permanentDeleting) return;
+    const course = pendingPermanentDelete;
+    setPermanentDeleting(true);
+    setPermanentDeleteError('');
+    try {
+      const result = await trainingApi.deleteCoursePermanently(course.id);
+      setCourses(current => current.filter(item => item.id !== course.id));
+      if (selectedCourseId === String(course.id)) {
+        setSelectedCourseId('');
+        setAssignedByAi(false);
+        setAiReason('');
+        setAiSuggestion(null);
+      }
+      setPendingPermanentDelete(null);
+      setMessage(result.message);
+      window.requestAnimationFrame(() => catalogHeadingRef.current?.focus());
+      await loadData();
+    } catch (error) {
+      setPermanentDeleteError(error instanceof Error ? error.message : 'Không thể xóa vĩnh viễn khóa học. Vui lòng thử lại.');
+    } finally {
+      setPermanentDeleting(false);
     }
   };
 
@@ -574,6 +603,13 @@ export const TrainingPanel: React.FC = () => {
         error={removeError}
         onCancel={() => { if (courseMutationId === null) { setPendingRemove(null); setRemoveError(''); } }}
         onConfirm={() => void handleRemoveCourse()}
+      />
+      <CoursePermanentDeleteDialog
+        course={pendingPermanentDelete}
+        busy={permanentDeleting}
+        error={permanentDeleteError}
+        onCancel={() => { if (!permanentDeleting) { setPendingPermanentDelete(null); setPermanentDeleteError(''); } }}
+        onConfirm={() => void handlePermanentDelete()}
       />
       {message && (
         <div
@@ -1100,9 +1136,12 @@ export const TrainingPanel: React.FC = () => {
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#E7E9EA] pt-3">
                   <button type="button" onClick={() => void handleViewLearners(course)} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-xs font-bold text-[#6F3042] hover:bg-[#FAF3F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153]" aria-label={`Xem người học của khóa ${course.title}`}><Users className="h-4 w-4" aria-hidden="true" />Xem người học</button>
                   {course.isArchived ? (
-                    <button type="button" disabled={courseMutationId !== null} onClick={() => void handleRestoreCourse(course)} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-xs font-bold text-[#4E5652] hover:bg-[#F1F3F3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] disabled:opacity-50" aria-label={`Khôi phục khóa ${course.title}`}>{courseMutationId === course.id ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />}Khôi phục</button>
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <button type="button" disabled={courseMutationId !== null || permanentDeleting} onClick={() => void handleRestoreCourse(course)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-bold text-[#4E5652] hover:bg-[#F1F3F3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] disabled:opacity-50" aria-label={`Khôi phục khóa ${course.title}`}>{courseMutationId === course.id ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />}Khôi phục</button>
+                      <button type="button" disabled={courseMutationId !== null || permanentDeleting} onClick={() => { setPermanentDeleteError(''); setPendingPermanentDelete(course); }} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-bold text-[#9D4150] hover:bg-[#FBF1F2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] disabled:opacity-50" aria-label={`Xóa vĩnh viễn khóa ${course.title}`}><Trash2 className="h-4 w-4" aria-hidden="true" />Xóa vĩnh viễn</button>
+                    </div>
                   ) : (
-                    <button type="button" disabled={courseMutationId !== null} onClick={() => { setRemoveError(''); setPendingRemove(course); }} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-xs font-bold text-[#9D4150] hover:bg-[#FBF1F2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] disabled:opacity-50" aria-label={`Xóa khóa ${course.title}`}><Trash2 className="h-4 w-4" aria-hidden="true" />Xóa</button>
+                    <button type="button" disabled={courseMutationId !== null} onClick={() => { setRemoveError(''); setPendingRemove(course); }} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-xs font-bold text-[#9D4150] hover:bg-[#FBF1F2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] disabled:opacity-50" aria-label={`Gỡ khóa ${course.title}`}><Trash2 className="h-4 w-4" aria-hidden="true" />Gỡ</button>
                   )}
                 </div>
               </article>

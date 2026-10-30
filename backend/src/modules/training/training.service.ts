@@ -106,6 +106,32 @@ export class TrainingService {
             };
         });
     }
+
+    async deleteCoursePermanently(courseId: number) {
+        return this.courseRepository.manager.transaction(async manager => {
+            const courses = manager.getRepository(TrainingCourse);
+            const course = await courses.findOne({
+                where: { id: courseId },
+                lock: { mode: 'pessimistic_write' },
+            });
+            if (!course) throw new NotFoundException('Không tìm thấy khóa học.');
+
+            const trainings = manager.getRepository(EmployeeTraining);
+            const assignmentCount = await trainings.countBy({ courseId });
+
+            if (assignmentCount > 0) {
+                await trainings.delete({ courseId });
+            }
+
+            await courses.delete(courseId);
+
+            return {
+                id: courseId,
+                assignmentCount,
+                message: `Đã xóa vĩnh viễn khóa học "${course.title}".`,
+            };
+        });
+    }
     async createCourse(data: {
         title: string;
         type: TrainingCourseType;

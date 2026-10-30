@@ -45,6 +45,10 @@ export class TrainingController {
     archiveCourse(@Param('id', ParseIntPipe) courseId: number) {
         return this.trainingService.setCourseArchived(courseId, true);
     }
+    @Delete('courses/:id/permanent')
+    deleteCoursePermanently(@Param('id', ParseIntPipe) courseId: number) {
+        return this.trainingService.deleteCoursePermanently(courseId);
+    }
     @Patch('courses/:id/restore')
     restoreCourse(@Param('id', ParseIntPipe) courseId: number) {
         return this.trainingService.setCourseArchived(courseId, false);

@@ -128,6 +128,10 @@ export const trainingApi = {
         return apiClient.patch(`/training/courses/${courseId}/restore`);
     },
 
+    deleteCoursePermanently: async (courseId: number): Promise<TrainingCourseMutation> => {
+        return apiClient.delete(`/training/courses/${courseId}/permanent`);
+    },
+
 
     createCourse: async (data: {
         title: string;

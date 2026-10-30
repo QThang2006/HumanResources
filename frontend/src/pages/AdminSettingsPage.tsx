@@ -1264,7 +1264,7 @@ const IntegrationsPanel: React.FC<{
               type="password"
               autoComplete="off"
               spellCheck={false}
-              aria-describedby="gemini-api-key-help"
+              aria-describedby={geminiKeyIsUrl ? 'gemini-api-key-help' : undefined}
               aria-invalid={geminiKeyIsUrl || undefined}
               value={props.geminiApiKey}
               onChange={event => props.onGeminiKeyChange(event.target.value)}
@@ -1273,9 +1273,11 @@ const IntegrationsPanel: React.FC<{
             />
           </div>
 
-          <p id="gemini-api-key-help" role={geminiKeyIsUrl ? 'alert' : undefined} className={`mt-2 text-sm leading-6 ${geminiKeyIsUrl ? 'text-[#9D4150]' : 'text-[#636A70]'}`}>
-            {geminiKeyIsUrl ? 'Bạn đang nhập địa chỉ website. Hãy dán giá trị khóa API Gemini vào ô này.' : <>Sao chép giá trị khóa từ <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#6F3042] underline underline-offset-2">Google AI Studio</a>. Địa chỉ website và webhook n8n được cấu hình riêng.</>}
-          </p>
+          {geminiKeyIsUrl && (
+            <p id="gemini-api-key-help" role="alert" className="mt-2 text-sm leading-6 text-[#9D4150]">
+              Bạn đang nhập địa chỉ website. Hãy dán giá trị khóa API Gemini vào ô này.
+            </p>
+          )}
 
           <div className="mt-3 flex justify-end">
             <button

@@ -102,11 +102,10 @@
         1280,
         260
       ],
-      "onError": "continueRegularOutput",
       "credentials": {
         "smtp": {
-          "id": "h1v8OcFX2oUSbyoy",
-          "name": "SMTP account"
+          "id": "l1IYILIUOY2w4H1b",
+          "name": "Quoc Thang SMTP"
         }
       }
     },

@@ -55,7 +55,7 @@
               "id": "automation-secret",
               "name": "automationSecret",
               "type": "string",
-              "value": "THAY_BANG_GIA_TRI_N8N_AUTOMATION_SECRET"
+              "value": "={{ $env.N8N_AUTOMATION_SECRET }}"
             },
             {
               "id": "telegram-chat-id",

@@ -197,6 +197,7 @@ export const KnowledgeBasePanel: React.FC = () => {
   };
 
   const handleSearch = async (question: string = query) => {
+    if (searching) return;
     const trimmedQuery = question.trim();
 
     if (!trimmedQuery) {
@@ -210,6 +211,8 @@ export const KnowledgeBasePanel: React.FC = () => {
     try {
       setSearching(true);
       setMessage(null);
+      setRagResponse(null);
+      setShowEvidence(false);
       const response = await documentsApi.searchThroughWorkflow(
         trimmedQuery,
         4,
@@ -217,13 +220,6 @@ export const KnowledgeBasePanel: React.FC = () => {
       setRagResponse(response);
       setLastQuestion(trimmedQuery);
       setShowEvidence(false);
-      setMessage({
-        type: 'success',
-        text:
-          response.sources.length > 0
-            ? `Workflow Kho tri thức đã tạo câu trả lời từ ${response.sources.length} nguồn được kiểm chứng.`
-            : 'Kho tri thức chưa có nguồn đủ phù hợp để trả lời chắc chắn.',
-      });
     } catch (error) {
       console.error(error);
       setRagResponse(null);
@@ -262,6 +258,11 @@ export const KnowledgeBasePanel: React.FC = () => {
       document.title.toLocaleLowerCase('vi').includes(keyword),
     );
   }, [documentSearch, documents]);
+
+  const sourceDocuments = ragResponse?.sources.filter(
+    (source, index, sources) =>
+      sources.findIndex(item => item.documentId === source.documentId) === index,
+  ) ?? [];
 
   return (
     <div className="space-y-5">
@@ -573,37 +574,49 @@ export const KnowledgeBasePanel: React.FC = () => {
               <FileSearch className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-[#202326]">Kiểm thử</h3>
-              <p className="mt-0.5 text-xs text-[#7F868B]">
-                Đặt câu hỏi và kiểm tra trực tiếp nội dung đã dùng làm căn cứ.
+              <h3 className="text-base font-black text-[#202326]">
+                Kiểm thử câu trả lời
+              </h3>
+              <p className="mt-0.5 text-xs text-[#636A70]">
+                Đặt câu hỏi, đọc câu trả lời và mở nguồn để đối chiếu khi cần.
               </p>
             </div>
           </div>
         </div>
 
         <div className="p-5 sm:p-7">
-          <div className="flex flex-col gap-2 md:flex-row">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
-              <input
-                type="text"
-                value={query}
-                onChange={event => {
-                  setQuery(event.target.value);
-                  if (!event.target.value.trim()) {
-                    setRagResponse(null);
-                    setLastQuestion('');
-                    setShowEvidence(false);
-                  }
-                }}
-                onKeyDown={event => {
-                  if (event.key === 'Enter') {
-                    void handleSearch();
-                  }
-                }}
-                placeholder="Ví dụ: Chính sách nghỉ phép của công ty như thế nào?"
-                className="h-12 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] pl-11 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
-              />
+          <div className="flex flex-col gap-2 md:flex-row md:items-end">
+            <div className="flex-1">
+              <label
+                htmlFor="knowledge-question"
+                className="mb-2 block text-xs font-black text-[#4E5652]"
+              >
+                Câu hỏi cần tra cứu
+              </label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+                <input
+                  id="knowledge-question"
+                  type="text"
+                  value={query}
+                  disabled={searching}
+                  onChange={event => {
+                    setQuery(event.target.value);
+                    if (!event.target.value.trim()) {
+                      setRagResponse(null);
+                      setLastQuestion('');
+                      setShowEvidence(false);
+                    }
+                  }}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') {
+                      void handleSearch();
+                    }
+                  }}
+                  placeholder="Ví dụ: Khóa học bắt buộc phải hoàn thành trong bao lâu?"
+                  className="h-12 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] pl-11 pr-4 text-sm text-[#2E3235] placeholder:text-[#69736D] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10 disabled:opacity-60"
+                />
+              </div>
             </div>
 
             <button
@@ -617,17 +630,21 @@ export const KnowledgeBasePanel: React.FC = () => {
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              {searching ? 'Đang tìm...' : 'Kiểm thử'}
+              {searching ? 'Đang tìm...' : 'Tìm câu trả lời'}
             </button>
           </div>
 
           {ragResponse && (
-            <div className="mt-6 rounded-[20px] border border-[#DCE4DF] bg-[#F8FBF9] p-5 sm:p-6">
+            <div
+              role="status"
+              aria-live="polite"
+              className="mt-6 rounded-2xl border border-[#DCE4DF] bg-[#F8FBF9] p-5 sm:p-6"
+            >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.14em] text-[#718078]">
+                  <h4 className="text-base font-black text-[#33403A]">
                     Câu trả lời từ Kho tri thức
-                  </p>
+                  </h4>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <span
                       className={`rounded-full px-2.5 py-1 text-[11px] font-black ${
@@ -639,11 +656,11 @@ export const KnowledgeBasePanel: React.FC = () => {
                       {ragResponse.sources.length === 0
                         ? 'Chưa đủ dữ liệu'
                         : ragResponse.aiGenerated
-                        ? 'AI tổng hợp'
-                        : 'Trích xuất từ tài liệu'}
+                          ? 'AI tổng hợp có dẫn nguồn'
+                          : 'Trích đoạn liên quan'}
                     </span>
                     <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-[#68726D] ring-1 ring-[#DCE4DF]">
-                      {ragResponse.sources.length} nguồn
+                      {sourceDocuments.length} tài liệu
                     </span>
                   </div>
                 </div>
@@ -670,19 +687,26 @@ export const KnowledgeBasePanel: React.FC = () => {
               </div>
 
               {lastQuestion && (
-                <div className="mt-4 rounded-2xl border border-white/80 bg-white/80 px-4 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A958F]">
-                    Câu hỏi
-                  </p>
-                  <p className="mt-1 text-sm font-bold leading-6 text-[#3F4944]">
-                    {lastQuestion}
-                  </p>
-                </div>
+                <p className="mt-4 text-sm leading-6 text-[#3F4944]">
+                  <span className="font-bold">Bạn hỏi: </span>{lastQuestion}
+                </p>
               )}
 
-              <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-[#3F4944]">
-                {ragResponse.answer}
-              </p>
+              <div className="mt-5 max-w-prose space-y-3 text-sm leading-7 text-[#3F4944] [overflow-wrap:anywhere]">
+                {ragResponse.answer.split(/\n\s*\n/).map((paragraph, index) => {
+                  const lines = paragraph.split('\n').filter(line => line.trim());
+                  const isList = lines.every(line => /^[•*-]\s+/.test(line));
+                  return isList ? (
+                    <ul key={index} className="list-disc space-y-2 pl-5">
+                      {lines.map((line, lineIndex) => (
+                        <li key={lineIndex}>{line.replace(/^[•*-]\s+/, '')}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p key={index} className="whitespace-pre-wrap">{paragraph}</p>
+                  );
+                })}
+              </div>
 
               {ragResponse.requiresHrIntervention && (
                 <div className="mt-4 flex items-start gap-2 rounded-2xl border border-[#F0DFC1] bg-[#FFF8EA] px-4 py-3 text-xs font-bold leading-5 text-[#8A5B27]">
@@ -694,18 +718,15 @@ export const KnowledgeBasePanel: React.FC = () => {
               {ragResponse.sources.length > 0 && (
                 <div className="mt-5 border-t border-[#DCE4DF] pt-4">
                   <p className="text-xs font-black text-[#4A5650]">
-                    Nguồn đã sử dụng
+                    Nguồn tham khảo
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {ragResponse.sources.map(source => (
+                    {sourceDocuments.map(source => (
                       <span
-                        key={source.chunkId}
-                        className="rounded-xl border border-[#DCE4DF] bg-white px-3 py-2 text-xs font-bold text-[#59645E]"
+                        key={source.documentId}
+                        className="min-w-0 rounded-xl border border-[#DCE4DF] bg-white px-3 py-2 text-xs font-bold text-[#59645E] [overflow-wrap:anywhere]"
                       >
                         {source.documentTitle}
-                        <span className="ml-1.5 text-[#9AA39E]">
-                          {Math.round(source.similarity * 100)}%
-                        </span>
                       </span>
                     ))}
                   </div>
@@ -743,14 +764,16 @@ export const KnowledgeBasePanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowEvidence(current => !current)}
+                aria-expanded={showEvidence}
+                aria-controls="knowledge-evidence"
                 className="flex w-full items-center justify-between rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] px-4 py-3 text-left transition hover:bg-white"
               >
                 <span>
                   <span className="block text-xs font-black text-[#4E5652]">
                     Nội dung dùng để đối chiếu
                   </span>
-                  <span className="mt-0.5 block text-[11px] font-semibold text-[#90979C]">
-                    {ragResponse.results.length} nội dung đã được workflow tìm thấy
+                  <span className="mt-0.5 block text-[11px] font-semibold text-[#69736D]">
+                    {ragResponse.results.length} đoạn tham chiếu được tìm thấy
                   </span>
                 </span>
                 <ChevronDown
@@ -761,52 +784,45 @@ export const KnowledgeBasePanel: React.FC = () => {
               </button>
 
               {showEvidence && (
-              <div className="mt-3 grid gap-3">
-              {ragResponse.results.map((result, index) => {
-                const similarityPercent = Math.max(
-                  0,
-                  Math.min(100, result.similarity * 100),
-                );
+                <div id="knowledge-evidence" className="mt-3 grid gap-3">
+                  {ragResponse.results.map((result, index) => {
+                    const similarityPercent = Math.max(
+                      0,
+                      Math.min(100, result.similarity * 100),
+                    );
 
-                return (
-                  <article
-                    key={result.chunkId}
-                    className="rounded-[18px] border border-[#E3E5E6] bg-[#FFFFFF] p-4 sm:p-5"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6F3042] text-xs font-black text-white">
-                          {index + 1}
+                    return (
+                      <article
+                        key={result.chunkId}
+                        className="rounded-[18px] border border-[#E3E5E6] bg-[#FFFFFF] p-4 sm:p-5"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6F3042] text-xs font-black text-white">
+                              {index + 1}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-black text-[#303438] [overflow-wrap:anywhere]">
+                                {result.documentTitle}
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-[#636A70]">
+                                Đoạn tham chiếu {index + 1}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span className="w-fit shrink-0 rounded-full bg-[#F6E9ED] px-3 py-1.5 text-[11px] font-black text-[#6F3042]">
+                            Độ liên quan {similarityPercent.toFixed(0)}%
+                          </span>
                         </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-black text-[#303438]">
-                            {result.documentTitle}
-                          </p>
-                          <p className="mt-0.5 text-[11px] text-[#90979C]">
-                            Nội dung #{result.chunkId}
-                          </p>
-                        </div>
-                      </div>
 
-                      <span className="w-fit rounded-full bg-[#F6E9ED] px-3 py-1.5 text-[11px] font-black text-[#6F3042]">
-                        {similarityPercent.toFixed(2)}% phù hợp
-                      </span>
-                    </div>
-
-                    <div className="mt-3 h-1 overflow-hidden rounded-full bg-[#EAE2DB]">
-                      <div
-                        className="h-full rounded-full bg-[#B48855] transition-all"
-                        style={{ width: `${similarityPercent}%` }}
-                      />
-                    </div>
-
-                    <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#636A70]">
-                      {result.content}
-                    </p>
-                  </article>
-                );
-              })}
-              </div>
+                        <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#636A70] [overflow-wrap:anywhere]">
+                          {result.content}
+                        </p>
+                      </article>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}

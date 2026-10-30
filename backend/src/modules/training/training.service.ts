@@ -3,6 +3,7 @@ import {
     ConflictException,
     Injectable,
     NotFoundException,
+    ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -33,26 +34,77 @@ export class TrainingService {
         private readonly geminiService: GeminiService,
     ) {}
 
-    async findAllCourses() {
+    async findAllCourses(includeArchived: boolean = false) {
         const courses = await this.courseRepository.find({
+            where: includeArchived ? {} : { isArchived: false },
             relations: {
                 assignments: true,
             },
             order: {
                 createdAt: 'DESC',
+                id: 'DESC',
             },
         });
 
-        return courses.map((course) => ({
+        return courses.map((course) => this.toCourseResponse(
+            course,
+            course.assignments?.length ?? 0,
+        ));
+    }
+
+    private toCourseResponse(course: TrainingCourse, assignmentCount: number) {
+        return {
             id: course.id,
             title: course.title,
             type: course.type,
             skillsProvided: course.skillsProvided,
             courseUrl: course.courseUrl,
             durationHours: course.durationHours,
-            assignmentCount: course.assignments?.length ?? 0,
+            assignmentCount,
+            isArchived: Boolean(course.isArchived),
             createdAt: course.createdAt,
-        }));
+        };
+    }
+
+    async findCourseAssignments(courseId: number) {
+        const course = await this.courseRepository.findOne({
+            where: { id: courseId },
+        });
+        if (!course) throw new NotFoundException('Không tìm thấy khóa học.');
+
+        const assignments = await this.employeeTrainingRepository.find({
+            where: { courseId },
+            relations: { user: { department: true }, course: true },
+            order: { createdAt: 'DESC', id: 'DESC' },
+        });
+        return {
+            course: this.toCourseResponse(course, assignments.length),
+            assignments: assignments.map(assignment => this.toAssignmentResponse(assignment)),
+        };
+    }
+
+    async setCourseArchived(courseId: number, isArchived: boolean) {
+        return this.courseRepository.manager.transaction(async manager => {
+            const courses = manager.getRepository(TrainingCourse);
+            const course = await courses.findOne({
+                where: { id: courseId },
+                lock: { mode: 'pessimistic_write' },
+            });
+            if (!course) throw new NotFoundException('Không tìm thấy khóa học.');
+
+            course.isArchived = isArchived;
+            await courses.save(course);
+            const assignmentCount = await manager.getRepository(EmployeeTraining)
+                .countBy({ courseId });
+            return {
+                id: courseId,
+                isArchived,
+                assignmentCount,
+                message: isArchived
+                    ? 'Đã gỡ khóa học khỏi danh mục. Lịch sử và tiến độ người học được giữ nguyên.'
+                    : 'Đã khôi phục khóa học vào danh mục đang sử dụng.',
+            };
+        });
     }
     async createCourse(data: {
         title: string;
@@ -147,7 +199,14 @@ export class TrainingService {
         );
     }
 
+    if (!this.geminiService.isAvailable()) {
+        throw new BadRequestException(
+            'Chưa cấu hình Gemini cho backend. SuperAdmin cần nhập khóa API tại Cài đặt hệ thống → Tích hợp và lưu cấu hình. Khóa trong n8n không tự áp dụng cho chức năng này.',
+        );
+    }
+
     const allCourses = await this.courseRepository.find({
+        where: { isArchived: false },
         order: {
             createdAt: 'DESC',
         },
@@ -217,10 +276,19 @@ Yêu cầu:
 - missingSkills phải là các kỹ năng có thể cải thiện bằng đào tạo.
         `.trim(),
         'Bạn là chuyên gia Đào tạo & Phát triển và phân tích Skill Gap trong doanh nghiệp.',
-    );
+        { timeoutMs: 20000 },
+    ).catch(() => {
+        throw new ServiceUnavailableException('Không thể kết nối Gemini để phân tích. Hãy kiểm tra khóa API, hạn mức và kết nối mạng rồi thử lại.');
+    });
 
-    const missingSkills =
-        skillAnalysis?.missingSkills?.filter(Boolean) ?? [];
+    if (!skillAnalysis || !Array.isArray(skillAnalysis.missingSkills) || typeof skillAnalysis.summary !== 'string') {
+        throw new ServiceUnavailableException(
+            'Gemini chưa trả về kết quả phân tích hợp lệ. Hãy kiểm tra kết nối AI trong mục Tích hợp rồi thử lại.',
+        );
+    }
+    const missingSkills = skillAnalysis.missingSkills
+        .filter((skill): skill is string => typeof skill === 'string' && Boolean(skill.trim()))
+        .map(skill => skill.trim());
     const rawSummary =
         skillAnalysis?.summary?.trim() ||
         'Các kỹ năng được đề xuất dựa trên dữ liệu hồ sơ hiện có.';
@@ -252,7 +320,25 @@ Yêu cầu:
             `Nâng cao năng lực cho vị trí ${
                 employee.jobTitle || 'hiện tại'
             }`,
+            { timeoutMs: 20000 },
+        ).catch(() => {
+            throw new ServiceUnavailableException('Không thể lấy đề xuất khóa học từ Gemini. Vui lòng thử lại sau.');
+        });
+
+    if (
+        !recommendation || !Array.isArray(recommendation.recommendedCourses) ||
+        !Array.isArray(recommendation.skillGapsIdentified) ||
+        !recommendation.skillGapsIdentified.every(skill => typeof skill === 'string') ||
+        typeof recommendation.summary !== 'string' ||
+        typeof recommendation.careerAdvice !== 'string' ||
+        typeof recommendation.readinessScore !== 'number' ||
+        !Number.isFinite(recommendation.readinessScore) ||
+        recommendation.readinessScore < 0 || recommendation.readinessScore > 100
+    ) {
+        throw new ServiceUnavailableException(
+            'Gemini trả về đề xuất khóa học chưa đúng định dạng. Vui lòng thử phân tích lại.',
         );
+    }
 
     const normalize = (value: string) =>
         value
@@ -262,6 +348,12 @@ Yêu cầu:
 
     const resolvedRecommendations = recommendation.recommendedCourses
         .map((item) => {
+            if (!item || typeof item.courseTitle !== 'string' ||
+                !Array.isArray(item.matchedMissingSkills) ||
+                !item.matchedMissingSkills.every(skill => typeof skill === 'string') ||
+                !['HIGH', 'MEDIUM', 'LOW'].includes(item.priority) ||
+                typeof item.whyRecommended !== 'string' ||
+                typeof item.estimatedTimeToComplete !== 'string') return null;
             let matchedCourse = item.courseId
                 ? availableCourses.find(
                     (course) => course.id === item.courseId,
@@ -414,7 +506,9 @@ Yêu cầu:
             throw new NotFoundException('Không tìm thấy nhân viên.');
         }
 
-        const allCourses = await this.courseRepository.find();
+        const allCourses = await this.courseRepository.find({
+            where: { isArchived: false },
+        });
         const assignedCourseIds = new Set(
             (employee.trainings ?? []).map((training) => training.courseId),
         );
@@ -473,27 +567,6 @@ Yêu cầu:
             throw new NotFoundException('Không tìm thấy nhân viên.');
         }
 
-        const course = await this.courseRepository.findOne({
-            where: { id: data.courseId },
-        });
-
-        if (!course) {
-            throw new NotFoundException('Không tìm thấy khóa học.');
-        }
-
-        const existing = await this.employeeTrainingRepository.findOne({
-            where: {
-                userId: data.userId,
-                courseId: data.courseId,
-            },
-        });
-
-        if (existing) {
-            throw new ConflictException(
-                'Nhân viên đã được gán khóa học này.',
-            );
-        }
-
         const dueAt = data.dueAt
             ? new Date(
                 /^\d{4}-\d{2}-\d{2}$/.test(data.dueAt)
@@ -508,17 +581,32 @@ Yêu cầu:
             );
         }
 
-        const assignment = this.employeeTrainingRepository.create({
-            userId: data.userId,
-            courseId: data.courseId,
-            progressPercent: 0,
-            assignedByAi: data.assignedByAi ?? false,
-            aiReason: data.aiReason?.trim() || null,
-            status: TrainingStatus.ASSIGNED,
-            dueAt,
+        return this.courseRepository.manager.transaction(async manager => {
+            // Serialize against removing/restoring the course and concurrent assignment.
+            const course = await manager.getRepository(TrainingCourse).findOne({
+                where: { id: data.courseId, isArchived: false },
+                lock: { mode: 'pessimistic_write' },
+            });
+            if (!course) {
+                throw new NotFoundException('Khóa học không tồn tại hoặc đã được gỡ khỏi danh mục.');
+            }
+            const trainings = manager.getRepository(EmployeeTraining);
+            const existing = await trainings.findOne({
+                where: { userId: data.userId, courseId: data.courseId },
+            });
+            if (existing) {
+                throw new ConflictException('Nhân viên đã được gán khóa học này.');
+            }
+            return trainings.save(trainings.create({
+                userId: data.userId,
+                courseId: data.courseId,
+                progressPercent: 0,
+                assignedByAi: data.assignedByAi ?? false,
+                aiReason: data.aiReason?.trim() || null,
+                status: TrainingStatus.ASSIGNED,
+                dueAt,
+            }));
         });
-
-        return this.employeeTrainingRepository.save(assignment);
     }
     async findAllAssignments() {
         const assignments =
@@ -532,19 +620,27 @@ Yêu cầu:
                 },
             });
 
-        return assignments.map((assignment) => ({
+        return assignments.map(assignment => this.toAssignmentResponse(assignment));
+    }
+
+    private toAssignmentResponse(assignment: EmployeeTraining) {
+        return {
             id: assignment.id,
 
             user: {
                 id: assignment.user.id,
                 fullName: assignment.user.fullName,
                 email: assignment.user.email,
+                jobTitle: assignment.user.jobTitle ?? null,
+                departmentName: assignment.user.department?.name ?? null,
+                isActive: assignment.user.isActive,
             },
 
             course: {
                 id: assignment.course.id,
                 title: assignment.course.title,
                 type: assignment.course.type,
+                isArchived: Boolean(assignment.course.isArchived),
             },
 
             progressPercent: assignment.progressPercent,
@@ -557,7 +653,7 @@ Yêu cầu:
             reminderCount: assignment.reminderCount,
             managerEscalatedAt: assignment.managerEscalatedAt,
             createdAt: assignment.createdAt,
-        }));
+        };
     }
 
     async updateProgress(

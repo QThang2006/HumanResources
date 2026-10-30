@@ -144,6 +144,15 @@
       "parameters": {
         "method": "POST",
         "url": "http://host.docker.internal:3001/api/system-config/trigger-backup",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Secret",
+              "value": "={{ $env.N8N_AUTOMATION_SECRET }}"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ backupId: $json.backupId, filename: $json.backupFilename, targetDb: $json.dbName, executedBy: 'n8n_nightly_cron' }) }}",

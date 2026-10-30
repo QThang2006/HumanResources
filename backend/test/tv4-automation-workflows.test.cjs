@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const { PerformanceReviewService } = require(
   '../dist/modules/training/performance-review.service.js',
@@ -24,6 +25,129 @@ const workflow = (file) => JSON.parse(
     'utf8',
   ),
 );
+
+// Execute the Code nodes from the actual workflow JSON with n8n's item-mode
+// contract. Delivery results are fixtures; these tests send no messages.
+function runCodeNode(value, name, inputs, namedOutputs = {}) {
+  const node = value.nodes.find(candidate => candidate.name === name);
+  assert.ok(node, `Missing Code node: ${name}`);
+  const execute = (index) => vm.runInNewContext(
+    `(function () { ${node.parameters.jsCode}\n})()`,
+    {
+      $json: inputs[index],
+      $input: {
+        first: () => ({ json: inputs[0] }),
+        all: () => inputs.map(json => ({ json })),
+      },
+      $execution: { id: 'tv4-fixture-run' },
+      $: (nodeName) => {
+        const items = namedOutputs[nodeName];
+        if (!items) throw new Error(`Node not executed: ${nodeName}`);
+        return {
+          item: { json: items[index] },
+          first: () => ({ json: items[0] }),
+        };
+      },
+    },
+    { timeout: 1000 },
+  );
+  if (node.parameters.mode === 'runOnceForEachItem') {
+    return inputs.map((_, index) => {
+      const output = execute(index);
+      assert.ok(!Array.isArray(output), `${name} must return one item per input`);
+      return JSON.parse(JSON.stringify(output.json));
+    });
+  }
+  const output = execute(0);
+  assert.ok(Array.isArray(output), `${name} must return an item array`);
+  return JSON.parse(JSON.stringify(output.map(item => item.json)));
+}
+
+test('workflow đào tạo giữ đủ nhiều nhân viên, tên riêng và xuống dòng Telegram', () => {
+  const value = workflow('02_mandatory_training_reminder.json');
+  const reminders = [1, 2].map(id => ({
+    assignmentId: id,
+    employee: { id, fullName: `Nhân viên ${id} <QA>`, email: `employee${id}@example.invalid` },
+    manager: id === 1 ? { fullName: 'Quản lý & HR', email: 'manager@example.invalid' } : null,
+    course: { title: `Khóa học ${id} & bảo mật`, courseUrl: 'https://example.invalid/course' },
+    daysRemaining: id === 1 ? 2 : -1,
+    progressPercent: 25,
+  }));
+  const split = runCodeNode(value, 'Tách từng lượt đào tạo', [{ data: { reminders } }], {
+    'Nạp cấu hình an toàn': [{ senderEmail: 'sender@example.invalid' }],
+  });
+  const composed = runCodeNode(value, 'Soạn nội dung nhắc bằng tiếng Việt', split);
+  assert.equal(composed.length, 2);
+  assert.deepEqual(composed.map(item => item.assignmentId), [1, 2]);
+  assert.deepEqual(composed.map(item => item.employeeEmail), reminders.map(item => item.employee.email));
+  assert.match(composed[0].employeeHtml, /&lt;QA&gt;/);
+  assert.doesNotMatch(composed[0].employeeHtml, /<QA>/);
+  assert.match(composed[0].telegramText, /\nNhân viên:/);
+  assert.doesNotMatch(composed[0].telegramText, /\\n/);
+  assert.equal(composed[1].hasManager, false);
+  assert.match(composed[1].emailSubject, /Quá hạn/);
+
+  const summarized = runCodeNode(value, 'Tổng hợp kết quả gửi', [{}, {}], {
+    'Soạn nội dung nhắc bằng tiếng Việt': composed,
+    'Gửi thư nhắc nhân viên': [{ accepted: ['employee1@example.invalid'], rejected: [] }, { rejected: ['employee2@example.invalid'] }],
+    'Thông báo cho quản lý': [{ rejected: [] }, {}],
+    'Thông báo kênh đào tạo': [{ ok: true }, { ok: false, description: 'Chat unavailable' }],
+  });
+  assert.deepEqual(summarized.map(item => item.assignmentId), [1, 2]);
+  assert.deepEqual(summarized.map(item => item.status), ['SENT', 'FAILED']);
+  assert.equal(summarized[1].employeeNotified, false);
+  assert.equal(summarized[1].telegramNotified, false);
+});
+
+test('workflow KPI soạn riêng từng quản lý và báo PARTIAL khi Telegram thất bại', () => {
+  const value = workflow('03_monthly_performance_review_reminder.json');
+  const input = ['OPENING', 'SECOND_REMINDER'].map((phase, index) => ({
+    phase, reviewPeriod: '2026-10', reviewPeriodLabel: '10/2026',
+    recipient: { id: index + 1, fullName: `Quản lý ${index + 1}`, email: `manager${index + 1}@example.invalid` },
+    employees: [{ id: index + 10, fullName: 'Nhân viên <QA>', departmentName: 'Kỹ thuật & AI' }],
+    pendingCount: 1, deadline: '31/10/2026', reviewFormUrl: 'https://example.invalid/review',
+  }));
+  const composed = runCodeNode(value, 'Soạn nội dung đánh giá bằng tiếng Việt', input);
+  assert.equal(composed.length, 2);
+  assert.match(composed[0].emailSubject, /Mở kỳ/);
+  assert.match(composed[1].emailSubject, /Nhắc lần 2/);
+  assert.match(composed[0].emailHtml, /&lt;QA&gt;/);
+  const result = runCodeNode(value, 'Tổng hợp kết quả thông báo', [{}, {}], {
+    'Soạn nội dung đánh giá bằng tiếng Việt': composed,
+    'Gửi thư cho quản lý': [{ rejected: [] }, { rejected: [] }],
+    'Thông báo kênh đánh giá': [{ ok: true }, { ok: false }],
+  });
+  assert.deepEqual(result.map(item => item.status), ['SENT', 'PARTIAL']);
+  assert.deepEqual(result.map(item => item.recipient.id), [1, 2]);
+});
+
+test('workflow thôi việc dùng đúng email theo kênh và phản ánh kênh bị từ chối', () => {
+  const value = workflow('04_offboarding_workflow.json');
+  const config = { itEmail: 'it@example.invalid', accountingEmail: 'finance@example.invalid', exitSurveyUrl: 'https://example.invalid/survey' };
+  const record = {
+    caseId: 19, lastWorkingDate: '2026-11-15',
+    employee: { fullName: 'Nhân viên <QA>', personalEmail: 'personal@example.invalid', workEmail: 'work@example.invalid', departmentName: 'Kỹ thuật' },
+    approvedBy: { fullName: 'HR kiểm thử' },
+  };
+  const composed = runCodeNode(value, 'Soạn nội dung điều phối bằng tiếng Việt', [{ data: record }], {
+    'Xác thực yêu cầu từ hệ thống': [config],
+  });
+  assert.equal(composed[0].itRecipient, config.itEmail);
+  assert.equal(composed[0].accountingRecipient, config.accountingEmail);
+  assert.equal(composed[0].employeeRecipient, record.employee.personalEmail);
+  assert.match(composed[0].itHtml, /15\/11\/2026/);
+  assert.match(composed[0].itHtml, /&lt;QA&gt;/);
+  const result = runCodeNode(value, 'Tổng hợp kết quả liên phòng ban', [{}], {
+    'Soạn nội dung điều phối bằng tiếng Việt': composed,
+    'Gửi ticket cho phòng IT': [{ rejected: [] }],
+    'Gửi thông báo cho Kế toán': [{ rejected: [] }],
+    'Gửi thư cảm ơn và khảo sát': [{ rejected: ['personal@example.invalid'] }],
+    'Thông báo kênh liên phòng ban': [{ ok: true }],
+  });
+  assert.equal(result[0].status, 'PARTIAL');
+  assert.equal(result[0].employeeNotified, false);
+  assert.equal(result[0].itNotified, true);
+});
 
 test('workflow 4.1 tách riêng email thử nghiệm của nhân viên và quản lý', () => {
   const value = workflow('02_mandatory_training_reminder.json');

@@ -1,11 +1,14 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Param,
     ParseIntPipe,
+    ParseBoolPipe,
     Patch,
     Post,
+    Query,
     UseGuards,
 } from '@nestjs/common';
 import { TrainingCourseType } from '../../entities/training-course.entity';
@@ -28,8 +31,23 @@ export class TrainingController {
     ) {}
 
     @Get('courses')
-    findAllCourses() {
-        return this.trainingService.findAllCourses();
+    findAllCourses(
+        @Query('includeArchived', new ParseBoolPipe({ optional: true }))
+        includeArchived?: boolean,
+    ) {
+        return this.trainingService.findAllCourses(includeArchived ?? false);
+    }
+    @Get('courses/:id/assignments')
+    findCourseAssignments(@Param('id', ParseIntPipe) courseId: number) {
+        return this.trainingService.findCourseAssignments(courseId);
+    }
+    @Delete('courses/:id')
+    archiveCourse(@Param('id', ParseIntPipe) courseId: number) {
+        return this.trainingService.setCourseArchived(courseId, true);
+    }
+    @Patch('courses/:id/restore')
+    restoreCourse(@Param('id', ParseIntPipe) courseId: number) {
+        return this.trainingService.setCourseArchived(courseId, false);
     }
     @Post('courses')
     createCourse(

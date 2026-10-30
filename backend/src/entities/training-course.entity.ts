@@ -47,6 +47,10 @@ export class TrainingCourse {
   })
   durationHours: number;
 
+  // Removing a course from the catalog must never cascade-delete learning history.
+  @Column({ name: 'is_archived', type: 'boolean', default: false })
+  isArchived: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

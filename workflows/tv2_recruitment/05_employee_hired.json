@@ -78,8 +78,9 @@
       "typeVersion": 2.1,
       "position": [
         1060,
-        260
+        220
       ],
+      "continueOnFail": true,
       "credentials": {
         "smtp": {
           "id": "h1v8OcFX2oUSbyoy",
@@ -101,8 +102,9 @@
       "typeVersion": 1.2,
       "position": [
         1060,
-        460
+        380
       ],
+      "continueOnFail": true,
       "credentials": {
         "telegramApi": {
           "id": "HETZB83kRcozxOI3",
@@ -113,7 +115,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('EMPLOYEE_HIRED_PROVISIONED', '127.0.0.1', '{{ $json.email }}', '{{ JSON.stringify({ userId: $json.userId, fullName: $json.fullName, jobTitle: $json.jobTitle, department: $json.department }) }}', NOW());",
+        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('EMPLOYEE_HIRED_PROVISIONED', '127.0.0.1', '{{ $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.email }}', '{{ JSON.stringify({ userId: $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.userId, fullName: $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.fullName, jobTitle: $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.jobTitle, department: $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.department }) }}', NOW());",
         "options": {}
       },
       "id": "mysql-log-provisioning",
@@ -121,9 +123,10 @@
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        1320,
-        360
+        1060,
+        540
       ],
+      "continueOnFail": true,
       "credentials": {
         "mySql": {
           "id": "Dre86joWTJ8RKO9C",
@@ -161,24 +164,7 @@
             "node": "5. Thông báo IT & HR Ops qua Telegram",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "4. Gửi Thư chúc mừng & Tài khoản (SMTP)": {
-      "main": [
-        [
-          {
-            "node": "6. Lưu vết Cấp tài khoản vào MySQL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "5. Thông báo IT & HR Ops qua Telegram": {
-      "main": [
-        [
+          },
           {
             "node": "6. Lưu vết Cấp tài khoản vào MySQL",
             "type": "main",

@@ -1236,10 +1236,14 @@ const IntegrationsPanel: React.FC<{
   n8nTesting: boolean;
   n8nTestMessage: string;
   n8nTestSuccess: boolean | null;
+  crashTesting: boolean;
+  crashTestMessage: string;
+  crashTestSuccess: boolean | null;
   onGeminiKeyChange: (value: string) => void;
   onN8nUrlChange: (value: string) => void;
   onTestGemini: () => void;
   onTestN8n: () => void;
+  onTestCrash: () => void;
   onSave: () => void;
 }> = props => {
   const geminiKeyIsUrl = /^https?:\/\//i.test(props.geminiApiKey.trim());
@@ -1350,7 +1354,22 @@ const IntegrationsPanel: React.FC<{
             />
           </div>
 
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={props.onTestCrash}
+              disabled={props.crashTesting}
+              title="Kích hoạt sự cố 500 để demo WF-03 AI Debugger"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#F0D5D8] bg-[#FFF5F6] px-3.5 text-xs font-semibold text-[#A82D3B] transition hover:bg-[#FDE8EA] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {props.crashTesting ? (
+                <Loader2 className="h-4 w-4 animate-spin text-[#A82D3B]" />
+              ) : (
+                <ShieldAlert className="h-4 w-4 text-[#A82D3B]" />
+              )}
+              {props.crashTesting ? 'Đang kích hoạt...' : '🚨 Mô phỏng sự cố 500 (AI Debugger)'}
+            </button>
+
             <button
               type="button"
               onClick={props.onTestN8n}
@@ -1369,6 +1388,10 @@ const IntegrationsPanel: React.FC<{
           <ConnectionStatus
             success={props.n8nTestSuccess}
             text={props.n8nTestMessage}
+          />
+          <ConnectionStatus
+            success={props.crashTestSuccess}
+            text={props.crashTestMessage}
           />
         </div>
       </div>
@@ -1421,6 +1444,11 @@ export const AdminSettingsPage: React.FC = () => {
   const [geminiTesting, setGeminiTesting] = useState(false);
   const [geminiTestMessage, setGeminiTestMessage] = useState('');
   const [geminiTestSuccess, setGeminiTestSuccess] =
+    useState<boolean | null>(null);
+
+  const [crashTesting, setCrashTesting] = useState(false);
+  const [crashTestMessage, setCrashTestMessage] = useState('');
+  const [crashTestSuccess, setCrashTestSuccess] =
     useState<boolean | null>(null);
 
   useEffect(() => {
@@ -1545,6 +1573,22 @@ export const AdminSettingsPage: React.FC = () => {
       );
     } finally {
       setGeminiTesting(false);
+    }
+  };
+
+  const handleTestCrash = async () => {
+    try {
+      setCrashTesting(true);
+      setCrashTestSuccess(null);
+      setCrashTestMessage('Đang kích hoạt sự cố 500...');
+      await systemConfigApi.testCrash();
+    } catch {
+      setCrashTestSuccess(true);
+      setCrashTestMessage(
+        '✅ Đã kích hoạt sự cố 500 thành công! Backend đã ném lỗi sang n8n WF-03, vui lòng kiểm tra Telegram & Email.',
+      );
+    } finally {
+      setCrashTesting(false);
     }
   };
 
@@ -1676,6 +1720,9 @@ export const AdminSettingsPage: React.FC = () => {
                 n8nTesting={n8nTesting}
                 n8nTestMessage={n8nTestMessage}
                 n8nTestSuccess={n8nTestSuccess}
+                crashTesting={crashTesting}
+                crashTestMessage={crashTestMessage}
+                crashTestSuccess={crashTestSuccess}
                 onGeminiKeyChange={value => {
                   setGeminiApiKey(value);
                   setConfigMessage('');
@@ -1690,6 +1737,7 @@ export const AdminSettingsPage: React.FC = () => {
                 }}
                 onTestGemini={handleTestGemini}
                 onTestN8n={handleTestN8n}
+                onTestCrash={handleTestCrash}
                 onSave={handleSaveConfig}
               />
             )}

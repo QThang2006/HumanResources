@@ -204,4 +204,11 @@ export class SystemConfigController {
   testCrash() {
     throw new Error('QueryFailedError: ER_LOCK_DEADLOCK: Deadlock found when trying to get lock; try restarting transaction at /backend/src/modules/recruitment/recruitment.service.ts:184:12');
   }
+
+  // Cho phép nhập trực tiếp link trên trình duyệt để demo nhanh không cần Bearer token
+  @Public()
+  @Get('demo-crash')
+  demoCrash() {
+    throw new Error('QueryFailedError: ER_LOCK_DEADLOCK: Deadlock found when trying to get lock; try restarting transaction at /backend/src/modules/recruitment/recruitment.service.ts:184:12');
+  }
 }

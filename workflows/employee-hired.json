@@ -115,7 +115,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ (() => {\n  const info = $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json;\n  const targetEmail = info.email || 'unknown@company.com';\n  const details = JSON.stringify({\n    userId: info.userId,\n    fullName: info.fullName,\n    jobTitle: info.jobTitle,\n    department: info.department\n  }).replace(/'/g, \"\\\\'\");\n  return \"INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('EMPLOYEE_HIRED_PROVISIONED', '127.0.0.1', '\" + targetEmail + \"', '\" + details + \"', NOW());\";\n})() }}",
+        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('EMPLOYEE_HIRED_PROVISIONED', '127.0.0.1', '{{ $json.email }}', '{\"userId\":{{ $json.userId }},\"fullName\":\"{{ $json.fullName }}\",\"jobTitle\":\"{{ $json.jobTitle }}\",\"department\":\"{{ $json.department }}\"}', NOW());",
         "options": {}
       },
       "id": "mysql-log-provisioning",

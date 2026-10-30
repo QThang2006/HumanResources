@@ -189,7 +189,8 @@
           "id": "HETZB83kRcozxOI3",
           "name": "Telegram account"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -213,7 +214,8 @@
           "id": "HETZB83kRcozxOI3",
           "name": "Telegram account"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -252,11 +254,10 @@
         2420,
         200
       ],
-      "continueOnFail": true,
       "credentials": {
         "smtp": {
-          "id": "h1v8OcFX2oUSbyoy",
-          "name": "SMTP account"
+          "id": "l1IYILIUOY2w4H1b",
+          "name": "Quoc Thang SMTP"
         }
       }
     },

@@ -240,6 +240,33 @@ export class DocumentsService {
         topK: number,
         authorization: string,
     ) {
+        // 1. Ưu tiên xử lý trực tiếp qua Backend AI Core (nhanh hơn và không phụ thuộc n8n)
+        if (
+            this.geminiService &&
+            typeof this.geminiService.generateJson === 'function' &&
+            this.chunkRepository &&
+            typeof this.chunkRepository.find === 'function'
+        ) {
+            try {
+                this.logger.log(`[RAG AI Core] Tìm kiếm tri thức trực tiếp qua Backend cho câu hỏi: "${query.slice(0, 50)}..."`);
+                const results = await this.searchKnowledgeBase(query, topK);
+                const grounded = await this.generateGroundedAnswer(query, results);
+
+                return {
+                    workflow: 'TV4 - Trả lời Kho tri thức (Backend AI Core)',
+                    answer: grounded.answer,
+                    sources: grounded.sources,
+                    results: results,
+                    suggestedFollowUpQuestions: grounded.suggestedFollowUpQuestions || [],
+                    requiresHrIntervention: Boolean(grounded.requiresHrIntervention),
+                    aiGenerated: Boolean(grounded.aiGenerated),
+                };
+            } catch (err: any) {
+                this.logger.warn(`Tìm kiếm qua AI Core gặp lỗi: ${err?.message}, thử gọi webhook n8n...`);
+            }
+        }
+
+        // 2. Gọi qua n8n webhook (khi chạy môi trường mock test hoặc khi workflow n8n được bật)
         const configuredWebhookUrl = (
             this.configService?.get<string>('N8N_WEBHOOK_URL') ||
             process.env.N8N_WEBHOOK_URL ||

@@ -149,7 +149,7 @@
           "parameters": [
             {
               "name": "X-Automation-Secret",
-              "value": "={{ $env.N8N_AUTOMATION_SECRET }}"
+              "value": "change_this_to_a_long_random_secret"
             }
           ]
         },

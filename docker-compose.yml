@@ -21,6 +21,8 @@ services:
     image: docker.n8n.io/n8nio/n8n
     container_name: hr_n8n
     restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "5678:5678"
     environment:

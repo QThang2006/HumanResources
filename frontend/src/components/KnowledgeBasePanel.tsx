@@ -265,7 +265,7 @@ export const KnowledgeBasePanel: React.FC = () => {
   ) ?? [];
 
   return (
-    <div className="space-y-5">
+    <div className="tv4-ui space-y-6">
       {pendingDelete && (
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-black/30 px-4 backdrop-blur-[1px]"
@@ -274,13 +274,13 @@ export const KnowledgeBasePanel: React.FC = () => {
           }}
         >
           <div
-            className="w-full max-w-md rounded-[24px] border border-[#E2E5E7] bg-white p-6 shadow-[0_24px_80px_rgba(32,25,22,0.2)]"
+            className="w-full max-w-md rounded-2xl border border-[#E2E5E7] bg-white p-6 shadow-[0_24px_80px_rgba(32,25,22,0.2)]"
             onMouseDown={event => event.stopPropagation()}
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FBF1F2] text-[#9D4150]">
               <Trash2 className="h-5 w-5" />
             </div>
-            <h3 className="mt-4 text-lg font-black text-[#202326]">
+            <h3 className="mt-4 text-lg font-semibold text-[#202326]">
               Xóa tài liệu?
             </h3>
             <p className="mt-2 text-sm leading-6 text-[#666D72]">
@@ -291,7 +291,7 @@ export const KnowledgeBasePanel: React.FC = () => {
                 type="button"
                 disabled={deletingId !== null}
                 onClick={() => setPendingDelete(null)}
-                className="h-10 rounded-xl border border-[#D8DCDE] bg-white px-4 text-xs font-black text-[#636A70] transition hover:bg-[#F2F4F4] disabled:opacity-50"
+                className="h-10 rounded-xl border border-[#D8DCDE] bg-white px-4 text-xs font-semibold text-[#636A70] transition hover:bg-[#F2F4F4] disabled:opacity-50"
               >
                 Hủy
               </button>
@@ -299,7 +299,7 @@ export const KnowledgeBasePanel: React.FC = () => {
                 type="button"
                 disabled={deletingId !== null}
                 onClick={handleDelete}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#9D4150] px-4 text-xs font-black text-white transition hover:bg-[#843743] disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#9D4150] px-4 text-xs font-semibold text-white transition hover:bg-[#843743] disabled:opacity-50"
               >
                 {deletingId !== null ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -330,18 +330,14 @@ export const KnowledgeBasePanel: React.FC = () => {
         </div>
       )}
 
-      <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+      <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#E7D9DD] bg-[#FAF3F5] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#6F3042]">
-                <Bot className="h-3.5 w-3.5" />
-                Tri thức có dẫn nguồn
-              </div>
-              <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
+              <h2 className="text-xl font-bold tracking-tight text-[#1D2023]">
                 Kho tri thức
               </h2>
-              <p className="mt-2 text-sm leading-6 text-[#72797E]">
+              <p className="mt-2 text-sm leading-6 text-[#687178]">
               Tài liệu nội bộ, truy xuất và đối chiếu
               </p>
             </div>
@@ -366,15 +362,15 @@ export const KnowledgeBasePanel: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid xl:grid-cols-[350px_minmax(0,1fr)]">
-          <aside className="border-b border-[#E8EAEC] bg-[#FFFFFF] p-5 sm:p-7 xl:border-b-0 xl:border-r">
+        <div className="grid xl:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="border-b border-[#E8EAEC] bg-[#FFFFFF] p-5 xl:border-b-0 xl:border-r">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F6E9ED] text-[#6F3042]">
                 <UploadCloud className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-[#202326]">Thêm tài liệu</h3>
-                <p className="mt-0.5 text-xs text-[#7F868B]">Tài liệu PDF</p>
+                <h3 className="text-sm font-semibold text-[#202326]">Thêm tài liệu</h3>
+                <p className="mt-0.5 text-xs text-[#687178]">Tài liệu PDF</p>
               </div>
             </div>
 
@@ -392,7 +388,7 @@ export const KnowledgeBasePanel: React.FC = () => {
                 setIsDraggingFile(false);
                 selectPdfFile(event.dataTransfer.files?.[0] ?? null);
               }}
-              className={`mt-5 flex min-h-44 w-full flex-col items-center justify-center rounded-[18px] border border-dashed px-5 py-6 text-center transition ${
+              className={`mt-5 flex min-h-44 w-full flex-col items-center justify-center rounded-xl border border-dashed px-5 py-6 text-center transition ${
                 isDraggingFile
                   ? 'border-[#6F3042] bg-[#FAF3F5] ring-4 ring-[#6F3042]/10'
                   : 'border-[#D3D8DA] bg-[#FFFFFF] hover:border-[#8B5361] hover:bg-white'
@@ -401,11 +397,11 @@ export const KnowledgeBasePanel: React.FC = () => {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EFF1F2] text-[#8B7460]">
                 <UploadCloud className="h-5 w-5" />
               </div>
-              <p className="mt-4 text-sm font-black text-[#303438]">Chọn file PDF</p>
-              <p className="mt-1 text-xs text-[#90979C]">
+              <p className="mt-4 text-sm font-semibold text-[#303438]">Chọn file PDF</p>
+              <p className="mt-1 text-xs text-[#687178]">
                 Kéo thả vào đây hoặc nhấn để chọn
               </p>
-              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#B0B5B8]">
+              <p className="mt-2 text-xs font-medium text-[#687178]">
                 PDF · tối đa 10 MB
               </p>
             </button>
@@ -427,10 +423,10 @@ export const KnowledgeBasePanel: React.FC = () => {
                     <FileText className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-black text-[#303438]">
+                    <p className="truncate text-xs font-semibold text-[#303438]">
                       {selectedFile.name}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-[#82898E]">
+                    <p className="mt-0.5 text-xs text-[#687178]">
                       {formatFileSize(selectedFile.size)}
                     </p>
                   </div>
@@ -442,7 +438,7 @@ export const KnowledgeBasePanel: React.FC = () => {
               type="button"
               onClick={handleUpload}
               disabled={!selectedFile || uploading}
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#6F3042] px-4 text-sm font-black text-white shadow-[0_8px_20px_rgba(111,48,66,0.16)] transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#6F3042] px-4 text-sm font-semibold text-white transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {uploading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -458,13 +454,13 @@ export const KnowledgeBasePanel: React.FC = () => {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Library className="h-4 w-4 text-[#8B7460]" />
-                  <h3 className="text-sm font-black text-[#202326]">Tài liệu đã nạp</h3>
+                  <h3 className="text-sm font-semibold text-[#202326]">Tài liệu đã nạp</h3>
                 </div>
                 <button
                   type="button"
                   onClick={loadDocuments}
                   disabled={loading}
-                  className="inline-flex items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-bold text-[#72797E] transition hover:bg-[#F1F3F3] disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-bold text-[#687178] transition hover:bg-[#F1F3F3] disabled:opacity-50"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
                   Làm mới
@@ -472,7 +468,7 @@ export const KnowledgeBasePanel: React.FC = () => {
               </div>
               {documents.length > 0 && (
                 <div className="relative mt-3">
-                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#687178]" />
                   <input
                     value={documentSearch}
                     onChange={event => setDocumentSearch(event.target.value)}
@@ -484,7 +480,7 @@ export const KnowledgeBasePanel: React.FC = () => {
             </div>
 
             {loading ? (
-              <div className="flex min-h-80 items-center justify-center gap-3 text-[#82898E]">
+              <div className="flex min-h-80 items-center justify-center gap-3 text-[#687178]">
                 <Loader2 className="h-5 w-5 animate-spin" />
                 <span className="text-sm font-semibold">Đang tải tài liệu...</span>
               </div>
@@ -493,19 +489,19 @@ export const KnowledgeBasePanel: React.FC = () => {
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EFF1F2] text-[#8A8179]">
                   <FileText className="h-5 w-5" />
                 </div>
-                <p className="mt-3 text-sm font-black text-[#303438]">Chưa có tài liệu</p>
-                <p className="mt-1 text-xs text-[#7F868B]">Tải PDF đầu tiên để bắt đầu.</p>
+                <p className="mt-3 text-sm font-semibold text-[#303438]">Chưa có tài liệu</p>
+                <p className="mt-1 text-xs text-[#687178]">Tải PDF đầu tiên để bắt đầu.</p>
               </div>
             ) : filteredDocuments.length === 0 ? (
               <div className="flex min-h-72 flex-col items-center justify-center px-6 text-center">
                 <Search className="h-5 w-5 text-[#9FA6AB]" />
-                <p className="mt-2 text-sm font-black text-[#53595E]">
+                <p className="mt-2 text-sm font-semibold text-[#53595E]">
                   Không tìm thấy tài liệu
                 </p>
                 <button
                   type="button"
                   onClick={() => setDocumentSearch('')}
-                  className="mt-3 text-xs font-black text-[#6F3042] hover:underline"
+                  className="mt-3 text-xs font-semibold text-[#6F3042] hover:underline"
                 >
                   Xóa tìm kiếm
                 </button>
@@ -522,22 +518,22 @@ export const KnowledgeBasePanel: React.FC = () => {
                         <FileText className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-[#303438]">
+                        <p className="break-words text-sm font-semibold text-[#303438]">
                           {document.title}
                         </p>
-                        <p className="mt-1 text-xs text-[#82898E]">
+                        <p className="mt-1 text-xs text-[#687178]">
                           {document.uploader?.name ?? '—'}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3 pl-14 sm:pl-0">
-                      <div className="inline-flex items-center gap-1.5 rounded-full bg-[#F1F3F3] px-2.5 py-1 text-[11px] font-bold text-[#72797E]">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-[#F1F3F3] px-2.5 py-1 text-xs font-bold text-[#687178]">
                         <Layers3 className="h-3.5 w-3.5" />
                         {document.chunkCount} nội dung
                       </div>
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${statusClass(
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClass(
                           document.status,
                         )}`}
                       >
@@ -567,14 +563,14 @@ export const KnowledgeBasePanel: React.FC = () => {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+      <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EFF1F1] text-[#A26D3F]">
               <FileSearch className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-[#202326]">
+              <h3 className="text-base font-semibold text-[#202326]">
                 Kiểm thử câu trả lời
               </h3>
               <p className="mt-0.5 text-xs text-[#636A70]">
@@ -589,12 +585,12 @@ export const KnowledgeBasePanel: React.FC = () => {
             <div className="flex-1">
               <label
                 htmlFor="knowledge-question"
-                className="mb-2 block text-xs font-black text-[#4E5652]"
+                className="mb-2 block text-xs font-semibold text-[#4E5652]"
               >
                 Câu hỏi cần tra cứu
               </label>
               <div className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#687178]" />
                 <input
                   id="knowledge-question"
                   type="text"
@@ -614,7 +610,7 @@ export const KnowledgeBasePanel: React.FC = () => {
                     }
                   }}
                   placeholder="Ví dụ: Khóa học bắt buộc phải hoàn thành trong bao lâu?"
-                  className="h-12 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] pl-11 pr-4 text-sm text-[#2E3235] placeholder:text-[#69736D] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10 disabled:opacity-60"
+                  className="h-12 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] pl-11 pr-4 text-sm text-[#2E3235] placeholder:text-[#69736D] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10 disabled:opacity-60"
                 />
               </div>
             </div>
@@ -623,7 +619,7 @@ export const KnowledgeBasePanel: React.FC = () => {
               type="button"
               onClick={() => void handleSearch()}
               disabled={searching}
-              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#202326] px-5 text-sm font-black text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#202326] px-5 text-sm font-semibold text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {searching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -642,12 +638,12 @@ export const KnowledgeBasePanel: React.FC = () => {
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h4 className="text-base font-black text-[#33403A]">
+                  <h4 className="text-base font-semibold text-[#33403A]">
                     Câu trả lời từ Kho tri thức
                   </h4>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-black ${
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                         ragResponse.sources.length > 0
                           ? 'bg-[#E6F1EA] text-[#2F6B4F]'
                           : 'bg-[#FFF1D9] text-[#8A5B27]'
@@ -659,7 +655,7 @@ export const KnowledgeBasePanel: React.FC = () => {
                           ? 'AI tổng hợp có dẫn nguồn'
                           : 'Trích đoạn liên quan'}
                     </span>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-[#68726D] ring-1 ring-[#DCE4DF]">
+                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#68726D] ring-1 ring-[#DCE4DF]">
                       {sourceDocuments.length} tài liệu
                     </span>
                   </div>
@@ -709,7 +705,7 @@ export const KnowledgeBasePanel: React.FC = () => {
               </div>
 
               {ragResponse.requiresHrIntervention && (
-                <div className="mt-4 flex items-start gap-2 rounded-2xl border border-[#F0DFC1] bg-[#FFF8EA] px-4 py-3 text-xs font-bold leading-5 text-[#8A5B27]">
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-[#F0DFC1] bg-[#FFF8EA] px-4 py-3 text-xs font-bold leading-5 text-[#8A5B27]">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   Nội dung này có thể cần bộ phận Nhân sự hỗ trợ trực tiếp.
                 </div>
@@ -717,7 +713,7 @@ export const KnowledgeBasePanel: React.FC = () => {
 
               {ragResponse.sources.length > 0 && (
                 <div className="mt-5 border-t border-[#DCE4DF] pt-4">
-                  <p className="text-xs font-black text-[#4A5650]">
+                  <p className="text-xs font-semibold text-[#4A5650]">
                     Nguồn tham khảo
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -735,7 +731,7 @@ export const KnowledgeBasePanel: React.FC = () => {
 
               {ragResponse.suggestedFollowUpQuestions.length > 0 && (
                 <div className="mt-5 border-t border-[#DCE4DF] pt-4">
-                  <p className="text-xs font-black text-[#4A5650]">
+                  <p className="text-xs font-semibold text-[#4A5650]">
                     Câu hỏi gợi ý
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -769,10 +765,10 @@ export const KnowledgeBasePanel: React.FC = () => {
                 className="flex w-full items-center justify-between rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] px-4 py-3 text-left transition hover:bg-white"
               >
                 <span>
-                  <span className="block text-xs font-black text-[#4E5652]">
+                  <span className="block text-xs font-semibold text-[#4E5652]">
                     Nội dung dùng để đối chiếu
                   </span>
-                  <span className="mt-0.5 block text-[11px] font-semibold text-[#69736D]">
+                  <span className="mt-0.5 block text-xs font-semibold text-[#69736D]">
                     {ragResponse.results.length} đoạn tham chiếu được tìm thấy
                   </span>
                 </span>
@@ -794,24 +790,24 @@ export const KnowledgeBasePanel: React.FC = () => {
                     return (
                       <article
                         key={result.chunkId}
-                        className="rounded-[18px] border border-[#E3E5E6] bg-[#FFFFFF] p-4 sm:p-5"
+                        className="rounded-xl border border-[#E3E5E6] bg-[#FFFFFF] p-4 sm:p-5"
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6F3042] text-xs font-black text-white">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6F3042] text-xs font-semibold text-white">
                               {index + 1}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-black text-[#303438] [overflow-wrap:anywhere]">
+                              <p className="text-sm font-semibold text-[#303438] [overflow-wrap:anywhere]">
                                 {result.documentTitle}
                               </p>
-                              <p className="mt-0.5 text-[11px] text-[#636A70]">
+                              <p className="mt-0.5 text-xs text-[#636A70]">
                                 Đoạn tham chiếu {index + 1}
                               </p>
                             </div>
                           </div>
 
-                          <span className="w-fit shrink-0 rounded-full bg-[#F6E9ED] px-3 py-1.5 text-[11px] font-black text-[#6F3042]">
+                          <span className="w-fit shrink-0 rounded-full bg-[#F6E9ED] px-3 py-1.5 text-xs font-semibold text-[#6F3042]">
                             Độ liên quan {similarityPercent.toFixed(0)}%
                           </span>
                         </div>
@@ -828,9 +824,9 @@ export const KnowledgeBasePanel: React.FC = () => {
           )}
 
           {!searching && ragResponse && ragResponse.results.length === 0 && (
-            <div className="mt-6 rounded-[18px] border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-4 py-9 text-center">
+            <div className="mt-6 rounded-xl border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-4 py-9 text-center">
               <FileSearch className="mx-auto h-5 w-5 text-[#9FA6AB]" />
-              <p className="mt-2 text-xs font-bold text-[#7F868B]">Chưa có kết quả phù hợp.</p>
+              <p className="mt-2 text-xs font-bold text-[#687178]">Chưa có kết quả phù hợp.</p>
             </div>
           )}
         </div>
@@ -843,11 +839,9 @@ const MetricPill: React.FC<{
   label: string;
   value: string | number;
 }> = ({ label, value }) => (
-  <div className="rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] px-3.5 py-2 text-left">
-    <div className="text-base font-black text-[#202326]">{value}</div>
-    <div className="text-[10px] font-black uppercase tracking-[0.13em] text-[#90979C]">
-      {label}
-    </div>
+  <div className="flex items-center gap-2 rounded-lg bg-[#F5F6F8] px-3 py-2 text-left">
+    <span className="text-sm font-semibold tabular-nums text-[#202326]">{value}</span>
+    <span className="text-xs font-medium text-[#687178]">{label}</span>
   </div>
 );
 
@@ -855,8 +849,8 @@ const KnowledgeFlowStep: React.FC<{
   icon: React.ReactNode;
   label: string;
 }> = ({ icon, label }) => (
-  <div className="flex items-center gap-2 rounded-xl border border-[#E2E5E7] bg-white px-3 py-2.5 text-[#626A66]">
+  <div className="flex items-center gap-2 px-1 py-1.5 text-[#626A66]">
     <span className="text-[#6F3042]">{icon}</span>
-    <span className="text-xs font-black">{label}</span>
+    <span className="text-xs font-semibold">{label}</span>
   </div>
 );

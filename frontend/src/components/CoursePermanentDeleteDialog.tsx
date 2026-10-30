@@ -45,11 +45,11 @@ export function CoursePermanentDeleteDialog({ course, busy, error, onCancel, onC
           <div id="perm-delete-description" className="mt-4 space-y-3 text-sm leading-6 text-[#636A70]">
             <p className="font-semibold text-[#1D2023] [overflow-wrap:anywhere]">{course.title}</p>
             <p className="rounded-xl border border-[#EDC7CC] bg-[#FBF1F2] p-3 text-xs font-semibold leading-5 text-[#9D4150]">
-              CẢNH BÁO: Hành động này sẽ xóa hoàn toàn khóa học khỏi cơ sở dữ liệu và KHÔNG THỂ khôi phục lại.
+              Khóa học sẽ được xóa khỏi danh mục và mục Đã gỡ. Bạn không thể khôi phục khóa học sau thao tác này.
             </p>
             <p>
               {course.assignmentCount > 0
-                ? `Khóa học này đang có ${course.assignmentCount} lượt phân công. Xóa vĩnh viễn sẽ xóa luôn toàn bộ tiến độ và lịch sử học tập liên quan của nhân viên.`
+                ? `${course.assignmentCount} lượt học cùng tiến độ và kết quả vẫn được giữ trong hồ sơ nhân viên. Người đang học vẫn có thể tiếp tục học và cập nhật tiến độ.`
                 : 'Khóa học này chưa có học viên nào được gán.'}
             </p>
           </div>

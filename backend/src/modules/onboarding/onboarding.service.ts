@@ -11,6 +11,7 @@ import { Department } from '../../entities/department.entity';
 import { GeminiService } from '../core/ai/gemini.service';
 import { VectorService } from '../core/ai/vector.service';
 import { N8nService } from '../core/automation/n8n.service';
+import { getTrainingCourseDetails } from '../training/training-course-history';
 
 /**
  * 📌 PHÂN HỆ ONBOARDING, COPILOT RAG & TEAM MOOD
@@ -694,21 +695,25 @@ export class OnboardingService {
       order: { createdAt: 'DESC' },
     });
 
-    return trainings.map((t) => ({
-      id: t.id,
-      courseId: t.courseId,
-      title: t.course?.title || 'Khóa học đào tạo',
-      type: t.course?.type || 'MANDATORY',
-      skillsProvided: t.course?.skillsProvided || [],
-      courseUrl: t.course?.courseUrl || null,
-      durationHours: t.course?.durationHours || 10,
-      progressPercent: t.progressPercent,
-      status: t.status,
-      assignedByAi: t.assignedByAi,
-      aiReason: t.aiReason,
-      completedAt: t.completedAt,
-      createdAt: t.createdAt,
-    }));
+    return trainings.map((t) => {
+      const course = getTrainingCourseDetails(t);
+      return {
+        id: t.id,
+        courseId: t.courseId,
+        title: course?.title || 'Khóa học đào tạo',
+        type: course?.type || 'MANDATORY',
+        skillsProvided: course?.skillsProvided || [],
+        courseUrl: course?.courseUrl || null,
+        durationHours: course?.durationHours ?? 10,
+        isCourseDeleted: t.courseId === null,
+        progressPercent: t.progressPercent,
+        status: t.status,
+        assignedByAi: t.assignedByAi,
+        aiReason: t.aiReason,
+        completedAt: t.completedAt,
+        createdAt: t.createdAt,
+      };
+    });
   }
 
   /**
@@ -737,7 +742,12 @@ export class OnboardingService {
       assignment.completedAt = null;
     }
 
-    const saved = await this.trainingRepository.save(assignment);
+    await this.trainingRepository.update({ id: assignmentId, userId }, {
+      progressPercent: assignment.progressPercent,
+      status: assignment.status,
+      completedAt: assignment.completedAt,
+    });
+    const saved = await this.trainingRepository.findOne({ where: { id: assignmentId, userId } });
     this.logger.log(`🎓 Training progress updated: assignmentId=${assignmentId}, userId=${userId}, progress=${validProgress}%`);
     return saved;
   }

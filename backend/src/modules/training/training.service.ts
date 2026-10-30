@@ -19,6 +19,7 @@ import {
 
 import { User, UserRole } from '../../entities/user.entity';
 import { GeminiService } from '../core/ai/gemini.service';
+import { getTrainingCourseDetails } from './training-course-history';
 
 @Injectable()
 export class TrainingService {
@@ -115,12 +116,27 @@ export class TrainingService {
                 lock: { mode: 'pessimistic_write' },
             });
             if (!course) throw new NotFoundException('Không tìm thấy khóa học.');
+            if (!course.isArchived) {
+                throw new ConflictException('Hãy gỡ khóa học khỏi danh mục trước khi xóa vĩnh viễn.');
+            }
 
             const trainings = manager.getRepository(EmployeeTraining);
             const assignmentCount = await trainings.countBy({ courseId });
 
             if (assignmentCount > 0) {
-                await trainings.delete({ courseId });
+                // Update only catalog fields so concurrent progress updates are preserved.
+                await trainings.update({ courseId }, {
+                    courseId: null,
+                    courseSnapshot: {
+                        id: course.id,
+                        title: course.title,
+                        type: course.type,
+                        skillsProvided: course.skillsProvided ?? [],
+                        courseUrl: course.courseUrl ?? null,
+                        durationHours: course.durationHours,
+                    },
+                    courseDeletedAt: new Date(),
+                });
             }
 
             await courses.delete(courseId);
@@ -128,7 +144,7 @@ export class TrainingService {
             return {
                 id: courseId,
                 assignmentCount,
-                message: `Đã xóa vĩnh viễn khóa học "${course.title}".`,
+                message: `Đã xóa khóa học "${course.title}" khỏi danh mục. ${assignmentCount} lượt học cùng tiến độ và lịch sử được giữ nguyên.`,
             };
         });
     }
@@ -252,8 +268,8 @@ export class TrainingService {
                 training.status === TrainingStatus.COMPLETED,
         )
         .map((training) => ({
-            title: training.course?.title,
-            skillsProvided: training.course?.skillsProvided ?? [],
+            title: getTrainingCourseDetails(training)?.title,
+            skillsProvided: getTrainingCourseDetails(training)?.skillsProvided ?? [],
         }));
 
     const profileForAi = {
@@ -650,6 +666,7 @@ Yêu cầu:
     }
 
     private toAssignmentResponse(assignment: EmployeeTraining) {
+        const course = getTrainingCourseDetails(assignment);
         return {
             id: assignment.id,
 
@@ -663,11 +680,13 @@ Yêu cầu:
             },
 
             course: {
-                id: assignment.course.id,
-                title: assignment.course.title,
-                type: assignment.course.type,
-                isArchived: Boolean(assignment.course.isArchived),
+                id: course?.id ?? assignment.courseId,
+                title: course?.title ?? 'Khóa học đào tạo',
+                type: course?.type ?? TrainingCourseType.SOFT_SKILL,
+                isArchived: !assignment.course || Boolean(assignment.course.isArchived),
+                isDeleted: assignment.courseId === null,
             },
+            courseDeletedAt: assignment.courseDeletedAt,
 
             progressPercent: assignment.progressPercent,
             assignedByAi: assignment.assignedByAi,
@@ -721,9 +740,12 @@ Yêu cầu:
             assignment.completedAt = null;
         }
 
-        return this.employeeTrainingRepository.save(
-            assignment,
-        );
+        await this.employeeTrainingRepository.update(assignmentId, {
+            progressPercent: assignment.progressPercent,
+            status: assignment.status,
+            completedAt: assignment.completedAt,
+        });
+        return this.employeeTrainingRepository.findOneBy({ id: assignmentId });
     }
     async updateDueDate(assignmentId: number, dueAtInput: string) {
         const dueAt = new Date(
@@ -749,7 +771,14 @@ Yêu cầu:
         assignment.lastReminderRunId = null;
         assignment.reminderCount = 0;
         assignment.managerEscalatedAt = null;
-        return this.employeeTrainingRepository.save(assignment);
+        await this.employeeTrainingRepository.update(assignmentId, {
+            dueAt,
+            lastReminderAt: null,
+            lastReminderRunId: null,
+            reminderCount: 0,
+            managerEscalatedAt: null,
+        });
+        return this.employeeTrainingRepository.findOneBy({ id: assignmentId });
     }
     async getPendingTrainingReminders(asOf?: string) {
         const now = asOf ? new Date(asOf) : new Date();
@@ -801,7 +830,7 @@ Yêu cầu:
             .filter((assignment) => {
                 if (
                     !assignment.user?.isActive ||
-                    assignment.course?.type !== TrainingCourseType.MANDATORY ||
+                    getTrainingCourseDetails(assignment)?.type !== TrainingCourseType.MANDATORY ||
                     assignment.status === TrainingStatus.COMPLETED ||
                     assignment.progressPercent >= 50 ||
                     !assignment.dueAt ||
@@ -814,6 +843,7 @@ Yêu cầu:
                     now.getTime() - assignment.lastReminderAt.getTime() >= reminderCooldownMs;
             })
             .map((assignment) => {
+                const course = getTrainingCourseDetails(assignment);
                 const daysRemaining = Math.ceil(
                     (assignment.dueAt.getTime() - now.getTime()) / dayMs,
                 );
@@ -845,9 +875,9 @@ Yêu cầu:
                         }
                         : null,
                     course: {
-                        id: assignment.course.id,
-                        title: assignment.course.title,
-                        courseUrl: assignment.course.courseUrl,
+                        id: course.id,
+                        title: course.title,
+                        courseUrl: course.courseUrl,
                     },
                     progressPercent: assignment.progressPercent,
                     dueAt: assignment.dueAt.toISOString(),
@@ -919,7 +949,12 @@ Yêu cầu:
             if (data.managerNotified) {
                 assignment.managerEscalatedAt = recordedAt;
             }
-            await this.employeeTrainingRepository.save(assignment);
+            await this.employeeTrainingRepository.update(assignment.id, {
+                lastReminderAt: assignment.lastReminderAt,
+                lastReminderRunId: assignment.lastReminderRunId,
+                reminderCount: assignment.reminderCount,
+                managerEscalatedAt: assignment.managerEscalatedAt,
+            });
         }
 
         return {

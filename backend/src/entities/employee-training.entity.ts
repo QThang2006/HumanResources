@@ -1,6 +1,15 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from './user.entity';
-import { TrainingCourse } from './training-course.entity';
+import { TrainingCourse, TrainingCourseType } from './training-course.entity';
+
+export interface TrainingCourseSnapshot {
+  id: number;
+  title: string;
+  type: TrainingCourseType;
+  skillsProvided: string[];
+  courseUrl: string | null;
+  durationHours: number;
+}
 
 export enum TrainingStatus {
   ASSIGNED = 'ASSIGNED',
@@ -10,6 +19,7 @@ export enum TrainingStatus {
 
 // Lỗ hổng 2: Chống gán trùng 1 khóa học nhiều lần cho cùng 1 nhân viên
 @Index(['userId', 'courseId'], { unique: true })
+@Index('IDX_tv4_training_user_id', ['userId'])
 @Entity('employee_trainings')
 export class EmployeeTraining {
   @PrimaryGeneratedColumn()
@@ -22,12 +32,18 @@ export class EmployeeTraining {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ name: 'course_id' })
-  courseId: number;
+  @Column({ name: 'course_id', type: 'int', nullable: true })
+  courseId: number | null;
 
-  @ManyToOne(() => TrainingCourse, (course) => course.assignments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => TrainingCourse, (course) => course.assignments, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'course_id' })
-  course: TrainingCourse;
+  course: TrainingCourse | null;
+
+  @Column({ name: 'course_snapshot', type: 'json', nullable: true })
+  courseSnapshot: TrainingCourseSnapshot | null;
+
+  @Column({ name: 'course_deleted_at', type: 'datetime', nullable: true })
+  courseDeletedAt: Date | null;
 
   // Lỗ hổng 2: Lưu tiến độ học tập thực tế (0 - 100%)
   @Column({ name: 'progress_percent', type: 'int', default: 0 })

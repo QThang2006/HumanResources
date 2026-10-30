@@ -35,6 +35,7 @@ import type { User } from '../types';
 import { CourseLearnersPanel } from './CourseLearnersPanel';
 import { CourseRemoveDialog } from './CourseRemoveDialog';
 import { CoursePermanentDeleteDialog } from './CoursePermanentDeleteDialog';
+import '../styles/tv4-ui.css';
 
 const COURSE_TYPE_LABELS: Record<TrainingCourseType, string> = {
   MANDATORY: 'BẮT BUỘC',
@@ -588,7 +589,7 @@ export const TrainingPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-80 items-center justify-center gap-3 rounded-[24px] border border-[#E2E5E7] bg-white text-[#82898E] shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+      <div className="flex min-h-80 items-center justify-center gap-3 rounded-2xl border border-[#E2E5E7] bg-white text-[#687178]">
         <Loader2 className="h-5 w-5 animate-spin" />
         <span className="text-sm font-semibold">Đang tải dữ liệu đào tạo...</span>
       </div>
@@ -596,7 +597,7 @@ export const TrainingPanel: React.FC = () => {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="tv4-ui space-y-6">
       <CourseRemoveDialog
         course={pendingRemove}
         busy={courseMutationId !== null}
@@ -624,18 +625,14 @@ export const TrainingPanel: React.FC = () => {
         </div>
       )}
 
-      <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+      <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#E7D9DD] bg-[#FAF3F5] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#6F3042]">
-                <Sparkles className="h-3.5 w-3.5" />
-                Trung tâm học tập nội bộ
-              </div>
-              <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
+              <h2 className="text-xl font-bold tracking-tight text-[#1D2023]">
                 Đào tạo & Phát triển
               </h2>
-              <p className="mt-2 text-sm leading-6 text-[#72797E]">
+              <p className="mt-2 text-sm leading-6 text-[#687178]">
               Thiết kế khóa học, phân tích năng lực và theo dõi tiến độ
               </p>
             </div>
@@ -643,7 +640,7 @@ export const TrainingPanel: React.FC = () => {
             <button
               type="button"
               onClick={() => void loadData()}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D8DCDE] bg-white px-3.5 text-xs font-black text-[#666D72] transition hover:bg-[#F2F4F4]"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D8DCDE] bg-white px-3.5 text-xs font-semibold text-[#666D72] transition hover:bg-[#F2F4F4]"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Làm mới
@@ -651,7 +648,7 @@ export const TrainingPanel: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid divide-y divide-[#E8EAEC] sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+        <div className="tv4-metrics">
           <MetricCard
             label="Khóa học"
             value={availableCourses.length}
@@ -679,8 +676,8 @@ export const TrainingPanel: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-[22px] border border-[#E2E5E7] bg-[#F8F9F9] p-2 shadow-[0_8px_24px_rgba(45,34,28,0.04)]">
-        <div className="grid gap-2 md:grid-cols-3">
+      <section className="rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] p-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           <WorkspaceTab
             active={activeWorkspace === 'setup'}
             icon={<Sparkles className="h-4 w-4" />}
@@ -707,13 +704,13 @@ export const TrainingPanel: React.FC = () => {
 
       {activeWorkspace === 'setup' && (
       <section className="grid gap-5 xl:grid-cols-2">
-        <div className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
+        <div className="rounded-2xl border border-[#E2E5E7] bg-white p-5 sm:p-7">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F6E9ED] text-[#6F3042]">
               <Plus className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-[#202326]">Tạo khóa học</h3>
+              <h3 className="text-base font-semibold text-[#202326]">Tạo khóa học</h3>
             </div>
           </div>
 
@@ -760,7 +757,7 @@ export const TrainingPanel: React.FC = () => {
                   placeholder="10"
                   className={`${inputClass} pr-14`}
                 />
-                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#90979C]">
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#687178]">
                   giờ
                 </span>
               </div>
@@ -782,7 +779,7 @@ export const TrainingPanel: React.FC = () => {
             type="button"
             onClick={handleCreateCourse}
             disabled={savingCourse}
-            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#6F3042] px-5 text-sm font-black text-white shadow-[0_8px_20px_rgba(111,48,66,0.16)] transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#6F3042] px-5 text-sm font-semibold text-white transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {savingCourse ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -793,13 +790,13 @@ export const TrainingPanel: React.FC = () => {
           </button>
         </div>
 
-        <div className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
+        <div className="rounded-2xl border border-[#E2E5E7] bg-white p-5 sm:p-7">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EFF1F1] text-[#A26D3F]">
               <UserPlus className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-[#202326]">Gán khóa học</h3>
+              <h3 className="text-base font-semibold text-[#202326]">Gán khóa học</h3>
             </div>
           </div>
 
@@ -845,14 +842,14 @@ export const TrainingPanel: React.FC = () => {
                   className={inputClass}
                 />
               </FormField>
-              <p className="mt-1.5 text-xs font-semibold text-[#82898E]">
+              <p className="mt-1.5 text-xs font-semibold text-[#687178]">
                 Hệ thống tự động nhắc khi khóa bắt buộc còn tối đa 3 ngày và tiến độ dưới 50%.
               </p>
             </div>
           </div>
 
           {checkingReadiness && (
-            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] px-4 py-3 text-sm font-semibold text-[#666D72]">
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#E2E5E7] bg-[#F8F9F9] px-4 py-3 text-sm font-semibold text-[#666D72]">
               <Loader2 className="h-4 w-4 animate-spin" />
               Đang kiểm tra dữ liệu nhân viên...
             </div>
@@ -860,7 +857,7 @@ export const TrainingPanel: React.FC = () => {
 
           {aiReadiness && !aiReadiness.canAnalyze && (
             <div className="mt-4 rounded-2xl border border-[#E8D5B8] bg-[#FBF6ED] px-4 py-3 text-sm text-[#7A572F]">
-              <div className="flex items-start gap-2 font-black">
+              <div className="flex items-start gap-2 font-semibold">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />
                 Chưa đủ dữ liệu để phân tích khoảng trống năng lực
               </div>
@@ -872,7 +869,7 @@ export const TrainingPanel: React.FC = () => {
 
           {aiReadiness?.canAnalyze && !aiReadiness.hasPerformanceReviews && !aiSuggestion && (
             <div className="mt-4 rounded-2xl border border-[#E8D5B8] bg-[#FBF6ED] px-4 py-3 text-sm text-[#7A572F]">
-              <div className="flex items-start gap-2 font-black">
+              <div className="flex items-start gap-2 font-semibold">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />
                 Phân tích sơ bộ — chưa có dữ liệu KPI
               </div>
@@ -887,7 +884,7 @@ export const TrainingPanel: React.FC = () => {
           )}
 
           {aiReadiness?.canAnalyze && aiReadiness.hasPerformanceReviews && !aiSuggestion && (
-            <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-[#DCE5DF] bg-[#F4F8F5] p-3 text-xs text-[#496154]">
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-[#DCE5DF] bg-[#F4F8F5] p-3 text-xs text-[#496154]">
               <span><strong>{aiReadiness.reviewCount}</strong> lần đánh giá hiệu suất</span>
               <span>Điểm hiệu suất mới nhất: <strong>{aiReadiness.latestKpiScore ?? '—'}</strong></span>
               <span><strong>{aiReadiness.trainingHistoryCount}</strong> lượt đào tạo</span>
@@ -901,7 +898,7 @@ export const TrainingPanel: React.FC = () => {
               aria-busy={aiSuggesting}
               aria-describedby={aiError ? 'training-ai-error' : undefined}
               disabled={!selectedUserId || checkingReadiness || !aiReadiness?.canAnalyze || aiSuggesting}
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#E6D7BF] bg-[#FBF6ED] px-4 text-sm font-black text-[#936A38] transition hover:bg-[#F5EAD8] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#E6D7BF] bg-[#FBF6ED] px-4 text-sm font-semibold text-[#936A38] transition hover:bg-[#F5EAD8] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {aiSuggesting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -920,13 +917,13 @@ export const TrainingPanel: React.FC = () => {
           {aiSuggestion && (
             <div ref={analysisResultRef} tabIndex={-1} role="region" aria-label={`Kết quả phân tích năng lực: ${aiSuggestion.employeeName}`} className="mt-4 overflow-hidden rounded-2xl border border-[#D8CCC2] bg-[#FCFAF7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153]">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8DED5] px-4 py-3">
-                <div className="flex items-center gap-2 text-sm font-black text-[#6F3042]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#6F3042]">
                   <BrainCircuit className="h-4 w-4" />
                   {aiSuggestion.analysisMode === 'PRELIMINARY'
                     ? 'Kết quả phân tích sơ bộ'
                     : 'Kết quả phân tích khoảng trống năng lực'}
                 </div>
-                <span className="rounded-full bg-[#6F3042] px-3 py-1 text-[10px] font-black text-white">
+                <span className="rounded-full bg-[#6F3042] px-3 py-1 text-xs font-semibold text-white">
                   {aiSuggestion.analysisMode === 'PRELIMINARY'
                     ? 'Điểm tham khảo'
                     : 'Mức sẵn sàng'}{' '}
@@ -942,7 +939,7 @@ export const TrainingPanel: React.FC = () => {
                   </div>
                 )}
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">
                     {aiSuggestion.analysisMode === 'PRELIMINARY'
                       ? 'Kỹ năng nên phát triển'
                       : 'Khoảng trống kỹ năng'}
@@ -957,7 +954,7 @@ export const TrainingPanel: React.FC = () => {
                 </div>
 
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">
                     {aiSuggestion.analysisMode === 'PRELIMINARY'
                       ? 'Nhận định sơ bộ'
                       : 'Đánh giá tổng quan'}
@@ -968,15 +965,15 @@ export const TrainingPanel: React.FC = () => {
                 <div className="rounded-xl border border-[#E6D7BF] bg-white p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">
                         {aiSuggestion.hasMatchingCourse ? 'Khóa học đề xuất' : 'Trạng thái kho khóa học'}
                       </p>
-                      <p className="mt-1 font-black text-[#202326]">
+                      <p className="mt-1 font-semibold text-[#202326]">
                         {aiSuggestion.courseTitle ?? 'Chưa có khóa học phù hợp'}
                       </p>
                     </div>
                     {aiSuggestion.priority && (
-                      <span className="rounded-full bg-[#FBF1F2] px-2.5 py-1 text-[10px] font-black text-[#9D4150]">
+                      <span className="rounded-full bg-[#FBF1F2] px-2.5 py-1 text-xs font-semibold text-[#9D4150]">
                         {PRIORITY_LABELS[aiSuggestion.priority]}
                       </span>
                     )}
@@ -988,7 +985,7 @@ export const TrainingPanel: React.FC = () => {
                 </div>
 
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">Định hướng phát triển</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">Định hướng phát triển</p>
                   <p className="mt-1 leading-6 text-[#454B4F]">{aiSuggestion.careerAdvice}</p>
                 </div>
               </div>
@@ -999,7 +996,7 @@ export const TrainingPanel: React.FC = () => {
             type="button"
             onClick={handleAssignCourse}
             disabled={assigning || aiSuggesting || checkingReadiness || !selectedUserId || !selectedCourseId}
-            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#202326] px-5 text-sm font-black text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#202326] px-5 text-sm font-semibold text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {assigning ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -1035,17 +1032,17 @@ export const TrainingPanel: React.FC = () => {
       )}
 
       {activeWorkspace === 'catalog' && !viewingCourse && (
-      <section className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
+      <section className="rounded-2xl border border-[#E2E5E7] bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 border-b border-[#E8EAEC] pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h3 ref={catalogHeadingRef} tabIndex={-1} className="text-lg font-black text-[#202326] outline-none">Danh mục khóa học</h3>
+            <h3 ref={catalogHeadingRef} tabIndex={-1} className="text-lg font-semibold text-[#202326] outline-none">Danh mục khóa học</h3>
             <p className="mt-1 text-xs font-semibold text-[#636A70]">
               Xem người học, gỡ khóa không dùng hoặc khôi phục khi cần.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="relative min-w-0 sm:w-72">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#687178]" />
               <input
                 aria-label="Tìm khóa học theo tên hoặc kỹ năng"
                 value={courseSearch}
@@ -1077,14 +1074,14 @@ export const TrainingPanel: React.FC = () => {
         </div>
 
         {(catalogScope === 'active' ? availableCourses.length : archivedCourseCount) === 0 ? (
-          <div className="rounded-[18px] border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-5 py-10 text-center">
+          <div className="rounded-xl border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-5 py-10 text-center">
             <BookOpen className="mx-auto h-5 w-5 text-[#9FA6AB]" />
-            <p className="mt-2 text-sm font-black text-[#53595E]">{catalogScope === 'archived' ? 'Chưa có khóa học đã gỡ' : 'Chưa có khóa học đang sử dụng'}</p>
+            <p className="mt-2 text-sm font-semibold text-[#53595E]">{catalogScope === 'archived' ? 'Chưa có khóa học đã gỡ' : 'Chưa có khóa học đang sử dụng'}</p>
           </div>
         ) : filteredCourses.length === 0 ? (
-          <div className="mt-5 rounded-[18px] border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-5 py-10 text-center">
+          <div className="mt-5 rounded-xl border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-5 py-10 text-center">
             <Search className="mx-auto h-5 w-5 text-[#9FA6AB]" />
-            <p className="mt-2 text-sm font-black text-[#53595E]">
+            <p className="mt-2 text-sm font-semibold text-[#53595E]">
               Không tìm thấy khóa học phù hợp
             </p>
             <button
@@ -1093,7 +1090,7 @@ export const TrainingPanel: React.FC = () => {
                 setCourseSearch('');
                 setCourseFilter('ALL');
               }}
-              className="mt-3 text-xs font-black text-[#6F3042] hover:underline"
+              className="mt-3 text-xs font-semibold text-[#6F3042] hover:underline"
             >
               Xóa bộ lọc
             </button>
@@ -1107,17 +1104,17 @@ export const TrainingPanel: React.FC = () => {
               >
                 <div className="flex items-start justify-between gap-3">
                   <span
-                    className={`rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide ${COURSE_TYPE_STYLES[course.type]}`}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold tracking-wide ${COURSE_TYPE_STYLES[course.type]}`}
                   >
                     {COURSE_TYPE_LABELS[course.type]}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#82898E]">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-[#687178]">
                     <Clock3 className="h-3.5 w-3.5" />
                     {course.durationHours} giờ
                   </span>
                 </div>
 
-                <h4 className="mt-4 text-[15px] font-black leading-6 text-[#202326] [overflow-wrap:anywhere]">
+                <h4 className="mt-4 text-[15px] font-semibold leading-6 text-[#202326] [overflow-wrap:anywhere]">
                   {course.title}
                 </h4>
 
@@ -1125,7 +1122,7 @@ export const TrainingPanel: React.FC = () => {
                   {course.skillsProvided.slice(0, 4).map(skill => (
                     <span
                       key={skill}
-                      className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#716A64] ring-1 ring-inset ring-[#E2E5E6]"
+                      className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#716A64] ring-1 ring-inset ring-[#E2E5E6]"
                     >
                       {skill}
                     </span>
@@ -1152,7 +1149,7 @@ export const TrainingPanel: React.FC = () => {
       )}
 
       {activeWorkspace === 'progress' && (
-      <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+      <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
         {assignmentCourseId !== null && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E8EAEC] bg-[#FAF3F5] px-5 py-3 text-sm text-[#6F3042] sm:px-7">
             <p>Đang xem khóa: <strong>{courses.find(course => course.id === assignmentCourseId)?.title || 'Khóa học đã chọn'}</strong></p>
@@ -1162,14 +1159,14 @@ export const TrainingPanel: React.FC = () => {
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h3 className="text-lg font-black text-[#202326]">Tiến độ đào tạo</h3>
-              <p className="mt-1 text-xs font-semibold text-[#82898E]">
+              <h3 className="text-lg font-semibold text-[#202326]">Tiến độ đào tạo</h3>
+              <p className="mt-1 text-xs font-semibold text-[#687178]">
                 Theo dõi hạn hoàn thành, số lần nhắc và trạng thái của từng nhân viên.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative min-w-0 sm:w-72">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#687178]" />
                 <input
                   value={assignmentSearch}
                   onChange={event => setAssignmentSearch(event.target.value)}
@@ -1194,11 +1191,11 @@ export const TrainingPanel: React.FC = () => {
         </div>
 
         {assignments.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm font-semibold text-[#82898E]">Chưa có lượt đào tạo nào.</div>
+          <div className="px-5 py-12 text-center text-sm font-semibold text-[#687178]">Chưa có lượt đào tạo nào.</div>
         ) : filteredAssignments.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <Search className="mx-auto h-5 w-5 text-[#9FA6AB]" />
-            <p className="mt-2 text-sm font-black text-[#53595E]">
+            <p className="mt-2 text-sm font-semibold text-[#53595E]">
               Không có lượt đào tạo phù hợp
             </p>
             <button
@@ -1207,20 +1204,20 @@ export const TrainingPanel: React.FC = () => {
                 setAssignmentSearch('');
                 setAssignmentFilter('ALL');
               }}
-              className="mt-3 text-xs font-black text-[#6F3042] hover:underline"
+              className="mt-3 text-xs font-semibold text-[#6F3042] hover:underline"
             >
               Xóa bộ lọc
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="tv4-table-scroll overflow-x-auto" role="region" aria-label="Bảng tiến độ đào tạo" tabIndex={0}>
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-[#E8EAEC] bg-[#F8F9F9]">
                   {['Nhân viên', 'Khóa học', 'Loại', 'Hạn hoàn thành', 'Tiến độ', 'Trạng thái'].map(column => (
                     <th
                       key={column}
-                      className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7"
+                      className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7"
                     >
                       {column}
                     </th>
@@ -1235,17 +1232,17 @@ export const TrainingPanel: React.FC = () => {
                   return (
                     <tr key={assignment.id} className="transition hover:bg-[#FFFFFF]">
                       <td className="px-5 py-4 sm:px-7">
-                        <p className="text-sm font-black text-[#303438]">{assignment.user.fullName}</p>
-                        <p className="mt-0.5 text-xs text-[#82898E]">{assignment.user.email}</p>
+                        <p className="text-sm font-semibold text-[#303438]">{assignment.user.fullName}</p>
+                        <p className="mt-0.5 text-xs text-[#687178]">{assignment.user.email}</p>
                       </td>
 
                       <td className="px-5 py-4 text-sm font-semibold text-[#636A70] sm:px-7">
                         {assignment.course.title}
-                        {assignment.course.isArchived && <p className="mt-1 text-xs font-normal text-[#80521F]">Đã gỡ khỏi danh mục</p>}
+                        {assignment.course.isDeleted ? <p className="mt-1 text-xs font-normal text-[#80521F]">Khóa đã xóa · Lịch sử được giữ</p> : assignment.course.isArchived && <p className="mt-1 text-xs font-normal text-[#80521F]">Đã gỡ khỏi danh mục</p>}
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${COURSE_TYPE_STYLES[assignment.course.type]}`}>
+                        <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${COURSE_TYPE_STYLES[assignment.course.type]}`}>
                           {COURSE_TYPE_LABELS[assignment.course.type]}
                         </span>
                       </td>
@@ -1269,7 +1266,7 @@ export const TrainingPanel: React.FC = () => {
                           )}
                         </div>
                         {assignment.reminderCount > 0 && (
-                          <p className="mt-1 text-[10px] font-bold text-[#936A38]">
+                          <p className="mt-1 text-xs font-bold text-[#936A38]">
                             Đã nhắc {assignment.reminderCount} lần
                           </p>
                         )}
@@ -1284,7 +1281,7 @@ export const TrainingPanel: React.FC = () => {
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
-                            <p className="mt-1 text-[10px] font-bold text-[#82898E]">{progress}%</p>
+                            <p className="mt-1 text-xs font-bold text-[#687178]">{progress}%</p>
                           </div>
 
                           {updatingId === assignment.id ? (
@@ -1311,12 +1308,12 @@ export const TrainingPanel: React.FC = () => {
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ${
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                           assignment.status === 'COMPLETED'
                             ? 'bg-[#EFF7F1] text-[#2F6B4F]'
                             : assignment.status === 'IN_PROGRESS'
                               ? 'bg-[#FBF6ED] text-[#936A38]'
-                              : 'bg-[#F1EEEB] text-[#72797E]'
+                              : 'bg-[#F1EEEB] text-[#687178]'
                         }`}>
                           {STATUS_LABELS[assignment.status] || assignment.status}
                         </span>
@@ -1344,24 +1341,25 @@ const WorkspaceTab: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className={`flex items-center gap-3 rounded-[18px] px-4 py-3 text-left transition ${
+    aria-pressed={active}
+    className={`flex min-h-[76px] items-center gap-3 rounded-xl border px-3 py-3 text-left transition sm:px-4 ${
       active
-        ? 'bg-white text-[#25282B] shadow-[0_8px_22px_rgba(45,34,28,0.08)] ring-1 ring-[#E2E5E7]'
-        : 'text-[#72797E] hover:bg-white/70 hover:text-[#303438]'
+        ? 'border-[#E4CBD3] bg-[#FBF5F7] text-[#6F3042]'
+        : 'border-transparent text-[#687178] hover:bg-white hover:text-[#303438]'
     }`}
   >
     <span
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+      className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:flex ${
         active
           ? 'bg-[#F4E7EB] text-[#6F3042]'
-          : 'bg-[#ECEEEE] text-[#858C91]'
+          : 'bg-white text-[#687178]'
       }`}
     >
       {icon}
     </span>
     <span className="min-w-0">
-      <span className="block text-sm font-black">{title}</span>
-      <span className="mt-0.5 block truncate text-[11px] font-semibold text-[#90979C]">
+      <span className="block text-xs font-semibold leading-5 sm:text-sm">{title}</span>
+      <span className="mt-1 hidden text-xs font-normal leading-5 text-[#687178] sm:block">
         {description}
       </span>
     </span>
@@ -1369,14 +1367,14 @@ const WorkspaceTab: React.FC<{
 );
 
 const inputClass =
-  'h-11 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] px-3.5 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10';
+  'h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3.5 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10';
 
 const FormField: React.FC<{
   label: string;
   children: React.ReactNode;
 }> = ({ label, children }) => (
   <label className="block">
-    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-[#90979C]">{label}</span>
+    <span className="mb-2 block text-sm font-medium text-[#515C65]">{label}</span>
     {children}
   </label>
 );
@@ -1387,12 +1385,14 @@ const MetricCard: React.FC<{
   sub: string;
   icon: React.ReactNode;
 }> = ({ label, value, sub, icon }) => (
-  <div className="px-5 py-5 sm:px-7">
-    <div className="flex items-center gap-2 text-[#90979C]">
-      {icon}
-      <span className="text-[10px] font-black uppercase tracking-[0.14em]">{label}</span>
+  <div className="flex min-w-0 items-start gap-3 px-4 py-4 sm:px-6 sm:py-5">
+    <span className="mt-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F4F5F7] text-[#687178] sm:flex">{icon}</span>
+    <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <span className="text-sm font-medium text-[#515C65]">{label}</span>
+        <span className="text-2xl font-bold tabular-nums tracking-tight text-[#1D2023]">{value}</span>
+      </div>
+      <p className="mt-1 text-xs leading-5 text-[#687178]">{sub}</p>
     </div>
-    <div className="mt-3 text-3xl font-black tracking-tight text-[#1D2023]">{value}</div>
-    <p className="mt-1 text-[11px] font-semibold text-[#82898E]">{sub}</p>
   </div>
 );

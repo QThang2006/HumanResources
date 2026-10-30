@@ -24,7 +24,8 @@ type TrainingFilter = 'ALL' | 'ACTIVE' | 'COMPLETED';
 
 interface EmployeeTraining {
   id: number;
-  courseId: number;
+  courseId: number | null;
+  isCourseDeleted?: boolean;
   title: string;
   type: TrainingCourseType;
   skillsProvided: string[];
@@ -281,6 +282,7 @@ export function EmployeeTrainingsWidget() {
                           <h4 className="mt-3 text-[15px] font-extrabold leading-6 text-slate-900">
                             {training.title}
                           </h4>
+                          {training.isCourseDeleted && <p className="mt-1 text-xs leading-5 text-slate-600">Khóa đã xóa khỏi danh mục. Tiến độ và kết quả học vẫn được giữ.</p>}
                         </div>
 
                         <span

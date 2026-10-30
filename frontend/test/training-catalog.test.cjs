@@ -22,6 +22,7 @@ function loadComponent(name) {
 }
 const CourseLearnersPanel = loadComponent('CourseLearnersPanel');
 const CourseRemoveDialog = loadComponent('CourseRemoveDialog');
+const CoursePermanentDeleteDialog = loadComponent('CoursePermanentDeleteDialog');
 const course = { id: 1, title: 'Đào tạo an toàn', isArchived: false, assignmentCount: 1 };
 const assignment = {
   id: 1, user: { fullName: 'Nhân viên A', email: 'learner@example.invalid', departmentName: 'Kỹ thuật', isActive: true },
@@ -76,4 +77,14 @@ test('remove confirmation explains retention and disables both actions while sav
   assert.match(html, /khôi phục khóa học sau/);
   assert.match(html, /Đang gỡ/);
   assert.equal((html.match(/<button[^>]*disabled=""/g) || []).length, 2);
+});
+
+test('permanent deletion explains retained history and continuing learning', () => {
+  const html = renderToStaticMarkup(React.createElement(CoursePermanentDeleteDialog, {
+    course, busy: false, error: '', onCancel: noop, onConfirm: noop,
+  }));
+  assert.match(html, /1 lượt học cùng tiến độ và kết quả vẫn được giữ trong hồ sơ nhân viên/);
+  assert.match(html, /vẫn có thể tiếp tục học và cập nhật tiến độ/);
+  assert.doesNotMatch(html, /xóa luôn toàn bộ tiến độ/);
+  assert.match(html, /không thể khôi phục khóa học/);
 });

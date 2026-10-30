@@ -36,11 +36,13 @@ export interface TrainingAssignment {
     };
 
     course: {
-        id: number;
+        id: number | null;
         title: string;
         type: TrainingCourseType;
         isArchived?: boolean;
+        isDeleted?: boolean;
     };
+    courseDeletedAt?: string | null;
 
     progressPercent: number;
     assignedByAi: boolean;

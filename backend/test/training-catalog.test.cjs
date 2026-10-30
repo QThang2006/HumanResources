@@ -11,12 +11,14 @@ const { DataSource } = require('typeorm');
 const entities = require('../dist/entities');
 const { InterviewDelivery } = require('../dist/modules/applications/interview-delivery.entity');
 const { TrainingModule } = require('../dist/modules/training/training.module');
+const { TrainingService } = require('../dist/modules/training/training.service');
 const { AutomationModule } = require('../dist/modules/core/automation/automation.module');
 const { N8nService } = require('../dist/modules/core/automation/n8n.service');
 const { AuthModule } = require('../dist/modules/auth/auth.module');
 const { OnboardingModule } = require('../dist/modules/onboarding/onboarding.module');
 const { GeminiService } = require('../dist/modules/core/ai/gemini.service');
 const { TransformInterceptor } = require('../dist/common/interceptors/transform.interceptor');
+const { migrateTrainingHistory } = require('../scripts/migrate-tv4-training-history.cjs');
 
 test('catalog removal, roster and restore with isolated MySQL, HTTP and real JWT', { timeout: 60000 }, async t => {
   if (!process.env.TV4_TEST_DB_PASSWORD) throw Error('Set TV4_TEST_DB_PASSWORD for disposable localhost tests.');
@@ -37,9 +39,13 @@ test('catalog removal, roster and restore with isolated MySQL, HTTP and real JWT
 
   let recommendedCatalog = [];
   let providerAvailable = true;
+  let analysisPrompt = '';
   const sdk = {
     isAvailable: () => providerAvailable,
-    generateJson: async () => ({ missingSkills: ['TypeScript'], summary: 'Phân tích sơ bộ: dữ liệu kiểm thử.' }),
+    generateJson: async prompt => {
+      analysisPrompt = prompt;
+      return { missingSkills: ['TypeScript'], summary: 'Phân tích sơ bộ: dữ liệu kiểm thử.' };
+    },
     recommendSkillGapCourse: async (_skills, catalog) => {
       recommendedCatalog = catalog;
       return { recommendedCourses: [], skillGapsIdentified: ['TypeScript'], readinessScore: 70, summary: 'Kiểm thử', careerAdvice: 'Thực hành theo nội dung khóa học.', aiGenerated: false };
@@ -106,6 +112,28 @@ test('catalog removal, roster and restore with isolated MySQL, HTTP and real JWT
   ]);
   let snapshot = JSON.stringify(await assignmentsRepo.find({ where: { courseId: course.id }, order: { id: 'ASC' } }));
 
+  await t.test('upgrading the legacy course foreign key preserves existing assignments', async () => {
+    const queryRunner = db.createQueryRunner();
+    try {
+      const table = await queryRunner.getTable('employee_trainings');
+      const relation = table.foreignKeys.find(key => key.columnNames.includes('course_id'));
+      await queryRunner.dropForeignKey(table, relation);
+      await db.query('ALTER TABLE employee_trainings MODIFY COLUMN course_id INT NOT NULL, DROP COLUMN course_snapshot, DROP COLUMN course_deleted_at');
+      await db.query('DROP INDEX IDX_tv4_training_user_id ON employee_trainings');
+      const legacyRelation = relation.clone();
+      legacyRelation.onDelete = 'CASCADE';
+      await queryRunner.createForeignKey('employee_trainings', legacyRelation);
+      await admin.changeUser({ database });
+      await migrateTrainingHistory(admin);
+      await migrateTrainingHistory(admin); // Repeat deployment is safe.
+      await db.synchronize();
+      const upgraded = await queryRunner.getTable('employee_trainings');
+      assert.equal(upgraded.findColumnByName('course_id').isNullable, true);
+      assert.equal(upgraded.foreignKeys.find(key => key.columnNames.includes('course_id')).onDelete, 'SET NULL');
+      assert.equal(JSON.stringify(await assignmentsRepo.find({ where: { courseId: course.id }, order: { id: 'ASC' } })), snapshot);
+    } finally { await queryRunner.release(); }
+  });
+
   await t.test('roster lists only the selected course, department, due date and progress without user secrets', async () => {
     const result = await request(`/training/courses/${course.id}/assignments`);
     assert.equal(result.status, 200);
@@ -122,7 +150,7 @@ test('catalog removal, roster and restore with isolated MySQL, HTTP and real JWT
   });
 
   await t.test('JWT and HR/SuperAdmin permissions apply to roster, removal and restore', async () => {
-    for (const [path, method] of [[`/training/courses/${course.id}/assignments`, 'GET'], [`/training/courses/${course.id}`, 'DELETE'], [`/training/courses/${course.id}/restore`, 'PATCH']]) {
+    for (const [path, method] of [[`/training/courses/${course.id}/assignments`, 'GET'], [`/training/courses/${course.id}`, 'DELETE'], [`/training/courses/${course.id}/restore`, 'PATCH'], [`/training/courses/${course.id}/permanent`, 'DELETE']]) {
       assert.equal((await request(path, method, undefined, null)).status, 401);
       assert.equal((await request(path, method, undefined, 'manager')).status, 403);
       assert.equal((await request(path, method, undefined, 'employee')).status, 403);
@@ -214,5 +242,100 @@ test('catalog removal, roster and restore with isolated MySQL, HTTP and real JWT
     assert.equal(typeof result.data.summary, 'string');
     assert.equal(typeof result.data.careerAdvice, 'string');
     assert.equal(await assignmentsRepo.count(), before);
+  });
+
+  await t.test('permanent deletion removes the catalog entry while preserving learning, reminders and AI history', async () => {
+    const historyCourse = await coursesRepo.save(coursesRepo.create({
+      title: 'Khóa giữ kết quả sau khi xóa', type: 'MANDATORY', skillsProvided: ['TypeScript'],
+      durationHours: 12, courseUrl: 'https://example.invalid/training/history',
+    }));
+    const pending = await assignmentsRepo.save({ userId: actors.employee.id, courseId: historyCourse.id, progressPercent: 45, status: 'IN_PROGRESS', assignedByAi: false, dueAt: new Date(Date.now() + 86400000), reminderCount: 2, lastReminderAt: new Date(Date.now() - 3 * 86400000), lastReminderRunId: 'retained-run' });
+    const completed = await assignmentsRepo.save({ userId: actors.other.id, courseId: historyCourse.id, progressPercent: 100, status: 'COMPLETED', assignedByAi: true, completedAt: new Date(), dueAt, aiReason: 'Lý do cần giữ', reminderCount: 3 });
+    const beforeRows = await assignmentsRepo.findByIds([pending.id, completed.id]);
+    const stripCatalog = ({ courseId, courseSnapshot, courseDeletedAt, ...learning }) => learning;
+    const beforeLearning = JSON.stringify(beforeRows.map(stripCatalog));
+    assert.equal((await request(`/training/courses/${historyCourse.id}/permanent`, 'DELETE')).status, 409);
+    assert.equal(await assignmentsRepo.countBy({ courseId: historyCourse.id }), 2);
+    const summaryBefore = await request('/training/summary');
+    await request(`/training/courses/${historyCourse.id}`, 'DELETE');
+    const removal = await request(`/training/courses/${historyCourse.id}/permanent`, 'DELETE');
+    assert.equal(removal.status, 200);
+    assert.equal(removal.data.assignmentCount, 2);
+    assert.equal(await coursesRepo.findOneBy({ id: historyCourse.id }), null);
+    const afterRows = await assignmentsRepo.findByIds([pending.id, completed.id]);
+    assert.equal(afterRows.length, 2);
+    assert.equal(JSON.stringify(afterRows.map(stripCatalog)), beforeLearning);
+    for (const row of afterRows) {
+      assert.equal(row.courseId, null);
+      assert.ok(row.courseDeletedAt instanceof Date);
+      assert.deepEqual(row.courseSnapshot, { id: historyCourse.id, title: historyCourse.title, type: historyCourse.type, skillsProvided: historyCourse.skillsProvided, durationHours: 12, courseUrl: historyCourse.courseUrl });
+    }
+    assert.deepEqual((await request('/training/summary')).data, summaryBefore.data);
+    assert.equal((await request('/training/courses?includeArchived=true')).data.some(item => item.id === historyCourse.id), false);
+    assert.equal((await request(`/training/courses/${historyCourse.id}/assignments`)).status, 404);
+    assert.equal((await request(`/training/courses/${historyCourse.id}/restore`, 'PATCH')).status, 404);
+    assert.equal((await request(`/training/courses/${historyCourse.id}/permanent`, 'DELETE')).status, 404);
+    assert.equal((await request('/training/assignments', 'POST', { userId: actors.newcomer.id, courseId: historyCourse.id })).status, 404);
+    const history = (await request('/onboarding/trainings', 'GET', undefined, 'employee')).data.find(item => item.id === pending.id);
+    assert.equal(history.title, historyCourse.title);
+    assert.equal(history.courseUrl, historyCourse.courseUrl);
+    assert.equal(history.durationHours, 12);
+    assert.equal(history.isCourseDeleted, true);
+    assert.equal(history.progressPercent, 45);
+    const adminHistory = (await request('/training/assignments')).data.find(item => item.id === pending.id);
+    assert.equal(adminHistory.course.title, historyCourse.title);
+    assert.equal(adminHistory.course.isDeleted, true);
+    const reminder = (await app.get(TrainingService).getPendingTrainingReminders()).reminders.find(item => item.assignmentId === pending.id);
+    assert.equal(reminder.course.title, historyCourse.title);
+    assert.equal(reminder.course.courseUrl, historyCourse.courseUrl);
+    assert.equal((await request(`/onboarding/trainings/${pending.id}/progress`, 'PATCH', { progressPercent: 65 }, 'employee')).status, 200);
+    assert.equal((await assignmentsRepo.findOneBy({ id: pending.id })).progressPercent, 65);
+    assert.equal((await request(`/onboarding/trainings/${pending.id}/progress`, 'PATCH', { progressPercent: 10 }, 'other')).status, 404);
+    assert.equal((await request('/training/ai-suggest', 'POST', { userId: actors.other.id })).status, 201);
+    assert.ok(analysisPrompt.includes(historyCourse.title), 'AI should retain completed learning context');
+    assert.ok(recommendedCatalog.every(item => item.id !== historyCourse.id));
+  });
+
+  await t.test('permanent deletion of an unassigned course requires removal first', async () => {
+    const unused = await createFixtureCourse('Khóa chưa có người học để xóa');
+    assert.equal((await request(`/training/courses/${unused.id}/permanent`, 'DELETE')).status, 409);
+    await request(`/training/courses/${unused.id}`, 'DELETE');
+    const result = await request(`/training/courses/${unused.id}/permanent`, 'DELETE');
+    assert.equal(result.status, 200);
+    assert.equal(result.data.assignmentCount, 0);
+    assert.equal(await coursesRepo.findOneBy({ id: unused.id }), null);
+  });
+
+  await t.test('progress and permanent deletion can run concurrently without losing either change', async () => {
+    const race = await coursesRepo.save(coursesRepo.create({ title: 'Khóa đồng thời giữ tiến độ', type: 'SOFT_SKILL', skillsProvided: ['TypeScript'], isArchived: true }));
+    const row = await assignmentsRepo.save({ userId: actors.employee.id, courseId: race.id, progressPercent: 25, status: 'IN_PROGRESS', assignedByAi: false });
+    const [progress, deletion] = await Promise.all([
+      request(`/onboarding/trainings/${row.id}/progress`, 'PATCH', { progressPercent: 80 }, 'employee'),
+      request(`/training/courses/${race.id}/permanent`, 'DELETE'),
+    ]);
+    assert.equal(progress.status, 200);
+    assert.equal(deletion.status, 200);
+    const saved = await assignmentsRepo.findOneBy({ id: row.id });
+    assert.equal(saved.courseId, null);
+    assert.equal(saved.courseSnapshot.title, race.title);
+    assert.equal(saved.progressPercent, 80);
+    assert.equal((await request(`/training/assignments/${row.id}/progress`, 'PATCH', { progressPercent: 100 })).status, 200);
+    assert.equal((await assignmentsRepo.findOneBy({ id: row.id })).status, 'COMPLETED');
+  });
+
+  await t.test('failure to delete a catalog record rolls back the snapshot and relation changes', async () => {
+    const blocked = await coursesRepo.save(coursesRepo.create({ title: 'Khóa kiểm thử rollback', type: 'SOFT_SKILL', skillsProvided: ['TypeScript'], isArchived: true }));
+    const row = await assignmentsRepo.save({ userId: actors.employee.id, courseId: blocked.id, progressPercent: 65, status: 'IN_PROGRESS', assignedByAi: false });
+    await db.query('CREATE TABLE tv4_course_delete_blocker (course_id INT PRIMARY KEY, FOREIGN KEY (course_id) REFERENCES training_courses(id) ON DELETE RESTRICT) ENGINE=InnoDB');
+    try {
+      await db.query('INSERT INTO tv4_course_delete_blocker (course_id) VALUES (?)', [blocked.id]);
+      assert.equal((await request(`/training/courses/${blocked.id}/permanent`, 'DELETE')).status, 500);
+      const unchanged = await assignmentsRepo.findOneBy({ id: row.id });
+      assert.equal(unchanged.courseId, blocked.id);
+      assert.equal(unchanged.courseSnapshot, null);
+      assert.equal(unchanged.courseDeletedAt, null);
+      assert.equal(unchanged.progressPercent, 65);
+      assert.ok(await coursesRepo.findOneBy({ id: blocked.id }));
+    } finally { await db.query('DROP TABLE tv4_course_delete_blocker'); }
   });
 });

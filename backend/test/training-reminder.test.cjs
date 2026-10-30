@@ -109,9 +109,9 @@ test('callback ghi nhận một lần và không tăng bộ đếm khi n8n gửi
   let saveCount = 0;
   const repository = {
     findOne: async () => row,
-    save: async (value) => {
+    update: async (_id, value) => {
       saveCount += 1;
-      return value;
+      Object.assign(row, value);
     },
   };
   const service = serviceWith(repository);
@@ -140,7 +140,7 @@ test('callback ghi nhận trạng thái Telegram để không báo SENT khi kên
   const row = assignment();
   const repository = {
     findOne: async () => row,
-    save: async (value) => value,
+    update: async (_id, value) => Object.assign(row, value),
   };
   const service = serviceWith(repository);
 

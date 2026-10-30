@@ -207,7 +207,7 @@
       "continueOnFail": true,
       "credentials": {
         "telegramApi": {
-          "id": "0HkzdiGpziEpFKx5",
+          "id": "HETZB83kRcozxOI3",
           "name": "Telegram account"
         }
       }
@@ -231,7 +231,7 @@
       "continueOnFail": true,
       "credentials": {
         "smtp": {
-          "id": "NTncvvMB0zaRbEnL",
+          "id": "h1v8OcFX2oUSbyoy",
           "name": "SMTP account"
         }
       }
@@ -253,8 +253,8 @@
       "continueOnFail": true,
       "credentials": {
         "mySql": {
-          "id": "mySqlCredentialLocal",
-          "name": "HR MySQL Database"
+          "id": "Dre86joWTJ8RKO9C",
+          "name": "MySQL root with rootpassword"
         }
       }
     },

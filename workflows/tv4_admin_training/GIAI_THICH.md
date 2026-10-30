@@ -110,7 +110,7 @@ GEMINI_API_KEY=THAY_BẰNG_API_KEY_GEMINI
 | `automationSecret` | Phải giống `N8N_AUTOMATION_SECRET` của backend | Giá trị thật trong n8n | Giá trị thật trong n8n |
 | `senderEmail` | Địa chỉ người gửi SMTP | Email đã cấu hình credential | Email đã cấu hình credential |
 | `telegramChatId` | Mã nhóm Telegram nhận thông báo | Mã nhóm thử nghiệm | Mã nhóm thử nghiệm |
-| Các trường `test...Email` | Chuyển toàn bộ thư về một hộp thư thử nghiệm | Nên dùng khi demo | Nên dùng khi demo |
+| Các trường `test...Email` | Ghi đè riêng email của từng nhóm người nhận trong lúc thử nghiệm | Nên dùng khi demo | Nên dùng khi demo |
 
 ### 3.4. Credential bắt buộc trên n8n
 
@@ -130,6 +130,52 @@ GEMINI_API_KEY=THAY_BẰNG_API_KEY_GEMINI
 - Lấy đúng `chat_id` của nhóm rồi điền vào `telegramChatId`.
 
 Không ghi App Password, bot token hoặc khóa tự động hóa trực tiếp vào file Markdown.
+
+### 3.5. Import an toàn bằng CLI trên Linux
+
+Chuẩn bị bốn workflow với ID ổn định và trạng thái inactive. Lệnh dưới đây
+dùng cho lần khởi tạo, khi chưa có workflow RAG đang hoạt động:
+
+```bash
+node scripts/prepare-tv4-n8n-import.cjs
+for workflow_file in 01_tv4_knowledge_rag.json 02_mandatory_training_reminder.json 03_monthly_performance_review_reminder.json 04_offboarding_workflow.json; do
+  docker cp ".temp/tv4-n8n-import/$workflow_file" "hr_n8n:/tmp/tv4-import-$workflow_file"
+  docker exec hr_n8n n8n import:workflow --input="/tmp/tv4-import-$workflow_file"
+done
+```
+
+Script không ghi secret vào Git. Ba workflow 4.1–4.3 đọc
+`N8N_AUTOMATION_SECRET` từ môi trường n8n và vẫn inactive sau khi import.
+Chỉ publish sau khi đã gắn SMTP/Telegram credential và đặt địa chỉ nhận thử nghiệm.
+
+Để giữ cấu hình mail cá nhân riêng với mã nguồn nhóm, có thể đặt một file JSON
+cục bộ trong `.temp` với các trường `senderEmail`, `testEmployeeEmail`,
+`testManagerEmail`, `testInternalEmail`, `itEmail`, `accountingEmail`.
+Các trường này chỉ chứa địa chỉ mail, không chứa mật khẩu SMTP hoặc bot token.
+Có thể thêm `telegramChatId` dạng chuỗi số đã được xác minh bằng thao tác
+Telegram **Chat → Get**; giá trị sẽ được áp dụng vào node cấu hình của cả ba
+workflow thông báo. Giữ dấu âm của ID nhóm, không dùng username bot thay ID nhóm.
+Sau đó chuẩn bị import bằng:
+
+```bash
+TV4_N8N_CREDENTIAL_SOURCE_DIR=.temp/n8n-backup \
+TV4_N8N_MAIL_CONFIG_FILE=.temp/tv4-mail-routing.json \
+node scripts/prepare-tv4-n8n-import.cjs
+```
+
+`TV4_N8N_CREDENTIAL_SOURCE_DIR` trỏ tới bản export workflow cục bộ để giữ tham chiếu
+credential đã gắn. Script chỉ đọc SMTP/Telegram credential ID, không giải mã
+credential. Nếu RAG đang hoạt động, chỉ import ba file thông báo cần cập nhật,
+tránh import lại cả thư mục làm workflow RAG chuyển sang inactive.
+Sao chép từng file tới tên đích cụ thể để tránh `docker cp` lồng thư mục khi
+thư mục đích đã tồn tại, khiến CLI vô tình import lại bản cũ.
+
+Workflow RAG không gửi thông báo ngoài nên có thể publish riêng:
+
+```bash
+docker exec hr_n8n n8n publish:workflow --id=tv4KnowledgeRagV1
+docker compose restart n8n
+```
 
 ---
 
@@ -322,7 +368,7 @@ Backend chỉ đưa một lượt đào tạo vào danh sách nhắc khi thỏa 
 | 2 | `Nạp cấu hình an toàn` | Set | Nạp API base, khóa tự động hóa, email gửi, email kiểm thử và Telegram chat ID |
 | 3 | `Lấy danh sách cần nhắc` | HTTP Request | Gọi backend bằng `X-Automation-Secret` để lấy các lượt đủ điều kiện |
 | 4 | `Tách từng lượt đào tạo` | Code | Mỗi lượt đào tạo trở thành một item; nếu rỗng tạo item `skip = true` |
-| 5 | `Có trường hợp cần nhắc?` | IF | Chỉ đi tiếp khi `skip = false` |
+| 5 | `Có trường hợp cần nhắc?` | IF | Nhánh `true` tiếp tục gửi; nhánh `false` kết thúc bình thường khi danh sách cần nhắc rỗng, không phải lỗi |
 | 6 | `Soạn nội dung nhắc bằng tiếng Việt` | Code | Tạo tiêu đề, email HTML, tin Telegram, nhãn còn hạn/quá hạn và chọn người nhận thử nghiệm |
 | 7 | `Gửi thư nhắc nhân viên` | Email Send | Gửi email cho nhân viên; thử lại tối đa ba lần, cách nhau hai giây |
 | 8 | `Có quản lý trực tiếp?` | IF | Kiểm tra có người quản lý hợp lệ để nhận thư hay không |
@@ -346,7 +392,7 @@ Backend chỉ đưa một lượt đào tạo vào danh sách nhắc khi thỏa 
 1. Tạo hoặc chọn một khóa bắt buộc.
 2. Gán cho nhân viên với hạn còn từ một đến ba ngày.
 3. Đặt tiến độ dưới 50%.
-4. Trong node `Nạp cấu hình an toàn`, đặt email thử nghiệm để tránh gửi nhầm dữ liệu thật.
+4. Trong node `Nạp cấu hình an toàn`, để trống `testEmployeeEmail` nếu muốn gửi theo email thật của nhân viên và đặt `testManagerEmail` nếu tài khoản quản lý vẫn dùng email đăng nhập mẫu.
 5. Bấm `Execute workflow`.
 6. Kiểm tra:
    - Node `Lấy danh sách cần nhắc` trả `count = 1` hoặc lớn hơn.
@@ -394,7 +440,7 @@ Hạn hoàn thành được backend tính là ngày cuối cùng của tháng.
 | 4 | `Xác định đợt thông báo` | Code | Tính ngày theo giờ Việt Nam, xác định phase và tạo run ID |
 | 5 | `Lấy danh sách quản lý cần nhắc` | HTTP Request | Gọi backend với `asOf` và `phase` |
 | 6 | `Tách từng quản lý phụ trách` | Code | Mỗi quản lý cùng danh sách nhân viên chưa nộp trở thành một item |
-| 7 | `Có quản lý cần thông báo?` | IF | Dừng an toàn khi không còn đánh giá thiếu |
+| 7 | `Có quản lý cần thông báo?` | IF | Nhánh `true` tiếp tục gửi; nhánh `false` dừng an toàn khi không còn đánh giá thiếu |
 | 8 | `Soạn nội dung đánh giá bằng tiếng Việt` | Code | Tạo bảng HTML nhân viên, hạn hoàn thành, email và Telegram |
 | 9 | `Gửi thư cho quản lý` | Email Send | Gửi danh sách đánh giá còn thiếu tới người phụ trách |
 | 10 | `Thông báo kênh đánh giá` | Telegram | Thông báo kỳ, người phụ trách, số lượng còn thiếu và hạn |

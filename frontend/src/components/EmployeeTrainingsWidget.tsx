@@ -89,7 +89,11 @@ export function EmployeeTrainingsWidget() {
   }, []);
 
   useEffect(() => {
-    void loadTrainings();
+    const loadTimer = window.setTimeout(() => {
+      void loadTrainings();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
   }, [loadTrainings]);
 
   const updateProgress = async (

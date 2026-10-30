@@ -216,7 +216,7 @@ Một lượt đào tạo chỉ được trả về khi thỏa các điều ki�
 1. Trên giao diện, gán một khóa bắt buộc cho nhân viên thử nghiệm.
 2. Đặt hạn hoàn thành vào ngày kia và giữ tiến độ ở 0%.
 3. Trong n8n, mở workflow 4.1.
-4. Đặt email nhận thử nghiệm nếu không muốn gửi vào dữ liệu người dùng thật.
+4. Để trống `testEmployeeEmail` nếu muốn gửi vào email thật của nhân viên; dùng `testManagerEmail` để chuyển riêng thư quản lý về hộp thư thử nghiệm.
 5. Chạy workflow thủ công bằng **Execute workflow**.
 6. Mở node `Lấy danh sách cần nhắc`, cho thấy `count = 1`.
 7. Chỉ lần lượt các node gửi thư nhân viên, kiểm tra quản lý, Telegram và callback.
@@ -227,13 +227,17 @@ Lời nói gợi ý:
 
 > “Backend chịu trách nhiệm lọc đúng người cần nhắc. n8n không tự suy đoán từ toàn bộ cơ sở dữ liệu. Sau khi lấy được danh sách, workflow tách từng lượt đào tạo, soạn nội dung tiếng Việt, gửi nhân viên, gửi quản lý nếu có, thông báo Telegram và lưu trạng thái gửi về backend.”
 
-### 7.4. Nếu không có thư quản lý
+### 7.4. Ý nghĩa nhánh `false` ở node kiểm tra
+
+Nếu backend trả về `count = 0`, node tách dữ liệu tạo một item có `skip = true`. Node `Có trường hợp cần nhắc?` sẽ đi nhánh `false` và workflow kết thúc bình thường, không gửi email hoặc Telegram. Nhánh này không dư thừa và cũng không biểu thị lỗi; nó ngăn hệ thống gửi thông báo khi không có đối tượng phù hợp.
+
+### 7.5. Nếu không có thư quản lý
 
 Kiểm tra theo thứ tự:
 
 1. Nhân viên có `managerId` hoặc có quản lý cùng phòng ban hay chưa.
 2. Email quản lý có tồn tại và có đúng định dạng hay chưa.
-3. Có đang đặt email thử nghiệm ở node cấu hình hay không.
+3. `testManagerEmail` có đang trỏ đến hộp thư quản lý thử nghiệm hay không.
 4. Node `Có quản lý trực tiếp?` đi nhánh `true` hay `false`.
 5. Node gửi thư quản lý có lỗi SMTP hay không.
 
@@ -459,13 +463,13 @@ Backend có cửa sổ chống gửi lại đối với nhắc đào tạo, work
 | Hiện tượng | Nguyên nhân thường gặp | Cách xử lý nhanh |
 |---|---|---|
 | Backend báo `EADDRINUSE: 3001` | Một backend khác đang chạy | Dùng tiến trình hiện tại hoặc dừng đúng PID, không mở thêm lần nữa |
-| Workflow 4.1 trả `count = 0` | Hạn quá xa, tiến độ ≥50%, khóa không bắt buộc hoặc vừa được nhắc | Chỉnh dữ liệu thử nghiệm rồi gọi lại API |
+| Workflow 4.1 trả `count = 0` và đi nhánh `false` | Hạn quá xa, tiến độ ≥50%, khóa không bắt buộc hoặc vừa được nhắc | Đây là kết thúc bình thường; chỉ chỉnh dữ liệu nếu đang cần tạo tình huống demo gửi nhắc |
 | Nhân viên có thư nhưng quản lý không có | Thiếu quản lý/email hoặc nhánh điều kiện đi `false` | Kiểm tra quan hệ quản lý và output node điều kiện |
 | Node Email đỏ | SMTP sai tài khoản, mật khẩu ứng dụng, cổng hoặc SSL | Mở credential SMTP và thử riêng node |
 | Telegram không có tin | Sai Bot Token, Chat ID hoặc Bot chưa ở trong nhóm | Gửi tin trong nhóm, lấy lại Chat ID và chạy thử node |
 | `$env` báo không truy cập được từ giao diện n8n | n8n chặn biến môi trường trong trình chỉnh sửa | Dùng giá trị Fixed an toàn hoặc credential phù hợp |
 | 4.2 chạy sai giai đoạn | Còn `testPhase/testAsOf` hoặc ngày hệ thống không đúng | Xóa giá trị thử và kiểm tra múi giờ |
-| 4.3 không tạo execution | Workflow chưa Active hoặc URL webhook sai | Kích hoạt workflow và kiểm tra `N8N_WEBHOOK_BASE_URL` |
+| 4.3 không tạo execution | Workflow chưa Active hoặc URL webhook sai | Kích hoạt workflow và kiểm tra `N8N_WEBHOOK_URL` |
 | Kho tri thức không có nguồn | PDF chưa lập chỉ mục hoặc câu hỏi không khớp | Kiểm tra trạng thái tài liệu và hỏi lại đúng phạm vi |
 | AI báo thiếu dữ liệu | Nhân viên thiếu phòng ban/chức danh và chưa có KPI | Bổ sung dữ liệu hồ sơ hoặc tạo đánh giá hiệu suất |
 

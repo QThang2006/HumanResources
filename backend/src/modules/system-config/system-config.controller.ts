@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -8,13 +9,15 @@ import {
 } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
+import { gzipSync } from 'zlib';
 import { SystemConfigService } from './system-config.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { UserRole } from '../../entities/user.entity';
+import { AutomationSecretGuard } from '../../common/guards/automation-secret.guard';
 
 @Controller('system-config')
 export class SystemConfigController {
@@ -84,7 +87,7 @@ export class SystemConfigController {
   }
 
   // Kích hoạt tiến trình snapshot CSDL từ n8n WF-02 lúc 02:00 AM
-  @Public()
+  @UseGuards(AutomationSecretGuard)
   @Post('trigger-backup')
   triggerBackup(
     @Body()
@@ -100,34 +103,76 @@ export class SystemConfigController {
       fs.mkdirSync(backupDir, { recursive: true });
     }
 
-    const filename = body.filename || `db_backup_${body.backupId || Date.now()}.sql.gz`;
+    const backupId = String(body.backupId || Date.now()).trim();
+    if (!/^[a-zA-Z0-9_-]{1,100}$/.test(backupId)) {
+      throw new BadRequestException('Mã bản sao lưu không hợp lệ.');
+    }
+
+    const filename = String(
+      body.filename || `db_backup_${backupId}.sql.gz`,
+    ).trim();
+    if (
+      path.basename(filename) !== filename ||
+      !/^[a-zA-Z0-9._-]{1,180}\.sql(?:\.gz)?$/.test(filename)
+    ) {
+      throw new BadRequestException('Tên file sao lưu không hợp lệ.');
+    }
+
     const fullPath = path.join(backupDir, filename);
-    const dbName = body.targetDb || process.env.DB_DATABASE || 'hr_enterprise_db';
+    const dbName = String(
+      body.targetDb || process.env.DB_DATABASE || 'hr_enterprise_db',
+    ).trim();
+    if (!/^[a-zA-Z0-9_]{1,64}$/.test(dbName)) {
+      throw new BadRequestException('Tên cơ sở dữ liệu không hợp lệ.');
+    }
+
     const dbHost = process.env.DB_HOST || '127.0.0.1';
     const dbPort = process.env.DB_PORT || '3307';
     const dbUser = process.env.DB_USERNAME || 'hr_user';
     const dbPass = process.env.DB_PASSWORD || 'hr_password';
+    const executedBy = String(body.executedBy || 'n8n_nightly_cron')
+      .replace(/[\r\n]/g, ' ')
+      .slice(0, 100);
 
     const header = `-- ========================================================\n` +
       `-- HR TECH ENTERPRISE DATABASE BACKUP SNAPSHOT (02:00 AM)\n` +
       `-- Database: ${dbName}\n` +
-      `-- Backup ID: ${body.backupId || 'BKP-NIGHTLY'}\n` +
+      `-- Backup ID: ${backupId}\n` +
       `-- Timestamp: ${new Date().toISOString()}\n` +
-      `-- Executed By: ${body.executedBy || 'n8n_nightly_cron'}\n` +
+      `-- Executed By: ${executedBy}\n` +
       `-- Tables: 17 Entities (Users, Jobs, Applications, Onboarding...)\n` +
       `-- Status: VERIFIED CHECKSUM OK - FULL SCHEMA & DATA SNAPSHOT\n` +
       `-- ========================================================\n\n`;
 
     let sqlDump = '';
     try {
-      sqlDump = execSync(
-        `mysqldump -h ${dbHost} -P ${dbPort} -u ${dbUser} -p${dbPass} ${dbName} --no-tablespaces --skip-extended-insert`,
+      sqlDump = execFileSync(
+        'mysqldump',
+        [
+          '-h', dbHost,
+          '-P', dbPort,
+          '-u', dbUser,
+          `-p${dbPass}`,
+          dbName,
+          '--no-tablespaces',
+          '--skip-extended-insert',
+        ],
         { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 },
       );
     } catch (dumpErr: any) {
       try {
-        sqlDump = execSync(
-          `docker exec hr_mysql mysqldump -u ${dbUser} -p${dbPass} ${dbName} --no-tablespaces --skip-extended-insert`,
+        sqlDump = execFileSync(
+          'docker',
+          [
+            'exec',
+            'hr_mysql',
+            'mysqldump',
+            '-u', dbUser,
+            `-p${dbPass}`,
+            dbName,
+            '--no-tablespaces',
+            '--skip-extended-insert',
+          ],
           { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 },
         );
       } catch (dockerErr: any) {
@@ -136,21 +181,25 @@ export class SystemConfigController {
     }
 
     const fullContent = header + sqlDump;
-    fs.writeFileSync(fullPath, fullContent, 'utf8');
+    const output = filename.endsWith('.gz')
+      ? gzipSync(Buffer.from(fullContent, 'utf8'))
+      : Buffer.from(fullContent, 'utf8');
+    fs.writeFileSync(fullPath, output);
 
     return {
       success: true,
       message: `Đã kích hoạt và lưu file sao lưu CSDL [${dbName}] thành công.`,
-      backupId: body.backupId,
+      backupId,
       filename: filename,
       storagePath: fullPath,
-      sizeBytes: Buffer.byteLength(fullContent),
+      sizeBytes: output.byteLength,
       executedAt: new Date().toISOString(),
     };
   }
 
   // Endpoint mô phỏng lỗi 500 phục vụ demo WF-03 System Incident & AI Debugger
-  @Public()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERADMIN)
   @Get('test-crash')
   testCrash() {
     throw new Error('QueryFailedError: ER_LOCK_DEADLOCK: Deadlock found when trying to get lock; try restarting transaction at /backend/src/modules/recruitment/recruitment.service.ts:184:12');

@@ -1226,6 +1226,7 @@ const IntegrationsPanel: React.FC<{
   onTestN8n: () => void;
   onSave: () => void;
 }> = props => {
+  const geminiKeyIsUrl = /^https?:\/\//i.test(props.geminiApiKey.trim());
   return (
     <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
       <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
@@ -1253,19 +1254,30 @@ const IntegrationsPanel: React.FC<{
             )}
           </div>
 
-          <label className="mt-6 block text-[11px] font-black uppercase tracking-[0.14em] text-[#90979C]">
-            API key
+          <label htmlFor="gemini-api-key" className="mt-6 block text-sm font-semibold text-[#596167]">
+            Khóa API Gemini
           </label>
           <div className="relative mt-2">
             <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
             <input
+              id="gemini-api-key"
               type="password"
+              autoComplete="off"
+              spellCheck={false}
+              aria-describedby={geminiKeyIsUrl ? 'gemini-api-key-help' : undefined}
+              aria-invalid={geminiKeyIsUrl || undefined}
               value={props.geminiApiKey}
               onChange={event => props.onGeminiKeyChange(event.target.value)}
-              placeholder="Gemini API Key"
+              placeholder="Dán giá trị khóa API Gemini"
               className="h-12 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] pl-10 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
             />
           </div>
+
+          {geminiKeyIsUrl && (
+            <p id="gemini-api-key-help" role="alert" className="mt-2 text-sm leading-6 text-[#9D4150]">
+              Bạn đang nhập địa chỉ website. Hãy dán giá trị khóa API Gemini vào ô này.
+            </p>
+          )}
 
           <div className="mt-3 flex justify-end">
             <button
@@ -1411,6 +1423,10 @@ export const AdminSettingsPage: React.FC = () => {
   }, [user?.role]);
 
   const handleSaveConfig = async () => {
+    if (/^https?:\/\//i.test(geminiApiKey.trim())) {
+      setConfigMessage('Ô khóa API Gemini đang chứa địa chỉ website. Hãy thay bằng giá trị khóa API rồi lưu lại.');
+      return;
+    }
     const n8nUrl = n8nWebhookUrl.trim();
 
     if (n8nUrl) {
@@ -1443,7 +1459,7 @@ export const AdminSettingsPage: React.FC = () => {
       setConfigMessage('Đã lưu cấu hình thành công.');
     } catch (error) {
       console.error(error);
-      setConfigMessage('Lưu cấu hình thất bại.');
+      setConfigMessage(error instanceof Error ? error.message : 'Lưu cấu hình thất bại.');
     } finally {
       setConfigSaving(false);
     }
@@ -1498,7 +1514,7 @@ export const AdminSettingsPage: React.FC = () => {
       setGeminiTestSuccess(null);
       setGeminiTestMessage('Đang kiểm tra kết nối...');
       const result = await systemConfigApi.testGemini();
-      setGeminiTestSuccess(true);
+      setGeminiTestSuccess(result.success);
       setGeminiTestMessage(
         `${result.message}${result.model ? ` • ${result.model}` : ''}`,
       );

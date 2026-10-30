@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:calendar-date": "node --test test/calendar-date.test.cjs",
+    "test:training-catalog": "node --test test/training-catalog.test.cjs",
+    "test:training-ai": "node --test test/training-ai.test.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

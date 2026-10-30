@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   BrainCircuit,
@@ -13,6 +13,8 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  RotateCcw,
+  Trash2,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -24,11 +26,15 @@ import {
   type TrainingAssignment,
   type TrainingCourse,
   type TrainingCourseType,
+  type TrainingCourseRoster,
   type TrainingStatus,
   type TrainingSummary,
 } from '../api/training.api';
 import { usersApi } from '../api/users.api';
 import type { User } from '../types';
+import { CourseLearnersPanel } from './CourseLearnersPanel';
+import { CourseRemoveDialog } from './CourseRemoveDialog';
+import { CoursePermanentDeleteDialog } from './CoursePermanentDeleteDialog';
 
 const COURSE_TYPE_LABELS: Record<TrainingCourseType, string> = {
   MANDATORY: 'BẮT BUỘC',
@@ -90,6 +96,10 @@ export const TrainingPanel: React.FC = () => {
     useState<TrainingAiReadiness | null>(null);
   const [checkingReadiness, setCheckingReadiness] = useState(false);
   const [aiSuggesting, setAiSuggesting] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const analysisRequest = useRef<AbortController | null>(null);
+  const readinessRequest = useRef<AbortController | null>(null);
+  const analysisResultRef = useRef<HTMLDivElement>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [updatingDueId, setUpdatingDueId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
@@ -97,6 +107,20 @@ export const TrainingPanel: React.FC = () => {
     useState<TrainingWorkspace>('setup');
   const [courseSearch, setCourseSearch] = useState('');
   const [courseFilter, setCourseFilter] = useState<CourseFilter>('ALL');
+  const [catalogScope, setCatalogScope] = useState<'active' | 'archived'>('active');
+  const [viewingCourse, setViewingCourse] = useState<TrainingCourse | null>(null);
+  const [roster, setRoster] = useState<TrainingCourseRoster | null>(null);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [rosterError, setRosterError] = useState('');
+  const rosterRequest = useRef<AbortController | null>(null);
+  const catalogHeadingRef = useRef<HTMLHeadingElement>(null);
+  const [pendingRemove, setPendingRemove] = useState<TrainingCourse | null>(null);
+  const [courseMutationId, setCourseMutationId] = useState<number | null>(null);
+  const [removeError, setRemoveError] = useState('');
+  const [pendingPermanentDelete, setPendingPermanentDelete] = useState<TrainingCourse | null>(null);
+  const [permanentDeleteError, setPermanentDeleteError] = useState('');
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
+  const [assignmentCourseId, setAssignmentCourseId] = useState<number | null>(null);
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [assignmentFilter, setAssignmentFilter] =
     useState<AssignmentFilter>('ALL');
@@ -121,16 +145,14 @@ export const TrainingPanel: React.FC = () => {
     () => users.filter(user => user.role === 'EMPLOYEE'),
     [users],
   );
+  const availableCourses = useMemo(() => courses.filter(course => !course.isArchived), [courses]);
+  const archivedCourseCount = courses.length - availableCourses.length;
 
-  const loadData = useCallback(async (showLoading = false) => {
+  const loadData = useCallback(async () => {
     try {
-      if (showLoading) {
-        setLoading(true);
-      }
-
       const [courseData, assignmentData, summaryData, userData] =
         await Promise.all([
-          trainingApi.getCourses(),
+          trainingApi.getCourses(true),
           trainingApi.getAssignments(),
           trainingApi.getSummary(),
           usersApi.getAll(),
@@ -144,15 +166,125 @@ export const TrainingPanel: React.FC = () => {
       console.error(error);
       setMessage('Không thể tải dữ liệu đào tạo.');
     } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData(true);
+    const loadTimer = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
   }, [loadData]);
+
+  useEffect(() => () => rosterRequest.current?.abort(), []);
+
+  useEffect(() => () => {
+    analysisRequest.current?.abort();
+    readinessRequest.current?.abort();
+  }, []);
+
+  useEffect(() => {
+    if (aiSuggestion) {
+      analysisResultRef.current?.focus();
+    }
+  }, [aiSuggestion]);
+
+  const handleViewLearners = async (course: TrainingCourse) => {
+    rosterRequest.current?.abort();
+    const request = new AbortController();
+    rosterRequest.current = request;
+    setViewingCourse(course);
+    setRoster(null);
+    setRosterError('');
+    setRosterLoading(true);
+    setActiveWorkspace('catalog');
+    try {
+      const response = await trainingApi.getCourseAssignments(course.id, request.signal);
+      if (!request.signal.aborted) setRoster(response);
+    } catch (error) {
+      if (!request.signal.aborted) {
+        setRosterError(error instanceof Error ? error.message : 'Không thể tải danh sách người học.');
+      }
+    } finally {
+      if (!request.signal.aborted) setRosterLoading(false);
+    }
+  };
+
+  const handleBackToCatalog = () => {
+    rosterRequest.current?.abort();
+    setViewingCourse(null);
+    setRoster(null);
+    setRosterError('');
+    window.requestAnimationFrame(() => catalogHeadingRef.current?.focus());
+  };
+
+  const handleRemoveCourse = async () => {
+    if (!pendingRemove || courseMutationId !== null) return;
+    const course = pendingRemove;
+    setCourseMutationId(course.id);
+    setRemoveError('');
+    try {
+      const result = await trainingApi.removeCourse(course.id);
+      setCourses(current => current.map(item => item.id === course.id ? { ...item, isArchived: true } : item));
+      if (selectedCourseId === String(course.id)) {
+        setSelectedCourseId('');
+        setAssignedByAi(false);
+        setAiReason('');
+        setAiSuggestion(null);
+      }
+      setPendingRemove(null);
+      setMessage(result.message);
+      window.requestAnimationFrame(() => catalogHeadingRef.current?.focus());
+      await loadData();
+    } catch (error) {
+      setRemoveError(error instanceof Error ? error.message : 'Không thể gỡ khóa học. Vui lòng thử lại.');
+    } finally {
+      setCourseMutationId(null);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!pendingPermanentDelete || permanentDeleting) return;
+    const course = pendingPermanentDelete;
+    setPermanentDeleting(true);
+    setPermanentDeleteError('');
+    try {
+      const result = await trainingApi.deleteCoursePermanently(course.id);
+      setCourses(current => current.filter(item => item.id !== course.id));
+      if (selectedCourseId === String(course.id)) {
+        setSelectedCourseId('');
+        setAssignedByAi(false);
+        setAiReason('');
+        setAiSuggestion(null);
+      }
+      setPendingPermanentDelete(null);
+      setMessage(result.message);
+      window.requestAnimationFrame(() => catalogHeadingRef.current?.focus());
+      await loadData();
+    } catch (error) {
+      setPermanentDeleteError(error instanceof Error ? error.message : 'Không thể xóa vĩnh viễn khóa học. Vui lòng thử lại.');
+    } finally {
+      setPermanentDeleting(false);
+    }
+  };
+
+  const handleRestoreCourse = async (course: TrainingCourse) => {
+    if (courseMutationId !== null) return;
+    setCourseMutationId(course.id);
+    setMessage('');
+    try {
+      const result = await trainingApi.restoreCourse(course.id);
+      setCourses(current => current.map(item => item.id === course.id ? { ...item, isArchived: false } : item));
+      setMessage(result.message);
+      await loadData();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Không thể khôi phục khóa học.');
+    } finally {
+      setCourseMutationId(null);
+    }
+  };
 
   const handleCreateCourse = async () => {
     if (!title.trim()) {
@@ -189,6 +321,8 @@ export const TrainingPanel: React.FC = () => {
       setCourseType('MANDATORY');
       setMessage('Đã tạo khóa học thành công.');
       await loadData();
+      setCatalogScope('active');
+      setViewingCourse(null);
       setActiveWorkspace('catalog');
     } catch (error) {
       console.error(error);
@@ -205,13 +339,21 @@ export const TrainingPanel: React.FC = () => {
       return;
     }
 
+    analysisRequest.current?.abort();
+    const request = new AbortController();
+    analysisRequest.current = request;
+
     try {
       setAiSuggesting(true);
+      setAiError('');
+      setAiSuggestion(null);
       setMessage('');
 
       const suggestion = await trainingApi.aiSuggestCourse(
           Number(selectedUserId),
+          request.signal,
       );
+      if (request.signal.aborted) return;
 
       setAiSuggestion(suggestion);
       setSelectedCourseId(
@@ -234,22 +376,30 @@ export const TrainingPanel: React.FC = () => {
             : 'AI đã phân tích khoảng trống năng lực nhưng kho hiện tại chưa có khóa học phù hợp.',
       );
     } catch (error) {
+      if (request.signal.aborted) return;
       console.error(error);
 
       setAssignedByAi(false);
       setAiReason('');
       setAiSuggestion(null);
 
-      setMessage(
+      setAiError(
           error instanceof Error
-              ? error.message
+              ? /timeout/i.test(error.message)
+                ? 'Phân tích mất quá nhiều thời gian. Hãy kiểm tra kết nối Gemini trong mục Tích hợp rồi thử lại.'
+                : error.message
               : 'AI chưa thể đề xuất khóa học.',
       );
     } finally {
-      setAiSuggesting(false);
+      if (!request.signal.aborted) setAiSuggesting(false);
     }
   };
   const handleEmployeeChange = async (userId: string) => {
+    analysisRequest.current?.abort();
+    readinessRequest.current?.abort();
+    setAiSuggesting(false);
+    setCheckingReadiness(false);
+    setAiError('');
     setSelectedUserId(userId);
     setSelectedCourseId('');
     setAssignedByAi(false);
@@ -260,19 +410,23 @@ export const TrainingPanel: React.FC = () => {
 
     if (!userId) return;
 
+    const request = new AbortController();
+    readinessRequest.current = request;
+
     try {
       setCheckingReadiness(true);
-      const readiness = await trainingApi.getAiReadiness(Number(userId));
-      setAiReadiness(readiness);
+      const readiness = await trainingApi.getAiReadiness(Number(userId), request.signal);
+      if (!request.signal.aborted) setAiReadiness(readiness);
     } catch (error) {
+      if (request.signal.aborted) return;
       console.error(error);
-      setMessage(
+      setAiError(
         error instanceof Error
           ? error.message
           : 'Không thể kiểm tra dữ liệu phân tích của nhân viên.',
       );
     } finally {
-      setCheckingReadiness(false);
+      if (!request.signal.aborted) setCheckingReadiness(false);
     }
   };
   const handleCourseChange = (courseId: string) => {
@@ -371,11 +525,11 @@ export const TrainingPanel: React.FC = () => {
 
   const courseStats = useMemo(() => {
     return {
-      mandatory: courses.filter(course => course.type === 'MANDATORY').length,
-      ai: courses.filter(course => course.type === 'AI_SKILL_GAP').length,
-      soft: courses.filter(course => course.type === 'SOFT_SKILL').length,
+      mandatory: availableCourses.filter(course => course.type === 'MANDATORY').length,
+      ai: availableCourses.filter(course => course.type === 'AI_SKILL_GAP').length,
+      soft: availableCourses.filter(course => course.type === 'SOFT_SKILL').length,
     };
-  }, [courses]);
+  }, [availableCourses]);
 
   const filteredCourses = useMemo(() => {
     const keyword = courseSearch.trim().toLocaleLowerCase('vi');
@@ -390,9 +544,9 @@ export const TrainingPanel: React.FC = () => {
           skill.toLocaleLowerCase('vi').includes(keyword),
         );
 
-      return matchesType && matchesKeyword;
+      return Boolean(course.isArchived) === (catalogScope === 'archived') && matchesType && matchesKeyword;
     });
-  }, [courseFilter, courseSearch, courses]);
+  }, [catalogScope, courseFilter, courseSearch, courses]);
 
   const filteredAssignments = useMemo(() => {
     const keyword = assignmentSearch.trim().toLocaleLowerCase('vi');
@@ -407,9 +561,9 @@ export const TrainingPanel: React.FC = () => {
         assignment.user.email.toLocaleLowerCase('vi').includes(keyword) ||
         assignment.course.title.toLocaleLowerCase('vi').includes(keyword);
 
-      return matchesStatus && matchesKeyword;
+      return (assignmentCourseId === null || assignment.course.id === assignmentCourseId) && matchesStatus && matchesKeyword;
     });
-  }, [assignmentFilter, assignmentSearch, assignments]);
+  }, [assignmentCourseId, assignmentFilter, assignmentSearch, assignments]);
 
   const dueSoonCount = useMemo(() => {
     const threeDays = 3 * 24 * 60 * 60 * 1000;
@@ -443,8 +597,23 @@ export const TrainingPanel: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      <CourseRemoveDialog
+        course={pendingRemove}
+        busy={courseMutationId !== null}
+        error={removeError}
+        onCancel={() => { if (courseMutationId === null) { setPendingRemove(null); setRemoveError(''); } }}
+        onConfirm={() => void handleRemoveCourse()}
+      />
+      <CoursePermanentDeleteDialog
+        course={pendingPermanentDelete}
+        busy={permanentDeleting}
+        error={permanentDeleteError}
+        onCancel={() => { if (!permanentDeleting) { setPendingPermanentDelete(null); setPermanentDeleteError(''); } }}
+        onConfirm={() => void handlePermanentDelete()}
+      />
       {message && (
         <div
+          role="status"
           className={`rounded-2xl border bg-white px-4 py-3 text-sm font-semibold shadow-sm ${
             isSuccessMessage
               ? 'border-[#CDE3D6] text-[#2F6B4F]'
@@ -473,7 +642,7 @@ export const TrainingPanel: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => loadData(false)}
+              onClick={() => void loadData()}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D8DCDE] bg-white px-3.5 text-xs font-black text-[#666D72] transition hover:bg-[#F2F4F4]"
             >
               <RefreshCw className="h-3.5 w-3.5" />
@@ -485,7 +654,7 @@ export const TrainingPanel: React.FC = () => {
         <div className="grid divide-y divide-[#E8EAEC] sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
           <MetricCard
             label="Khóa học"
-            value={courses.length}
+            value={availableCourses.length}
             sub={`${courseStats.mandatory} bắt buộc`}
             icon={<BookOpen className="h-4 w-4" />}
           />
@@ -523,15 +692,15 @@ export const TrainingPanel: React.FC = () => {
             active={activeWorkspace === 'catalog'}
             icon={<LayoutGrid className="h-4 w-4" />}
             title="Danh mục khóa học"
-            description={`${courses.length} khóa · ${courseStats.ai} khóa AI`}
-            onClick={() => setActiveWorkspace('catalog')}
+            description={`${availableCourses.length} đang sử dụng · ${archivedCourseCount} đã gỡ`}
+            onClick={() => { handleBackToCatalog(); setActiveWorkspace('catalog'); }}
           />
           <WorkspaceTab
             active={activeWorkspace === 'progress'}
             icon={<ListChecks className="h-4 w-4" />}
             title="Theo dõi tiến độ"
             description={`${summary.inProgress} đang học · ${dueSoonCount} cần chú ý`}
-            onClick={() => setActiveWorkspace('progress')}
+            onClick={() => { setAssignmentCourseId(null); setActiveWorkspace('progress'); }}
           />
         </div>
       </section>
@@ -652,12 +821,13 @@ export const TrainingPanel: React.FC = () => {
 
             <FormField label="Khóa học">
               <select
+                disabled={aiSuggesting}
                 value={selectedCourseId}
                 onChange={event => handleCourseChange(event.target.value)}
                 className={inputClass}
               >
                 <option value="">Chọn khóa học</option>
-                {courses.map(course => (
+                {availableCourses.map(course => (
                   <option key={course.id} value={course.id}>
                     {course.title}
                   </option>
@@ -728,6 +898,8 @@ export const TrainingPanel: React.FC = () => {
           <button
               type="button"
               onClick={handleAiSuggestCourse}
+              aria-busy={aiSuggesting}
+              aria-describedby={aiError ? 'training-ai-error' : undefined}
               disabled={!selectedUserId || checkingReadiness || !aiReadiness?.canAnalyze || aiSuggesting}
               className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#E6D7BF] bg-[#FBF6ED] px-4 text-sm font-black text-[#936A38] transition hover:bg-[#F5EAD8] disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -742,8 +914,11 @@ export const TrainingPanel: React.FC = () => {
                 : 'Phân tích năng lực bằng AI'}
           </button>
 
+          {aiSuggesting && <p role="status" className="mt-3 text-sm leading-6 text-[#636A70]">Đang phân tích hồ sơ và đối chiếu danh mục khóa học. Vui lòng chờ kết quả.</p>}
+          {aiError && <p id="training-ai-error" role="alert" className="mt-3 rounded-xl border border-[#EDC7CC] bg-[#FBF1F2] px-4 py-3 text-sm leading-6 text-[#9D4150]">{aiError}</p>}
+
           {aiSuggestion && (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-[#D8CCC2] bg-[#FCFAF7]">
+            <div ref={analysisResultRef} tabIndex={-1} role="region" aria-label={`Kết quả phân tích năng lực: ${aiSuggestion.employeeName}`} className="mt-4 overflow-hidden rounded-2xl border border-[#D8CCC2] bg-[#FCFAF7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153]">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8DED5] px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-black text-[#6F3042]">
                   <BrainCircuit className="h-4 w-4" />
@@ -823,7 +998,7 @@ export const TrainingPanel: React.FC = () => {
           <button
             type="button"
             onClick={handleAssignCourse}
-            disabled={assigning || !selectedUserId || !selectedCourseId}
+            disabled={assigning || aiSuggesting || checkingReadiness || !selectedUserId || !selectedCourseId}
             className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#202326] px-5 text-sm font-black text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {assigning ? (
@@ -841,19 +1016,38 @@ export const TrainingPanel: React.FC = () => {
       </section>
       )}
 
-      {activeWorkspace === 'catalog' && (
+      {activeWorkspace === 'catalog' && viewingCourse && (
+        <CourseLearnersPanel
+          key={viewingCourse.id}
+          course={roster?.course ?? viewingCourse}
+          assignments={roster?.assignments ?? []}
+          loading={rosterLoading}
+          error={rosterError}
+          onBack={handleBackToCatalog}
+          onRetry={() => void handleViewLearners(viewingCourse)}
+          onManageProgress={() => {
+            setAssignmentCourseId(viewingCourse.id);
+            setAssignmentSearch('');
+            setAssignmentFilter('ALL');
+            setActiveWorkspace('progress');
+          }}
+        />
+      )}
+
+      {activeWorkspace === 'catalog' && !viewingCourse && (
       <section className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
         <div className="flex flex-col gap-4 border-b border-[#E8EAEC] pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h3 className="text-lg font-black text-[#202326]">Danh mục khóa học</h3>
-            <p className="mt-1 text-xs font-semibold text-[#82898E]">
-              Tìm nhanh theo tên khóa học hoặc kỹ năng cung cấp.
+            <h3 ref={catalogHeadingRef} tabIndex={-1} className="text-lg font-black text-[#202326] outline-none">Danh mục khóa học</h3>
+            <p className="mt-1 text-xs font-semibold text-[#636A70]">
+              Xem người học, gỡ khóa không dùng hoặc khôi phục khi cần.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="relative min-w-0 sm:w-72">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
               <input
+                aria-label="Tìm khóa học theo tên hoặc kỹ năng"
                 value={courseSearch}
                 onChange={event => setCourseSearch(event.target.value)}
                 placeholder="Tìm khóa học, kỹ năng..."
@@ -861,6 +1055,7 @@ export const TrainingPanel: React.FC = () => {
               />
             </div>
             <select
+              aria-label="Lọc loại khóa học"
               value={courseFilter}
               onChange={event =>
                 setCourseFilter(event.target.value as CourseFilter)
@@ -875,10 +1070,16 @@ export const TrainingPanel: React.FC = () => {
           </div>
         </div>
 
-        {courses.length === 0 ? (
+        <div className="flex flex-wrap gap-2 border-b border-[#E8EAEC] py-4" role="group" aria-label="Trạng thái danh mục">
+          {([{ value: 'active', label: 'Đang sử dụng', count: availableCourses.length }, { value: 'archived', label: 'Đã gỡ', count: archivedCourseCount }] as const).map(scope => (
+            <button key={scope.value} type="button" aria-pressed={catalogScope === scope.value} onClick={() => setCatalogScope(scope.value)} className={`min-h-10 rounded-xl px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] ${catalogScope === scope.value ? 'bg-[#6F3042] text-white' : 'bg-[#F1F3F3] text-[#596167] hover:bg-[#E8EBEB]'}`}>{scope.label} ({scope.count})</button>
+          ))}
+        </div>
+
+        {(catalogScope === 'active' ? availableCourses.length : archivedCourseCount) === 0 ? (
           <div className="rounded-[18px] border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-5 py-10 text-center">
             <BookOpen className="mx-auto h-5 w-5 text-[#9FA6AB]" />
-            <p className="mt-2 text-sm font-black text-[#53595E]">Chưa có khóa học</p>
+            <p className="mt-2 text-sm font-black text-[#53595E]">{catalogScope === 'archived' ? 'Chưa có khóa học đã gỡ' : 'Chưa có khóa học đang sử dụng'}</p>
           </div>
         ) : filteredCourses.length === 0 ? (
           <div className="mt-5 rounded-[18px] border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-5 py-10 text-center">
@@ -902,7 +1103,7 @@ export const TrainingPanel: React.FC = () => {
             {filteredCourses.map(course => (
               <article
                 key={course.id}
-                className="group rounded-[18px] border border-[#E3E6E7] bg-[#FFFFFF] p-4 transition hover:-translate-y-0.5 hover:border-[#D8CCC2] hover:bg-white hover:shadow-[0_10px_24px_rgba(45,34,28,0.07)]"
+                className="flex min-w-0 flex-col rounded-2xl border border-[#E3E6E7] bg-white p-4 transition-colors hover:border-[#D8CCC2]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <span
@@ -916,7 +1117,7 @@ export const TrainingPanel: React.FC = () => {
                   </span>
                 </div>
 
-                <h4 className="mt-4 text-[15px] font-black leading-5 text-[#202326]">
+                <h4 className="mt-4 text-[15px] font-black leading-6 text-[#202326] [overflow-wrap:anywhere]">
                   {course.title}
                 </h4>
 
@@ -931,9 +1132,17 @@ export const TrainingPanel: React.FC = () => {
                   ))}
                 </div>
 
-                <div className="mt-5 flex items-center justify-between border-t border-[#E7E9EA] pt-3">
-                  <span className="text-[11px] text-[#90979C]">Đã gán</span>
-                  <span className="text-sm font-black text-[#6F3042]">{course.assignmentCount}</span>
+                <p className="mt-4 text-xs text-[#636A70]">Đã gán cho <strong className="font-semibold text-[#4E5652]">{course.assignmentCount} nhân viên</strong></p>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#E7E9EA] pt-3">
+                  <button type="button" onClick={() => void handleViewLearners(course)} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-xs font-bold text-[#6F3042] hover:bg-[#FAF3F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153]" aria-label={`Xem người học của khóa ${course.title}`}><Users className="h-4 w-4" aria-hidden="true" />Xem người học</button>
+                  {course.isArchived ? (
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <button type="button" disabled={courseMutationId !== null || permanentDeleting} onClick={() => void handleRestoreCourse(course)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-bold text-[#4E5652] hover:bg-[#F1F3F3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] disabled:opacity-50" aria-label={`Khôi phục khóa ${course.title}`}>{courseMutationId === course.id ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />}Khôi phục</button>
+                      <button type="button" disabled={courseMutationId !== null || permanentDeleting} onClick={() => { setPermanentDeleteError(''); setPendingPermanentDelete(course); }} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-bold text-[#9D4150] hover:bg-[#FBF1F2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] disabled:opacity-50" aria-label={`Xóa vĩnh viễn khóa ${course.title}`}><Trash2 className="h-4 w-4" aria-hidden="true" />Xóa vĩnh viễn</button>
+                    </div>
+                  ) : (
+                    <button type="button" disabled={courseMutationId !== null} onClick={() => { setRemoveError(''); setPendingRemove(course); }} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-xs font-bold text-[#9D4150] hover:bg-[#FBF1F2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] disabled:opacity-50" aria-label={`Gỡ khóa ${course.title}`}><Trash2 className="h-4 w-4" aria-hidden="true" />Gỡ</button>
+                  )}
                 </div>
               </article>
             ))}
@@ -944,6 +1153,12 @@ export const TrainingPanel: React.FC = () => {
 
       {activeWorkspace === 'progress' && (
       <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+        {assignmentCourseId !== null && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E8EAEC] bg-[#FAF3F5] px-5 py-3 text-sm text-[#6F3042] sm:px-7">
+            <p>Đang xem khóa: <strong>{courses.find(course => course.id === assignmentCourseId)?.title || 'Khóa học đã chọn'}</strong></p>
+            <button type="button" onClick={() => setAssignmentCourseId(null)} className="min-h-10 rounded-lg px-3 font-semibold hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153]">Xem tất cả khóa</button>
+          </div>
+        )}
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -1026,6 +1241,7 @@ export const TrainingPanel: React.FC = () => {
 
                       <td className="px-5 py-4 text-sm font-semibold text-[#636A70] sm:px-7">
                         {assignment.course.title}
+                        {assignment.course.isArchived && <p className="mt-1 text-xs font-normal text-[#80521F]">Đã gỡ khỏi danh mục</p>}
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">

@@ -199,6 +199,7 @@ test('cho phép phân tích sơ bộ khi nhân viên chưa có KPI nhưng đủ 
         missingSkills: ['Giao tiếp với khách hàng'],
         summary: 'Phân tích sơ bộ: nên củng cố kỹ năng giao tiếp theo yêu cầu vị trí.',
       }),
+      isAvailable: () => true,
       recommendSkillGapCourse: async () => ({
         summary: 'Đề xuất học kỹ năng giao tiếp.',
         skillGapsIdentified: ['Giao tiếp với khách hàng'],
@@ -271,8 +272,8 @@ test('workflow 4.1 giữ đúng 12 node và ghi nhận cả kết quả Telegram
     'http://host.docker.internal:3001/api',
   );
   assert.equal(
-    configFields.some((field) => String(field.value).includes('$env')),
-    false,
+    configFields.find((field) => field.name === 'automationSecret').value,
+    '={{ $env.N8N_AUTOMATION_SECRET }}',
   );
   assert.match(
     nodeByName.get('Tổng hợp kết quả gửi').parameters.jsCode,
@@ -281,5 +282,13 @@ test('workflow 4.1 giữ đúng 12 node và ghi nhận cả kết quả Telegram
   assert.match(
     nodeByName.get('Lưu kết quả về hệ thống').parameters.body,
     /telegramNotified/,
+  );
+  assert.equal(
+    nodeByName.get('Có trường hợp cần nhắc?').notesInFlow,
+    true,
+  );
+  assert.match(
+    nodeByName.get('Có trường hợp cần nhắc?').notes,
+    /false kết thúc bình thường/,
   );
 });

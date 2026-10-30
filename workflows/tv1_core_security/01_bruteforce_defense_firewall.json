@@ -207,8 +207,8 @@
       "continueOnFail": true,
       "credentials": {
         "telegramApi": {
-          "id": "HETZB83kRcozxOI3",
-          "name": "Telegram account"
+          "id": "qgpdMzynZwpJh37i",
+          "name": "Quoc Thang Telegram Bot"
         }
       },
       "onError": "continueRegularOutput"

@@ -110,6 +110,9 @@ export class UsersService {
         departmentId?: number;
         role: UserRole;
     }) {
+        if (data.role === UserRole.SUPERADMIN) {
+            throw new BadRequestException('Hệ thống chỉ có một Super Admin. Không thể tạo thêm tài khoản có vai trò này.');
+        }
         const fullName = data.fullName.trim();
         const email = data.email.trim().toLowerCase();
         const password = data.password;
@@ -246,6 +249,9 @@ export class UsersService {
         }
 
         if (data.role !== undefined) {
+            if (data.role === UserRole.SUPERADMIN && user.id !== 1) {
+                throw new BadRequestException('Hệ thống chỉ có một Super Admin. Không thể cấp vai trò này cho tài khoản khác.');
+            }
             if (user.id === 1 && data.role !== UserRole.SUPERADMIN) {
                 throw new BadRequestException(
                     'Không thể thay đổi vai trò của tài khoản Quản trị viên gốc.',
@@ -318,6 +324,10 @@ export class UsersService {
   // Đây chính là hàm SuperAdmin thay đổi Role của nhân sự
   async updateRole(userId: number, newRole: UserRole) {
     const user = await this.findById(userId);
+
+    if (newRole === UserRole.SUPERADMIN && user.id !== 1) {
+      throw new BadRequestException('Hệ thống chỉ có một Super Admin. Không thể cấp vai trò này cho tài khoản khác.');
+    }
 
     // Không cho phép hạ quyền tài khoản SuperAdmin gốc nếu là ID 1
     if (user.id === 1 && newRole !== UserRole.SUPERADMIN) {

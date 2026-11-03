@@ -22,11 +22,11 @@ import {
 
 import { systemConfigApi } from '../api/system-config.api';
 import { usersApi } from '../api/users.api';
-import { Badge } from '../components/common';
 import { KnowledgeBasePanel } from '../components/KnowledgeBasePanel';
 import { TrainingPanel } from '../components/TrainingPanel';
 import { useAuth } from '../context/AuthContext';
 import type { User, UserRole } from '../types';
+import './tv4-workspace.css';
 
 interface UserWithDept extends User {
   department?: {
@@ -46,16 +46,6 @@ interface DepartmentOption {
 
 type AdminTab = 'rbac' | 'api' | 'rag' | 'courses';
 
-const ROLE_BADGE_VARIANT: Record<
-  UserRole,
-  'danger' | 'purple' | 'warning' | 'default'
-> = {
-  SUPERADMIN: 'danger',
-  HR: 'purple',
-  MANAGER: 'warning',
-  EMPLOYEE: 'default',
-};
-
 const ROLE_LABELS: Record<UserRole, string> = {
   SUPERADMIN: 'Super Admin',
   HR: 'HR',
@@ -64,6 +54,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 const ALL_ROLES: UserRole[] = ['SUPERADMIN', 'HR', 'MANAGER', 'EMPLOYEE'];
+const ASSIGNABLE_ROLES: UserRole[] = ['HR', 'MANAGER', 'EMPLOYEE'];
 
 const NAV_ITEMS: Array<{
   id: AdminTab;
@@ -741,7 +732,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                       }
                       className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-sm font-semibold text-[#52585D] outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10"
                   >
-                    {ALL_ROLES.map(role => (
+                    {ASSIGNABLE_ROLES.map(role => (
                         <option key={role} value={role}>
                           {ROLE_LABELS[role]}
                         </option>
@@ -784,14 +775,15 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
 
       <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex flex-col gap-5">
             <div>
               <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
                 Người dùng & Phân quyền
               </h2>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">              <div className="relative h-11 sm:w-72">
+            <div className="tv4-people-toolbar flex flex-wrap items-center gap-2">
+              <div className="relative h-11 min-w-0 flex-1 sm:min-w-48">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#989FA4]" />
                 <input
                   value={searchTerm}
@@ -827,7 +819,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 />
                 Làm mới
               </button>
-              <div className="flex min-w-[170px] flex-col gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                     type="button"
                     onClick={() => setShowDepartmentForm(prev => !prev)}
@@ -838,7 +830,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 <button
                     type="button"
                     onClick={() => setShowCreateUserModal(true)}
-                    className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#D8C7CC] bg-white px-4 text-sm font-black whitespace-nowrap text-[#6F3042] transition hover:bg-[#F8F3F5]"
+                    className="tv4-primary"
                 >
                   + Tạo người dùng
                 </button>
@@ -965,15 +957,14 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
 
         {!loading && !error && filteredUsers.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1500px] table-fixed">
+            <table className="tv4-people-table w-full table-fixed">
               <colgroup>
-                <col style={{ width: '320px' }} />
-                <col style={{ width: '250px' }} />
-                <col style={{ width: '280px' }} />
-                <col style={{ width: '160px' }} />
-                <col style={{ width: '170px' }} />
-                <col style={{ width: '190px' }} />
-                <col style={{ width: '130px' }} />
+                <col style={{ width: '24%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '19%' }} />
+                <col style={{ width: '14%' }} />
+                <col style={{ width: '17%' }} />
+                <col style={{ width: '8%' }} />
               </colgroup>
 
               <thead>
@@ -991,15 +982,11 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 </th>
 
                 <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
-                  Vai trò
-                </th>
-
-                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
                   Trạng thái
                 </th>
 
                 <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
-                  Quyền truy cập
+                  Vai trò
                 </th>
 
                 <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
@@ -1038,6 +1025,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                             <p className="mt-0.5 truncate text-xs text-[#7F868B]">
                               {item.email}
                             </p>
+                            <span className="mt-1 block text-xs text-[#636A70]">{ROLE_LABELS[item.role]}</span>
                           </div>
                         </div>
                       </td>
@@ -1109,15 +1097,6 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                         )}
                       </td>
 
-                      <td className="whitespace-nowrap px-5 py-4 sm:px-7">
-                        <Badge
-                            variant={ROLE_BADGE_VARIANT[item.role]}
-                            size="sm"
-                        >
-                          {ROLE_LABELS[item.role]}
-                        </Badge>
-                      </td>
-
                       <td className="px-5 py-4 sm:px-7">
                         <select
                             value={item.isActive === false ? 'INACTIVE' : 'ACTIVE'}
@@ -1166,7 +1145,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                             }
                             className="h-9 rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-xs font-bold text-[#53595E] outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {ALL_ROLES.map(role => (
+                            {ASSIGNABLE_ROLES.map(role => (
                               <option key={role} value={role}>
                                 {ROLE_LABELS[role]}
                               </option>
@@ -1243,18 +1222,18 @@ const IntegrationsPanel: React.FC<{
               </div>
               <div>
                 <h3 className="text-sm font-black text-[#202326]">Gemini AI</h3>
-                <p className="mt-0.5 text-xs text-[#7F868B]">AI service</p>
+                <p className="mt-0.5 text-xs text-[#7F868B]">Phân tích năng lực và tổng hợp tri thức</p>
               </div>
             </div>
             {props.geminiTestSuccess === true && (
               <span className="rounded-full bg-[#EFF7F1] px-2.5 py-1 text-[11px] font-bold text-[#2F6B4F]">
-                Connected
+                Đã kết nối
               </span>
             )}
           </div>
 
           <label className="mt-6 block text-[11px] font-black uppercase tracking-[0.14em] text-[#90979C]">
-            API key
+            Khóa API
           </label>
           <div className="relative mt-2">
             <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
@@ -1279,7 +1258,7 @@ const IntegrationsPanel: React.FC<{
               ) : (
                 <Bot className="h-4 w-4" />
               )}
-              {props.geminiTesting ? 'Đang kiểm tra...' : 'Test connection'}
+              {props.geminiTesting ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
             </button>
           </div>
 
@@ -1297,18 +1276,18 @@ const IntegrationsPanel: React.FC<{
               </div>
               <div>
                 <h3 className="text-sm font-black text-[#202326]">n8n</h3>
-                <p className="mt-0.5 text-xs text-[#7F868B]">Automation service</p>
+                <p className="mt-0.5 text-xs text-[#7F868B]">Điều phối quy trình và gửi thông báo</p>
               </div>
             </div>
             {props.n8nTestSuccess === true && (
               <span className="rounded-full bg-[#EFF7F1] px-2.5 py-1 text-[11px] font-bold text-[#2F6B4F]">
-                Connected
+                Đã kết nối
               </span>
             )}
           </div>
 
           <label className="mt-6 block text-[11px] font-black uppercase tracking-[0.14em] text-[#90979C]">
-            Webhook endpoint
+            Địa chỉ Webhook
           </label>
           <div className="relative mt-2">
             <Workflow className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
@@ -1333,7 +1312,7 @@ const IntegrationsPanel: React.FC<{
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              {props.n8nTesting ? 'Đang kiểm tra...' : 'Test connection'}
+              {props.n8nTesting ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
             </button>
           </div>
 
@@ -1535,14 +1514,11 @@ export const AdminSettingsPage: React.FC = () => {
 
   if (user?.role === 'HR') {
     return (
-      <div className="min-h-full bg-[#F4F5F5]">
+      <div className="tv4-workspace min-h-full bg-[#F4F5F5]">
         <div className="mx-auto max-w-[1500px] px-4 py-8 sm:px-6 lg:px-8">
           <div className="mb-6 rounded-[26px] border border-[#E1E4E5] bg-white p-5 shadow-[0_16px_44px_rgba(45,34,28,0.06)] sm:p-7">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#A98562]">
-                  Không gian Nhân sự
-                </p>
                 <h1 className="mt-2 text-3xl font-black tracking-tight text-[#1D2023]">
                   Tri thức & Phát triển
                 </h1>
@@ -1581,9 +1557,9 @@ export const AdminSettingsPage: React.FC = () => {
           </div>
 
           {hrWorkspaceTab === 'courses' ? (
-            <TrainingPanel />
+            <TrainingPanel presentation="admin" />
           ) : (
-            <KnowledgeBasePanel />
+            <KnowledgeBasePanel presentation="admin" />
           )}
         </div>
       </div>
@@ -1592,9 +1568,9 @@ export const AdminSettingsPage: React.FC = () => {
 
 
   return (
-    <div className="min-h-full bg-[#F4F5F5]">
+    <div className="tv4-workspace min-h-full bg-[#F4F5F5]">
       <div className="mx-auto max-w-[1560px] px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
-        <div className="grid gap-6 lg:grid-cols-[228px_minmax(0,1fr)] xl:gap-7">
+        <div className="grid gap-6 lg:grid-cols-[190px_minmax(0,1fr)] xl:gap-7">
           <aside className="h-fit rounded-[18px] border border-[#E1E4E5] bg-[#F7F8F8]/95 p-2 shadow-[0_10px_28px_rgba(45,34,28,0.05)] backdrop-blur lg:sticky lg:top-6">
             <nav className="space-y-1">
               {NAV_ITEMS.map(item => {
@@ -1666,8 +1642,8 @@ export const AdminSettingsPage: React.FC = () => {
               />
             )}
 
-            {activeTab === 'rag' && <KnowledgeBasePanel />}
-            {activeTab === 'courses' && <TrainingPanel />}
+            {activeTab === 'rag' && <KnowledgeBasePanel presentation="admin" />}
+            {activeTab === 'courses' && <TrainingPanel presentation="admin" />}
           </main>
         </div>
       </div>

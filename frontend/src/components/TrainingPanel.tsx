@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BookOpen,
+  ArrowRight,
   BrainCircuit,
   CalendarDays,
   CheckCircle2,
-  Clock3,
   Info,
   LayoutGrid,
   ListChecks,
@@ -27,6 +27,7 @@ import {
   type TrainingStatus,
   type TrainingSummary,
 } from '../api/training.api';
+import { TrainingCourseCatalog } from './TrainingCourseCatalog';
 import { usersApi } from '../api/users.api';
 import type { User } from '../types';
 
@@ -55,7 +56,6 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 type TrainingWorkspace = 'setup' | 'catalog' | 'progress';
-type CourseFilter = 'ALL' | TrainingCourseType;
 type AssignmentFilter = 'ALL' | TrainingStatus;
 
 const dateInputValue = (daysFromToday: number) => {
@@ -67,7 +67,7 @@ const dateInputValue = (daysFromToday: number) => {
   return `${year}-${month}-${day}`;
 };
 
-export const TrainingPanel: React.FC = () => {
+export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = ({ presentation = 'standard' }) => {
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [assignments, setAssignments] = useState<TrainingAssignment[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -82,6 +82,9 @@ export const TrainingPanel: React.FC = () => {
   });
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [dueDrafts, setDueDrafts] = useState<Record<number, string>>({});
+  const [dueErrors, setDueErrors] = useState<Record<number, string>>({});
   const [savingCourse, setSavingCourse] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [aiSuggestion, setAiSuggestion] =
@@ -94,10 +97,11 @@ export const TrainingPanel: React.FC = () => {
   const [updatingDueId, setUpdatingDueId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [activeWorkspace, setActiveWorkspace] =
-    useState<TrainingWorkspace>('setup');
-  const [courseSearch, setCourseSearch] = useState('');
-  const [courseFilter, setCourseFilter] = useState<CourseFilter>('ALL');
+    useState<TrainingWorkspace>('progress');
+  const [showCreateCourse, setShowCreateCourse] = useState(false);
+  const [attentionOnly, setAttentionOnly] = useState(false);
   const [assignmentSearch, setAssignmentSearch] = useState('');
+  const [trackedCourseId, setTrackedCourseId] = useState<number | null>(null);
   const [assignmentFilter, setAssignmentFilter] =
     useState<AssignmentFilter>('ALL');
   const [referenceTime] = useState(() =>
@@ -117,12 +121,15 @@ export const TrainingPanel: React.FC = () => {
   const [assignedByAi, setAssignedByAi] = useState(false);
   const [aiReason, setAiReason] = useState('');
 
+  const selectedEmployee = users.find(user => String(user.id) === selectedUserId);
   const employees = useMemo(
     () => users.filter(user => user.role === 'EMPLOYEE'),
     [users],
   );
 
   const loadData = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const [courseData, assignmentData, summaryData, userData] =
         await Promise.all([
@@ -138,7 +145,7 @@ export const TrainingPanel: React.FC = () => {
       setUsers(userData);
     } catch (error) {
       console.error(error);
-      setMessage('Không thể tải dữ liệu đào tạo.');
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -186,6 +193,7 @@ export const TrainingPanel: React.FC = () => {
       setDurationHours('10');
       setCourseType('MANDATORY');
       setMessage('Đã tạo khóa học thành công.');
+      setShowCreateCourse(false);
       await loadData();
       setActiveWorkspace('catalog');
     } catch (error) {
@@ -249,7 +257,7 @@ export const TrainingPanel: React.FC = () => {
   };
   const handleEmployeeChange = async (userId: string) => {
     setSelectedUserId(userId);
-    setSelectedCourseId('');
+    if (assignedByAi) setSelectedCourseId('');
     setAssignedByAi(false);
     setAiReason('');
     setAiSuggestion(null);
@@ -345,20 +353,21 @@ export const TrainingPanel: React.FC = () => {
     assignmentId: number,
     dueAt: string,
   ) => {
-    if (!dueAt) return;
+    if (!dueAt || dueAt < dateInputValue(1)) {
+      setDueErrors(current => ({ ...current, [assignmentId]: 'Vui lòng chọn ngày từ ngày mai trở đi.' }));
+      return;
+    }
     try {
       setUpdatingDueId(assignmentId);
       setMessage('');
+      setDueErrors(current => ({ ...current, [assignmentId]: '' }));
       await trainingApi.updateDueDate(assignmentId, dueAt);
-      setMessage('Đã cập nhật hạn hoàn thành.');
+      setMessage(`Đã cập nhật hạn hoàn thành: ${dueAt.split('-').reverse().join('/')}.`);
+      setDueDrafts(current => { const next = { ...current }; delete next[assignmentId]; return next; });
       await loadData();
     } catch (error) {
       console.error(error);
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : 'Không thể cập nhật hạn hoàn thành.',
-      );
+      setDueErrors(current => ({ ...current, [assignmentId]: error instanceof Error ? error.message : 'Không thể lưu hạn. Vui lòng thử lại.' }));
     } finally {
       setUpdatingDueId(null);
     }
@@ -375,23 +384,6 @@ export const TrainingPanel: React.FC = () => {
     };
   }, [courses]);
 
-  const filteredCourses = useMemo(() => {
-    const keyword = courseSearch.trim().toLocaleLowerCase('vi');
-
-    return courses.filter(course => {
-      const matchesType =
-        courseFilter === 'ALL' || course.type === courseFilter;
-      const matchesKeyword =
-        !keyword ||
-        course.title.toLocaleLowerCase('vi').includes(keyword) ||
-        course.skillsProvided.some(skill =>
-          skill.toLocaleLowerCase('vi').includes(keyword),
-        );
-
-      return matchesType && matchesKeyword;
-    });
-  }, [courseFilter, courseSearch, courses]);
-
   const filteredAssignments = useMemo(() => {
     const keyword = assignmentSearch.trim().toLocaleLowerCase('vi');
 
@@ -405,9 +397,17 @@ export const TrainingPanel: React.FC = () => {
         assignment.user.email.toLocaleLowerCase('vi').includes(keyword) ||
         assignment.course.title.toLocaleLowerCase('vi').includes(keyword);
 
-      return matchesStatus && matchesKeyword;
+      return matchesStatus && matchesKeyword && (trackedCourseId === null || assignment.course.id === trackedCourseId);
+    }).filter(assignment => !attentionOnly || (
+      assignment.status !== 'COMPLETED' && assignment.progressPercent < 50 &&
+      assignment.dueAt && new Date(assignment.dueAt).getTime() <= referenceTime + 3 * 86400000
+    )).sort((a, b) => {
+      if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1;
+      if (b.status === 'COMPLETED' && a.status !== 'COMPLETED') return -1;
+      return (a.dueAt ? new Date(a.dueAt).getTime() : Infinity) -
+        (b.dueAt ? new Date(b.dueAt).getTime() : Infinity);
     });
-  }, [assignmentFilter, assignmentSearch, assignments]);
+  }, [assignmentFilter, assignmentSearch, assignments, attentionOnly, referenceTime, trackedCourseId]);
 
   const dueSoonCount = useMemo(() => {
     const threeDays = 3 * 24 * 60 * 60 * 1000;
@@ -424,7 +424,6 @@ export const TrainingPanel: React.FC = () => {
       const dueTime = new Date(assignment.dueAt).getTime();
       return (
         Number.isFinite(dueTime) &&
-        dueTime >= referenceTime &&
         dueTime - referenceTime <= threeDays
       );
     }).length;
@@ -439,8 +438,17 @@ export const TrainingPanel: React.FC = () => {
     );
   }
 
+  if (loadError) {
+    return <section className="tv4-load-error" role="alert">
+      <Info className="h-6 w-6" />
+      <h2>Không thể tải dữ liệu đào tạo</h2>
+      <p>Kết nối đến hệ thống đang gặp sự cố. Vui lòng thử lại để xem thông tin mới nhất.</p>
+      <button type="button" onClick={() => void loadData()} className="tv4-primary"><RefreshCw className="h-4 w-4" /> Thử lại</button>
+    </section>;
+  }
+
   return (
-    <div className="space-y-5">
+    <div className={`tv4-training space-y-5 ${presentation === 'admin' ? 'tv4-training-admin' : ''}`}>
       {message && (
         <div
           className={`rounded-2xl border bg-white px-4 py-3 text-sm font-semibold shadow-sm ${
@@ -457,10 +465,6 @@ export const TrainingPanel: React.FC = () => {
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#E7D9DD] bg-[#FAF3F5] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#6F3042]">
-                <Sparkles className="h-3.5 w-3.5" />
-                Trung tâm học tập nội bộ
-              </div>
               <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
                 Đào tạo & Phát triển
               </h2>
@@ -469,6 +473,10 @@ export const TrainingPanel: React.FC = () => {
               </p>
             </div>
 
+            <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setActiveWorkspace('setup')} className="tv4-primary">
+              <UserPlus className="h-4 w-4" /> Gán khóa học
+            </button>
             <button
               type="button"
               onClick={() => void loadData()}
@@ -477,10 +485,51 @@ export const TrainingPanel: React.FC = () => {
               <RefreshCw className="h-3.5 w-3.5" />
               Làm mới
             </button>
+            </div>
           </div>
         </div>
 
-        <div className="grid divide-y divide-[#E8EAEC] sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+        {presentation === 'admin' ? (
+          <div className="tv4-learning-overview">
+            <div className="tv4-learning-progress">
+              <div className="tv4-learning-progress-heading">
+                <h3>{summary.totalAssignments ? 'Hành trình học tập của đội ngũ' : 'Bắt đầu hành trình phát triển'}</h3>
+                {summary.totalAssignments > 0 && <span>{summary.completionRate}% hoàn thành</span>}
+              </div>
+              {summary.totalAssignments > 0 ? (
+                <>
+                  <p className="tv4-learning-total"><strong>{summary.completed}</strong><span>trên {summary.totalAssignments} lượt đào tạo đã hoàn thành</span></p>
+                  <div className="tv4-learning-track" role="img" aria-label={`${summary.completed} hoàn thành, ${summary.inProgress} đang học, ${summary.assigned} đã giao`}>
+                    <span className="is-completed" style={{ flex: summary.completed }} />
+                    <span className="is-learning" style={{ flex: summary.inProgress }} />
+                    <span className="is-assigned" style={{ flex: summary.assigned }} />
+                  </div>
+                  <ul className="tv4-learning-legend">
+                    <li><span className="is-completed" />{summary.completed} hoàn thành</li>
+                    <li><span className="is-learning" />{summary.inProgress} đang học</li>
+                    <li><span className="is-assigned" />{summary.assigned} chưa bắt đầu</li>
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <p className="tv4-learning-empty">Gán khóa học đầu tiên để theo dõi tiến độ và phát triển năng lực cho nhân viên.</p>
+                  <button type="button" className="tv4-learning-start" onClick={() => setActiveWorkspace('setup')}>Gán khóa học đầu tiên <ArrowRight className="h-4 w-4" /></button>
+                </>
+              )}
+              <div className="tv4-learning-catalog">
+                <BookOpen className="h-4 w-4" />
+                <button type="button" onClick={() => setActiveWorkspace('catalog')}>{courses.length ? `${courses.length} khóa trong danh mục` : 'Chưa có khóa học'}</button>
+                <span>·</span><span>{courseStats.mandatory} khóa bắt buộc</span>
+                {summary.totalAssignments > 0 && <><span>·</span><span>Tiến độ trung bình {summary.averageProgress}%</span></>}
+              </div>
+            </div>
+            <button type="button" className={`tv4-learning-attention ${dueSoonCount ? 'has-attention' : ''}`} onClick={() => { setActiveWorkspace('progress'); setTrackedCourseId(null); setAssignmentSearch(''); setAssignmentFilter('ALL'); setAttentionOnly(dueSoonCount > 0); }}>
+              <span className="tv4-learning-attention-title"><CalendarDays className="h-5 w-5" /> Theo dõi thời hạn <ArrowRight className="h-4 w-4" /></span>
+              {dueSoonCount > 0 ? <><strong>{dueSoonCount}<small> lượt cần chú ý</small></strong><p>Khóa bắt buộc quá hạn hoặc còn tối đa 3 ngày, tiến độ dưới 50%.</p><span className="tv4-learning-attention-action">Xem danh sách cần xử lý <ArrowRight className="h-4 w-4" /></span></> : <><CheckCircle2 className="tv4-learning-all-clear" /><strong className="tv4-learning-clear-title">{summary.totalAssignments ? 'Chưa có lượt cần nhắc' : 'Sẵn sàng theo dõi'}</strong><p>{summary.totalAssignments ? 'Các lượt đào tạo hiện chưa có cảnh báo thời hạn.' : 'Các khóa sắp đến hạn sẽ xuất hiện tại đây sau khi được phân công.'}</p></>}
+            </button>
+          </div>
+        ) : (
+        <div className="tv4-training-metrics grid divide-y divide-[#E8EAEC] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
           <MetricCard
             label="Khóa học"
             value={courses.length}
@@ -502,10 +551,11 @@ export const TrainingPanel: React.FC = () => {
           <MetricCard
             label="Cần chú ý"
             value={dueSoonCount}
-            sub="Sắp đến hạn, tiến độ dưới 50%"
+            sub="Quá hạn hoặc sắp đến hạn, dưới 50%"
             icon={<CalendarDays className="h-4 w-4" />}
           />
         </div>
+        )}
       </section>
 
       <section className="rounded-[22px] border border-[#E2E5E7] bg-[#F8F9F9] p-2 shadow-[0_8px_24px_rgba(45,34,28,0.04)]">
@@ -513,8 +563,8 @@ export const TrainingPanel: React.FC = () => {
           <WorkspaceTab
             active={activeWorkspace === 'setup'}
             icon={<Sparkles className="h-4 w-4" />}
-            title="Thiết lập & Đề xuất"
-            description="Tạo khóa và gán lộ trình"
+            title="Gán khóa & Phân tích AI"
+            description="Chọn nhân viên và lộ trình học"
             onClick={() => setActiveWorkspace('setup')}
           />
           <WorkspaceTab
@@ -534,8 +584,9 @@ export const TrainingPanel: React.FC = () => {
         </div>
       </section>
 
-      {activeWorkspace === 'setup' && (
-      <section className="grid gap-5 xl:grid-cols-2">
+      {(activeWorkspace === 'setup' || (activeWorkspace === 'catalog' && showCreateCourse)) && (
+      <section className="tv4-training-setup">
+        {activeWorkspace === 'catalog' && (
         <div className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F6E9ED] text-[#6F3042]">
@@ -549,6 +600,7 @@ export const TrainingPanel: React.FC = () => {
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <FormField label="Tên khóa học">
               <input
+                id="tv4-new-course-title"
                 value={title}
                 onChange={event => setTitle(event.target.value)}
                 placeholder="Ví dụ: An toàn thông tin 2026"
@@ -621,7 +673,8 @@ export const TrainingPanel: React.FC = () => {
             Tạo khóa học
           </button>
         </div>
-
+        )}
+        {activeWorkspace === 'setup' && (
         <div className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EFF1F1] text-[#A26D3F]">
@@ -629,12 +682,15 @@ export const TrainingPanel: React.FC = () => {
             </div>
             <div>
               <h3 className="text-sm font-black text-[#202326]">Gán khóa học</h3>
+              <p className="mt-1 text-sm text-[#636A70]">Chọn nhân viên, xem đề xuất và duyệt khóa học phù hợp.</p>
             </div>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <FormField label="Nhân viên">
               <select
+                id="tv4-assignment-employee"
+                aria-label="Nhân viên nhận khóa học"
                 value={selectedUserId}
                 onChange={event => handleEmployeeChange(event.target.value)}
                 className={inputClass}
@@ -678,6 +734,13 @@ export const TrainingPanel: React.FC = () => {
               </p>
             </div>
           </div>
+
+          {selectedEmployee && (
+            <div className="tv4-selected-employee">
+              <Users className="h-4 w-4" />
+              <div><strong>{selectedEmployee.fullName}</strong><p>{selectedEmployee.jobTitle || 'Chưa cập nhật chức danh'} · {selectedEmployee.email}</p></div>
+            </div>
+          )}
 
           {checkingReadiness && (
             <div className="mt-4 flex items-center gap-2 rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] px-4 py-3 text-sm font-semibold text-[#666D72]">
@@ -779,6 +842,8 @@ export const TrainingPanel: React.FC = () => {
                   </div>
                 </div>
 
+                <details className="tv4-ai-details">
+                  <summary>Nhận định và định hướng phát triển</summary>
                 <div>
                   <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
                     {aiSuggestion.analysisMode === 'PRELIMINARY'
@@ -787,6 +852,8 @@ export const TrainingPanel: React.FC = () => {
                   </p>
                   <p className="mt-1 leading-6 text-[#454B4F]">{aiSuggestion.summary}</p>
                 </div>
+                <p className="mt-3 leading-6 text-[#454B4F]">{aiSuggestion.careerAdvice}</p>
+                </details>
 
                 <div className="rounded-xl border border-[#E6D7BF] bg-white p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -810,10 +877,6 @@ export const TrainingPanel: React.FC = () => {
                   <p className="mt-2 text-xs leading-5 text-[#53595E]">{aiSuggestion.reason}</p>
                 </div>
 
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">Định hướng phát triển</p>
-                  <p className="mt-1 leading-6 text-[#454B4F]">{aiSuggestion.careerAdvice}</p>
-                </div>
               </div>
             </div>
           )}
@@ -836,108 +899,34 @@ export const TrainingPanel: React.FC = () => {
                 : 'Gán khóa học'}
           </button>
         </div>
+        )}
       </section>
       )}
 
       {activeWorkspace === 'catalog' && (
-      <section className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
-        <div className="flex flex-col gap-4 border-b border-[#E8EAEC] pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h3 className="text-lg font-black text-[#202326]">Danh mục khóa học</h3>
-            <p className="mt-1 text-xs font-semibold text-[#82898E]">
-              Tìm nhanh theo tên khóa học hoặc kỹ năng cung cấp.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <div className="relative min-w-0 sm:w-72">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
-              <input
-                value={courseSearch}
-                onChange={event => setCourseSearch(event.target.value)}
-                placeholder="Tìm khóa học, kỹ năng..."
-                className={`${inputClass} pl-10`}
-              />
-            </div>
-            <select
-              value={courseFilter}
-              onChange={event =>
-                setCourseFilter(event.target.value as CourseFilter)
-              }
-              className={`${inputClass} sm:w-48`}
-            >
-              <option value="ALL">Tất cả loại khóa học</option>
-              <option value="MANDATORY">Bắt buộc</option>
-              <option value="AI_SKILL_GAP">AI đề xuất</option>
-              <option value="SOFT_SKILL">Kỹ năng mềm</option>
-            </select>
-          </div>
-        </div>
-
-        {courses.length === 0 ? (
-          <div className="rounded-[18px] border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-5 py-10 text-center">
-            <BookOpen className="mx-auto h-5 w-5 text-[#9FA6AB]" />
-            <p className="mt-2 text-sm font-black text-[#53595E]">Chưa có khóa học</p>
-          </div>
-        ) : filteredCourses.length === 0 ? (
-          <div className="mt-5 rounded-[18px] border border-dashed border-[#D6DADC] bg-[#F8F9F9] px-5 py-10 text-center">
-            <Search className="mx-auto h-5 w-5 text-[#9FA6AB]" />
-            <p className="mt-2 text-sm font-black text-[#53595E]">
-              Không tìm thấy khóa học phù hợp
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setCourseSearch('');
-                setCourseFilter('ALL');
-              }}
-              className="mt-3 text-xs font-black text-[#6F3042] hover:underline"
-            >
-              Xóa bộ lọc
-            </button>
-          </div>
-        ) : (
-          <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-            {filteredCourses.map(course => (
-              <article
-                key={course.id}
-                className="group rounded-[18px] border border-[#E3E6E7] bg-[#FFFFFF] p-4 transition hover:-translate-y-0.5 hover:border-[#D8CCC2] hover:bg-white hover:shadow-[0_10px_24px_rgba(45,34,28,0.07)]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide ${COURSE_TYPE_STYLES[course.type]}`}
-                  >
-                    {COURSE_TYPE_LABELS[course.type]}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#82898E]">
-                    <Clock3 className="h-3.5 w-3.5" />
-                    {course.durationHours} giờ
-                  </span>
-                </div>
-
-                <h4 className="mt-4 text-[15px] font-black leading-5 text-[#202326]">
-                  {course.title}
-                </h4>
-
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {course.skillsProvided.slice(0, 4).map(skill => (
-                    <span
-                      key={skill}
-                      className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#716A64] ring-1 ring-inset ring-[#E2E5E6]"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#E7E9EA] pt-3">
-                  <span className="text-[11px] text-[#90979C]">Đã gán</span>
-                  <span className="text-sm font-black text-[#6F3042]">{course.assignmentCount}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+        <TrainingCourseCatalog
+          courses={courses}
+          assignments={assignments}
+          onTrack={course => {
+            setTrackedCourseId(course.id);
+            setAssignmentSearch('');
+            setAssignmentFilter('ALL');
+            setAttentionOnly(false);
+            setActiveWorkspace('progress');
+            window.requestAnimationFrame(() => document.getElementById('tv4-training-progress-title')?.focus());
+          }}
+          showCreateCourse={showCreateCourse}
+          onToggleCreate={() => {
+            setShowCreateCourse(value => !value);
+            if (!showCreateCourse) window.requestAnimationFrame(() => document.getElementById('tv4-new-course-title')?.focus());
+          }}
+          onAssign={course => {
+            handleCourseChange(String(course.id));
+            setActiveWorkspace('setup');
+            setMessage('');
+            window.requestAnimationFrame(() => document.getElementById('tv4-assignment-employee')?.focus());
+          }}
+        />
       )}
 
       {activeWorkspace === 'progress' && (
@@ -945,12 +934,15 @@ export const TrainingPanel: React.FC = () => {
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h3 className="text-lg font-black text-[#202326]">Tiến độ đào tạo</h3>
+              <h3 id="tv4-training-progress-title" tabIndex={-1} className="text-lg font-black text-[#202326]">Tiến độ đào tạo</h3>
               <p className="mt-1 text-xs font-semibold text-[#82898E]">
                 Theo dõi hạn hoàn thành, số lần nhắc và trạng thái của từng nhân viên.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
+              <button type="button" onClick={() => setAttentionOnly(value => !value)} aria-pressed={attentionOnly} className={`tv4-filter ${attentionOnly ? 'is-active' : ''}`}>
+                <CalendarDays className="h-4 w-4" /> Cần chú ý ({dueSoonCount})
+              </button>
               <div className="relative min-w-0 sm:w-72">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
                 <input
@@ -976,6 +968,11 @@ export const TrainingPanel: React.FC = () => {
           </div>
         </div>
 
+        {trackedCourseId !== null && <div className="tv4-tracked-course" role="status">
+          <BookOpen size={17} aria-hidden="true" />
+          <span>Đang theo dõi: <strong>{courses.find(course => course.id === trackedCourseId)?.title ?? 'Khóa học đã chọn'}</strong></span>
+          <button type="button" onClick={() => setTrackedCourseId(null)}>Xem tất cả khóa học</button>
+        </div>}
         {assignments.length === 0 ? (
           <div className="px-5 py-12 text-center text-sm font-semibold text-[#82898E]">Chưa có lượt đào tạo nào.</div>
         ) : filteredAssignments.length === 0 ? (
@@ -989,6 +986,8 @@ export const TrainingPanel: React.FC = () => {
               onClick={() => {
                 setAssignmentSearch('');
                 setAssignmentFilter('ALL');
+                setTrackedCourseId(null);
+                setAttentionOnly(false);
               }}
               className="mt-3 text-xs font-black text-[#6F3042] hover:underline"
             >
@@ -1014,9 +1013,12 @@ export const TrainingPanel: React.FC = () => {
               <tbody className="divide-y divide-[#E9ECEC]">
                 {filteredAssignments.map(assignment => {
                   const progress = Math.max(0, Math.min(100, assignment.progressPercent));
+                  const overdue = assignment.status !== 'COMPLETED' && assignment.dueAt && new Date(assignment.dueAt).getTime() < referenceTime;
+                  const savedDueDate = assignment.dueAt ? new Date(assignment.dueAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }) : '';
+                  const hasDueDraft = dueDrafts[assignment.id] !== undefined && dueDrafts[assignment.id] !== savedDueDate;
 
                   return (
-                    <tr key={assignment.id} className="transition hover:bg-[#FFFFFF]">
+                    <tr key={assignment.id} className={overdue ? 'tv4-overdue-row' : 'transition hover:bg-[#FFFFFF]'}>
                       <td className="px-5 py-4 sm:px-7">
                         <p className="text-sm font-black text-[#303438]">{assignment.user.fullName}</p>
                         <p className="mt-0.5 text-xs text-[#82898E]">{assignment.user.email}</p>
@@ -1036,20 +1038,31 @@ export const TrainingPanel: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <input
                             type="date"
+                            aria-label={`Hạn hoàn thành khóa ${assignment.course.title} của ${assignment.user.fullName}`}
                             min={dateInputValue(1)}
-                            value={assignment.dueAt
-                              ? new Date(assignment.dueAt).toLocaleDateString('en-CA')
-                              : ''}
+                            value={dueDrafts[assignment.id] ?? savedDueDate}
+                            aria-invalid={Boolean(dueErrors[assignment.id])}
+                            aria-describedby={dueErrors[assignment.id] ? `due-error-${assignment.id}` : undefined}
                             disabled={updatingDueId === assignment.id}
-                            onChange={event =>
-                              handleDueDateChange(assignment.id, event.target.value)
-                            }
+                            onChange={event => {
+                              setDueDrafts(current => ({ ...current, [assignment.id]: event.target.value }));
+                              setDueErrors(current => ({ ...current, [assignment.id]: '' }));
+                            }}
                             className="h-8 rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-2 text-xs font-bold outline-none focus:border-[#8A4153] disabled:opacity-50"
                           />
                           {updatingDueId === assignment.id && (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           )}
                         </div>
+                        {hasDueDraft && <div className="tv4-due-actions">
+                          <button type="button" disabled={updatingDueId !== null} onClick={() => void handleDueDateChange(assignment.id, dueDrafts[assignment.id])} aria-label={`Lưu hạn của ${assignment.user.fullName} cho khóa ${assignment.course.title}`}>Lưu</button>
+                          <button type="button" disabled={updatingDueId === assignment.id} onClick={() => {
+                            setDueDrafts(current => { const next = { ...current }; delete next[assignment.id]; return next; });
+                            setDueErrors(current => ({ ...current, [assignment.id]: '' }));
+                          }}>Hủy</button>
+                        </div>}
+                        {dueErrors[assignment.id] && <p id={`due-error-${assignment.id}`} role="alert" className="tv4-overdue-label">{dueErrors[assignment.id]}</p>}
+                        {overdue && <p className="tv4-overdue-label">Đã quá hạn</p>}
                         {assignment.reminderCount > 0 && (
                           <p className="mt-1 text-[10px] font-bold text-[#936A38]">
                             Đã nhắc {assignment.reminderCount} lần
@@ -1073,6 +1086,7 @@ export const TrainingPanel: React.FC = () => {
                             <Loader2 className="h-4 w-4 animate-spin text-[#6F3042]" />
                           ) : (
                             <select
+                              aria-label={`Tiến độ khóa ${assignment.course.title} của ${assignment.user.fullName}`}
                               value={assignment.progressPercent}
                               onChange={event =>
                                 handleProgressChange(
@@ -1125,6 +1139,7 @@ const WorkspaceTab: React.FC<{
 }> = ({ active, icon, title, description, onClick }) => (
   <button
     type="button"
+    aria-pressed={active}
     onClick={onClick}
     className={`flex items-center gap-3 rounded-[18px] px-4 py-3 text-left transition ${
       active

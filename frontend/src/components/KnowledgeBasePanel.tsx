@@ -50,9 +50,12 @@ const statusLabel = (status: KnowledgeDocument['status']) => {
   return 'Đang xử lý';
 };
 
-export const KnowledgeBasePanel: React.FC = () => {
+export const KnowledgeBasePanel: React.FC<{ presentation?: 'standard' | 'admin' }> = ({ presentation = 'standard' }) => {
+  const isAdminPresentation = presentation === 'admin';
+  const [workspace, setWorkspace] = useState<'search' | 'documents'>('search');
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] =
@@ -76,15 +79,14 @@ export const KnowledgeBasePanel: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const data = await documentsApi.getAll();
       setDocuments(data);
     } catch (error) {
       console.error(error);
-      setMessage({
-        type: 'error',
-        text: 'Không thể tải danh sách tài liệu Kho tri thức.',
-      });
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -197,12 +199,13 @@ export const KnowledgeBasePanel: React.FC = () => {
   };
 
   const handleSearch = async (question: string = query) => {
+    if (searching) return;
     const trimmedQuery = question.trim();
 
     if (!trimmedQuery) {
       setMessage({
         type: 'error',
-        text: 'Vui lòng nhập câu hỏi để kiểm thử Kho tri thức.',
+        text: isAdminPresentation ? 'Vui lòng nhập câu hỏi về tài liệu nội bộ.' : 'Vui lòng nhập câu hỏi để kiểm thử Kho tri thức.',
       });
       return;
     }
@@ -217,7 +220,7 @@ export const KnowledgeBasePanel: React.FC = () => {
       setRagResponse(response);
       setLastQuestion(trimmedQuery);
       setShowEvidence(false);
-      setMessage({
+      setMessage(isAdminPresentation ? null : {
         type: 'success',
         text:
           response.sources.length > 0
@@ -230,10 +233,9 @@ export const KnowledgeBasePanel: React.FC = () => {
       setShowEvidence(false);
       setMessage({
         type: 'error',
-        text:
-          error instanceof Error
-            ? error.message
-            : 'Không thể thực hiện tìm kiếm Kho tri thức.',
+        text: isAdminPresentation && error instanceof Error && /workflow|n8n/i.test(error.message)
+          ? 'Dịch vụ tra cứu hiện chưa sẵn sàng. Vui lòng thử lại sau.'
+          : error instanceof Error ? error.message : 'Không thể tra cứu tài liệu. Vui lòng thử lại.',
       });
     } finally {
       setSearching(false);
@@ -263,8 +265,29 @@ export const KnowledgeBasePanel: React.FC = () => {
     );
   }, [documentSearch, documents]);
 
+  if (loadError) {
+    return <section className="tv4-load-error" role="alert">
+      <AlertCircle className="h-6 w-6" />
+      <h2>Không thể tải Kho tri thức</h2>
+      <p>Chưa thể lấy danh sách tài liệu. Vui lòng thử lại trước khi tra cứu hoặc quản lý tài liệu.</p>
+      <button type="button" className="tv4-primary" onClick={() => void loadDocuments()}><RefreshCw className="h-4 w-4" /> Thử lại</button>
+    </section>;
+  }
+
+  if (loading && documents.length === 0) {
+    return <div role="status" className="tv4-load-error"><Loader2 className="h-5 w-5 animate-spin" /><p>Đang tải Kho tri thức…</p></div>;
+  }
+
   return (
-    <div className="space-y-5">
+    <div className={`tv4-knowledge space-y-5 ${isAdminPresentation ? 'tv4-knowledge-admin' : ''}`}>
+      <header className="tv4-page-heading">
+        <div><h2>Kho tri thức</h2><p>Tài liệu nội bộ, truy xuất và đối chiếu</p></div>
+        <div className="tv4-inline-stats"><span><strong>{stats.total}</strong> tài liệu</span><span><strong>{stats.ready}</strong> sẵn sàng</span></div>
+      </header>
+      <nav className="tv4-tabs" aria-label="Kho tri thức">
+        <button type="button" aria-current={workspace === 'search' ? 'page' : undefined} onClick={() => setWorkspace('search')}><FileSearch className="h-4 w-4" /> Tra cứu</button>
+        <button type="button" aria-current={workspace === 'documents' ? 'page' : undefined} onClick={() => setWorkspace('documents')}><Library className="h-4 w-4" /> Tài liệu ({stats.total})</button>
+      </nav>
       {pendingDelete && (
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-black/30 px-4 backdrop-blur-[1px]"
@@ -329,16 +352,13 @@ export const KnowledgeBasePanel: React.FC = () => {
         </div>
       )}
 
+      {workspace === 'documents' && (
       <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#E7D9DD] bg-[#FAF3F5] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#6F3042]">
-                <Bot className="h-3.5 w-3.5" />
-                Tri thức có dẫn nguồn
-              </div>
               <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
-                Kho tri thức
+                Quản lý tài liệu
               </h2>
               <p className="mt-2 text-sm leading-6 text-[#72797E]">
               Tài liệu nội bộ, truy xuất và đối chiếu
@@ -565,7 +585,8 @@ export const KnowledgeBasePanel: React.FC = () => {
           </div>
         </div>
       </section>
-
+      )}
+      {workspace === 'search' && (
       <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex items-center gap-3">
@@ -573,20 +594,23 @@ export const KnowledgeBasePanel: React.FC = () => {
               <FileSearch className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-[#202326]">Kiểm thử</h3>
+              <h3 className="text-base font-black text-[#202326]">{isAdminPresentation ? 'Bạn cần tìm hiểu điều gì?' : 'Kiểm thử'}</h3>
               <p className="mt-0.5 text-xs text-[#7F868B]">
-                Đặt câu hỏi và kiểm tra trực tiếp nội dung đã dùng làm căn cứ.
+                {isAdminPresentation ? 'Tìm câu trả lời về chính sách, quy định và tài liệu nội bộ.' : 'Đặt câu hỏi và kiểm tra trực tiếp nội dung đã dùng làm căn cứ.'}
               </p>
             </div>
           </div>
         </div>
 
         <div className="p-5 sm:p-7">
-          <div className="flex flex-col gap-2 md:flex-row">
+          <form className="flex flex-col gap-2 md:flex-row" onSubmit={event => { event.preventDefault(); void handleSearch(); }} aria-label="Tra cứu tài liệu">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
               <input
                 type="text"
+                aria-label="Câu hỏi tra cứu tài liệu nội bộ"
+                maxLength={1000}
+                disabled={searching}
                 value={query}
                 onChange={event => {
                   setQuery(event.target.value);
@@ -596,19 +620,13 @@ export const KnowledgeBasePanel: React.FC = () => {
                     setShowEvidence(false);
                   }
                 }}
-                onKeyDown={event => {
-                  if (event.key === 'Enter') {
-                    void handleSearch();
-                  }
-                }}
                 placeholder="Ví dụ: Chính sách nghỉ phép của công ty như thế nào?"
                 className="h-12 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] pl-11 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
               />
             </div>
 
             <button
-              type="button"
-              onClick={() => void handleSearch()}
+              type="submit"
               disabled={searching}
               className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#202326] px-5 text-sm font-black text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -617,9 +635,17 @@ export const KnowledgeBasePanel: React.FC = () => {
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              {searching ? 'Đang tìm...' : 'Kiểm thử'}
+              {searching ? 'Đang tra cứu...' : isAdminPresentation ? 'Tìm câu trả lời' : 'Kiểm thử'}
             </button>
-          </div>
+          </form>
+          {searching && <p role="status" className="mt-4 text-sm text-[#596168]">Đang tìm nội dung liên quan và tổng hợp câu trả lời…</p>}
+
+          {!ragResponse && !searching && (
+            <div className="tv4-search-intro">
+              <p>Tra cứu chính sách từ tài liệu đã nạp. Câu trả lời sẽ kèm nguồn để bạn đối chiếu.</p>
+              {stats.ready === 0 && <button type="button" className="tv4-primary" onClick={() => setWorkspace('documents')}><UploadCloud className="h-4 w-4" /> Thêm tài liệu để bắt đầu</button>}
+            </div>
+          )}
 
           {ragResponse && (
             <div className="mt-6 rounded-[20px] border border-[#DCE4DF] bg-[#F8FBF9] p-5 sm:p-6">
@@ -694,7 +720,7 @@ export const KnowledgeBasePanel: React.FC = () => {
               {ragResponse.sources.length > 0 && (
                 <div className="mt-5 border-t border-[#DCE4DF] pt-4">
                   <p className="text-xs font-black text-[#4A5650]">
-                    Nguồn đã sử dụng
+                    {isAdminPresentation ? 'Nguồn tham khảo' : 'Nguồn đã sử dụng'}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {ragResponse.sources.map(source => (
@@ -750,7 +776,7 @@ export const KnowledgeBasePanel: React.FC = () => {
                     Nội dung dùng để đối chiếu
                   </span>
                   <span className="mt-0.5 block text-[11px] font-semibold text-[#90979C]">
-                    {ragResponse.results.length} nội dung đã được workflow tìm thấy
+                    {isAdminPresentation ? `${ragResponse.results.length} trích đoạn liên quan trong tài liệu` : `${ragResponse.results.length} nội dung đã được workflow tìm thấy`}
                   </span>
                 </span>
                 <ChevronDown
@@ -819,6 +845,7 @@ export const KnowledgeBasePanel: React.FC = () => {
           )}
         </div>
       </section>
+      )}
     </div>
   );
 };

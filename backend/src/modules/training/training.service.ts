@@ -497,7 +497,7 @@ Yêu cầu:
         const dueAt = data.dueAt
             ? new Date(
                 /^\d{4}-\d{2}-\d{2}$/.test(data.dueAt)
-                    ? `${data.dueAt}T23:59:59.999`
+                    ? `${data.dueAt}T23:59:59+07:00`
                     : data.dueAt,
             )
             : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -606,7 +606,7 @@ Yêu cầu:
     async updateDueDate(assignmentId: number, dueAtInput: string) {
         const dueAt = new Date(
             /^\d{4}-\d{2}-\d{2}$/.test(dueAtInput || '')
-                ? `${dueAtInput}T23:59:59.999`
+                ? `${dueAtInput}T23:59:59+07:00`
                 : dueAtInput,
         );
         if (Number.isNaN(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {

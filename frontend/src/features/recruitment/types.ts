@@ -137,7 +137,7 @@ export interface HireReceipt {
   fullName: string;
 }
 export interface AiResult<T> {
-  mode: 'LIVE' | 'MOCK' | 'N8N';
+  mode: 'LIVE' | 'MOCK' | 'N8N' | 'BACKEND';
   data: T;
   saved?: boolean;
 }

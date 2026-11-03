@@ -1,3 +1,4 @@
+import { CvScoreQueueService } from './cv-score-queue.service';
 import { IntakeController, IntakeGuard } from './intake.controller';
 import { N8nAiController } from './n8n-ai.controller';
 import { N8nAiGuard } from './n8n-ai.guard';
@@ -42,6 +43,7 @@ import {
   ],
   controllers: [IntakeController, ApplicationsController, N8nAiController, InterviewScheduleController, OfferController],
   providers: [
+    CvScoreQueueService,
     ApplicationsService,
     CvStorageService,
     SubmitRateGuard,

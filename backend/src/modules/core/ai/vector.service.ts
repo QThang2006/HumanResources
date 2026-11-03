@@ -15,10 +15,20 @@ export class VectorService {
   private readonly vectorDimension = 768; // Gemini embedding dimension
 
   constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    if (apiKey && apiKey !== 'your_gemini_api_key_here' && apiKey.trim() !== '') {
+    this.refreshConfiguration();
+  }
+
+  refreshConfiguration() {
+    this.genAI = null;
+    const apiKey = this.configService?.get<string>('GEMINI_API_KEY') || process.env.GEMINI_API_KEY;
+    if (
+      apiKey &&
+      apiKey !== 'your_gemini_api_key_here' &&
+      apiKey.trim() !== '' &&
+      !/^https?:\/\//i.test(apiKey.trim())
+    ) {
       try {
-        this.genAI = new GoogleGenerativeAI(apiKey);
+        this.genAI = new GoogleGenerativeAI(apiKey.trim());
         this.logger.log(`✅ Vector Embedding Engine [${this.embeddingModelName}] đã sẵn sàng với API Key.`);
       } catch (err: any) {
         this.logger.error(`❌ Khởi tạo Vector Embedding Engine thất bại: ${err.message}`);
@@ -70,46 +80,84 @@ export class VectorService {
       return [];
     }
 
-    const raw = text.replace(/\r\n/g, '\n').trim();
+    const raw = text
+      .replace(/\r\n?/g, '\n')
+      .replace(/[\t ]+/g, ' ')
+      .replace(/ *\n */g, '\n')
+      .trim();
     if (raw.length <= maxChunkSize) {
       return [raw];
     }
 
-    // Tách theo đoạn văn hoặc câu trước
-    const paragraphs = raw.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-    const chunks: string[] = [];
-    let currentBuffer = '';
+    // Ưu tiên ranh giới đoạn, tiêu đề, gạch đầu dòng và câu để chunk
+    // không bắt đầu giữa một từ như cách cắt theo chỉ số ký tự.
+    const semanticBlocks = raw
+      .replace(/\n(?=\s*(?:[•▪●◦]|\d+(?:\.\d+)*[.)]\s+))/g, '\n\n')
+      .split(/\n\s*\n/)
+      .map(block => block.replace(/\n+/g, ' ').trim())
+      .filter(Boolean)
+      .flatMap(block => block.split(/(?<=[.!?])\s+(?=[\p{Lu}\d])/gu))
+      .map(block => block.trim())
+      .filter(Boolean);
 
-    for (const paragraph of paragraphs) {
-      if ((currentBuffer + '\n\n' + paragraph).length <= maxChunkSize) {
-        currentBuffer = currentBuffer ? currentBuffer + '\n\n' + paragraph : paragraph;
-      } else {
-        if (currentBuffer) {
-          chunks.push(currentBuffer.trim());
-          // Giữ lại phần đuôi làm overlap
-          const words = currentBuffer.split(' ');
-          const overlapWords = words.slice(-Math.min(words.length, Math.floor(overlap / 6))).join(' ');
-          currentBuffer = overlapWords + '\n\n' + paragraph;
-        } else {
-          // Đoạn văn đơn lẻ dài hơn maxChunkSize -> cắt theo sliding window
-          let start = 0;
-          while (start < paragraph.length) {
-            const end = Math.min(start + maxChunkSize, paragraph.length);
-            const slice = paragraph.slice(start, end).trim();
-            if (slice) chunks.push(slice);
-            if (end === paragraph.length) break;
-            start = end - overlap;
-          }
-          currentBuffer = '';
-        }
+    const blocks: string[] = [];
+    for (const block of semanticBlocks) {
+      if (block.length <= maxChunkSize) {
+        blocks.push(block);
+        continue;
       }
+
+      const words = block.split(/\s+/).filter(Boolean);
+      let part = '';
+      for (const word of words) {
+        const nextPart = part ? `${part} ${word}` : word;
+        if (nextPart.length <= maxChunkSize) {
+          part = nextPart;
+          continue;
+        }
+        if (part) blocks.push(part);
+        part = word;
+      }
+      if (part) blocks.push(part);
     }
 
-    if (currentBuffer.trim()) {
-      chunks.push(currentBuffer.trim());
+    const chunks: string[] = [];
+    let currentBlocks: string[] = [];
+
+    const chunkLength = (items: string[]) => items.join('\n\n').length;
+    const trailingOverlap = (items: string[]) => {
+      const carried: string[] = [];
+      for (let index = items.length - 1; index >= 0; index -= 1) {
+        const candidate = [items[index], ...carried];
+        if (chunkLength(candidate) > overlap) break;
+        carried.unshift(items[index]);
+      }
+      return carried;
+    };
+
+    for (const block of blocks) {
+      const candidate = [...currentBlocks, block];
+      if (chunkLength(candidate) <= maxChunkSize) {
+        currentBlocks = candidate;
+        continue;
+      }
+
+      if (currentBlocks.length > 0) {
+        chunks.push(currentBlocks.join('\n\n'));
+      }
+      const carried = trailingOverlap(currentBlocks);
+      currentBlocks = chunkLength([...carried, block]) <= maxChunkSize
+        ? [...carried, block]
+        : [block];
     }
 
-    return chunks.filter(c => c.length > 20); // Loại bỏ các đoạn quá ngắn vô nghĩa
+    if (currentBlocks.length > 0) {
+      chunks.push(currentBlocks.join('\n\n'));
+    }
+
+    return chunks
+      .map(chunk => chunk.trim())
+      .filter(Boolean);
   }
 
   /**

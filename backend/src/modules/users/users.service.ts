@@ -140,6 +140,15 @@ export class UsersService {
             );
         }
 
+        if (
+            data.role === UserRole.EMPLOYEE &&
+            (!data.departmentId || !data.jobTitle?.trim())
+        ) {
+            throw new BadRequestException(
+                'Nhân viên cần có đầy đủ phòng ban và chức danh để phục vụ phân tích năng lực.',
+            );
+        }
+
         const existingUser = await this.userRepository.findOne({
             where: { email },
         });
@@ -224,7 +233,12 @@ export class UsersService {
                 throw new NotFoundException('Không tìm thấy phòng ban.');
             }
 
+            // findById() nạp sẵn quan hệ department. Nếu chỉ đổi khóa ngoại,
+            // TypeORM có thể dùng lại quan hệ cũ khi save() và ghi đè thay đổi.
+            // Cập nhật đồng thời cả khóa ngoại lẫn quan hệ để phòng ban được lưu
+            // nhất quán và vẫn đúng sau khi tải lại danh sách người dùng.
             user.departmentId = department.id;
+            user.department = department;
         }
 
         if (data.jobTitle !== undefined) {

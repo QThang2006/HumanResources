@@ -9,5 +9,9 @@ export * from './document-chunk.entity';
 export * from './training-course.entity';
 export * from './employee-training.entity';
 export * from './performance-review.entity';
+export * from './performance-review-reminder.entity';
+export * from './offboarding-case.entity';
 export * from './employee-mood.entity';
+export * from './audit-log.entity';
 export * from './offer.entity';
+

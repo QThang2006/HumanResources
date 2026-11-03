@@ -1,0 +1,409 @@
+{
+  "testedOn": "2026-10-21 Asia/Saigon",
+  "generatedAt": "2026-10-21T16:25:06.046Z",
+  "published": false,
+  "liveUnchanged": true,
+  "liveWorkflowCount": 4,
+  "policy": {
+    "primary": "gemini-3.5-flash-lite",
+    "fallback": "gemini-3-flash-preview",
+    "totalCalls": 4,
+    "primaryCalls": 2,
+    "waitSeconds": [
+      15,
+      30,
+      60
+    ],
+    "intakeHttpTimeoutMs": 60000,
+    "maxOutputTokens": 4096
+  },
+  "validation": [
+    {
+      "id": "hrTv2IntakeAiV3",
+      "liveVersion": "799870da-c59d-4212-8560-75d660e35b9e",
+      "liveNodes": 27,
+      "inactiveNodes": 31,
+      "nonAiUnchanged": true
+    },
+    {
+      "id": "hrTv2InterviewAiV3",
+      "liveVersion": "62894aa2-fd69-4831-a61a-963861be4342",
+      "liveNodes": 30,
+      "inactiveNodes": 34,
+      "nonAiUnchanged": true
+    }
+  ],
+  "offlineCases": 76,
+  "currentPolicyCasesPassed": true,
+  "allHistoricalProviderAttemptsSucceeded": false,
+  "alternateProbes": [
+    {
+      "model": "gemini-3-flash-preview",
+      "attempt": 1,
+      "status": 200,
+      "timeMs": 11734,
+      "questions": 5,
+      "error": null
+    },
+    {
+      "model": "gemini-3-flash-preview",
+      "attempt": 2,
+      "status": 200,
+      "timeMs": 10452,
+      "questions": 5,
+      "error": null
+    }
+  ],
+  "tests": [
+    {
+      "kind": "scoreText",
+      "executionId": 436,
+      "database": "ISOLATED SQLite, not live n8n",
+      "applicationId": 138,
+      "provider": "REAL Gemini",
+      "executionStatus": "success",
+      "ats": {
+        "id": 138,
+        "status": "COMPLETED",
+        "score": "95.00",
+        "requestId": "demo-scoreText-1792599359163",
+        "error": null
+      },
+      "passed": true,
+      "attempts": [
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 1,
+          "requestId": "demo-scoreText-1792599359163"
+        }
+      ],
+      "providerTimesMs": [
+        1627
+      ],
+      "parsed": {
+        "model": "models/gemini-3.5-flash-lite",
+        "requestId": "demo-scoreText-1792599359163",
+        "exhausted": false,
+        "score": 95
+      },
+      "routing": [
+        1,
+        0
+      ],
+      "callback": {
+        "recorded": true,
+        "callbackStatus": "COMPLETED"
+      }
+    },
+    {
+      "kind": "scoreFile",
+      "executionId": 437,
+      "database": "ISOLATED SQLite, not live n8n",
+      "applicationId": 139,
+      "provider": "REAL Gemini",
+      "executionStatus": "success",
+      "ats": {
+        "id": 139,
+        "status": "COMPLETED",
+        "score": "95.00",
+        "requestId": "demo-scoreFile-1792599359170",
+        "error": null
+      },
+      "passed": true,
+      "attempts": [
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 1,
+          "requestId": "demo-scoreFile-1792599359170"
+        }
+      ],
+      "providerTimesMs": [
+        2313
+      ],
+      "parsed": {
+        "model": "models/gemini-3.5-flash-lite",
+        "requestId": "demo-scoreFile-1792599359170",
+        "exhausted": false,
+        "score": 95
+      },
+      "routing": [
+        1,
+        0
+      ],
+      "callback": {
+        "recorded": true,
+        "callbackStatus": "COMPLETED"
+      }
+    },
+    {
+      "kind": "questions",
+      "executionId": 438,
+      "database": "ISOLATED SQLite, not live n8n",
+      "applicationId": 135,
+      "interviewId": 117,
+      "provider": "REAL Gemini",
+      "executionStatus": "success",
+      "ats": {
+        "id": 117,
+        "status": "COMPLETED",
+        "questionCount": 5,
+        "requestId": "demo-questions-1792599359184",
+        "error": null
+      },
+      "passed": true,
+      "attempts": [
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 1,
+          "requestId": "demo-questions-1792599359184"
+        }
+      ],
+      "providerTimesMs": [
+        9796
+      ],
+      "parsed": {
+        "valid": true,
+        "model": "models/gemini-3.5-flash-lite",
+        "requestId": "demo-questions-1792599359184",
+        "exhausted": false,
+        "questionCount": 5
+      },
+      "routing": [
+        1,
+        0
+      ],
+      "callback": {
+        "recorded": true,
+        "callbackStatus": "COMPLETED"
+      }
+    },
+    {
+      "kind": "questionsFallback",
+      "executionId": 441,
+      "database": "ISOLATED SQLite, not live n8n",
+      "applicationId": 135,
+      "interviewId": 118,
+      "provider": "REAL fallback native Gemini, first two primary errors INJECTED",
+      "executionStatus": "success",
+      "ats": {
+        "id": 118,
+        "status": "FAILED",
+        "questionCount": null,
+        "requestId": "demo-questionsFallback-1792599359191",
+        "error": "Gemini returned invalid result: Service unavailable - try again later or consider setting this node to retry automatically (in the node settings)"
+      },
+      "passed": false,
+      "attempts": [
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 1,
+          "requestId": "demo-questionsFallback-1792599359191"
+        },
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 2,
+          "requestId": "demo-questionsFallback-1792599359191"
+        },
+        {
+          "model": "models/gemini-3.1-flash-lite",
+          "attempt": 3,
+          "requestId": "demo-questionsFallback-1792599359191"
+        },
+        {
+          "model": "models/gemini-3.1-flash-lite",
+          "attempt": 4,
+          "requestId": "demo-questionsFallback-1792599359191"
+        }
+      ],
+      "providerTimesMs": [
+        2243,
+        2483
+      ],
+      "parsed": {
+        "valid": false,
+        "error": "Gemini returned invalid result: Service unavailable - try again later or consider setting this node to retry automatically (in the node settings)",
+        "model": "models/gemini-3.1-flash-lite",
+        "requestId": "demo-questionsFallback-1792599359191",
+        "exhausted": true,
+        "questionCount": 0
+      },
+      "routing": [
+        0,
+        1
+      ],
+      "callback": {
+        "recorded": true,
+        "callbackStatus": "FAILED"
+      }
+    },
+    {
+      "kind": "scoreExhaust",
+      "executionId": 439,
+      "database": "ISOLATED SQLite, not live n8n",
+      "applicationId": 140,
+      "provider": "INJECTED errors; real ATS callback",
+      "executionStatus": "success",
+      "ats": {
+        "id": 140,
+        "status": "FAILED",
+        "score": null,
+        "requestId": "demo-scoreExhaust-1792599359197",
+        "error": "Gemini trả về kết quả không hợp lệ: TEST INJECTED Internal error"
+      },
+      "passed": true,
+      "attempts": [
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 1,
+          "requestId": "demo-scoreExhaust-1792599359197"
+        },
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 2,
+          "requestId": "demo-scoreExhaust-1792599359197"
+        },
+        {
+          "model": "models/gemini-3.1-flash-lite",
+          "attempt": 3,
+          "requestId": "demo-scoreExhaust-1792599359197"
+        },
+        {
+          "model": "models/gemini-3.1-flash-lite",
+          "attempt": 4,
+          "requestId": "demo-scoreExhaust-1792599359197"
+        }
+      ],
+      "providerTimesMs": [
+        7,
+        6,
+        5,
+        5
+      ],
+      "parsed": {
+        "valid": false,
+        "error": "Gemini trả về kết quả không hợp lệ: TEST INJECTED Internal error",
+        "model": "models/gemini-3.1-flash-lite",
+        "requestId": "demo-scoreExhaust-1792599359197",
+        "exhausted": true
+      },
+      "routing": [
+        0,
+        1
+      ],
+      "callback": {
+        "recorded": true,
+        "callbackStatus": "FAILED"
+      }
+    },
+    {
+      "kind": "questionsUnauthorized",
+      "executionId": 440,
+      "database": "ISOLATED SQLite, not live n8n",
+      "applicationId": 135,
+      "interviewId": 119,
+      "provider": "INJECTED errors; real ATS callback",
+      "executionStatus": "success",
+      "ats": {
+        "id": 119,
+        "status": "FAILED",
+        "questionCount": null,
+        "requestId": "demo-questionsUnauthorized-1792599359202",
+        "error": "Gemini returned invalid result: TEST INJECTED API key invalid"
+      },
+      "passed": true,
+      "attempts": [
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 1,
+          "requestId": "demo-questionsUnauthorized-1792599359202"
+        }
+      ],
+      "providerTimesMs": [
+        6
+      ],
+      "parsed": {
+        "valid": false,
+        "error": "Gemini returned invalid result: TEST INJECTED API key invalid",
+        "model": "models/gemini-3.5-flash-lite",
+        "requestId": "demo-questionsUnauthorized-1792599359202",
+        "exhausted": false,
+        "questionCount": 0
+      },
+      "routing": [
+        0,
+        1
+      ],
+      "callback": {
+        "recorded": true,
+        "callbackStatus": "FAILED"
+      }
+    },
+    {
+      "kind": "questionsFallbackFinal",
+      "executionId": 442,
+      "database": "ISOLATED SQLite, not live n8n",
+      "applicationId": 135,
+      "interviewId": 120,
+      "provider": "REAL native gemini-3-flash-preview; first two primary errors INJECTED",
+      "executionStatus": "success",
+      "ats": {
+        "id": 120,
+        "status": "COMPLETED",
+        "questionCount": 5,
+        "requestId": "demo-fallback-final-1792599750456",
+        "error": null
+      },
+      "passed": true,
+      "attempts": [
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 1,
+          "requestId": "demo-fallback-final-1792599750456"
+        },
+        {
+          "model": "models/gemini-3.5-flash-lite",
+          "attempt": 2,
+          "requestId": "demo-fallback-final-1792599750456"
+        },
+        {
+          "model": "models/gemini-3-flash-preview",
+          "attempt": 3,
+          "requestId": "demo-fallback-final-1792599750456"
+        },
+        {
+          "model": "models/gemini-3-flash-preview",
+          "attempt": 4,
+          "requestId": "demo-fallback-final-1792599750456"
+        }
+      ],
+      "providerTimesMs": [
+        1242,
+        11092
+      ],
+      "parsed": {
+        "valid": true,
+        "model": "models/gemini-3-flash-preview",
+        "requestId": "demo-fallback-final-1792599750456",
+        "exhausted": false,
+        "questionCount": 5
+      },
+      "routing": [
+        1,
+        0
+      ],
+      "callback": {
+        "recorded": true,
+        "callbackStatus": "COMPLETED"
+      }
+    }
+  ],
+  "notes": [
+    "Tests run on an isolated snapshot with real n8n credentials and real ATS test records. No live workflow import/publish; live still has four workflows.",
+    "CV text/PDF and question primary calls are real Gemini responses. Fallback tests inject the first two primary overload errors, then call the native fallback model for real.",
+    "questionsFallback (3.1-flash-lite) is a failed historical trial. The final policy uses 3-flash-preview, tested by questionsFallbackFinal.",
+    "scoreExhaust/401 tests inject errors and verify real FAILED callbacks. The four-call and identity logic is identical after changing only the fallback model label.",
+    "No claims of 100% provider availability. Fallback is a preview model and may change. Shared quota/outage can still fail both.",
+    "No Calendar/SMTP/Google Form or Offer timers were re-executed in this Gemini repair. Non-AI definitions/connections remain equal to live.",
+    "Callbacks can still fail if the backend is unavailable; such execution errors need operational recovery."
+  ]
+}

@@ -37,4 +37,7 @@ export const systemConfigApi = {
   testGemini: async (): Promise<GeminiTestResult> => {
     return apiClient.post('/system-config/test-gemini');
   },
+  testCrash: async (): Promise<any> => {
+    return apiClient.get('/system-config/demo-crash');
+  },
 };

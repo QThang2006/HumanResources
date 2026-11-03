@@ -59,6 +59,7 @@ export interface Interview {
   feedback: string | null;
   result: InterviewResult;
   updatedAt: string;
+  aiQuestionsStatus?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
   automation?: {
     status: 'UNVERIFIED' | 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'UNKNOWN';
     calendarStatus: string;
@@ -78,6 +79,7 @@ export interface Candidate {
   matchScore: number | null;
   aiSummary: string | null;
   aiRecommendation: string | null;
+  aiScoreStatus?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
   skillsDetected: string[];
   hiredUserId: number | null;
   hasCv: boolean;
@@ -135,7 +137,7 @@ export interface HireReceipt {
   fullName: string;
 }
 export interface AiResult<T> {
-  mode: 'LIVE' | 'MOCK';
+  mode: 'LIVE' | 'MOCK' | 'N8N';
   data: T;
   saved?: boolean;
 }

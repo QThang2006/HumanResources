@@ -124,6 +124,8 @@ export class UsersController {
   // SEED TÀI KHOẢN DEMO
   // Giữ nguyên chức năng cũ
   // =========================================================
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERADMIN)
   @Post('seed')
   async seedDemoUsers() {
     return this.usersService.seedInitialData();

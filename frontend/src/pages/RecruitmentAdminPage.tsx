@@ -164,6 +164,23 @@ function RecruitmentBoard() {
   }, [jobQuery, jobPage, jobStatus, revision]);
   const jobId = selected?.id;
   useEffect(() => {
+    if (!jobId || section !== 'board') return;
+    const controller = new AbortController();
+    let fetching = false;
+    const timer = setInterval(async () => {
+      if (document.hidden || fetching) return;
+      fetching = true;
+      try {
+        const value = await api.candidates({ jobId, q: q || undefined,
+          minScore: minScore || undefined, status: rejected ? 'REJECTED' : undefined,
+          page, pageSize: 30 }, controller.signal);
+        if (!controller.signal.aborted) setData(value);
+      } catch { /* Keep the current list during a temporary network failure. */ }
+      finally { fetching = false; }
+    }, 5000);
+    return () => { clearInterval(timer); controller.abort(); };
+  }, [jobId, section, q, minScore, rejected, page]);
+  useEffect(() => {
     if (!jobId) return;
     const controller = new AbortController();
     setLoading(true);

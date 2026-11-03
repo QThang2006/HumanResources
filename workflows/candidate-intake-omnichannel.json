@@ -6,28 +6,17 @@
     {
       "id": "hrTv2IntakeV2-1",
       "name": "01. Theo dõi CV mới trong Gmail tuyển dụng",
-      "type": "n8n-nodes-base.gmailTrigger",
-      "typeVersion": 1.3,
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
       "position": [
         0,
         120
       ],
       "parameters": {
-        "pollTimes": {
-          "item": [
-            {
-              "mode": "everyMinute"
-            }
-          ]
-        },
-        "simple": false,
-        "filters": {
-          "q": "has:attachment {filename:pdf filename:png filename:jpg filename:jpeg filename:webp} subject:JOB-",
-          "readStatus": "unread"
-        },
+        "downloadAttachments": true,
+        "dataPropertyAttachmentsPrefixName": "attachment_",
         "options": {
-          "downloadAttachments": true,
-          "dataPropertyAttachmentsPrefixName": "attachment_"
+          "customEmailConfig": "[\"UNSEEN\"]"
         }
       }
     },
@@ -137,9 +126,17 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:3001/api/recruitment/intake",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "http://host.docker.internal:3001/api/recruitment/intake",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-automation-secret",
+              "value": "super_secret_hr_ai_jwt_key_2026_change_in_production"
+            }
+          ]
+        },
+        "authentication": "none",
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {
@@ -247,6 +244,12 @@
         "options": {
           "appendAttribution": false
         }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
       }
     },
     {
@@ -260,10 +263,15 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ 'http://localhost:3001/api/recruitment/intake/' + $('09. Soạn thư xác nhận đã nhận hồ sơ').item.json.applicationId + '/acknowledgement' }}",
-        "sendHeaders": false,
+        "url": "={{ 'http://host.docker.internal:3001/api/recruitment/intake/' + $('09. Soạn thư xác nhận đã nhận hồ sơ').item.json.applicationId + '/acknowledgement' }}",
+        "sendHeaders": true,
         "headerParameters": {
-          "parameters": []
+          "parameters": [
+            {
+              "name": "x-automation-secret",
+              "value": "super_secret_hr_ai_jwt_key_2026_change_in_production"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -271,8 +279,7 @@
         "options": {
           "timeout": 20000
         },
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "authentication": "none"
       }
     },
     {
@@ -312,16 +319,15 @@
     {
       "id": "hrTv2IntakeV2-13",
       "name": "13. Đánh dấu email tuyển dụng đã xử lý",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         2600,
         160
       ],
       "parameters": {
-        "resource": "message",
-        "operation": "markAsRead",
-        "messageId": "={{ $('06. Kiểm tra thông tin ứng viên và tệp CV').item.json.sourceId }}"
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { success: true, processedEmailId: $json.sourceId, status: 'PROCESSED' } };"
       }
     }
   ],

@@ -230,7 +230,13 @@
         400
       ],
       "retryOnFail": false,
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
     },
     {
       "id": "tv2-delivery-smtp-check",

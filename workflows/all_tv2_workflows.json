@@ -1,0 +1,2235 @@
+[
+  {
+    "id": "hrTv2JobSyncV2",
+    "name": "01 | TV2 2.0 – Đồng bộ vị trí tuyển dụng vào Google Form",
+    "active": false,
+    "nodes": [
+      {
+        "id": "hrTv2JobSyncV2-1",
+        "name": "01. Nhận thông báo thay đổi vị trí tuyển dụng",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          300
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "jobs-changed",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "webhookId": "jobs-changed"
+      },
+      {
+        "id": "hrTv2JobSyncV2-2",
+        "name": "02. Chuẩn hóa sự kiện tuyển dụng",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          260,
+          300
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst body = $json.body || $json;\nconst data = body.data || body;\nreturn { json: { action: data.action || body.action || 'UPDATED', job: data.job || body.job || null, receivedAt: body.timestamp || new Date().toISOString() } };\n"
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-3",
+        "name": "03. Lấy danh sách vị trí đang mở từ Backend",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          520,
+          300
+        ],
+        "parameters": {
+          "method": "GET",
+          "url": "http://host.docker.internal:3001/api/jobs",
+          "options": {
+            "timeout": 20000
+          }
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-4",
+        "name": "04. Kiểm tra và lọc vị trí đang mở",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          780,
+          300
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst root = $json;\nconst rows = Array.isArray(root.data) ? root.data : Array.isArray(root) ? root : null;\nif (!rows || rows.some(job => !Number.isSafeInteger(job.id) || job.id < 1 || typeof job.title !== 'string' || !job.title.trim())) throw Error('Backend trả về danh sách vị trí không hợp lệ.');\nconst jobs = rows.filter(job => job?.status === 'OPEN').sort((a,b) => a.id-b.id);\nconst event = $('02. Chuẩn hóa sự kiện tuyển dụng').first().json;\nreturn { json: { ...event, jobs } };\n"
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-5",
+        "name": "05. Tạo lựa chọn mã vị trí – tên công việc",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1040,
+          300
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst options = $json.jobs.length\n  ? $json.jobs.map(job => 'JOB-' + String(job.id).padStart(4, '0') + ' – ' + job.title)\n  : ['Hiện chưa có vị trí đang mở'];\nreturn { json: { ...$json, options, jobIds: $json.jobs.map(job => Number(job.id)) } };\n"
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-6",
+        "name": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1300,
+          300
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst p = $json;\nif (!p.options.length) throw Error('Không thể tạo danh sách lựa chọn trống cho Google Form.');\nreturn { json: { ...p, formId: '1AqBqqfQT1CXqbGtDIp5DsXFtSzAwDEwiQ1kFNtX_16k' } };\n"
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-7",
+        "name": "07. Cập nhật danh sách chọn trên Google Form",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1560,
+          300
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.GOOGLE_FORM_SYNC_URL || 'https://script.google.com/macros/s/AKfycbz_placeholder/exec' }}",
+          "authentication": "none",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {formId:$json.formId, options:$json.options, jobIds:$json.jobIds, action:$json.action} }}",
+          "options": {
+            "timeout": 45000,
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            }
+          }
+        },
+        "continueOnFail": true,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      },
+      {
+        "id": "hrTv2JobSyncV2-8",
+        "name": "08. Kiểm tra kết quả cập nhật Google Form",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1820,
+          300
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst response = $json;\nconst ok = response.success === true || response.ok === true || response.updated === true;\nconst source = $('06. Chuẩn bị dữ liệu đồng bộ Google Form').first().json;\nreturn { json: { ...source, syncOk: ok, syncResponse: response } };\n"
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-9",
+        "name": "09. Xác định đồng bộ thành công",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          2080,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "09. Xác định đồng bộ thành công",
+                "leftValue": "={{ $json.syncOk === true }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-10",
+        "name": "10. Tổng hợp kết quả đồng bộ thành công",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2340,
+          180
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nreturn { json: { success: true, action: $json.action, updatedJobIds: $json.jobIds, optionCount: $json.options.length, message: 'Đã đồng bộ danh sách vị trí đang mở vào Google Form.' } };\n"
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-11",
+        "name": "11. Phản hồi đồng bộ thành công",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          2600,
+          180
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {}
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-12",
+        "name": "12. Tổng hợp lỗi đồng bộ",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2340,
+          500
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nreturn { json: { success: false, action: $json.action, error: 'Không cập nhật được dropdown Google Form.', detail: $json.syncResponse || null } };\n"
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-13",
+        "name": "13. Phản hồi đồng bộ thất bại",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          2600,
+          500
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {
+            "responseCode": 502
+          }
+        }
+      },
+      {
+        "id": "hrTv2JobSyncV2-14",
+        "name": "14. Đồng bộ dự phòng mỗi 5 phút",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          80
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 5
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "connections": {
+      "01. Nhận thông báo thay đổi vị trí tuyển dụng": {
+        "main": [
+          [
+            {
+              "node": "02. Chuẩn hóa sự kiện tuyển dụng",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "02. Chuẩn hóa sự kiện tuyển dụng": {
+        "main": [
+          [
+            {
+              "node": "03. Lấy danh sách vị trí đang mở từ Backend",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "03. Lấy danh sách vị trí đang mở từ Backend": {
+        "main": [
+          [
+            {
+              "node": "04. Kiểm tra và lọc vị trí đang mở",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "04. Kiểm tra và lọc vị trí đang mở": {
+        "main": [
+          [
+            {
+              "node": "05. Tạo lựa chọn mã vị trí – tên công việc",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "05. Tạo lựa chọn mã vị trí – tên công việc": {
+        "main": [
+          [
+            {
+              "node": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "06. Chuẩn bị dữ liệu đồng bộ Google Form": {
+        "main": [
+          [
+            {
+              "node": "07. Cập nhật danh sách chọn trên Google Form",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "07. Cập nhật danh sách chọn trên Google Form": {
+        "main": [
+          [
+            {
+              "node": "08. Kiểm tra kết quả cập nhật Google Form",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "08. Kiểm tra kết quả cập nhật Google Form": {
+        "main": [
+          [
+            {
+              "node": "09. Xác định đồng bộ thành công",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "09. Xác định đồng bộ thành công": {
+        "main": [
+          [
+            {
+              "node": "10. Tổng hợp kết quả đồng bộ thành công",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "12. Tổng hợp lỗi đồng bộ",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "10. Tổng hợp kết quả đồng bộ thành công": {
+        "main": [
+          [
+            {
+              "node": "11. Phản hồi đồng bộ thành công",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "12. Tổng hợp lỗi đồng bộ": {
+        "main": [
+          [
+            {
+              "node": "13. Phản hồi đồng bộ thất bại",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "14. Đồng bộ dự phòng mỗi 5 phút": {
+        "main": [
+          [
+            {
+              "node": "02. Chuẩn hóa sự kiện tuyển dụng",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "saveExecutionProgress": true
+    },
+    "pinData": {}
+  },
+  {
+    "id": "hrTv2IntakeV2",
+    "name": "02 | TV2 2.1 – Tiếp nhận CV đa kênh và gửi thư xác nhận",
+    "active": false,
+    "nodes": [
+      {
+        "id": "hrTv2IntakeV2-1",
+        "name": "01. Theo dõi CV mới trong Gmail tuyển dụng",
+        "type": "n8n-nodes-base.emailReadImap",
+        "typeVersion": 2,
+        "position": [
+          0,
+          120
+        ],
+        "parameters": {
+          "downloadAttachments": true,
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "options": {
+            "customEmailConfig": "[\"UNSEEN\"]"
+          }
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-2",
+        "name": "02. Chuẩn hóa hồ sơ nhận qua Gmail",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          260,
+          120
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst m = $json;\nconst sender = m.from?.value?.[0];\nconst job = String(m.subject || '').match(/\\bJOB-(\\d+)\\b/i);\nconst files = Object.values($input.item.binary || {}).filter(b => ['application/pdf','image/png','image/jpeg','image/webp'].includes(b.mimeType) || /\\.(pdf|png|jpe?g|webp)$/i.test(b.fileName || ''));\nif (!job || !sender?.address || !m.id || files.length !== 1) throw Error('Email cần tiêu đề JOB-<id>, địa chỉ người gửi và đúng 1 CV PDF hoặc ảnh PNG/JPG/WEBP.');\nreturn { json: { channel: 'GMAIL', sourceId: m.id, jobId: Number(job[1]), candidateName: sender.name || sender.address.split('@')[0], candidateEmail: sender.address, candidatePhone: String(m.text || '').match(/(?:Phone|Điện thoại)\\s*:\\s*([+\\d ()-]{7,20})/i)?.[1]?.trim() || '' }, binary: { cv: files[0] } };\n"
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-3",
+        "name": "03. Phát hiện câu trả lời Google Form mới",
+        "type": "n8n-nodes-base.googleSheetsTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          500
+        ],
+        "parameters": {
+          "pollTimes": {
+            "item": [
+              {
+                "mode": "everyMinute"
+              }
+            ]
+          },
+          "documentId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "14QSDBEyQGC08wyLE33G7PhMRyPdskj1Iy1vu7YzGyH8"
+          },
+          "sheetName": {
+            "__rl": true,
+            "mode": "id",
+            "value": "2005238133"
+          },
+          "event": "rowAdded",
+          "options": {}
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-4",
+        "name": "04. Chuẩn hóa hồ sơ và mã vị trí từ Form",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          260,
+          500
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst r = $json;\n// The public form uses Vietnamese labels; keep the internal payload stable for ATS.\nconst value = (...keys) => keys.map(key => r[key]).find(item => item !== undefined && item !== null);\nconst raw = String(value('cvFileId', 'Tải lên CV (PDF/PNG/JPG/WEBP)', 'Tải lên CV (định dạng PDF)', 'Tải lên CV') || '').trim();\nconst id = /^[\\w-]{15,}$/.test(raw) ? raw : raw.match(/^https:\\/\\/drive\\.google\\.com\\/(?:file\\/d\\/|open\\?id=)([\\w-]{15,})/)?.[1];\nconst source = r.sourceId || ((r.Timestamp || r['Dấu thời gian']) ? String(r.Timestamp || r['Dấu thời gian']) + ':' + id : '');\nconst rawJob = String(value('jobId', 'Mã vị trí ứng tuyển') || '').trim();\nconst jobId = Number(rawJob.match(/^\\s*(?:JOB-)?(\\d+)\\s*(?:[-–—]|$)/i)?.[1] || rawJob);\nif (!id || !source) throw Error('Sheet cần Timestamp hoặc sourceId duy nhất, cùng cvFileId là file Drive hoặc URL Drive hợp lệ.');\nif (!Number.isSafeInteger(jobId) || jobId < 1) throw Error('Hãy chọn một vị trí tuyển dụng hợp lệ.');\nreturn { json: { channel: 'GOOGLE_FORM', sourceId: String(source), fileId: id, jobId, candidateName: String(value('candidateName', 'Họ và tên ứng viên') || '').trim(), candidateEmail: String(value('candidateEmail', 'Địa chỉ email') || '').trim(), candidatePhone: String(value('candidatePhone', 'Số điện thoại') || '').trim() } };\n"
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-5",
+        "name": "05. Tải CV từ Google Drive",
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 3,
+        "position": [
+          520,
+          500
+        ],
+        "parameters": {
+          "resource": "file",
+          "operation": "download",
+          "fileId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "={{ $json.fileId }}"
+          },
+          "options": {
+            "binaryPropertyName": "cv"
+          }
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-6",
+        "name": "06. Kiểm tra thông tin ứng viên và tệp CV",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          780,
+          300
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst p = $json, cv = $input.item.binary?.cv;\nif (!Number.isSafeInteger(p.jobId) || p.jobId < 1 || !p.candidateName || p.candidateName.length > 150 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(p.candidateEmail) || !cv || !/\\.(pdf|png|jpe?g|webp)$/i.test(cv.fileName || '')) throw Error('Thiếu thông tin ứng viên hoặc CV phải là PDF hoặc ảnh PNG/JPG/WEBP.');\nreturn { json: p, binary: { cv } };\n"
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-7",
+        "name": "07. Lưu hồ sơ và CV vào ATS",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1040,
+          300
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:3001/api/recruitment/intake",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-automation-secret",
+                "value": "super_secret_hr_ai_jwt_key_2026_change_in_production"
+              }
+            ]
+          },
+          "authentication": "none",
+          "sendBody": true,
+          "contentType": "multipart-form-data",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "channel",
+                "value": "={{ $json.channel }}"
+              },
+              {
+                "name": "sourceId",
+                "value": "={{ $json.sourceId }}"
+              },
+              {
+                "name": "jobId",
+                "value": "={{ $json.jobId }}"
+              },
+              {
+                "name": "candidateName",
+                "value": "={{ $json.candidateName }}"
+              },
+              {
+                "name": "candidateEmail",
+                "value": "={{ $json.candidateEmail }}"
+              },
+              {
+                "name": "candidatePhone",
+                "value": "={{ $json.candidatePhone }}"
+              },
+              {
+                "parameterType": "formBinaryData",
+                "name": "cv",
+                "inputDataFieldName": "cv"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 60000
+          }
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-8",
+        "name": "08. Kiểm tra hồ sơ cần gửi xác nhận",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          1300,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "08. Kiểm tra hồ sơ cần gửi xác nhận",
+                "leftValue": "={{ $json.data.shouldSend === true }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-9",
+        "name": "09. Soạn thư xác nhận đã nhận hồ sơ",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1560,
+          160
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst p = $json.data;\nconst esc = s => String(s).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));\nreturn { json: { ...p, subject: 'Xác nhận đã nhận hồ sơ ứng tuyển', html: '<p>Chào ' + esc(p.candidateName) + ',</p><p>Phòng Nhân sự đã nhận CV của bạn. Mã hồ sơ: <b>' + p.applicationId + '</b>.</p><p>Chúng tôi sẽ liên hệ sau khi xem xét hồ sơ. Cảm ơn bạn đã ứng tuyển!</p>' } };\n"
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-10",
+        "name": "10. Gửi thư xác nhận cho ứng viên",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          1820,
+          160
+        ],
+        "parameters": {
+          "operation": "send",
+          "fromEmail": "={{ $json.fromEmail }}",
+          "toEmail": "={{ $json.candidateEmail }}",
+          "subject": "={{ $json.subject }}",
+          "emailFormat": "html",
+          "html": "={{ $json.html }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "credentials": {
+          "smtp": {
+            "id": "pcGy7r4S7VYVboJQ",
+            "name": "SMTP account"
+          }
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-11",
+        "name": "11. Lưu kết quả gửi thư xác nhận",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2080,
+          160
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'http://host.docker.internal:3001/api/recruitment/intake/' + $('09. Soạn thư xác nhận đã nhận hồ sơ').item.json.applicationId + '/acknowledgement' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-automation-secret",
+                "value": "super_secret_hr_ai_jwt_key_2026_change_in_production"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {accepted:$json.accepted,messageId:$json.messageId} }}",
+          "options": {
+            "timeout": 20000
+          },
+          "authentication": "none"
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-12",
+        "name": "12. Kiểm tra hồ sơ đến từ Gmail",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          2340,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "12. Kiểm tra hồ sơ đến từ Gmail",
+                "leftValue": "={{ $('06. Kiểm tra thông tin ứng viên và tệp CV').item.json.channel === 'GMAIL' }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "hrTv2IntakeV2-13",
+        "name": "13. Đánh dấu email tuyển dụng đã xử lý",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2600,
+          160
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "return { json: { success: true, processedEmailId: $json.sourceId, status: 'PROCESSED' } };"
+        }
+      }
+    ],
+    "connections": {
+      "01. Theo dõi CV mới trong Gmail tuyển dụng": {
+        "main": [
+          [
+            {
+              "node": "02. Chuẩn hóa hồ sơ nhận qua Gmail",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "02. Chuẩn hóa hồ sơ nhận qua Gmail": {
+        "main": [
+          [
+            {
+              "node": "06. Kiểm tra thông tin ứng viên và tệp CV",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "03. Phát hiện câu trả lời Google Form mới": {
+        "main": [
+          [
+            {
+              "node": "04. Chuẩn hóa hồ sơ và mã vị trí từ Form",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "04. Chuẩn hóa hồ sơ và mã vị trí từ Form": {
+        "main": [
+          [
+            {
+              "node": "05. Tải CV từ Google Drive",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "05. Tải CV từ Google Drive": {
+        "main": [
+          [
+            {
+              "node": "06. Kiểm tra thông tin ứng viên và tệp CV",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "06. Kiểm tra thông tin ứng viên và tệp CV": {
+        "main": [
+          [
+            {
+              "node": "07. Lưu hồ sơ và CV vào ATS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "07. Lưu hồ sơ và CV vào ATS": {
+        "main": [
+          [
+            {
+              "node": "08. Kiểm tra hồ sơ cần gửi xác nhận",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "08. Kiểm tra hồ sơ cần gửi xác nhận": {
+        "main": [
+          [
+            {
+              "node": "09. Soạn thư xác nhận đã nhận hồ sơ",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "12. Kiểm tra hồ sơ đến từ Gmail",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "09. Soạn thư xác nhận đã nhận hồ sơ": {
+        "main": [
+          [
+            {
+              "node": "10. Gửi thư xác nhận cho ứng viên",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "10. Gửi thư xác nhận cho ứng viên": {
+        "main": [
+          [
+            {
+              "node": "11. Lưu kết quả gửi thư xác nhận",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "11. Lưu kết quả gửi thư xác nhận": {
+        "main": [
+          [
+            {
+              "node": "12. Kiểm tra hồ sơ đến từ Gmail",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "12. Kiểm tra hồ sơ đến từ Gmail": {
+        "main": [
+          [
+            {
+              "node": "13. Đánh dấu email tuyển dụng đã xử lý",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "saveExecutionProgress": true
+    },
+    "pinData": {}
+  },
+  {
+    "name": "03 | TV2 2.2 – Xếp lịch phỏng vấn, Google Meet và thư mời",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "interview-schedule",
+          "responseMode": "onReceived",
+          "options": {}
+        },
+        "id": "webhook-interview-schedule",
+        "name": "01. Nhận yêu cầu xếp lịch phỏng vấn",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          400
+        ],
+        "webhookId": "interview-schedule",
+        "retryOnFail": false
+      },
+      {
+        "id": "tv2-delivery-envelope",
+        "name": "02. Kiểm tra quyền xử lý yêu cầu phỏng vấn",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          240,
+          400
+        ],
+        "parameters": {
+          "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst p = body.data || body; const d = p.delivery;\nconst base = \"http://host.docker.internal:3001/api\";\nif (!Number.isSafeInteger(p.interviewId) || p.interviewId < 1 || !d || !/^[a-f0-9]{64}$/.test(d.token || '') || !/^[a-f0-9-]{36}$/.test(d.requestId || '')) throw new Error('Authenticated TV2 delivery metadata required');\nif (d.callbackUrl !== base + '/applications/interviews/' + p.interviewId + '/delivery') throw new Error('Callback destination must match configured API');\nreturn [{json:{interviewId:p.interviewId, delivery:d}}];"
+        }
+      },
+      {
+        "id": "tv2-delivery-claim",
+        "name": "03. Nhận quyền xử lý lịch phỏng vấn",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          480,
+          400
+        ],
+        "retryOnFail": false,
+        "maxTries": 3,
+        "waitBetweenTries": 1000,
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $json.delivery.callbackUrl + '/claim' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-interview-callback-token",
+                "value": "={{ $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.delivery.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {requestId:$json.delivery.requestId} }}",
+          "options": {
+            "timeout": 10000
+          }
+        }
+      },
+      {
+        "id": "tv2-authoritative-payload",
+        "name": "04. Nạp thông tin buổi phỏng vấn",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          720,
+          400
+        ],
+        "parameters": {
+          "jsCode": "const r = $input.first().json.data || $input.first().json;\nconst d = $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.delivery; const p = r.payload;\nif (r.claimed !== true || !p || p.interviewId !== $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.interviewId || r.eventId !== d.eventId) throw new Error('Interview claim mismatch');\nfor (const key of ['candidateEmail','fromEmail','interviewerEmail']) if (!/^[^\\s@]+@[^\\s@]+[.][^\\s@]+$/.test(p[key] || '')) throw new Error('Configured recipient and sender required');\nif (!Number.isFinite(Date.parse(p.scheduledAt)) || !Number.isSafeInteger(p.applicationId) || !Number.isSafeInteger(p.round)) throw new Error('Invalid persisted schedule');\nreturn [{json:{...p, delivery:d}}];"
+        }
+      },
+      {
+        "parameters": {
+          "resource": "event",
+          "operation": "create",
+          "calendar": {
+            "__rl": true,
+            "mode": "list",
+            "value": "primary",
+            "cachedResultName": "primary"
+          },
+          "start": "={{ $json.scheduledAt }}",
+          "end": "={{ new Date(Date.parse($json.scheduledAt)+45*60000).toISOString() }}",
+          "useDefaultReminders": false,
+          "remindersUi": {
+            "remindersValues": []
+          },
+          "additionalFields": {
+            "id": "={{ $json.delivery.eventId }}",
+            "summary": "={{ 'Phỏng vấn Vòng ' + $json.round + ' - ' + $json.candidateName }}",
+            "description": "Lịch phỏng vấn được quản lý trong ATS TV2.",
+            "sendUpdates": "none",
+            "conferenceDataUi": {
+              "conferenceDataValues": {
+                "conferenceSolution": "hangoutsMeet"
+              }
+            },
+            "attendeesUi": {
+              "values": {
+                "mode": "add",
+                "attendees": [
+                  "={{ $json.candidateEmail }}",
+                  "={{ $json.interviewerEmail }}"
+                ]
+              }
+            }
+          }
+        },
+        "id": "google-calendar-create-meet",
+        "name": "05. Tạo lịch phỏng vấn và Google Meet",
+        "type": "n8n-nodes-base.googleCalendar",
+        "typeVersion": 1.2,
+        "position": [
+          960,
+          400
+        ],
+        "retryOnFail": false,
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "resource": "event",
+          "operation": "get",
+          "calendar": {
+            "__rl": true,
+            "mode": "list",
+            "value": "primary",
+            "cachedResultName": "primary"
+          },
+          "eventId": "={{ $json.id }}",
+          "options": {}
+        },
+        "id": "tv2-delivery-calendar-get",
+        "name": "07. Đọc lại sự kiện trên Google Calendar",
+        "type": "n8n-nodes-base.googleCalendar",
+        "typeVersion": 1.2,
+        "position": [
+          1200,
+          400
+        ],
+        "retryOnFail": false,
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "tv2-delivery-calendar-verify",
+        "name": "08. Xác minh lịch và liên kết Google Meet",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1440,
+          400
+        ],
+        "parameters": {
+          "jsCode": "const e = $input.first().json; const p = $('04. Nạp thông tin buổi phỏng vấn').first().json;\nconst meet = e.hangoutLink || e.conferenceData?.entryPoints?.find(x => x.entryPointType === 'video')?.uri;\nif (e.id !== p.delivery.eventId || e.status !== 'confirmed' || Date.parse(e.start?.dateTime) !== Date.parse(p.scheduledAt) || Date.parse(e.end?.dateTime) !== Date.parse(p.scheduledAt)+45*60000 || !/^https:\\/\\/meet[.]google[.]com\\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/.test(meet || '') || e.conferenceData?.createRequest?.status?.statusCode !== 'success') throw new Error('Calendar/Meet readback not confirmed');\nreturn [{json:{...e,hangoutLink:meet, callback:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'CALENDAR_CONFIRMED',eventId:e.id,meetingLink:meet,scheduledAt:e.start.dateTime}}}];"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "tv2-delivery-meet-callback",
+        "name": "09. Lưu lịch và liên kết Meet vào ATS",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1680,
+          400
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000,
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('04. Nạp thông tin buổi phỏng vấn').first().json.delivery.callbackUrl }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-interview-callback-token",
+                "value": "={{ $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.delivery.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.callback }}",
+          "options": {
+            "timeout": 10000
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "\nconst e = $('08. Xác minh lịch và liên kết Google Meet').first().json;\nconst p = $('04. Nạp thông tin buổi phỏng vấn').first().json;\nconst esc = s => String(s).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));\nconst text = s => String(s).replace(/\\\\/g, '\\\\\\\\').replace(/\\r\\n|\\r|\\n/g, '\\\\n').replace(/;/g, '\\\\;').replace(/,/g, '\\\\,');\nconst stamp = s => new Date(s).toISOString().replace(/[-:]/g,'').replace(/\\.\\d{3}Z$/, 'Z');\n// RFC5545: fold at 75 UTF-8 octets, never split a multibyte character.\nconst fold = line => { let out = '', col = 0; for (const c of line) { const n = Buffer.byteLength(c); if (col+n > 75) { out += '\\r\\n '; col = 1; } out += c; col += n; } return out; };\nconst organizer = e.organizer?.email || p.fromEmail;\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(organizer)) throw Error('Calendar organizer missing');\nconst attendees = [...new Set([p.candidateEmail,p.interviewerEmail])];\nconst lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//HR ATS//Interview//VI','CALSCALE:GREGORIAN','METHOD:REQUEST','BEGIN:VEVENT',\n  'UID:' + text(e.iCalUID || (e.id+'@google.com')), 'SEQUENCE:' + (e.sequence || 0), 'DTSTAMP:' + stamp(e.updated || Date.now()),\n  'DTSTART:' + stamp(p.scheduledAt), 'DTEND:' + stamp(Date.parse(p.scheduledAt)+45*60000), 'STATUS:CONFIRMED',\n  'SUMMARY:' + text('Phỏng vấn vòng '+p.round+' - '+p.candidateName), 'DESCRIPTION:' + text('Google Meet: '+e.hangoutLink),\n  'LOCATION:' + text(e.hangoutLink), 'URL:' + e.hangoutLink, 'ORGANIZER:mailto:' + organizer,\n  ...attendees.map(email => 'ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:'+email), 'END:VEVENT','END:VCALENDAR'];\nconst ics = lines.map(fold).join('\\r\\n')+'\\r\\n';\nconst time = new Date(p.scheduledAt).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'});\nreturn [{json:{fromEmail:p.fromEmail,toEmail:attendees.join(','),emailSubject:'Thư mời phỏng vấn vòng '+p.round,\n  emailHtml:'<h2>Thư mời phỏng vấn</h2><p>Ứng viên: '+esc(p.candidateName)+'</p><p>Người phỏng vấn: '+esc(p.interviewerName)+'</p><p>Thời gian: '+esc(time)+' (Việt Nam), 45 phút.</p><p><a href=\"'+esc(e.hangoutLink)+'\">Tham gia Google Meet</a></p><p>Lịch .ics được đính kèm cho cả hai bên. Vui lòng xác nhận trong ứng dụng lịch.</p>'},\n  binary:{calendar:{data:Buffer.from(ics).toString('base64'),mimeType:'text/calendar',fileName:'interview-'+p.interviewId+'.ics'}}}];\n"
+        },
+        "id": "code-format-interview",
+        "name": "10. Soạn thư mời và tệp lịch ICS",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1920,
+          400
+        ],
+        "retryOnFail": false
+      },
+      {
+        "parameters": {
+          "fromEmail": "={{ $json.fromEmail }}",
+          "toEmail": "={{ $json.toEmail }}",
+          "subject": "={{ $json.emailSubject }}",
+          "html": "={{ $json.emailHtml }}",
+          "emailFormat": "html",
+          "options": {
+            "fileAttachments": "calendar",
+            "appendAttribution": false
+          }
+        },
+        "id": "send-email-candidate",
+        "name": "11. Gửi thư mời phỏng vấn",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          2160,
+          400
+        ],
+        "retryOnFail": false,
+        "onError": "continueErrorOutput",
+        "credentials": {
+          "smtp": {
+            "id": "pcGy7r4S7VYVboJQ",
+            "name": "SMTP account"
+          }
+        }
+      },
+      {
+        "id": "tv2-delivery-smtp-check",
+        "name": "12. Xác minh kết quả gửi thư mời",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2400,
+          400
+        ],
+        "parameters": {
+          "jsCode": "\nconst m=$input.first().json,p=$('04. Nạp thông tin buổi phỏng vấn').first().json;\nconst accepted=new Set((m.accepted||[]).map(x=>String(x).toLowerCase()));\nif (!m.messageId || ![p.candidateEmail,p.interviewerEmail].every(e=>accepted.has(e.toLowerCase())) || (m.rejected||[]).length) throw Error('SMTP chưa chấp nhận đủ hai người nhận');\nreturn [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'SMTP_ACCEPTED',eventId:p.delivery.eventId,recipient:p.candidateEmail,acceptedRecipients:[...accepted],messageId:m.messageId}}];\n"
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "tv2-delivery-email-callback",
+        "name": "13. Lưu trạng thái gửi thư vào ATS",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2640,
+          400
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000,
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('04. Nạp thông tin buổi phỏng vấn').first().json.delivery.callbackUrl }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-interview-callback-token",
+                "value": "={{ $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.delivery.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json }}",
+          "options": {
+            "timeout": 10000
+          }
+        }
+      },
+      {
+        "id": "tv2-delivery-calendar-error",
+        "name": "14. Tổng hợp lỗi tạo lịch phỏng vấn",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1680,
+          720
+        ],
+        "parameters": {
+          "jsCode": "const p = $('04. Nạp thông tin buổi phỏng vấn').first().json; return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'FAILED',stage:'CALENDAR',code:'CALENDAR_ERROR'}}];"
+        }
+      },
+      {
+        "id": "tv2-delivery-email-error",
+        "name": "16. Tổng hợp lỗi gửi thư mời",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2400,
+          720
+        ],
+        "parameters": {
+          "jsCode": "const p = $('04. Nạp thông tin buổi phỏng vấn').first().json; return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'FAILED',stage:'EMAIL',code:'SMTP_ERROR'}}];"
+        }
+      },
+      {
+        "id": "tv2-delivery-save-calendar-error",
+        "name": "15. Lưu lỗi tạo lịch vào ATS",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1920,
+          720
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000,
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('04. Nạp thông tin buổi phỏng vấn').first().json.delivery.callbackUrl }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-interview-callback-token",
+                "value": "={{ $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.delivery.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json }}",
+          "options": {
+            "timeout": 10000
+          }
+        }
+      },
+      {
+        "id": "tv2-delivery-save-email-error",
+        "name": "17. Lưu lỗi gửi thư vào ATS",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2640,
+          720
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000,
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('04. Nạp thông tin buổi phỏng vấn').first().json.delivery.callbackUrl }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-interview-callback-token",
+                "value": "={{ $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.delivery.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json }}",
+          "options": {
+            "timeout": 10000
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "id": "respond-webhook-interview",
+        "name": "18. Hoàn tất xử lý yêu cầu",
+        "type": "n8n-nodes-base.noOp",
+        "typeVersion": 1,
+        "position": [
+          2880,
+          400
+        ],
+        "retryOnFail": false
+      },
+      {
+        "id": "hrTv2InterviewV2-18",
+        "name": "06. Chờ Google khởi tạo phòng Meet",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          1080,
+          80
+        ],
+        "parameters": {
+          "resume": "timeInterval",
+          "amount": 5,
+          "unit": "seconds"
+        }
+      }
+    ],
+    "connections": {
+      "01. Nhận yêu cầu xếp lịch phỏng vấn": {
+        "main": [
+          [
+            {
+              "node": "02. Kiểm tra quyền xử lý yêu cầu phỏng vấn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "02. Kiểm tra quyền xử lý yêu cầu phỏng vấn": {
+        "main": [
+          [
+            {
+              "node": "03. Nhận quyền xử lý lịch phỏng vấn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "03. Nhận quyền xử lý lịch phỏng vấn": {
+        "main": [
+          [
+            {
+              "node": "04. Nạp thông tin buổi phỏng vấn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "04. Nạp thông tin buổi phỏng vấn": {
+        "main": [
+          [
+            {
+              "node": "05. Tạo lịch phỏng vấn và Google Meet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "05. Tạo lịch phỏng vấn và Google Meet": {
+        "main": [
+          [
+            {
+              "node": "06. Chờ Google khởi tạo phòng Meet",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "14. Tổng hợp lỗi tạo lịch phỏng vấn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "07. Đọc lại sự kiện trên Google Calendar": {
+        "main": [
+          [
+            {
+              "node": "08. Xác minh lịch và liên kết Google Meet",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "14. Tổng hợp lỗi tạo lịch phỏng vấn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "08. Xác minh lịch và liên kết Google Meet": {
+        "main": [
+          [
+            {
+              "node": "09. Lưu lịch và liên kết Meet vào ATS",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "14. Tổng hợp lỗi tạo lịch phỏng vấn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "09. Lưu lịch và liên kết Meet vào ATS": {
+        "main": [
+          [
+            {
+              "node": "10. Soạn thư mời và tệp lịch ICS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "10. Soạn thư mời và tệp lịch ICS": {
+        "main": [
+          [
+            {
+              "node": "11. Gửi thư mời phỏng vấn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "11. Gửi thư mời phỏng vấn": {
+        "main": [
+          [
+            {
+              "node": "12. Xác minh kết quả gửi thư mời",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "16. Tổng hợp lỗi gửi thư mời",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "12. Xác minh kết quả gửi thư mời": {
+        "main": [
+          [
+            {
+              "node": "13. Lưu trạng thái gửi thư vào ATS",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "16. Tổng hợp lỗi gửi thư mời",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "13. Lưu trạng thái gửi thư vào ATS": {
+        "main": [
+          [
+            {
+              "node": "18. Hoàn tất xử lý yêu cầu",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "14. Tổng hợp lỗi tạo lịch phỏng vấn": {
+        "main": [
+          [
+            {
+              "node": "15. Lưu lỗi tạo lịch vào ATS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "15. Lưu lỗi tạo lịch vào ATS": {
+        "main": [
+          [
+            {
+              "node": "18. Hoàn tất xử lý yêu cầu",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "16. Tổng hợp lỗi gửi thư mời": {
+        "main": [
+          [
+            {
+              "node": "17. Lưu lỗi gửi thư vào ATS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "17. Lưu lỗi gửi thư vào ATS": {
+        "main": [
+          [
+            {
+              "node": "18. Hoàn tất xử lý yêu cầu",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "06. Chờ Google khởi tạo phòng Meet": {
+        "main": [
+          [
+            {
+              "node": "07. Đọc lại sự kiện trên Google Calendar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "active": false,
+    "pinData": {},
+    "settings": {
+      "executionOrder": "v1",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "saveExecutionProgress": true
+    },
+    "id": "hrTv2InterviewV2"
+  },
+  {
+    "id": "hrTv2OfferV2",
+    "name": "04 | TV2 2.3 – Phát hành thư mời nhận việc và nhắc hạn 24–48 giờ",
+    "active": false,
+    "nodes": [
+      {
+        "id": "hrTv2OfferV2-1",
+        "name": "01. Nhận yêu cầu phát hành thư mời nhận việc",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          300
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "offer-issued",
+          "responseMode": "onReceived",
+          "options": {}
+        },
+        "webhookId": "offer-issued"
+      },
+      {
+        "id": "hrTv2OfferV2-2",
+        "name": "02. Kiểm tra quyền phát hành thư mời nhận việc",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          260,
+          300
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "\nconst b = $input.first().json.body; const p = b?.data || b;\nif (!p || !Number.isSafeInteger(p.offerId) || p.offerId < 1 || !/^[a-f0-9]{64}$/.test(p.token || '') || !/^[a-f0-9]{64}$/.test(p.responseToken || '')) throw Error('Invalid Offer capability');\nreturn [{ json: { offerId: p.offerId, token: p.token, responseToken: p.responseToken } }];\n"
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-3",
+        "name": "03. Nhận nội dung thư mời từ Backend",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          520,
+          300
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-offer-token",
+                "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {action:'CLAIM',responseToken:$('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.responseToken} }}",
+          "options": {
+            "timeout": 20000
+          }
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-4",
+        "name": "04. Gửi thư mời nhận việc cho ứng viên",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          780,
+          300
+        ],
+        "parameters": {
+          "operation": "send",
+          "fromEmail": "={{ $json.data.fromEmail }}",
+          "toEmail": "={{ $json.data.candidateEmail }}",
+          "subject": "={{ $json.data.subject }}",
+          "emailFormat": "html",
+          "html": "={{ $json.data.html }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "credentials": {
+          "smtp": {
+            "id": "pcGy7r4S7VYVboJQ",
+            "name": "SMTP account"
+          }
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-5",
+        "name": "05. Lưu kết quả gửi và bắt đầu hạn 48 giờ",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1040,
+          300
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-offer-token",
+                "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {action:'SENT',accepted:$json.accepted,messageId:$json.messageId} }}",
+          "options": {
+            "timeout": 20000
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "hrTv2OfferV2-6",
+        "name": "06. Chờ đến mốc 24 giờ",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          1300,
+          300
+        ],
+        "parameters": {
+          "resume": "specificTime",
+          "dateTime": "={{ $json.data.remindAt }}"
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-7",
+        "name": "07. Kiểm tra phản hồi ứng viên sau 24 giờ",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1560,
+          300
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-offer-token",
+                "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {action:'REMIND'} }}",
+          "options": {
+            "timeout": 20000
+          }
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-8",
+        "name": "08. Kiểm tra có cần gửi thư nhắc",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          1820,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "08. Kiểm tra có cần gửi thư nhắc",
+                "leftValue": "={{ $json.data.shouldSend === true }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-9",
+        "name": "09. Gửi thư nhắc ứng viên và thông báo HR",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          2080,
+          140
+        ],
+        "parameters": {
+          "operation": "send",
+          "fromEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.fromEmail }}",
+          "toEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.candidateEmail }}",
+          "subject": "Nhắc phản hồi thư mời nhận việc",
+          "emailFormat": "html",
+          "html": "={{ '<p>Offer của bạn còn thời hạn phản hồi. Vui lòng xem lại thông tin và xác nhận qua liên kết bên dưới.</p>' + $('03. Nhận nội dung thư mời từ Backend').first().json.data.html }}",
+          "options": {
+            "appendAttribution": false,
+            "ccEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.hrEmail }}"
+          }
+        },
+        "credentials": {
+          "smtp": {
+            "id": "pcGy7r4S7VYVboJQ",
+            "name": "SMTP account"
+          }
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-10",
+        "name": "10. Lưu kết quả gửi thư nhắc",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2340,
+          140
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-offer-token",
+                "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {action:'REMINDED',accepted:$json.accepted,messageId:$json.messageId} }}",
+          "options": {
+            "timeout": 20000
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "hrTv2OfferV2-11",
+        "name": "11. Chờ đến hạn 48 giờ",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          2600,
+          300
+        ],
+        "parameters": {
+          "resume": "specificTime",
+          "dateTime": "={{ $('05. Lưu kết quả gửi và bắt đầu hạn 48 giờ').first().json.data.expiresAt }}"
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-12",
+        "name": "12. Kiểm tra và đóng thư mời đã hết hạn",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2860,
+          300
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-offer-token",
+                "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {action:'EXPIRE'} }}",
+          "options": {
+            "timeout": 20000
+          }
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-13",
+        "name": "13. Kiểm tra thư mời hết hạn cần báo HR",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          3120,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "13. Kiểm tra thư mời hết hạn cần báo HR",
+                "leftValue": "={{ $json.data.shouldSend === true }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-14",
+        "name": "14. Thông báo HR về thư mời hết hạn",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          3380,
+          300
+        ],
+        "parameters": {
+          "operation": "send",
+          "fromEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.fromEmail }}",
+          "toEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.hrEmail }}",
+          "subject": "Offer hết hạn sau 48 giờ",
+          "emailFormat": "html",
+          "html": "={{ '<p>Offer #' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + ' đã hết hạn mà chưa có phản hồi. Vui lòng kiểm tra hồ sơ trong ATS.</p>' }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "credentials": {
+          "smtp": {
+            "id": "pcGy7r4S7VYVboJQ",
+            "name": "SMTP account"
+          }
+        }
+      },
+      {
+        "id": "hrTv2OfferV2-15",
+        "name": "15. Lưu kết quả thông báo hết hạn",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3640,
+          300
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'http://host.docker.internal:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-offer-token",
+                "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ {action:'EXPIRY_NOTIFIED',accepted:$json.accepted,messageId:$json.messageId} }}",
+          "options": {
+            "timeout": 20000
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
+    ],
+    "connections": {
+      "01. Nhận yêu cầu phát hành thư mời nhận việc": {
+        "main": [
+          [
+            {
+              "node": "02. Kiểm tra quyền phát hành thư mời nhận việc",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "02. Kiểm tra quyền phát hành thư mời nhận việc": {
+        "main": [
+          [
+            {
+              "node": "03. Nhận nội dung thư mời từ Backend",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "03. Nhận nội dung thư mời từ Backend": {
+        "main": [
+          [
+            {
+              "node": "04. Gửi thư mời nhận việc cho ứng viên",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "04. Gửi thư mời nhận việc cho ứng viên": {
+        "main": [
+          [
+            {
+              "node": "05. Lưu kết quả gửi và bắt đầu hạn 48 giờ",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "05. Lưu kết quả gửi và bắt đầu hạn 48 giờ": {
+        "main": [
+          [
+            {
+              "node": "06. Chờ đến mốc 24 giờ",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "06. Chờ đến mốc 24 giờ": {
+        "main": [
+          [
+            {
+              "node": "07. Kiểm tra phản hồi ứng viên sau 24 giờ",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "07. Kiểm tra phản hồi ứng viên sau 24 giờ": {
+        "main": [
+          [
+            {
+              "node": "08. Kiểm tra có cần gửi thư nhắc",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "08. Kiểm tra có cần gửi thư nhắc": {
+        "main": [
+          [
+            {
+              "node": "09. Gửi thư nhắc ứng viên và thông báo HR",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "11. Chờ đến hạn 48 giờ",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "09. Gửi thư nhắc ứng viên và thông báo HR": {
+        "main": [
+          [
+            {
+              "node": "10. Lưu kết quả gửi thư nhắc",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "10. Lưu kết quả gửi thư nhắc": {
+        "main": [
+          [
+            {
+              "node": "11. Chờ đến hạn 48 giờ",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "11. Chờ đến hạn 48 giờ": {
+        "main": [
+          [
+            {
+              "node": "12. Kiểm tra và đóng thư mời đã hết hạn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "12. Kiểm tra và đóng thư mời đã hết hạn": {
+        "main": [
+          [
+            {
+              "node": "13. Kiểm tra thư mời hết hạn cần báo HR",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "13. Kiểm tra thư mời hết hạn cần báo HR": {
+        "main": [
+          [
+            {
+              "node": "14. Thông báo HR về thư mời hết hạn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "14. Thông báo HR về thư mời hết hạn": {
+        "main": [
+          [
+            {
+              "node": "15. Lưu kết quả thông báo hết hạn",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "saveExecutionProgress": true
+    },
+    "pinData": {}
+  },
+  {
+    "name": "HR Pro: 1-Click Hired & Welcome Kit Provisioning",
+    "nodes": [
+      {
+        "parameters": {
+          "content": "### 🎉 1-Click Hired & Onboarding Package Automation\n**Quy trình:**\n1. Nhận Webhook từ NestJS khi HR bấm nút [1-Click Tuyển dụng].\n2. Phản hồi Webhook ngay lập tức (HTTP 200 OK) xác nhận tiếp nhận.\n3. Tạo Thư Chúc Mừng & Chào Đón Thành Viên Mới (Offer / Welcome Kit Package).\n4. Tự động gửi Email HTML cho nhân sự mới kèm hướng dẫn kích hoạt tài khoản.\n5. Bắn thông báo khẩn cấp tới kênh IT & HR nội bộ để chuẩn bị Laptop và thẻ nhân viên.",
+          "height": 420,
+          "width": 380,
+          "color": 4
+        },
+        "id": "sticky-hired-info",
+        "name": "Ghi chú – Tiếp nhận nhân sự mới",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          160,
+          100
+        ]
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "employee-hired",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "webhook-employee-hired",
+        "name": "30. Nhận sự kiện tuyển dụng nhân sự mới",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          200,
+          560
+        ],
+        "webhookId": "employee-hired"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={\n  \"success\": true,\n  \"message\": \"n8n đã kích hoạt quy trình chào đón nhân sự mới\",\n  \"hiredUser\": \"{{ $json.body ? ($json.body.fullName || ($json.body.data && $json.body.data.fullName) || $json.fullName) : $json.fullName }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+          "options": {
+            "responseCode": 200
+          }
+        },
+        "id": "respond-webhook-hired",
+        "name": "18. Hoàn tất xử lý yêu cầu",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          440,
+          440
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const raw = $input.first().json;\nconst rawBody = raw.body || raw;\nconst payload = rawBody.data || rawBody;\n\n// Hỗ trợ cả 2 chuẩn tên thuộc tính (fullName hoặc candidateName, departmentName hoặc department)\nconst fullName = payload.fullName || payload.candidateName || 'Thành Viên Mới';\nconst jobTitle = payload.jobTitle || 'Chuyên viên Kỹ thuật';\nconst department = payload.departmentName || payload.department || 'Phòng Phát Triển Công Nghệ Số';\nconst email = payload.email || payload.candidateEmail || 'quocthangngo2006@gmail.com';\nconst tempPassword = payload.tempPassword || 'Enterprise@2026#';\nconst portalUrl = payload.portalUrl || 'http://localhost:5173/login';\nconst fromEmail = payload.fromEmail || 'quocthangngo2006@gmail.com';\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }\n    .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 35px 20px; text-align: center; }\n    .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; }\n    .card-title { font-weight: 700; color: #0f172a; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #10b981; padding-bottom: 6px; display: inline-block; }\n    .cred-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 18px; margin: 20px 0; }\n    .cred-title { font-weight: 700; color: #1e40af; margin-bottom: 10px; font-size: 15px; }\n    .item { margin: 8px 0; font-size: 15px; }\n    .code-tag { background: #dbeafe; color: #1e3a8a; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 15px; font-weight: bold; }\n    .btn { display: inline-block; background: #059669; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0; }\n    .kit-box { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 15px; margin-top: 15px; color: #065f46; font-size: 14px; }\n    .footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>CHÀO MỪNG GIA NHẬP ĐỘI NGŨ</h1>\n      <p style=\"margin: 6px 0 0 0; opacity: 0.95;\">Enterprise Multi-Agent Ecosystem</p>\n    </div>\n    <div class=\"content\">\n      <p>Thân gửi <strong>${fullName}</strong>,</p>\n      <p>Ban Giám đốc cùng toàn thể đại gia đình công ty xin gửi lời chúc mừng nồng nhiệt nhất tới bạn! Chúng tôi rất vui mừng và tự hào khi bạn chính thức trở thành một thành viên quan trọng trong đội ngũ.</p>\n      \n      <div class=\"card\">\n        <div class=\"card-title\">THÔNG TIN VỊ TRÍ CÔNG TÁC</div>\n        <div class=\"item\">📌 <strong>Chức danh:</strong> ${jobTitle}</div>\n        <div class=\"item\">🏢 <strong>Phòng ban:</strong> ${department}</div>\n        <div class=\"item\">🛡️ <strong>Chế độ đãi ngộ:</strong> 100% Bảo hiểm BHXH + Thẻ sức khỏe PVI + Ngân sách học tập L&D</div>\n      </div>\n\n      <div class=\"cred-box\">\n        <div class=\"cred-title\">🔐 THÔNG TIN TÀI KHOẢN NỘI BỘ (HR PORTAL)</div>\n        <div class=\"item\">👤 <strong>Tên đăng nhập (Email):</strong> <code>${email}</code></div>\n        <div class=\"item\">🔑 <strong>Mật khẩu tạm thời:</strong> <span class=\"code-tag\">${tempPassword}</span></div>\n        <div class=\"item\">🌐 <strong>Cổng thông tin:</strong> <a href=\"${portalUrl}\">${portalUrl}</a></div>\n        <p style=\"font-size: 13px; color: #64748b; margin: 10px 0 0 0;\"><i>* Lưu ý an toàn: Vui lòng đổi mật khẩu mới ngay trong lần đầu tiên đăng nhập hệ thống.</i></p>\n      </div>\n\n      <div class=\"kit-box\">\n        🎁 <strong>Gói Chào Mừng (Welcome Kit) chuẩn bị cho bạn vào Ngày 1:</strong>\n        <ul style=\"margin: 6px 0 0 0; padding-left: 20px;\">\n          <li>Laptop chuyên dụng & Màn hình phụ làm việc.</li>\n          <li>Thẻ nhân viên, Balo công nghệ và Sổ tay văn hóa doanh nghiệp 2026.</li>\n          <li>Checklist thử việc 30 ngày và Trợ lý AI Copilot hỗ trợ 24/7.</li>\n        </ul>\n      </div>\n\n      <div style=\"text-align: center; margin: 25px 0;\">\n        <a href=\"${portalUrl}\" class=\"btn\" target=\"_blank\">🚀 Kích Hoạt & Đăng Nhập HR Portal</a>\n      </div>\n\n      <p>Chúc bạn sẽ có một hành trình làm việc tràn đầy cảm hứng, phát triển vượt bậc và gặt hái nhiều thành công rực rỡ cùng chúng tôi!</p>\n      <p>Trân trọng,<br><strong>Phòng Nhân Sự & Văn Hóa Doanh Nghiệp</strong></p>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Email này được tạo tự động bởi n8n Workflow Engine.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    userId: payload.userId,\n    fullName: fullName,\n    jobTitle: jobTitle,\n    department: department,\n    email: email,\n    tempPassword: tempPassword,\n    portalUrl: portalUrl,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[Welcome to Enterprise] Chúc mừng ${fullName} chính thức gia nhập vị trí ${jobTitle}! 🎉`,\n    emailHtml: htmlTemplate,\n    telegramAlert: `🎉 <b>NHÂN SỰ MỚI GIA NHẬP CÔNG TY</b>\\n• Họ tên: <b>${fullName}</b> (ID #${payload.userId || 'NEW'})\\n• Vị trí: <b>${jobTitle}</b>\\n• Phòng ban: <b>${department}</b>\\n• Email: <code>${email}</code>\\n\\n⚡ <i>IT Helpdesk & HR Operations vui lòng chuẩn bị Welcome Kit, Laptop và kích hoạt tài khoản nội bộ trước ngày Onboarding!</i>`\n  }\n};"
+        },
+        "id": "code-format-hired",
+        "name": "31. Soạn nội dung chào mừng nhân sự mới",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          440,
+          680
+        ]
+      },
+      {
+        "parameters": {
+          "fromEmail": "={{ $json.fromEmail }}",
+          "toEmail": "={{ $json.email }}",
+          "subject": "={{ $json.emailSubject }}",
+          "html": "={{ $json.emailHtml }}"
+        },
+        "id": "send-email-hired",
+        "name": "32. Gửi thư chào mừng nhân sự mới",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          740,
+          560
+        ],
+        "credentials": {
+          "smtp": {
+            "id": "pcGy7r4S7VYVboJQ",
+            "name": "SMTP account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $json.telegramChatId || $json.chatId || '8928574834' }}",
+          "text": "={{ $json.telegramAlert }}",
+          "additionalFields": {
+            "parse_mode": "HTML"
+          }
+        },
+        "id": "telegram-hired-ops-alert",
+        "name": "33. Thông báo bộ phận IT và nhân sự qua Telegram",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          740,
+          780
+        ]
+      }
+    ],
+    "connections": {
+      "30. Nhận sự kiện tuyển dụng nhân sự mới": {
+        "main": [
+          [
+            {
+              "node": "18. Hoàn tất xử lý yêu cầu",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "31. Soạn nội dung chào mừng nhân sự mới",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "31. Soạn nội dung chào mừng nhân sự mới": {
+        "main": [
+          [
+            {
+              "node": "32. Gửi thư chào mừng nhân sự mới",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "33. Thông báo bộ phận IT và nhân sự qua Telegram",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "active": false,
+    "settings": {
+      "executionOrder": "v1"
+    }
+  }
+]

@@ -1,11 +1,14 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Param,
     ParseIntPipe,
+    ParseBoolPipe,
     Patch,
     Post,
+    Query,
     UseGuards,
 } from '@nestjs/common';
 import { TrainingCourseType } from '../../entities/training-course.entity';
@@ -28,8 +31,27 @@ export class TrainingController {
     ) {}
 
     @Get('courses')
-    findAllCourses() {
-        return this.trainingService.findAllCourses();
+    findAllCourses(
+        @Query('includeArchived', new ParseBoolPipe({ optional: true }))
+        includeArchived?: boolean,
+    ) {
+        return this.trainingService.findAllCourses(includeArchived ?? false);
+    }
+    @Get('courses/:id/assignments')
+    findCourseAssignments(@Param('id', ParseIntPipe) courseId: number) {
+        return this.trainingService.findCourseAssignments(courseId);
+    }
+    @Delete('courses/:id')
+    archiveCourse(@Param('id', ParseIntPipe) courseId: number) {
+        return this.trainingService.setCourseArchived(courseId, true);
+    }
+    @Delete('courses/:id/permanent')
+    deleteCoursePermanently(@Param('id', ParseIntPipe) courseId: number) {
+        return this.trainingService.deleteCoursePermanently(courseId);
+    }
+    @Patch('courses/:id/restore')
+    restoreCourse(@Param('id', ParseIntPipe) courseId: number) {
+        return this.trainingService.setCourseArchived(courseId, false);
     }
     @Post('courses')
     createCourse(
@@ -53,6 +75,12 @@ export class TrainingController {
             body.userId,
         );
     }
+    @Get('ai-readiness/:userId')
+    getAiReadiness(
+        @Param('userId', ParseIntPipe) userId: number,
+    ) {
+        return this.trainingService.getAiReadiness(userId);
+    }
     @Post('assignments')
     assignCourse(
         @Body()
@@ -61,6 +89,7 @@ export class TrainingController {
             courseId: number;
             assignedByAi?: boolean;
             aiReason?: string;
+            dueAt?: string;
         },
     ) {
         return this.trainingService.assignCourse(body);
@@ -78,6 +107,13 @@ export class TrainingController {
             id,
             body.progressPercent,
         );
+    }
+    @Patch('assignments/:id/due-date')
+    updateDueDate(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() body: { dueAt: string },
+    ) {
+        return this.trainingService.updateDueDate(id, body.dueAt);
     }
 
 }

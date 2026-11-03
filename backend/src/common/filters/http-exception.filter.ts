@@ -60,11 +60,35 @@ export class HttpExceptionFilter implements ExceptionFilter {
         `[${request.method}] ${request.url} - Status: ${status} - Error: ${JSON.stringify(sanitizedMessage)}`,
         exception instanceof Error ? exception.stack : undefined,
       );
+
+      // Bắn incident alert sang n8n WF-03 (Fire-and-forget)
+      this.dispatchIncidentToN8n({
+        statusCode: status,
+        path: request.url,
+        method: request.method,
+        message: Array.isArray(sanitizedMessage) ? sanitizedMessage.join(', ') : String(sanitizedMessage),
+        stack: exception instanceof Error ? exception.stack : undefined,
+        timestamp: new Date().toISOString(),
+      });
     } else {
       this.logger.warn(`[${request.method}] ${request.url} - Status: ${status} - Message: ${JSON.stringify(sanitizedMessage)}`);
     }
 
     response.status(status).json(errorPayload);
+  }
+
+  // Bắn sự cố lỗi 500 sang n8n WF-03 Incident Aggregator & AI Debugger
+  private dispatchIncidentToN8n(payload: any) {
+    const baseUrl = process.env.N8N_WEBHOOK_URL || 'http://localhost:5678/webhook';
+    const webhookUrl = `${baseUrl.replace(/\/$/, '')}/incident-alert`;
+    fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(3000),
+      body: JSON.stringify(payload),
+    }).catch(() => {
+      // Bỏ qua lỗi kết nối n8n để không làm chậm response
+    });
   }
 
   /**

@@ -71,6 +71,15 @@ export class Application {
   @Column({ name: 'ai_recommendation', type: 'enum', enum: AiRecommendation, nullable: true })
   aiRecommendation: AiRecommendation;
 
+  @Column({ name: 'ai_score_status', type: 'varchar', length: 24, nullable: true })
+  aiScoreStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
+
+  @Column({ name: 'ai_score_request_id', type: 'varchar', length: 80, nullable: true })
+  aiScoreRequestId: string | null;
+
+  @Column({ name: 'ai_score_error', type: 'varchar', length: 500, nullable: true })
+  aiScoreError: string | null;
+
   @Column({ type: 'enum', enum: ApplicationStatus, default: ApplicationStatus.APPLIED })
   status: ApplicationStatus;
 

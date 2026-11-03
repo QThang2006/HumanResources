@@ -55,3 +55,7 @@ uploads/
 # CV riêng tư của phân hệ ATS
 .ats-private/
 **/.ats-private/
+
+# Sao lưu cơ sở dữ liệu
+backend/backups/*.sql.gz
+!backend/backups/.gitkeep

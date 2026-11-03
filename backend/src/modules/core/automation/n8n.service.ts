@@ -11,6 +11,7 @@ export class N8nService {
   private webhookBaseUrl: string;
   private defaultSenderEmail: string;
   private defaultHrEmail: string;
+  private defaultTelegramChatId: string;
 
   constructor(private readonly configService: ConfigService) {
     this.webhookBaseUrl =
@@ -23,6 +24,9 @@ export class N8nService {
     this.defaultHrEmail =
       this.configService.get<string>('HR_EMAIL') ||
       'quocthangngo2006@gmail.com';
+    this.defaultTelegramChatId =
+      this.configService.get<string>('TELEGRAM_CHAT_ID') ||
+      '8928574834';
   }
 
   /**
@@ -43,6 +47,7 @@ export class N8nService {
     const url = `${this.webhookBaseUrl}/interview-schedule`;
     const fullPayload = {
       fromEmail: payload.fromEmail || this.defaultSenderEmail,
+      telegramChatId: payload.telegramChatId || this.defaultTelegramChatId,
       ...payload,
     };
     return this.postWebhook(url, fullPayload, 'Xếp lịch phỏng vấn');
@@ -64,6 +69,7 @@ export class N8nService {
     const url = `${this.webhookBaseUrl}/employee-hired`;
     const fullPayload = {
       fromEmail: payload.fromEmail || this.defaultSenderEmail,
+      telegramChatId: payload.telegramChatId || this.defaultTelegramChatId,
       ...payload,
     };
     return this.postWebhook(url, fullPayload, 'Tuyển dụng nhân sự mới');
@@ -101,18 +107,102 @@ export class N8nService {
     const fullPayload = {
       fromEmail: payload.fromEmail || this.defaultSenderEmail,
       hrEmail: payload.hrEmail || this.defaultHrEmail,
+      telegramChatId: payload.telegramChatId || this.defaultTelegramChatId,
       ...payload,
     };
     return this.postWebhook(url, fullPayload, 'Cảnh báo nguy cơ kiệt sức');
   }
 
-  private async postWebhook(url: string, data: any, actionName: string): Promise<boolean> {
+  /**
+   * Kích hoạt quy trình thôi việc liên phòng ban sau khi HR đã duyệt.
+   */
+  async triggerOffboardingApproved(payload: { caseId: number }): Promise<boolean> {
+    const url = this.buildTv4WebhookUrl('tv4-offboarding');
+    const automationSecret = this.configService
+      .get<string>('N8N_AUTOMATION_SECRET')
+      ?.trim();
+    return this.postWebhook(
+      url,
+      payload,
+      'Điều phối thôi việc liên phòng ban',
+      automationSecret
+        ? { 'X-Automation-Secret': automationSecret }
+        : undefined,
+    );
+  }
+
+  /**
+   * Chuẩn hóa riêng URL workflow TV4 để cấu hình cũ có thêm đường dẫn thử nghiệm
+   * (ví dụ /webhook/hr-admin-test) không tạo thành một webhook không tồn tại.
+   */
+  private buildTv4WebhookUrl(workflowPath: string): string {
+    const configuredUrl = this.webhookBaseUrl.trim().replace(/\/+$/, '');
+
+    try {
+      const parsedUrl = new URL(configuredUrl);
+      const webhookMarker = '/webhook';
+      const markerIndex = parsedUrl.pathname.indexOf(webhookMarker);
+
+      if (markerIndex >= 0) {
+        parsedUrl.pathname = `${parsedUrl.pathname.slice(
+          0,
+          markerIndex + webhookMarker.length,
+        )}/${workflowPath}`;
+        parsedUrl.search = '';
+        parsedUrl.hash = '';
+        return parsedUrl.toString().replace(/\/$/, '');
+      }
+    } catch {
+      // postWebhook sẽ ghi log lỗi kết nối nếu URL cấu hình không hợp lệ.
+    }
+
+    return `${configuredUrl}/${workflowPath}`;
+  }
+
+  private aiHeaders(): Record<string, string> | undefined {
+    const key =
+      this.configService.get<string>('N8N_AI_KEY') ||
+      this.configService.get<string>('N8N_INTAKE_KEY');
+
+    return key ? { 'x-n8n-ai-key': key } : undefined;
+  }
+
+  async triggerAiResumeScore(payload: {
+    applicationId: number;
+    requestId?: string;
+  }): Promise<boolean> {
+    return this.postWebhook(
+      `${this.webhookBaseUrl}/ai-resume-score`,
+      payload,
+      'AI chấm điểm CV',
+      this.aiHeaders(),
+    );
+  }
+
+  async triggerAiInterviewQuestions(payload: {
+    interviewId: number;
+    requestId?: string;
+  }): Promise<boolean> {
+    return this.postWebhook(
+      `${this.webhookBaseUrl}/ai-interview-questions`,
+      payload,
+      'AI tạo câu hỏi phỏng vấn',
+      this.aiHeaders(),
+    );
+  }
+
+  private async postWebhook(
+    url: string,
+    data: any,
+    actionName: string,
+    extraHeaders?: Record<string, string>,
+  ): Promise<boolean> {
     try {
       this.logger.log(`[n8n Dispatcher] Bắn webhook [${actionName}] tới: ${url}`);
       // Gọi fetch bất đồng bộ, không làm nghẽn luồng xử lý chính của người dùng
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...extraHeaders },
         signal: AbortSignal.timeout(10000),
         body: JSON.stringify({
           event: actionName,

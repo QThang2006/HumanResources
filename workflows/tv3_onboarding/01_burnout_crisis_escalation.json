@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-01 | Kiểm tra & làm sạch dữ liệu webhook\nconst CONFIG = {\n  HR_CHAT_ID: '6331216556',       // TODO: đổi sang chat ID kênh HR\n  MANAGER_CHAT_ID: '6331216556',  // TODO: đổi sang chat ID kênh Quản lý\n  REQUIRE_SECRET: false,              // đặt true nếu backend gửi header x-webhook-secret\n  WEBHOOK_SECRET: 'doi-secret-nay'\n};\n\ntry {\n  const input = $input.first().json;\n  if (CONFIG.REQUIRE_SECRET) {\n    const got = (input.headers && input.headers['x-webhook-secret']) || '';\n    if (got !== CONFIG.WEBHOOK_SECRET) throw new Error('Unauthorized webhook call');\n  }\n  // Webhook v2 đặt payload trong body\n  const raw = input.body?.data || input.body || input.data || input;\n\n  const clean = (s) => String(s ?? '').replace(/[\\u0000-\\u001F\\u007F]/g, ' ').replace(/\\s+/g, ' ').trim();\n  const userId = parseInt(raw.userId, 10);\n  if (!userId || userId <= 0) throw new Error('userId bắt buộc và phải > 0');\n\n  const employeeName = clean(raw.employeeName).substring(0, 100) || 'Nhân viên';\n  const departmentName = clean(raw.departmentName).substring(0, 100) || 'Chưa phân phòng';\n  const rawDays = parseInt(raw.stressDays, 10);\n  const stressDays = Number.isNaN(rawDays) ? 3 : Math.max(0, rawDays);\n  const latestFeedback = clean(raw.latestFeedback).substring(0, 500) || 'Không có phản hồi chi tiết';\n\n  // Bộ lọc từ khóa khủng hoảng: luôn nâng lên mức CRITICAL\n  const lower = latestFeedback.toLowerCase();\n  const stripped = lower.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/đ/g, 'd');\n  const CRISIS_VN = ['tự tử', 'tự sát', 'không muốn sống', 'không còn muốn sống', 'muốn chết', 'kết thúc cuộc đời', 'tự làm hại'];\n  const CRISIS_ASCII = ['tu sat', 'khong muon song', 'muon chet', 'ket thuc cuoc doi', 'tu lam hai'];\n  const crisisFlag = CRISIS_VN.some(k => lower.includes(k)) || CRISIS_ASCII.some(k => stripped.includes(k));\n\n  return [{\n    json: {\n      userId, employeeName, departmentName, stressDays, latestFeedback, crisisFlag,\n      timestamp: raw.timestamp || new Date().toISOString(),\n      riskTier: (crisisFlag || stressDays >= 5) ? 'CRITICAL' : 'WARNING',\n      hrChatId: CONFIG.HR_CHAT_ID,\n      managerChatId: CONFIG.MANAGER_CHAT_ID\n    }\n  }];\n} catch (err) {\n  throw new Error('[WF-01] Validation failed: ' + err.message);\n}"
+        "jsCode": "// WF-01 | Kiểm tra & làm sạch dữ liệu webhook\nconst CONFIG = {\n  HR_CHAT_ID: '8928574834',       // Chat ID kênh HR\n  MANAGER_CHAT_ID: '8928574834',  // Chat ID kênh Quản lý\n  REQUIRE_SECRET: false,              // đặt true nếu backend gửi header x-webhook-secret\n  WEBHOOK_SECRET: 'doi-secret-nay'\n};\n\ntry {\n  const input = $input.first().json;\n  if (CONFIG.REQUIRE_SECRET) {\n    const got = (input.headers && input.headers['x-webhook-secret']) || '';\n    if (got !== CONFIG.WEBHOOK_SECRET) throw new Error('Unauthorized webhook call');\n  }\n  // Webhook v2 đặt payload trong body\n  const raw = input.body?.data || input.body || input.data || input;\n\n  const clean = (s) => String(s ?? '').replace(/[\\u0000-\\u001F\\u007F]/g, ' ').replace(/\\s+/g, ' ').trim();\n  const userId = parseInt(raw.userId, 10);\n  if (!userId || userId <= 0) throw new Error('userId bắt buộc và phải > 0');\n\n  const employeeName = clean(raw.employeeName).substring(0, 100) || 'Nhân viên';\n  const departmentName = clean(raw.departmentName).substring(0, 100) || 'Chưa phân phòng';\n  const rawDays = parseInt(raw.stressDays, 10);\n  const stressDays = Number.isNaN(rawDays) ? 3 : Math.max(0, rawDays);\n  const latestFeedback = clean(raw.latestFeedback).substring(0, 500) || 'Không có phản hồi chi tiết';\n\n  // Bộ lọc từ khóa khủng hoảng: luôn nâng lên mức CRITICAL\n  const lower = latestFeedback.toLowerCase();\n  const stripped = lower.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/đ/g, 'd');\n  const CRISIS_VN = ['tự tử', 'tự sát', 'không muốn sống', 'không còn muốn sống', 'muốn chết', 'kết thúc cuộc đời', 'tự làm hại'];\n  const CRISIS_ASCII = ['tu sat', 'khong muon song', 'muon chet', 'ket thuc cuoc doi', 'tu lam hai'];\n  const crisisFlag = CRISIS_VN.some(k => lower.includes(k)) || CRISIS_ASCII.some(k => stripped.includes(k));\n\n  return [{\n    json: {\n      userId, employeeName, departmentName, stressDays, latestFeedback, crisisFlag,\n      timestamp: raw.timestamp || new Date().toISOString(),\n      riskTier: (crisisFlag || stressDays >= 5) ? 'CRITICAL' : 'WARNING',\n      hrChatId: CONFIG.HR_CHAT_ID,\n      managerChatId: CONFIG.MANAGER_CHAT_ID\n    }\n  }];\n} catch (err) {\n  throw new Error('[WF-01] Validation failed: ' + err.message);\n}"
       },
       "id": "a1c30e01-b7a4-4f01-a001-000000000002",
       "name": "Data Validation & Sanitize",
@@ -111,7 +111,7 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-3.1-flash-lite",
         "options": {
           "temperature": 0.3
         }
@@ -236,7 +236,7 @@
       ],
       "credentials": {
         "smtp": {
-          "id": "Tg4vTrLPwQdSjMjS",
+          "id": "pcGy7r4S7VYVboJQ",
           "name": "SMTP account"
         }
       },

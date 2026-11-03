@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-02 | Ngu canh ngay & cau hinh (Ho tro ca Cron 09:00 AM & Lenh test cURL)\nconst CONFIG = {\n  TELEGRAM_CHAT_ID: '6331216556',\n  WORKSPACE_URL: 'http://localhost:5173/workspace'\n};\ntry {\n  const input = $input.first()?.json || {};\n  const payload = input.body || input;\n  \n  // Cho phep truyen thu trong tuan de test: 1 (T2), 2 (T3), 3 (T4), 4 (T5), 5 (T6)\n  const rawW = payload.weekday ? parseInt(payload.weekday, 10) : $now.weekday;\n  const w = (rawW >= 1 && rawW <= 7) ? rawW : $now.weekday;\n\n  const map = {\n    1: { vn: 'Thứ Hai', tone: 'khởi động tuần mới tràn đầy năng lượng', emoji: '🚀' },\n    2: { vn: 'Thứ Ba', tone: 'tăng tốc công việc hiệu quả', emoji: '⚡' },\n    3: { vn: 'Thứ Tư', tone: 'giữ vững nhịp độ giữa tuần', emoji: '🎯' },\n    4: { vn: 'Thứ Năm', tone: 'chạy nước rút hoàn thành mục tiêu', emoji: '🔥' },\n    5: { vn: 'Thứ Sáu', tone: 'tổng kết tuần và đón cuối tuần thảnh thơi', emoji: '🎉' }\n  };\n  const ctx = map[w] || { vn: 'Hôm nay', tone: 'ngày mới tốt lành', emoji: '☀️' };\n\n  return [{ json: {\n    currentDate: $now.toFormat('yyyy-MM-dd'),\n    dayName: ctx.vn,\n    dayTone: ctx.tone,\n    dayEmoji: ctx.emoji,\n    telegramChatId: CONFIG.TELEGRAM_CHAT_ID,\n    workspaceUrl: CONFIG.WORKSPACE_URL,\n    timestamp: new Date().toISOString(),\n    forceUserId: payload.forceUserId ? parseInt(payload.forceUserId, 10) : null\n  } }];\n} catch (err) {\n  return [{ json: {\n    currentDate: new Date().toISOString().slice(0, 10),\n    dayName: 'Hôm nay',\n    dayTone: 'ngày mới tốt lành',\n    dayEmoji: '☀️',\n    telegramChatId: CONFIG.TELEGRAM_CHAT_ID,\n    workspaceUrl: CONFIG.WORKSPACE_URL,\n    timestamp: new Date().toISOString(),\n    forceUserId: null\n  } }];\n}"
+        "jsCode": "// WF-02 | Ngu canh ngay & cau hinh (Ho tro ca Cron 09:00 AM & Lenh test cURL)\nconst CONFIG = {\n  TELEGRAM_CHAT_ID: '8928574834',\n  WORKSPACE_URL: 'http://localhost:5173/workspace'\n};\ntry {\n  const input = $input.first()?.json || {};\n  const payload = input.body || input;\n  \n  // Cho phep truyen thu trong tuan de test: 1 (T2), 2 (T3), 3 (T4), 4 (T5), 5 (T6)\n  const rawW = payload.weekday ? parseInt(payload.weekday, 10) : $now.weekday;\n  const w = (rawW >= 1 && rawW <= 7) ? rawW : $now.weekday;\n\n  const map = {\n    1: { vn: 'Thứ Hai', tone: 'khởi động tuần mới tràn đầy năng lượng', emoji: '🚀' },\n    2: { vn: 'Thứ Ba', tone: 'tăng tốc công việc hiệu quả', emoji: '⚡' },\n    3: { vn: 'Thứ Tư', tone: 'giữ vững nhịp độ giữa tuần', emoji: '🎯' },\n    4: { vn: 'Thứ Năm', tone: 'chạy nước rút hoàn thành mục tiêu', emoji: '🔥' },\n    5: { vn: 'Thứ Sáu', tone: 'tổng kết tuần và đón cuối tuần thảnh thơi', emoji: '🎉' }\n  };\n  const ctx = map[w] || { vn: 'Hôm nay', tone: 'ngày mới tốt lành', emoji: '☀️' };\n\n  return [{ json: {\n    currentDate: $now.toFormat('yyyy-MM-dd'),\n    dayName: ctx.vn,\n    dayTone: ctx.tone,\n    dayEmoji: ctx.emoji,\n    telegramChatId: CONFIG.TELEGRAM_CHAT_ID,\n    workspaceUrl: CONFIG.WORKSPACE_URL,\n    timestamp: new Date().toISOString(),\n    forceUserId: payload.forceUserId ? parseInt(payload.forceUserId, 10) : null\n  } }];\n} catch (err) {\n  return [{ json: {\n    currentDate: new Date().toISOString().slice(0, 10),\n    dayName: 'Hôm nay',\n    dayTone: 'ngày mới tốt lành',\n    dayEmoji: '☀️',\n    telegramChatId: CONFIG.TELEGRAM_CHAT_ID,\n    workspaceUrl: CONFIG.WORKSPACE_URL,\n    timestamp: new Date().toISOString(),\n    forceUserId: null\n  } }];\n}"
       },
       "id": "a1c30e02-b7a4-4f02-a002-000000000002",
       "name": "Weekday Context & Config",
@@ -108,7 +108,7 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-3.1-flash-lite",
         "options": {
           "temperature": 0.7
         }
@@ -201,7 +201,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "daily-mood-reminder",
-        "responseMode": "onReceived",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "a1c30e02-b7a4-4f02-a002-000000000012",
@@ -213,6 +213,23 @@
         480
       ],
       "webhookId": "daily-mood-reminder"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-02 Daily Mood Omnichannel', status: 'BATCH_TRIGGERED', triggeredAt: .toISO() }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "a1c30e02-b7a4-4f02-a002-000000000013",
+      "name": "Respond HTTP 202",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        460,
+        520
+      ]
     }
   ],
   "pinData": {},
@@ -337,6 +354,11 @@
     "Test Webhook Trigger": {
       "main": [
         [
+          {
+            "node": "Respond HTTP 202",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "Weekday Context & Config",
             "type": "main",

@@ -28,6 +28,7 @@ import {
   type TrainingSummary,
 } from '../api/training.api';
 import { TrainingCourseCatalog } from './TrainingCourseCatalog';
+import { trainingDateInput as dateInputValue, trainingDayKey } from './training-date';
 import { usersApi } from '../api/users.api';
 import type { User } from '../types';
 import { CourseRemoveDialog } from './CourseRemoveDialog';
@@ -60,15 +61,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 type TrainingWorkspace = 'setup' | 'catalog' | 'progress';
 type AssignmentFilter = 'ALL' | TrainingStatus;
-
-const dateInputValue = (daysFromToday: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() + daysFromToday);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = ({ presentation = 'standard' }) => {
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
@@ -118,9 +110,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
   const [trackedCourseId, setTrackedCourseId] = useState<number | null>(null);
   const [assignmentFilter, setAssignmentFilter] =
     useState<AssignmentFilter>('ALL');
-  const [referenceTime] = useState(() =>
-    new Date(`${dateInputValue(0)}T00:00:00`).getTime(),
-  );
+  const [referenceTime, setReferenceTime] = useState(Date.now);
 
   const [title, setTitle] = useState('');
   const [courseType, setCourseType] =
@@ -159,6 +149,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       setAssignments(assignmentData);
       setSummary(summaryData);
       setUsers(userData);
+      setReferenceTime(Date.now());
     } catch (error) {
       console.error(error);
       setLoadError(true);
@@ -1156,7 +1147,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 {filteredAssignments.map(assignment => {
                   const progress = Math.max(0, Math.min(100, assignment.progressPercent));
                   const overdue = assignment.status !== 'COMPLETED' && assignment.dueAt && new Date(assignment.dueAt).getTime() < referenceTime;
-                  const savedDueDate = assignment.dueAt ? new Date(assignment.dueAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }) : '';
+                  const savedDueDate = assignment.dueAt ? trainingDayKey(assignment.dueAt) : '';
                   const hasDueDraft = dueDrafts[assignment.id] !== undefined && dueDrafts[assignment.id] !== savedDueDate;
 
                   return (

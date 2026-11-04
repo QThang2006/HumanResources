@@ -20,6 +20,7 @@ import {
 import { User, UserRole } from '../../entities/user.entity';
 import { GeminiService } from '../core/ai/gemini.service';
 import { getTrainingCourseDetails } from './training-course-history';
+import { parseTrainingDueDate } from './training-due-date';
 
 @Injectable()
 export class TrainingService {
@@ -610,11 +611,7 @@ Yêu cầu:
         }
 
         const dueAt = data.dueAt
-            ? new Date(
-                /^\d{4}-\d{2}-\d{2}$/.test(data.dueAt)
-                    ? `${data.dueAt}T23:59:59+07:00`
-                    : data.dueAt,
-            )
+            ? parseTrainingDueDate(data.dueAt)
             : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
         if (Number.isNaN(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {
@@ -748,11 +745,7 @@ Yêu cầu:
         return this.employeeTrainingRepository.findOneBy({ id: assignmentId });
     }
     async updateDueDate(assignmentId: number, dueAtInput: string) {
-        const dueAt = new Date(
-            /^\d{4}-\d{2}-\d{2}$/.test(dueAtInput || '')
-                ? `${dueAtInput}T23:59:59+07:00`
-                : dueAtInput,
-        );
+        const dueAt = parseTrainingDueDate(dueAtInput);
         if (Number.isNaN(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {
             throw new BadRequestException(
                 'Hạn hoàn thành phải là một ngày hợp lệ trong tương lai.',

@@ -1,6 +1,18 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { TrainingService } = require('../dist/modules/training/training.service.js');
+const { parseTrainingDueDate } = require('../dist/modules/training/training-due-date.js');
+
+test('reject nonexistent calendar deadlines instead of silently moving to next month', async () => {
+  const service = new TrainingService({}, {}, { findOne: async () => ({ id: 2 }) }, {});
+  for (const dueAt of ['2099-02-29', '2099-02-30', '2099-04-31', '2099-13-01', '2099-00-10', 'not-a-date']) {
+    assert.ok(Number.isNaN(parseTrainingDueDate(dueAt).getTime()));
+    await assert.rejects(service.assignCourse({ userId: 2, courseId: 1, dueAt }), /ngày hợp lệ/);
+    await assert.rejects(service.updateDueDate(1, dueAt), /ngày hợp lệ/);
+  }
+  assert.equal(parseTrainingDueDate('2096-02-29').toISOString(), '2096-02-29T16:59:59.000Z');
+  assert.equal(parseTrainingDueDate('2099-11-30T12:00:00Z').toISOString(), '2099-11-30T12:00:00.000Z');
+});
 
 // DATETIME(0) rounds fractional seconds. The service must send whole seconds
 // so the selected calendar day survives the database round trip.

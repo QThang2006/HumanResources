@@ -109,9 +109,9 @@ test('callback ghi nhận một lần và không tăng bộ đếm khi n8n gửi
   let saveCount = 0;
   const repository = {
     findOne: async () => row,
-    save: async (value) => {
+    update: async (_id, value) => {
       saveCount += 1;
-      return value;
+      Object.assign(row, value);
     },
   };
   const service = serviceWith(repository);
@@ -140,7 +140,7 @@ test('callback ghi nhận trạng thái Telegram để không báo SENT khi kên
   const row = assignment();
   const repository = {
     findOne: async () => row,
-    save: async (value) => value,
+    update: async (_id, value) => Object.assign(row, value),
   };
   const service = serviceWith(repository);
 
@@ -199,6 +199,7 @@ test('cho phép phân tích sơ bộ khi nhân viên chưa có KPI nhưng đủ 
         missingSkills: ['Giao tiếp với khách hàng'],
         summary: 'Phân tích sơ bộ: nên củng cố kỹ năng giao tiếp theo yêu cầu vị trí.',
       }),
+      isAvailable: () => true,
       recommendSkillGapCourse: async () => ({
         summary: 'Đề xuất học kỹ năng giao tiếp.',
         skillGapsIdentified: ['Giao tiếp với khách hàng'],
@@ -271,8 +272,8 @@ test('workflow 4.1 giữ đúng 12 node và ghi nhận cả kết quả Telegram
     'http://host.docker.internal:3001/api',
   );
   assert.equal(
-    configFields.some((field) => String(field.value).includes('$env')),
-    false,
+    configFields.find((field) => field.name === 'automationSecret').value,
+    '={{ $env.N8N_AUTOMATION_SECRET }}',
   );
   assert.match(
     nodeByName.get('Tổng hợp kết quả gửi').parameters.jsCode,

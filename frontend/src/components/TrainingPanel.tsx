@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   ArrowRight,
@@ -30,6 +30,9 @@ import {
 import { TrainingCourseCatalog } from './TrainingCourseCatalog';
 import { usersApi } from '../api/users.api';
 import type { User } from '../types';
+import { CourseRemoveDialog } from './CourseRemoveDialog';
+import { CoursePermanentDeleteDialog } from './CoursePermanentDeleteDialog';
+import '../styles/tv4-ui.css';
 
 const COURSE_TYPE_LABELS: Record<TrainingCourseType, string> = {
   MANDATORY: 'BẮT BUỘC',
@@ -93,6 +96,10 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
     useState<TrainingAiReadiness | null>(null);
   const [checkingReadiness, setCheckingReadiness] = useState(false);
   const [aiSuggesting, setAiSuggesting] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const analysisRequest = useRef<AbortController | null>(null);
+  const readinessRequest = useRef<AbortController | null>(null);
+  const analysisResultRef = useRef<HTMLDivElement>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [updatingDueId, setUpdatingDueId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
@@ -100,6 +107,13 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
     useState<TrainingWorkspace>('progress');
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [attentionOnly, setAttentionOnly] = useState(false);
+  const [catalogScope, setCatalogScope] = useState<'active' | 'archived'>('active');
+  const [pendingRemove, setPendingRemove] = useState<TrainingCourse | null>(null);
+  const [courseMutationId, setCourseMutationId] = useState<number | null>(null);
+  const [removeError, setRemoveError] = useState('');
+  const [pendingPermanentDelete, setPendingPermanentDelete] = useState<TrainingCourse | null>(null);
+  const [permanentDeleteError, setPermanentDeleteError] = useState('');
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [trackedCourseId, setTrackedCourseId] = useState<number | null>(null);
   const [assignmentFilter, setAssignmentFilter] =
@@ -126,6 +140,8 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
     () => users.filter(user => user.role === 'EMPLOYEE'),
     [users],
   );
+  const availableCourses = useMemo(() => courses.filter(course => !course.isArchived), [courses]);
+  const archivedCourseCount = courses.length - availableCourses.length;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -133,7 +149,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
     try {
       const [courseData, assignmentData, summaryData, userData] =
         await Promise.all([
-          trainingApi.getCourses(),
+          trainingApi.getCourses(true),
           trainingApi.getAssignments(),
           trainingApi.getSummary(),
           usersApi.getAll(),
@@ -158,6 +174,83 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
     return () => window.clearTimeout(loadTimer);
   }, [loadData]);
+
+  useEffect(() => () => {
+    analysisRequest.current?.abort();
+    readinessRequest.current?.abort();
+  }, []);
+
+  useEffect(() => {
+    if (aiSuggestion) {
+      analysisResultRef.current?.focus();
+    }
+  }, [aiSuggestion]);
+
+  const handleRemoveCourse = async () => {
+    if (!pendingRemove || courseMutationId !== null) return;
+    const course = pendingRemove;
+    setCourseMutationId(course.id);
+    setRemoveError('');
+    try {
+      const result = await trainingApi.removeCourse(course.id);
+      setCourses(current => current.map(item => item.id === course.id ? { ...item, isArchived: true } : item));
+      if (selectedCourseId === String(course.id)) {
+        setSelectedCourseId('');
+        setAssignedByAi(false);
+        setAiReason('');
+        setAiSuggestion(null);
+      }
+      setPendingRemove(null);
+      setMessage(result.message);
+      window.requestAnimationFrame(() => document.getElementById('tv4-catalog-heading')?.focus());
+      await loadData();
+    } catch (error) {
+      setRemoveError(error instanceof Error ? error.message : 'Không thể gỡ khóa học. Vui lòng thử lại.');
+    } finally {
+      setCourseMutationId(null);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!pendingPermanentDelete || permanentDeleting) return;
+    const course = pendingPermanentDelete;
+    setPermanentDeleting(true);
+    setPermanentDeleteError('');
+    try {
+      const result = await trainingApi.deleteCoursePermanently(course.id);
+      setCourses(current => current.filter(item => item.id !== course.id));
+      if (selectedCourseId === String(course.id)) {
+        setSelectedCourseId('');
+        setAssignedByAi(false);
+        setAiReason('');
+        setAiSuggestion(null);
+      }
+      setPendingPermanentDelete(null);
+      setMessage(result.message);
+      window.requestAnimationFrame(() => document.getElementById('tv4-catalog-heading')?.focus());
+      await loadData();
+    } catch (error) {
+      setPermanentDeleteError(error instanceof Error ? error.message : 'Không thể xóa vĩnh viễn khóa học. Vui lòng thử lại.');
+    } finally {
+      setPermanentDeleting(false);
+    }
+  };
+
+  const handleRestoreCourse = async (course: TrainingCourse) => {
+    if (courseMutationId !== null) return;
+    setCourseMutationId(course.id);
+    setMessage('');
+    try {
+      const result = await trainingApi.restoreCourse(course.id);
+      setCourses(current => current.map(item => item.id === course.id ? { ...item, isArchived: false } : item));
+      setMessage(result.message);
+      await loadData();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Không thể khôi phục khóa học.');
+    } finally {
+      setCourseMutationId(null);
+    }
+  };
 
   const handleCreateCourse = async () => {
     if (!title.trim()) {
@@ -195,6 +288,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       setMessage('Đã tạo khóa học thành công.');
       setShowCreateCourse(false);
       await loadData();
+      setCatalogScope('active');
       setActiveWorkspace('catalog');
     } catch (error) {
       console.error(error);
@@ -211,13 +305,21 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       return;
     }
 
+    analysisRequest.current?.abort();
+    const request = new AbortController();
+    analysisRequest.current = request;
+
     try {
       setAiSuggesting(true);
+      setAiError('');
+      setAiSuggestion(null);
       setMessage('');
 
       const suggestion = await trainingApi.aiSuggestCourse(
           Number(selectedUserId),
+          request.signal,
       );
+      if (request.signal.aborted) return;
 
       setAiSuggestion(suggestion);
       setSelectedCourseId(
@@ -240,22 +342,30 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             : 'AI đã phân tích khoảng trống năng lực nhưng kho hiện tại chưa có khóa học phù hợp.',
       );
     } catch (error) {
+      if (request.signal.aborted) return;
       console.error(error);
 
       setAssignedByAi(false);
       setAiReason('');
       setAiSuggestion(null);
 
-      setMessage(
+      setAiError(
           error instanceof Error
-              ? error.message
+              ? /timeout/i.test(error.message)
+                ? 'Phân tích mất quá nhiều thời gian. Hãy kiểm tra kết nối Gemini trong mục Tích hợp rồi thử lại.'
+                : error.message
               : 'AI chưa thể đề xuất khóa học.',
       );
     } finally {
-      setAiSuggesting(false);
+      if (!request.signal.aborted) setAiSuggesting(false);
     }
   };
   const handleEmployeeChange = async (userId: string) => {
+    analysisRequest.current?.abort();
+    readinessRequest.current?.abort();
+    setAiSuggesting(false);
+    setCheckingReadiness(false);
+    setAiError('');
     setSelectedUserId(userId);
     if (assignedByAi) setSelectedCourseId('');
     setAssignedByAi(false);
@@ -266,19 +376,23 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
     if (!userId) return;
 
+    const request = new AbortController();
+    readinessRequest.current = request;
+
     try {
       setCheckingReadiness(true);
-      const readiness = await trainingApi.getAiReadiness(Number(userId));
-      setAiReadiness(readiness);
+      const readiness = await trainingApi.getAiReadiness(Number(userId), request.signal);
+      if (!request.signal.aborted) setAiReadiness(readiness);
     } catch (error) {
+      if (request.signal.aborted) return;
       console.error(error);
-      setMessage(
+      setAiError(
         error instanceof Error
           ? error.message
           : 'Không thể kiểm tra dữ liệu phân tích của nhân viên.',
       );
     } finally {
-      setCheckingReadiness(false);
+      if (!request.signal.aborted) setCheckingReadiness(false);
     }
   };
   const handleCourseChange = (courseId: string) => {
@@ -378,11 +492,11 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
   const courseStats = useMemo(() => {
     return {
-      mandatory: courses.filter(course => course.type === 'MANDATORY').length,
-      ai: courses.filter(course => course.type === 'AI_SKILL_GAP').length,
-      soft: courses.filter(course => course.type === 'SOFT_SKILL').length,
+      mandatory: availableCourses.filter(course => course.type === 'MANDATORY').length,
+      ai: availableCourses.filter(course => course.type === 'AI_SKILL_GAP').length,
+      soft: availableCourses.filter(course => course.type === 'SOFT_SKILL').length,
     };
-  }, [courses]);
+  }, [availableCourses]);
 
   const filteredAssignments = useMemo(() => {
     const keyword = assignmentSearch.trim().toLocaleLowerCase('vi');
@@ -431,7 +545,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
   if (loading) {
     return (
-      <div className="flex min-h-80 items-center justify-center gap-3 rounded-[24px] border border-[#E2E5E7] bg-white text-[#82898E] shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+      <div className="flex min-h-80 items-center justify-center gap-3 rounded-2xl border border-[#E2E5E7] bg-white text-[#687178]">
         <Loader2 className="h-5 w-5 animate-spin" />
         <span className="text-sm font-semibold">Đang tải dữ liệu đào tạo...</span>
       </div>
@@ -449,8 +563,23 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
   return (
     <div className={`tv4-training space-y-5 ${presentation === 'admin' ? 'tv4-training-admin' : ''}`}>
+      <CourseRemoveDialog
+        course={pendingRemove}
+        busy={courseMutationId !== null}
+        error={removeError}
+        onCancel={() => { if (courseMutationId === null) { setPendingRemove(null); setRemoveError(''); } }}
+        onConfirm={() => void handleRemoveCourse()}
+      />
+      <CoursePermanentDeleteDialog
+        course={pendingPermanentDelete}
+        busy={permanentDeleting}
+        error={permanentDeleteError}
+        onCancel={() => { if (!permanentDeleting) { setPendingPermanentDelete(null); setPermanentDeleteError(''); } }}
+        onConfirm={() => void handlePermanentDelete()}
+      />
       {message && (
         <div
+          role="status"
           className={`rounded-2xl border bg-white px-4 py-3 text-sm font-semibold shadow-sm ${
             isSuccessMessage
               ? 'border-[#CDE3D6] text-[#2F6B4F]'
@@ -461,14 +590,14 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
         </div>
       )}
 
-      <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+      <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="max-w-2xl">
               <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
                 Đào tạo & Phát triển
               </h2>
-              <p className="mt-2 text-sm leading-6 text-[#72797E]">
+              <p className="mt-2 text-sm leading-6 text-[#687178]">
               Thiết kế khóa học, phân tích năng lực và theo dõi tiến độ
               </p>
             </div>
@@ -480,7 +609,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             <button
               type="button"
               onClick={() => void loadData()}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D8DCDE] bg-white px-3.5 text-xs font-black text-[#666D72] transition hover:bg-[#F2F4F4]"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D8DCDE] bg-white px-3.5 text-xs font-semibold text-[#666D72] transition hover:bg-[#F2F4F4]"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Làm mới
@@ -518,7 +647,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
               )}
               <div className="tv4-learning-catalog">
                 <BookOpen className="h-4 w-4" />
-                <button type="button" onClick={() => setActiveWorkspace('catalog')}>{courses.length ? `${courses.length} khóa trong danh mục` : 'Chưa có khóa học'}</button>
+                <button type="button" onClick={() => setActiveWorkspace('catalog')}>{courses.length ? `${availableCourses.length} khóa trong danh mục` : 'Chưa có khóa học'}</button>
                 <span>·</span><span>{courseStats.mandatory} khóa bắt buộc</span>
                 {summary.totalAssignments > 0 && <><span>·</span><span>Tiến độ trung bình {summary.averageProgress}%</span></>}
               </div>
@@ -532,7 +661,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
         <div className="tv4-training-metrics grid divide-y divide-[#E8EAEC] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
           <MetricCard
             label="Khóa học"
-            value={courses.length}
+            value={availableCourses.length}
             sub={`${courseStats.mandatory} bắt buộc`}
             icon={<BookOpen className="h-4 w-4" />}
           />
@@ -558,8 +687,8 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
         )}
       </section>
 
-      <section className="rounded-[22px] border border-[#E2E5E7] bg-[#F8F9F9] p-2 shadow-[0_8px_24px_rgba(45,34,28,0.04)]">
-        <div className="grid gap-2 md:grid-cols-3">
+      <section className="rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] p-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           <WorkspaceTab
             active={activeWorkspace === 'setup'}
             icon={<Sparkles className="h-4 w-4" />}
@@ -571,7 +700,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             active={activeWorkspace === 'catalog'}
             icon={<LayoutGrid className="h-4 w-4" />}
             title="Danh mục khóa học"
-            description={`${courses.length} khóa · ${courseStats.ai} khóa AI`}
+            description={`${availableCourses.length} đang sử dụng · ${archivedCourseCount} đã gỡ`}
             onClick={() => setActiveWorkspace('catalog')}
           />
           <WorkspaceTab
@@ -579,7 +708,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             icon={<ListChecks className="h-4 w-4" />}
             title="Theo dõi tiến độ"
             description={`${summary.inProgress} đang học · ${dueSoonCount} cần chú ý`}
-            onClick={() => setActiveWorkspace('progress')}
+            onClick={() => { setTrackedCourseId(null); setActiveWorkspace('progress'); }}
           />
         </div>
       </section>
@@ -593,7 +722,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
               <Plus className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-[#202326]">Tạo khóa học</h3>
+              <h3 className="text-base font-semibold text-[#202326]">Tạo khóa học</h3>
             </div>
           </div>
 
@@ -641,7 +770,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                   placeholder="10"
                   className={`${inputClass} pr-14`}
                 />
-                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#90979C]">
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#687178]">
                   giờ
                 </span>
               </div>
@@ -663,7 +792,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             type="button"
             onClick={handleCreateCourse}
             disabled={savingCourse}
-            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#6F3042] px-5 text-sm font-black text-white shadow-[0_8px_20px_rgba(111,48,66,0.16)] transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#6F3042] px-5 text-sm font-semibold text-white transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {savingCourse ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -706,12 +835,13 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
             <FormField label="Khóa học">
               <select
+                disabled={aiSuggesting}
                 value={selectedCourseId}
                 onChange={event => handleCourseChange(event.target.value)}
                 className={inputClass}
               >
                 <option value="">Chọn khóa học</option>
-                {courses.map(course => (
+                {availableCourses.map(course => (
                   <option key={course.id} value={course.id}>
                     {course.title}
                   </option>
@@ -729,7 +859,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                   className={inputClass}
                 />
               </FormField>
-              <p className="mt-1.5 text-xs font-semibold text-[#82898E]">
+              <p className="mt-1.5 text-xs font-semibold text-[#687178]">
                 Hệ thống tự động nhắc khi khóa bắt buộc còn tối đa 3 ngày và tiến độ dưới 50%.
               </p>
             </div>
@@ -743,7 +873,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           )}
 
           {checkingReadiness && (
-            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] px-4 py-3 text-sm font-semibold text-[#666D72]">
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#E2E5E7] bg-[#F8F9F9] px-4 py-3 text-sm font-semibold text-[#666D72]">
               <Loader2 className="h-4 w-4 animate-spin" />
               Đang kiểm tra dữ liệu nhân viên...
             </div>
@@ -751,7 +881,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
           {aiReadiness && !aiReadiness.canAnalyze && (
             <div className="mt-4 rounded-2xl border border-[#E8D5B8] bg-[#FBF6ED] px-4 py-3 text-sm text-[#7A572F]">
-              <div className="flex items-start gap-2 font-black">
+              <div className="flex items-start gap-2 font-semibold">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />
                 Chưa đủ dữ liệu để phân tích khoảng trống năng lực
               </div>
@@ -763,7 +893,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
           {aiReadiness?.canAnalyze && !aiReadiness.hasPerformanceReviews && !aiSuggestion && (
             <div className="mt-4 rounded-2xl border border-[#E8D5B8] bg-[#FBF6ED] px-4 py-3 text-sm text-[#7A572F]">
-              <div className="flex items-start gap-2 font-black">
+              <div className="flex items-start gap-2 font-semibold">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />
                 Phân tích sơ bộ — chưa có dữ liệu KPI
               </div>
@@ -778,7 +908,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           )}
 
           {aiReadiness?.canAnalyze && aiReadiness.hasPerformanceReviews && !aiSuggestion && (
-            <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-[#DCE5DF] bg-[#F4F8F5] p-3 text-xs text-[#496154]">
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-[#DCE5DF] bg-[#F4F8F5] p-3 text-xs text-[#496154]">
               <span><strong>{aiReadiness.reviewCount}</strong> lần đánh giá hiệu suất</span>
               <span>Điểm hiệu suất mới nhất: <strong>{aiReadiness.latestKpiScore ?? '—'}</strong></span>
               <span><strong>{aiReadiness.trainingHistoryCount}</strong> lượt đào tạo</span>
@@ -789,8 +919,10 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           <button
               type="button"
               onClick={handleAiSuggestCourse}
+              aria-busy={aiSuggesting}
+              aria-describedby={aiError ? 'training-ai-error' : undefined}
               disabled={!selectedUserId || checkingReadiness || !aiReadiness?.canAnalyze || aiSuggesting}
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#E6D7BF] bg-[#FBF6ED] px-4 text-sm font-black text-[#936A38] transition hover:bg-[#F5EAD8] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#E6D7BF] bg-[#FBF6ED] px-4 text-sm font-semibold text-[#936A38] transition hover:bg-[#F5EAD8] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {aiSuggesting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -803,16 +935,19 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 : 'Phân tích năng lực bằng AI'}
           </button>
 
+          {aiSuggesting && <p role="status" className="mt-3 text-sm leading-6 text-[#636A70]">Đang phân tích hồ sơ và đối chiếu danh mục khóa học. Vui lòng chờ kết quả.</p>}
+          {aiError && <p id="training-ai-error" role="alert" className="mt-3 rounded-xl border border-[#EDC7CC] bg-[#FBF1F2] px-4 py-3 text-sm leading-6 text-[#9D4150]">{aiError}</p>}
+
           {aiSuggestion && (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-[#D8CCC2] bg-[#FCFAF7]">
+            <div ref={analysisResultRef} tabIndex={-1} role="region" aria-label={`Kết quả phân tích năng lực: ${aiSuggestion.employeeName}`} className="mt-4 overflow-hidden rounded-2xl border border-[#D8CCC2] bg-[#FCFAF7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153]">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8DED5] px-4 py-3">
-                <div className="flex items-center gap-2 text-sm font-black text-[#6F3042]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#6F3042]">
                   <BrainCircuit className="h-4 w-4" />
                   {aiSuggestion.analysisMode === 'PRELIMINARY'
                     ? 'Kết quả phân tích sơ bộ'
                     : 'Kết quả phân tích khoảng trống năng lực'}
                 </div>
-                <span className="rounded-full bg-[#6F3042] px-3 py-1 text-[10px] font-black text-white">
+                <span className="rounded-full bg-[#6F3042] px-3 py-1 text-xs font-semibold text-white">
                   {aiSuggestion.analysisMode === 'PRELIMINARY'
                     ? 'Điểm tham khảo'
                     : 'Mức sẵn sàng'}{' '}
@@ -828,7 +963,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                   </div>
                 )}
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">
                     {aiSuggestion.analysisMode === 'PRELIMINARY'
                       ? 'Kỹ năng nên phát triển'
                       : 'Khoảng trống kỹ năng'}
@@ -845,7 +980,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 <details className="tv4-ai-details">
                   <summary>Nhận định và định hướng phát triển</summary>
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">
                     {aiSuggestion.analysisMode === 'PRELIMINARY'
                       ? 'Nhận định sơ bộ'
                       : 'Đánh giá tổng quan'}
@@ -858,15 +993,15 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 <div className="rounded-xl border border-[#E6D7BF] bg-white p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-wide text-[#8B8179]">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">
                         {aiSuggestion.hasMatchingCourse ? 'Khóa học đề xuất' : 'Trạng thái kho khóa học'}
                       </p>
-                      <p className="mt-1 font-black text-[#202326]">
+                      <p className="mt-1 font-semibold text-[#202326]">
                         {aiSuggestion.courseTitle ?? 'Chưa có khóa học phù hợp'}
                       </p>
                     </div>
                     {aiSuggestion.priority && (
-                      <span className="rounded-full bg-[#FBF1F2] px-2.5 py-1 text-[10px] font-black text-[#9D4150]">
+                      <span className="rounded-full bg-[#FBF1F2] px-2.5 py-1 text-xs font-semibold text-[#9D4150]">
                         {PRIORITY_LABELS[aiSuggestion.priority]}
                       </span>
                     )}
@@ -884,8 +1019,8 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           <button
             type="button"
             onClick={handleAssignCourse}
-            disabled={assigning || !selectedUserId || !selectedCourseId}
-            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#202326] px-5 text-sm font-black text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={assigning || aiSuggesting || checkingReadiness || !selectedUserId || !selectedCourseId}
+            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#202326] px-5 text-sm font-semibold text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {assigning ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -906,7 +1041,12 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       {activeWorkspace === 'catalog' && (
         <TrainingCourseCatalog
           courses={courses}
-          assignments={assignments}
+          catalogScope={catalogScope}
+          onScopeChange={setCatalogScope}
+          mutationBusy={courseMutationId !== null || permanentDeleting}
+          onRemove={course => { setRemoveError(''); setPendingRemove(course); }}
+          onRestore={course => void handleRestoreCourse(course)}
+          onPermanentDelete={course => { setPermanentDeleteError(''); setPendingPermanentDelete(course); }}
           onTrack={course => {
             setTrackedCourseId(course.id);
             setAssignmentSearch('');
@@ -930,12 +1070,12 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       )}
 
       {activeWorkspace === 'progress' && (
-      <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+      <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h3 id="tv4-training-progress-title" tabIndex={-1} className="text-lg font-black text-[#202326]">Tiến độ đào tạo</h3>
-              <p className="mt-1 text-xs font-semibold text-[#82898E]">
+              <h3 id="tv4-training-progress-title" tabIndex={-1} className="text-lg font-semibold text-[#202326]">Tiến độ đào tạo</h3>
+              <p className="mt-1 text-xs font-semibold text-[#687178]">
                 Theo dõi hạn hoàn thành, số lần nhắc và trạng thái của từng nhân viên.
               </p>
             </div>
@@ -946,6 +1086,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
               <div className="relative min-w-0 sm:w-72">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
                 <input
+                  aria-label="Tìm nhân viên hoặc khóa học trong tiến độ"
                   value={assignmentSearch}
                   onChange={event => setAssignmentSearch(event.target.value)}
                   placeholder="Tìm nhân viên, khóa học..."
@@ -953,6 +1094,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 />
               </div>
               <select
+                aria-label="Lọc trạng thái học tập"
                 value={assignmentFilter}
                 onChange={event =>
                   setAssignmentFilter(event.target.value as AssignmentFilter)
@@ -974,11 +1116,11 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           <button type="button" onClick={() => setTrackedCourseId(null)}>Xem tất cả khóa học</button>
         </div>}
         {assignments.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm font-semibold text-[#82898E]">Chưa có lượt đào tạo nào.</div>
+          <div className="px-5 py-12 text-center text-sm font-semibold text-[#687178]">Chưa có lượt đào tạo nào.</div>
         ) : filteredAssignments.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <Search className="mx-auto h-5 w-5 text-[#9FA6AB]" />
-            <p className="mt-2 text-sm font-black text-[#53595E]">
+            <p className="mt-2 text-sm font-semibold text-[#53595E]">
               Không có lượt đào tạo phù hợp
             </p>
             <button
@@ -989,20 +1131,20 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 setTrackedCourseId(null);
                 setAttentionOnly(false);
               }}
-              className="mt-3 text-xs font-black text-[#6F3042] hover:underline"
+              className="mt-3 text-xs font-semibold text-[#6F3042] hover:underline"
             >
               Xóa bộ lọc
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="tv4-table-scroll overflow-x-auto" role="region" aria-label="Bảng tiến độ đào tạo" tabIndex={0}>
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-[#E8EAEC] bg-[#F8F9F9]">
                   {['Nhân viên', 'Khóa học', 'Loại', 'Hạn hoàn thành', 'Tiến độ', 'Trạng thái'].map(column => (
                     <th
                       key={column}
-                      className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7"
+                      className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7"
                     >
                       {column}
                     </th>
@@ -1020,16 +1162,17 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                   return (
                     <tr key={assignment.id} className={overdue ? 'tv4-overdue-row' : 'transition hover:bg-[#FFFFFF]'}>
                       <td className="px-5 py-4 sm:px-7">
-                        <p className="text-sm font-black text-[#303438]">{assignment.user.fullName}</p>
-                        <p className="mt-0.5 text-xs text-[#82898E]">{assignment.user.email}</p>
+                        <p className="text-sm font-semibold text-[#303438]">{assignment.user.fullName}</p>
+                        <p className="mt-0.5 text-xs text-[#687178]">{assignment.user.email}</p>
                       </td>
 
                       <td className="px-5 py-4 text-sm font-semibold text-[#636A70] sm:px-7">
                         {assignment.course.title}
+                        {assignment.course.isDeleted ? <p className="mt-1 text-xs font-normal text-[#80521F]">Khóa đã xóa · Lịch sử được giữ</p> : assignment.course.isArchived && <p className="mt-1 text-xs font-normal text-[#80521F]">Đã gỡ khỏi danh mục</p>}
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${COURSE_TYPE_STYLES[assignment.course.type]}`}>
+                        <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${COURSE_TYPE_STYLES[assignment.course.type]}`}>
                           {COURSE_TYPE_LABELS[assignment.course.type]}
                         </span>
                       </td>
@@ -1064,7 +1207,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                         {dueErrors[assignment.id] && <p id={`due-error-${assignment.id}`} role="alert" className="tv4-overdue-label">{dueErrors[assignment.id]}</p>}
                         {overdue && <p className="tv4-overdue-label">Đã quá hạn</p>}
                         {assignment.reminderCount > 0 && (
-                          <p className="mt-1 text-[10px] font-bold text-[#936A38]">
+                          <p className="mt-1 text-xs font-bold text-[#936A38]">
                             Đã nhắc {assignment.reminderCount} lần
                           </p>
                         )}
@@ -1079,7 +1222,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
-                            <p className="mt-1 text-[10px] font-bold text-[#82898E]">{progress}%</p>
+                            <p className="mt-1 text-xs font-bold text-[#687178]">{progress}%</p>
                           </div>
 
                           {updatingId === assignment.id ? (
@@ -1107,12 +1250,12 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                       </td>
 
                       <td className="px-5 py-4 sm:px-7">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ${
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                           assignment.status === 'COMPLETED'
                             ? 'bg-[#EFF7F1] text-[#2F6B4F]'
                             : assignment.status === 'IN_PROGRESS'
                               ? 'bg-[#FBF6ED] text-[#936A38]'
-                              : 'bg-[#F1EEEB] text-[#72797E]'
+                              : 'bg-[#F1EEEB] text-[#687178]'
                         }`}>
                           {STATUS_LABELS[assignment.status] || assignment.status}
                         </span>
@@ -1141,24 +1284,24 @@ const WorkspaceTab: React.FC<{
     type="button"
     aria-pressed={active}
     onClick={onClick}
-    className={`flex items-center gap-3 rounded-[18px] px-4 py-3 text-left transition ${
+    className={`flex min-h-[76px] items-center gap-3 rounded-xl border px-3 py-3 text-left transition sm:px-4 ${
       active
-        ? 'bg-white text-[#25282B] shadow-[0_8px_22px_rgba(45,34,28,0.08)] ring-1 ring-[#E2E5E7]'
-        : 'text-[#72797E] hover:bg-white/70 hover:text-[#303438]'
+        ? 'border-[#E4CBD3] bg-[#FBF5F7] text-[#6F3042]'
+        : 'border-transparent text-[#687178] hover:bg-white hover:text-[#303438]'
     }`}
   >
     <span
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+      className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:flex ${
         active
           ? 'bg-[#F4E7EB] text-[#6F3042]'
-          : 'bg-[#ECEEEE] text-[#858C91]'
+          : 'bg-white text-[#687178]'
       }`}
     >
       {icon}
     </span>
     <span className="min-w-0">
-      <span className="block text-sm font-black">{title}</span>
-      <span className="mt-0.5 block truncate text-[11px] font-semibold text-[#90979C]">
+      <span className="block text-xs font-semibold leading-5 sm:text-sm">{title}</span>
+      <span className="mt-1 hidden text-xs font-normal leading-5 text-[#687178] sm:block">
         {description}
       </span>
     </span>
@@ -1166,14 +1309,14 @@ const WorkspaceTab: React.FC<{
 );
 
 const inputClass =
-  'h-11 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] px-3.5 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10';
+  'h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3.5 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10';
 
 const FormField: React.FC<{
   label: string;
   children: React.ReactNode;
 }> = ({ label, children }) => (
   <label className="block">
-    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-[#90979C]">{label}</span>
+    <span className="mb-2 block text-sm font-medium text-[#515C65]">{label}</span>
     {children}
   </label>
 );
@@ -1184,12 +1327,14 @@ const MetricCard: React.FC<{
   sub: string;
   icon: React.ReactNode;
 }> = ({ label, value, sub, icon }) => (
-  <div className="px-5 py-5 sm:px-7">
-    <div className="flex items-center gap-2 text-[#90979C]">
-      {icon}
-      <span className="text-[10px] font-black uppercase tracking-[0.14em]">{label}</span>
+  <div className="flex min-w-0 items-start gap-3 px-4 py-4 sm:px-6 sm:py-5">
+    <span className="mt-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F4F5F7] text-[#687178] sm:flex">{icon}</span>
+    <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <span className="text-sm font-medium text-[#515C65]">{label}</span>
+        <span className="text-2xl font-bold tabular-nums tracking-tight text-[#1D2023]">{value}</span>
+      </div>
+      <p className="mt-1 text-xs leading-5 text-[#687178]">{sub}</p>
     </div>
-    <div className="mt-3 text-3xl font-black tracking-tight text-[#1D2023]">{value}</div>
-    <p className="mt-1 text-[11px] font-semibold text-[#82898E]">{sub}</p>
   </div>
 );

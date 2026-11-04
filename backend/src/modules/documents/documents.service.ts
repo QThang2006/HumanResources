@@ -240,6 +240,33 @@ export class DocumentsService {
         topK: number,
         authorization: string,
     ) {
+        // 1. Ưu tiên xử lý trực tiếp qua Backend AI Core (nhanh hơn và không phụ thuộc n8n)
+        if (
+            this.geminiService &&
+            typeof this.geminiService.generateJson === 'function' &&
+            this.chunkRepository &&
+            typeof this.chunkRepository.find === 'function'
+        ) {
+            try {
+                this.logger.log(`[RAG AI Core] Tìm kiếm tri thức trực tiếp qua Backend cho câu hỏi: "${query.slice(0, 50)}..."`);
+                const results = await this.searchKnowledgeBase(query, topK);
+                const grounded = await this.generateGroundedAnswer(query, results);
+
+                return {
+                    workflow: 'TV4 - Trả lời Kho tri thức (Backend AI Core)',
+                    answer: grounded.answer,
+                    sources: grounded.sources,
+                    results: results,
+                    suggestedFollowUpQuestions: grounded.suggestedFollowUpQuestions || [],
+                    requiresHrIntervention: Boolean(grounded.requiresHrIntervention),
+                    aiGenerated: Boolean(grounded.aiGenerated),
+                };
+            } catch (err: any) {
+                this.logger.warn(`Tìm kiếm qua AI Core gặp lỗi: ${err?.message}, thử gọi webhook n8n...`);
+            }
+        }
+
+        // 2. Gọi qua n8n webhook (khi chạy môi trường mock test hoặc khi workflow n8n được bật)
         const configuredWebhookUrl = (
             this.configService?.get<string>('N8N_WEBHOOK_URL') ||
             process.env.N8N_WEBHOOK_URL ||
@@ -421,7 +448,7 @@ Quy tắc bắt buộc:
             typeof aiResult.answer !== 'string' ||
             !aiResult.answer.trim()
         ) {
-            return this.buildExtractiveFallback(contexts);
+            return this.buildExtractiveFallback(query, contexts);
         }
 
         const allowedChunkIds = new Set(
@@ -446,7 +473,7 @@ Quy tắc bắt buộc:
         }
 
         if (citedChunkIds.length === 0) {
-            return this.buildExtractiveFallback(contexts);
+            return this.buildExtractiveFallback(query, contexts);
         }
 
         const selectedChunkIds = new Set(
@@ -473,18 +500,173 @@ Quy tắc bắt buộc:
         };
     }
 
-    private buildExtractiveFallback(contexts: RagContextInput[]) {
-        const bestContext = contexts[0];
+    private buildExtractiveFallback(
+        query: string,
+        contexts: RagContextInput[],
+    ) {
+        const normalizedQuery = this.normalizeForSearch(query);
+        const queryTerms = new Set(
+            normalizedQuery
+                .split(' ')
+                .filter((term) => term.length >= 2)
+                .filter((term) => !this.isSearchStopWord(term)),
+        );
+        const seenStatements = new Set<string>();
+        const rankedStatements = contexts.flatMap((context) =>
+            this.extractCompleteStatements(context.content)
+                .map(({ statement, section }) => {
+                    const normalizedStatement =
+                        this.normalizeForSearch(statement);
+                    const statementTerms = new Set(
+                        normalizedStatement.split(' ').filter(Boolean),
+                    );
+                    const matchedTerms = [...queryTerms].filter((term) =>
+                        statementTerms.has(term),
+                    ).length;
+                    const coverage = queryTerms.size > 0
+                        ? matchedTerms / queryTerms.size
+                        : 0;
+                    const sectionTerms = new Set(
+                        this.normalizeForSearch(section).split(' '),
+                    );
+                    const sectionMatches = [...queryTerms].filter((term) =>
+                        sectionTerms.has(term),
+                    ).length;
+                    const sectionCoverage = queryTerms.size > 0
+                        ? sectionMatches / queryTerms.size
+                        : 0;
+                    const exactPhraseBonus = normalizedQuery.length >= 6 &&
+                        normalizedStatement.includes(normalizedQuery)
+                        ? 1
+                        : 0;
+
+                    return {
+                        context,
+                        statement,
+                        normalizedStatement,
+                        matchedTerms,
+                        coverage,
+                        sectionMatches,
+                        sectionCoverage,
+                        score:
+                            coverage * 4 +
+                            sectionCoverage * 4 +
+                            exactPhraseBonus * 2 +
+                            Math.max(0, context.similarity),
+                    };
+                })
+                .filter((candidate) =>
+                    (queryTerms.size > 0 &&
+                        candidate.matchedTerms >= Math.min(2, queryTerms.size) &&
+                        candidate.coverage >= 0.5) ||
+                    (candidate.sectionMatches >= 2 &&
+                        candidate.sectionCoverage >= 0.5),
+                ),
+        );
+
+        const selectedStatements = rankedStatements
+            .sort((left, right) => right.score - left.score)
+            .filter((candidate) => {
+                if (seenStatements.has(candidate.normalizedStatement)) {
+                    return false;
+                }
+                seenStatements.add(candidate.normalizedStatement);
+                return true;
+            })
+            .slice(0, 4);
+        const selectedContexts = selectedStatements.map(
+            (candidate) => candidate.context,
+        );
+        const answer = selectedStatements.length > 0
+            ? 'Theo tài liệu nội bộ:\n\n' +
+                selectedStatements
+                    .map((candidate) => `• ${candidate.statement}`)
+                    .join('\n')
+            : 'Kho tri thức chưa có đủ thông tin để trả lời câu hỏi này. Bạn có thể nêu rõ nội dung cần tìm hoặc mở các đoạn tham chiếu để đối chiếu thêm.';
+
         return {
-            answer:
-                'Dịch vụ AI chưa thể tổng hợp câu trả lời. ' +
-                `Nội dung phù hợp nhất từ tài liệu “${bestContext.documentTitle}”:\n\n` +
-                bestContext.content.slice(0, 1500),
-            sources: this.toRagSources([bestContext]),
+            answer,
+            sources: this.toRagSources(selectedContexts),
             suggestedFollowUpQuestions: [],
             requiresHrIntervention: false,
             aiGenerated: false,
         };
+    }
+
+    private extractCompleteStatements(content: string): Array<{
+        statement: string;
+        section: string;
+    }> {
+        const preparedContent = String(content ?? '')
+            .replace(/\r\n?/g, '\n')
+            .replace(/[\t ]+/g, ' ')
+            .replace(
+                /\s+(?=\d+(?:\.\d+)*[.)]\s+[\p{Lu}])/gu,
+                '\n',
+            )
+            .replace(/\s*(?=[•▪●◦])/g, '\n')
+            .trim();
+
+        const statements: Array<{ statement: string; section: string }> = [];
+        let section = '';
+        let buffer = '';
+        const flush = () => {
+            const candidates = buffer
+                .split(/(?<=[.!?])\s+(?=[\p{Lu}\d])/gu)
+                .map((statement) => statement
+                    .replace(/\s+([,.;:!?])/g, '$1')
+                    .trim(),
+                )
+                .filter((statement) => statement.length >= 24)
+                // Các chunk cũ có thể kết thúc giữa câu. Chỉ trích câu
+                // có dấu kết thúc, không biến mảnh văn bản thành câu trả lời.
+                .filter((statement) => /[.!?]$/.test(statement))
+                .filter((statement) => !/^\p{Ll}/u.test(statement));
+            statements.push(...candidates.map((statement) => ({
+                statement,
+                section,
+            })));
+            buffer = '';
+        };
+
+        for (const rawLine of preparedContent.split('\n')) {
+            const line = rawLine.trim();
+            if (!line) {
+                flush();
+                continue;
+            }
+            if (/^\d+(?:\.\d+)*[.)]\s+\p{Lu}/u.test(line)) {
+                flush();
+                section = line.replace(/^\d+(?:\.\d+)*[.)]\s+/, '');
+                continue;
+            }
+            if (/^[•▪●◦*-]\s*/u.test(line)) {
+                flush();
+                buffer = line.replace(/^[•▪●◦*-]\s*/u, '');
+                continue;
+            }
+            buffer = buffer ? `${buffer} ${line}` : line;
+        }
+        flush();
+        return statements;
+    }
+
+    private normalizeForSearch(value: string): string {
+        return String(value ?? '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLocaleLowerCase('vi')
+            .replace(/đ/g, 'd')
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim();
+    }
+
+    private isSearchStopWord(term: string): boolean {
+        return new Set([
+            'ai', 'cua', 'cho', 'co', 'la', 'ma', 'mot', 'nhung', 'noi',
+            'the', 'thi', 'va', 've', 'voi', 'duoc', 'nhu', 'nao', 'gi',
+            'toi', 'ban', 'trong', 'tu', 'den',
+        ]).has(term);
     }
 
     private toRagSources(contexts: RagContextInput[]) {

@@ -21,14 +21,21 @@ services:
     image: docker.n8n.io/n8nio/n8n
     container_name: hr_n8n
     restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "5678:5678"
     environment:
-      - N8N_HOST=localhost
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
+      - N8N_LISTEN_ADDRESS=0.0.0.0
+      - N8N_EDITOR_BASE_URL=https://trek-coordinator-them-alternative.trycloudflare.com/
+      - WEBHOOK_URL=https://trek-coordinator-them-alternative.trycloudflare.com/
+      - N8N_WEBHOOK_URL=https://trek-coordinator-them-alternative.trycloudflare.com/
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    env_file:
+      - ./backend/.env
     volumes:
       - n8n_data:/home/node/.n8n
 

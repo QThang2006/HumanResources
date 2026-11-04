@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { parseTrainingAiSuggestion } from './training-ai-response';
 
 export type TrainingCourseType =
     | 'MANDATORY'
@@ -18,6 +19,7 @@ export interface TrainingCourse {
     courseUrl: string | null;
     durationHours: number;
     assignmentCount: number;
+    isArchived: boolean;
     createdAt: string;
 }
 
@@ -28,13 +30,19 @@ export interface TrainingAssignment {
         id: number;
         fullName: string;
         email: string;
+        jobTitle?: string | null;
+        departmentName?: string | null;
+        isActive?: boolean;
     };
 
     course: {
-        id: number;
+        id: number | null;
         title: string;
         type: TrainingCourseType;
+        isArchived?: boolean;
+        isDeleted?: boolean;
     };
+    courseDeletedAt?: string | null;
 
     progressPercent: number;
     assignedByAi: boolean;
@@ -55,6 +63,18 @@ export interface TrainingSummary {
     completed: number;
     averageProgress: number;
     completionRate: number;
+}
+
+export interface TrainingCourseRoster {
+    course: TrainingCourse;
+    assignments: TrainingAssignment[];
+}
+
+export interface TrainingCourseMutation {
+    id: number;
+    isArchived: boolean;
+    assignmentCount: number;
+    message: string;
 }
 export interface TrainingAiSuggestion {
     employeeId: number;
@@ -94,8 +114,24 @@ export interface TrainingAiReadiness {
 }
 export const trainingApi = {
 
-    getCourses: async (): Promise<TrainingCourse[]> => {
-        return apiClient.get('/training/courses');
+    getCourses: async (includeArchived = false): Promise<TrainingCourse[]> => {
+        return apiClient.get('/training/courses', { params: { includeArchived } });
+    },
+
+    getCourseAssignments: async (courseId: number, signal?: AbortSignal): Promise<TrainingCourseRoster> => {
+        return apiClient.get(`/training/courses/${courseId}/assignments`, { signal });
+    },
+
+    removeCourse: async (courseId: number): Promise<TrainingCourseMutation> => {
+        return apiClient.delete(`/training/courses/${courseId}`);
+    },
+
+    restoreCourse: async (courseId: number): Promise<TrainingCourseMutation> => {
+        return apiClient.patch(`/training/courses/${courseId}/restore`);
+    },
+
+    deleteCoursePermanently: async (courseId: number): Promise<TrainingCourseMutation> => {
+        return apiClient.delete(`/training/courses/${courseId}/permanent`);
     },
 
 
@@ -114,15 +150,18 @@ export const trainingApi = {
     },
     aiSuggestCourse: async (
         userId: number,
+        signal?: AbortSignal,
     ): Promise<TrainingAiSuggestion> => {
-        return apiClient.post('/training/ai-suggest', {
+        const response = await apiClient.post('/training/ai-suggest', {
             userId,
-        });
+        }, { signal });
+        return parseTrainingAiSuggestion(response);
     },
     getAiReadiness: async (
         userId: number,
+        signal?: AbortSignal,
     ): Promise<TrainingAiReadiness> => {
-        return apiClient.get(`/training/ai-readiness/${userId}`);
+        return apiClient.get(`/training/ai-readiness/${userId}`, { signal });
     },
 
     assignCourse: async (data: {

@@ -42,6 +42,15 @@ export class Interview {
   @Column({ name: 'ai_suggested_questions', type: 'json', nullable: true })
   aiSuggestedQuestions: string[];
 
+  @Column({ name: 'ai_questions_status', type: 'varchar', length: 24, nullable: true })
+  aiQuestionsStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
+
+  @Column({ name: 'ai_questions_request_id', type: 'varchar', length: 80, nullable: true })
+  aiQuestionsRequestId: string | null;
+
+  @Column({ name: 'ai_questions_error', type: 'varchar', length: 500, nullable: true })
+  aiQuestionsError: string | null;
+
   @Column({ name: 'interviewer_feedback', type: 'text', nullable: true })
   interviewerFeedback: string;
 

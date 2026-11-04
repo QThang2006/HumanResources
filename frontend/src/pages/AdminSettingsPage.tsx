@@ -9,6 +9,7 @@ import {
   KeyRound,
   Loader2,
   Lock,
+  Plus,
   RefreshCw,
   Save,
   Search,
@@ -22,10 +23,12 @@ import {
 
 import { systemConfigApi } from '../api/system-config.api';
 import { usersApi } from '../api/users.api';
+import { Badge } from '../components/common';
 import { KnowledgeBasePanel } from '../components/KnowledgeBasePanel';
 import { TrainingPanel } from '../components/TrainingPanel';
 import { useAuth } from '../context/AuthContext';
 import type { User, UserRole } from '../types';
+import '../styles/tv4-ui.css';
 import './tv4-workspace.css';
 
 interface UserWithDept extends User {
@@ -45,6 +48,10 @@ interface DepartmentOption {
 }
 
 type AdminTab = 'rbac' | 'api' | 'rag' | 'courses';
+
+const ROLE_BADGE_VARIANT: Record<UserRole, 'danger' | 'purple' | 'warning' | 'default'> = {
+  SUPERADMIN: 'danger', HR: 'purple', MANAGER: 'warning', EMPLOYEE: 'default',
+};
 
 const ROLE_LABELS: Record<UserRole, string> = {
   SUPERADMIN: 'Super Admin',
@@ -547,17 +554,17 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
               }}
           >
             <div
-                className="w-full max-w-2xl overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_24px_80px_rgba(32,25,22,0.18)]"
+                className="w-full max-w-2xl overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white shadow-[0_24px_80px_rgba(32,25,22,0.18)]"
                 onMouseDown={event => event.stopPropagation()}
             >
               {/* HEADER */}
               <div className="flex items-center justify-between border-b border-[#E8EAEC] px-6 py-5">
                 <div>
-                  <h3 className="text-xl font-black tracking-tight text-[#1D2023]">
+                  <h3 className="text-xl font-bold tracking-tight text-[#1D2023]">
                     Tạo người dùng mới
                   </h3>
 
-                  <p className="mt-1 text-xs text-[#7F868B]">
+                  <p className="mt-1 text-xs text-[#687178]">
                     Tạo tài khoản và phân quyền truy cập hệ thống.
                   </p>
                 </div>
@@ -566,7 +573,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                     type="button"
                     disabled={creatingUser}
                     onClick={() => setShowCreateUserModal(false)}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl text-xl font-medium text-[#7F868B] transition hover:bg-[#F2F4F4] hover:text-[#303438] disabled:opacity-50"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl text-xl font-medium text-[#687178] transition hover:bg-[#F2F4F4] hover:text-[#303438] disabled:opacity-50"
                     aria-label="Đóng"
                 >
                   ×
@@ -576,7 +583,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
               {/* FORM */}
               <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
                 <label className="block">
-          <span className="text-xs font-black text-[#565C61]">
+          <span className="text-xs font-semibold text-[#565C61]">
             Họ và tên *
           </span>
 
@@ -594,7 +601,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 </label>
 
                 <label className="block">
-          <span className="text-xs font-black text-[#565C61]">
+          <span className="text-xs font-semibold text-[#565C61]">
             Email *
           </span>
 
@@ -613,7 +620,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 </label>
 
                 <label className="block">
-  <span className="text-xs font-black text-[#565C61]">
+  <span className="text-xs font-semibold text-[#565C61]">
     Mật khẩu tạm *
   </span>
 
@@ -656,7 +663,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 </label>
 
                 <label className="block">
-          <span className="text-xs font-black text-[#565C61]">
+          <span className="text-xs font-semibold text-[#565C61]">
             Số điện thoại
           </span>
 
@@ -675,7 +682,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 </label>
 
                 <label className="block">
-          <span className="text-xs font-black text-[#565C61]">
+          <span className="text-xs font-semibold text-[#565C61]">
             Phòng ban {newUserForm.role === 'EMPLOYEE' ? '*' : ''}
           </span>
 
@@ -700,7 +707,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 </label>
 
                 <label className="block">
-          <span className="text-xs font-black text-[#565C61]">
+          <span className="text-xs font-semibold text-[#565C61]">
             Chức danh {newUserForm.role === 'EMPLOYEE' ? '*' : ''}
           </span>
 
@@ -718,7 +725,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 </label>
 
                 <label className="block sm:col-span-2">
-          <span className="text-xs font-black text-[#565C61]">
+          <span className="text-xs font-semibold text-[#565C61]">
             Vai trò
           </span>
 
@@ -751,7 +758,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                       resetCreateUserForm();
                       setShowCreateUserModal(false);
                     }}
-                    className="h-10 rounded-xl border border-[#D8DCDE] bg-white px-5 text-xs font-black text-[#636A70] transition hover:bg-[#F2F4F4] disabled:opacity-50"
+                    className="h-10 rounded-xl border border-[#D8DCDE] bg-white px-5 text-xs font-semibold text-[#636A70] transition hover:bg-[#F2F4F4] disabled:opacity-50"
                 >
                   Hủy
                 </button>
@@ -760,7 +767,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                     type="button"
                     disabled={creatingUser}
                     onClick={handleCreateUser}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#6F3042] px-5 text-xs font-black text-white transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#6F3042] px-5 text-xs font-semibold text-white transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {creatingUser && (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -773,32 +780,53 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
           </div>
       )}
 
-      <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+      <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
         <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
+              <h2 className="text-xl font-bold tracking-tight text-[#1D2023]">
                 Người dùng & Phân quyền
               </h2>
+              <p className="mt-1.5 text-sm leading-6 text-[#687178]">Quản lý tài khoản, vai trò và phòng ban trong hệ thống.</p>
             </div>
 
-            <div className="tv4-people-toolbar flex flex-wrap items-center gap-2">
-              <div className="relative h-11 min-w-0 flex-1 sm:min-w-48">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDepartmentForm(prev => !prev)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-[#D8DCDE] bg-white px-4 text-sm font-semibold text-[#4D565E] transition hover:bg-[#F6F7F8]"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />Thêm phòng ban
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCreateUserModal(true)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#6F3042] px-4 text-sm font-semibold text-white transition hover:bg-[#5D2737]"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />Tạo người dùng
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+              <div className="relative h-11 min-w-0">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#989FA4]" />
                 <input
                   value={searchTerm}
+                  aria-label="Tìm nhân sự theo tên, email hoặc phòng ban"
                   onChange={event => setSearchTerm(event.target.value)}
                   placeholder="Tìm tên, email, phòng ban..."
-                  className="h-11 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] pl-10 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
+                  className="h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] pl-10 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
                 />
               </div>
 
               <select
                 value={roleFilter}
+                aria-label="Lọc nhân sự theo vai trò"
                 onChange={event =>
                   setRoleFilter(event.target.value as 'ALL' | UserRole)
                 }
-                className="h-11 rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] px-4 text-sm font-semibold text-[#52585D] outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10"
+                className="h-11 rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-4 text-sm font-semibold text-[#52585D] outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10"
               >
                 <option value="ALL">Tất cả vai trò</option>
                 {ALL_ROLES.map(role => (
@@ -812,56 +840,48 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 type="button"
                 onClick={fetchUsers}
                 disabled={loading}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#D8DCDE] bg-white px-4 text-sm font-bold text-[#52585D] transition hover:bg-[#F2F4F4] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#D8DCDE] bg-white px-4 text-sm font-bold text-[#52585D] transition hover:bg-[#F2F4F4] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCw
                   className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
                 />
                 Làm mới
               </button>
-              <div className="flex flex-wrap gap-2">
-                <button
-                    type="button"
-                    onClick={() => setShowDepartmentForm(prev => !prev)}
-                    className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#D8C7CC] bg-white px-4 text-sm font-black whitespace-nowrap text-[#6F3042] transition hover:bg-[#F8F3F5]"                >
-                  + Thêm phòng ban
-                </button>
-
-                <button
-                    type="button"
-                    onClick={() => setShowCreateUserModal(true)}
-                    className="tv4-primary"
-                >
-                  + Tạo người dùng
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* FORM THÊM PHÒNG BAN */}
           {showDepartmentForm && (
               <div className="mt-5 rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] p-4">
                 <div className="grid gap-3 md:grid-cols-3">
-                  <input
+                  <label className="block min-w-0 text-sm font-medium text-[#4D565E]">
+                    Tên phòng ban
+                    <input
                       value={departmentName}
                       onChange={event => setDepartmentName(event.target.value)}
                       placeholder="Tên phòng ban"
-                      className="h-11 rounded-xl border border-[#D8DCDE] bg-white px-3 text-sm outline-none focus:border-[#8A4153]"
+                      className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-white px-3 text-sm outline-none focus:border-[#8A4153]"
                   />
+                  </label>
 
-                  <input
+                  <label className="block min-w-0 text-sm font-medium text-[#4D565E]">
+                    Mã phòng ban
+                    <input
                       value={departmentCode}
                       onChange={event => setDepartmentCode(event.target.value)}
                       placeholder="Mã phòng ban, ví dụ: IT"
-                      className="h-11 rounded-xl border border-[#D8DCDE] bg-white px-3 text-sm outline-none focus:border-[#8A4153]"
+                      className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-white px-3 text-sm outline-none focus:border-[#8A4153]"
                   />
+                  </label>
 
-                  <input
+                  <label className="block min-w-0 text-sm font-medium text-[#4D565E]">
+                    Mô tả <span className="font-normal text-[#687178]">(tùy chọn)</span>
+                    <input
                       value={departmentDescription}
                       onChange={event => setDepartmentDescription(event.target.value)}
                       placeholder="Mô tả (không bắt buộc)"
-                      className="h-11 rounded-xl border border-[#D8DCDE] bg-white px-3 text-sm outline-none focus:border-[#8A4153]"
+                      className="mt-2 h-11 w-full rounded-xl border border-[#D8DCDE] bg-white px-3 text-sm outline-none focus:border-[#8A4153]"
                   />
+                  </label>
                 </div>
 
                 <div className="mt-3 flex justify-end gap-2">
@@ -878,7 +898,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                       type="button"
                       onClick={handleCreateDepartment}
                       disabled={creatingDepartment}
-                      className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#6F3042] px-4 text-xs font-black text-white disabled:opacity-50"
+                      className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#6F3042] px-4 text-xs font-semibold text-white disabled:opacity-50"
                   >
                     {creatingDepartment && (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -904,7 +924,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                     className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                         roleFilter === role
                             ? 'border-[#8A4153] bg-[#F6E9ED] text-[#6F3042]'
-                            : 'border-[#E2E5E7] bg-white text-[#72797E] hover:bg-[#F8F9F9]'
+                            : 'border-[#E2E5E7] bg-white text-[#687178] hover:bg-[#F8F9F9]'
                     }`}
                 >
                   {ROLE_LABELS[role]} · {roleCounts[role] || 0}
@@ -914,7 +934,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
         </div>
 
         {loading && (
-          <div className="flex min-h-80 items-center justify-center gap-3 text-[#82898E]">
+          <div className="flex min-h-80 items-center justify-center gap-3 text-[#687178]">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm font-semibold">Đang tải dữ liệu...</span>
           </div>
@@ -932,7 +952,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                 <button
                   type="button"
                   onClick={fetchUsers}
-                  className="mt-3 text-xs font-black text-[#6F3042] underline underline-offset-4"
+                  className="mt-3 text-xs font-semibold text-[#6F3042] underline underline-offset-4"
                 >
                   Thử lại
                 </button>
@@ -946,50 +966,55 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EFF1F2] text-[#8A8179]">
               <Users className="h-5 w-5" />
             </div>
-            <p className="mt-3 text-sm font-black text-[#303438]">
+            <p className="mt-3 text-sm font-semibold text-[#303438]">
               Không có kết quả phù hợp
             </p>
-            <p className="mt-1 text-xs text-[#7F868B]">
+            <p className="mt-1 text-xs text-[#687178]">
               Thử đổi từ khóa hoặc bộ lọc vai trò.
             </p>
           </div>
         )}
 
         {!loading && !error && filteredUsers.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="tv4-people-table w-full table-fixed">
+          <div className="tv4-table-scroll overflow-x-auto" role="region" aria-label="Danh sách nhân sự" tabIndex={0}>
+            <table className="tv4-admin-table w-full min-w-[1040px] table-fixed">
               <colgroup>
-                <col style={{ width: '24%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '19%' }} />
-                <col style={{ width: '14%' }} />
+                <col style={{ width: '22%' }} />
                 <col style={{ width: '17%' }} />
+                <col style={{ width: '17%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '14%' }} />
                 <col style={{ width: '8%' }} />
               </colgroup>
 
               <thead>
               <tr className="border-b border-[#E8EAEC] bg-[#F8F9F9]">
-                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7">
                   Nhân sự
                 </th>
 
-                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7">
                   Phòng ban
                 </th>
 
-                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7">
                   Chức danh
                 </th>
 
-                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
-                  Trạng thái
-                </th>
-
-                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7">
                   Vai trò
                 </th>
 
-                <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-[#90979C] sm:px-7">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7">
+                  Trạng thái
+                </th>
+
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7">
+                  Quyền truy cập
+                </th>
+
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7">
                   Thao tác
                 </th>
               </tr>
@@ -1008,24 +1033,23 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                     >
                       <td className="px-5 py-4 sm:px-7">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#202326] text-xs font-black text-white shadow-sm">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#202326] text-xs font-semibold text-white shadow-sm">
                             {getInitials(item.fullName)}
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="truncate text-sm font-black text-[#27211E]">
+                              <p className="break-words text-sm font-semibold text-[#27211E]">
                                 {item.fullName}
                               </p>
                               {isSelf && (
-                                <span className="rounded-full bg-[#EFF1F2] px-2 py-0.5 text-[10px] font-bold text-[#72797E]">
+                                <span className="rounded-full bg-[#EFF1F2] px-2 py-0.5 text-xs font-bold text-[#687178]">
                                   Bạn
                                 </span>
                               )}
                             </div>
-                            <p className="mt-0.5 truncate text-xs text-[#7F868B]">
+                            <p title={item.email} className="mt-0.5 truncate text-xs text-[#687178]">
                               {item.email}
                             </p>
-                            <span className="mt-1 block text-xs text-[#636A70]">{ROLE_LABELS[item.role]}</span>
                           </div>
                         </div>
                       </td>
@@ -1040,7 +1064,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                                     Number(event.target.value),
                                 )
                             }
-                            className="h-9 min-w-[170px] rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3 text-xs font-bold text-[#53595E] outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="h-10 w-full min-w-0 rounded-lg border border-[#D8DCDE] bg-white px-2 text-xs font-medium text-[#53595E] outline-none transition focus:border-[#8A4153] focus:ring-4 focus:ring-[#8A4153]/10 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <option value="" disabled>
                             Chưa phân phòng
@@ -1056,7 +1080,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
 
                       <td className="px-5 py-4 sm:px-7">
                         {editingJobTitleId === item.id ? (
-                            <div className="flex min-w-[220px] items-center gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
                               <input
                                   value={jobTitleDraft}
                                   onChange={event => setJobTitleDraft(event.target.value)}
@@ -1097,6 +1121,15 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                         )}
                       </td>
 
+                      <td className="whitespace-nowrap px-5 py-4 sm:px-7">
+                        <Badge
+                            variant={ROLE_BADGE_VARIANT[item.role]}
+                            size="sm"
+                        >
+                          {ROLE_LABELS[item.role]}
+                        </Badge>
+                      </td>
+
                       <td className="px-5 py-4 sm:px-7">
                         <select
                             value={item.isActive === false ? 'INACTIVE' : 'ACTIVE'}
@@ -1120,12 +1153,12 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
 
                       <td className="px-5 py-4 sm:px-7">
                         {isRootAdmin ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#90979C]">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#687178]">
                             <Lock className="h-3.5 w-3.5" />
                             Tài khoản gốc
                           </span>
                         ) : isSelf ? (
-                          <span className="text-xs font-semibold text-[#90979C]">
+                          <span className="text-xs font-semibold text-[#687178]">
                             Không thể tự đổi quyền
                           </span>
                         ) : isUpdating ? (
@@ -1157,7 +1190,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                         {isRootAdmin ? (
                             <span />
                         ) : isSelf ? (
-                            <span className="text-xs font-semibold text-[#90979C]">
+                            <span className="text-xs font-semibold text-[#687178]">
       Tài khoản hiện tại
     </span>
                         ) : (
@@ -1165,7 +1198,7 @@ const RbacTable: React.FC<{ currentUserId: number }> = ({ currentUserId }) => {
                                 type="button"
                                 disabled={isUpdating}
                                 onClick={() => handleDeleteUser(item)}
-                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[#EDC7CC] bg-[#FBF1F2] px-3 text-xs font-black text-[#9D4150] transition hover:bg-[#F7E4E7] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[#EDC7CC] bg-[#FBF1F2] px-3 text-xs font-semibold text-[#9D4150] transition hover:bg-[#F7E4E7] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {isUpdating ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1205,10 +1238,11 @@ const IntegrationsPanel: React.FC<{
   onTestN8n: () => void;
   onSave: () => void;
 }> = props => {
+  const geminiKeyIsUrl = /^https?:\/\//i.test(props.geminiApiKey.trim());
   return (
-    <section className="overflow-hidden rounded-[24px] border border-[#E2E5E7] bg-white shadow-[0_12px_34px_rgba(45,34,28,0.055)]">
+    <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
       <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
-        <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
+        <h2 className="text-xl font-bold tracking-tight text-[#1D2023]">
           Tích hợp
         </h2>
       </div>
@@ -1221,37 +1255,48 @@ const IntegrationsPanel: React.FC<{
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-[#202326]">Gemini AI</h3>
-                <p className="mt-0.5 text-xs text-[#7F868B]">Phân tích năng lực và tổng hợp tri thức</p>
+                <h3 className="text-sm font-semibold text-[#202326]">Gemini AI</h3>
+                <p className="mt-0.5 text-sm text-[#687178]">Dịch vụ phân tích và tổng hợp nội dung</p>
               </div>
             </div>
             {props.geminiTestSuccess === true && (
-              <span className="rounded-full bg-[#EFF7F1] px-2.5 py-1 text-[11px] font-bold text-[#2F6B4F]">
+              <span className="rounded-full bg-[#EFF7F1] px-2.5 py-1 text-xs font-bold text-[#2F6B4F]">
                 Đã kết nối
               </span>
             )}
           </div>
 
-          <label className="mt-6 block text-[11px] font-black uppercase tracking-[0.14em] text-[#90979C]">
-            Khóa API
+          <label htmlFor="gemini-api-key" className="mt-6 block text-sm font-semibold text-[#596167]">
+            Khóa API Gemini
           </label>
           <div className="relative mt-2">
-            <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+            <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#687178]" />
             <input
+              id="gemini-api-key"
               type="password"
+              autoComplete="off"
+              spellCheck={false}
+              aria-describedby={geminiKeyIsUrl ? 'gemini-api-key-help' : undefined}
+              aria-invalid={geminiKeyIsUrl || undefined}
               value={props.geminiApiKey}
               onChange={event => props.onGeminiKeyChange(event.target.value)}
-              placeholder="Gemini API Key"
-              className="h-12 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] pl-10 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
+              placeholder="Dán giá trị khóa API Gemini"
+              className="h-12 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] pl-10 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
             />
           </div>
+
+          {geminiKeyIsUrl && (
+            <p id="gemini-api-key-help" role="alert" className="mt-2 text-sm leading-6 text-[#9D4150]">
+              Bạn đang nhập địa chỉ website. Hãy dán giá trị khóa API Gemini vào ô này.
+            </p>
+          )}
 
           <div className="mt-3 flex justify-end">
             <button
               type="button"
               onClick={props.onTestGemini}
               disabled={props.geminiTesting}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D3D8DA] bg-white px-4 text-xs font-black text-[#666D72] transition hover:bg-[#F2F4F4] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D3D8DA] bg-white px-4 text-xs font-semibold text-[#666D72] transition hover:bg-[#F2F4F4] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {props.geminiTesting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1275,28 +1320,29 @@ const IntegrationsPanel: React.FC<{
                 <Workflow className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-[#202326]">n8n</h3>
-                <p className="mt-0.5 text-xs text-[#7F868B]">Điều phối quy trình và gửi thông báo</p>
+                <h3 className="text-sm font-semibold text-[#202326]">n8n</h3>
+                <p className="mt-0.5 text-sm text-[#687178]">Điều phối các quy trình tự động</p>
               </div>
             </div>
             {props.n8nTestSuccess === true && (
-              <span className="rounded-full bg-[#EFF7F1] px-2.5 py-1 text-[11px] font-bold text-[#2F6B4F]">
+              <span className="rounded-full bg-[#EFF7F1] px-2.5 py-1 text-xs font-bold text-[#2F6B4F]">
                 Đã kết nối
               </span>
             )}
           </div>
 
-          <label className="mt-6 block text-[11px] font-black uppercase tracking-[0.14em] text-[#90979C]">
-            Địa chỉ Webhook
+          <label htmlFor="tv4-n8n-webhook" className="mt-6 block text-sm font-semibold text-[#596167]">
+            Địa chỉ webhook
           </label>
           <div className="relative mt-2">
-            <Workflow className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+            <Workflow className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#687178]" />
             <input
+              id="tv4-n8n-webhook"
               type="text"
               value={props.n8nWebhookUrl}
               onChange={event => props.onN8nUrlChange(event.target.value)}
               placeholder="http://localhost:5678/webhook/..."
-              className="h-12 w-full rounded-2xl border border-[#D8DCDE] bg-[#F8F9F9] pl-10 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
+              className="h-12 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] pl-10 pr-4 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10"
             />
           </div>
 
@@ -1305,7 +1351,7 @@ const IntegrationsPanel: React.FC<{
               type="button"
               onClick={props.onTestN8n}
               disabled={props.n8nTesting || !props.n8nWebhookUrl.trim()}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D3D8DA] bg-white px-4 text-xs font-black text-[#666D72] transition hover:bg-[#F2F4F4] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D3D8DA] bg-white px-4 text-xs font-semibold text-[#666D72] transition hover:bg-[#F2F4F4] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {props.n8nTesting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1330,7 +1376,7 @@ const IntegrationsPanel: React.FC<{
               ? 'text-[#2F6B4F]'
               : props.configMessage
                 ? 'text-[#9D4150]'
-                : 'text-[#82898E]'
+                : 'text-[#687178]'
           }`}
         >
           {props.configMessage || ' '}
@@ -1340,7 +1386,7 @@ const IntegrationsPanel: React.FC<{
           type="button"
           onClick={props.onSave}
           disabled={props.configSaving}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#6F3042] px-5 text-sm font-black text-white shadow-[0_8px_20px_rgba(111,48,66,0.18)] transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#6F3042] px-5 text-sm font-semibold text-white transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {props.configSaving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1390,6 +1436,10 @@ export const AdminSettingsPage: React.FC = () => {
   }, [user?.role]);
 
   const handleSaveConfig = async () => {
+    if (/^https?:\/\//i.test(geminiApiKey.trim())) {
+      setConfigMessage('Ô khóa API Gemini đang chứa địa chỉ website. Hãy thay bằng giá trị khóa API rồi lưu lại.');
+      return;
+    }
     const n8nUrl = n8nWebhookUrl.trim();
 
     if (n8nUrl) {
@@ -1422,7 +1472,7 @@ export const AdminSettingsPage: React.FC = () => {
       setConfigMessage('Đã lưu cấu hình thành công.');
     } catch (error) {
       console.error(error);
-      setConfigMessage('Lưu cấu hình thất bại.');
+      setConfigMessage(error instanceof Error ? error.message : 'Lưu cấu hình thất bại.');
     } finally {
       setConfigSaving(false);
     }
@@ -1477,7 +1527,7 @@ export const AdminSettingsPage: React.FC = () => {
       setGeminiTestSuccess(null);
       setGeminiTestMessage('Đang kiểm tra kết nối...');
       const result = await systemConfigApi.testGemini();
-      setGeminiTestSuccess(true);
+      setGeminiTestSuccess(result.success);
       setGeminiTestMessage(
         `${result.message}${result.model ? ` • ${result.model}` : ''}`,
       );
@@ -1497,14 +1547,14 @@ export const AdminSettingsPage: React.FC = () => {
   if (user?.role === 'MANAGER' || user?.role === 'EMPLOYEE') {
     return (
       <div className="min-h-full bg-[#F4F5F5] px-4 py-20">
-        <div className="mx-auto max-w-lg rounded-[24px] border border-[#E1E4E5] bg-white p-8 text-center shadow-[0_20px_60px_rgba(63,48,40,0.08)]">
+        <div className="mx-auto max-w-lg rounded-2xl border border-[#E1E4E5] bg-white p-8 text-center shadow-[0_20px_60px_rgba(63,48,40,0.08)]">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#F6E9ED] text-[#6F3042]">
             <ShieldAlert className="h-8 w-8" />
           </div>
-          <h1 className="mt-5 text-2xl font-black tracking-tight text-[#1D2023]">
+          <h1 className="mt-5 text-2xl font-semibold tracking-tight text-[#1D2023]">
             Không có quyền truy cập
           </h1>
-          <p className="mt-3 text-sm leading-6 text-[#72797E]">
+          <p className="mt-3 text-sm leading-6 text-[#687178]">
             Khu vực quản trị chỉ dành cho SuperAdmin hoặc HR.
           </p>
         </div>
@@ -1514,24 +1564,24 @@ export const AdminSettingsPage: React.FC = () => {
 
   if (user?.role === 'HR') {
     return (
-      <div className="tv4-workspace min-h-full bg-[#F4F5F5]">
+      <div className="tv4-ui tv4-workspace min-h-full bg-[#F7F8FA]">
         <div className="mx-auto max-w-[1500px] px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mb-6 rounded-[26px] border border-[#E1E4E5] bg-white p-5 shadow-[0_16px_44px_rgba(45,34,28,0.06)] sm:p-7">
+          <div className="mb-6 rounded-2xl border border-[#E1E4E5] bg-white p-5 sm:p-7">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl">
-                <h1 className="mt-2 text-3xl font-black tracking-tight text-[#1D2023]">
+                <h1 className="text-2xl font-bold tracking-tight text-[#1D2023]">
                   Tri thức & Phát triển
                 </h1>
-                <p className="mt-2 text-sm leading-6 text-[#72797E]">
+                <p className="mt-2 text-sm leading-6 text-[#687178]">
                   Quản lý nguồn tri thức và lộ trình đào tạo trong một không gian thống nhất.
                 </p>
               </div>
 
-              <div className="grid gap-2 rounded-[18px] border border-[#E2E5E7] bg-[#F6F7F7] p-1.5 sm:grid-cols-2">
+              <div className="grid gap-2 rounded-xl border border-[#E2E5E7] bg-[#F6F7F7] p-1.5 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => setHrWorkspaceTab('courses')}
-                  className={`flex items-center gap-2 rounded-[14px] px-4 py-3 text-sm font-black transition ${
+                  className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
                     hrWorkspaceTab === 'courses'
                       ? 'bg-white text-[#2B2421] shadow-sm'
                       : 'text-[#777E83] hover:bg-white/70'
@@ -1543,7 +1593,7 @@ export const AdminSettingsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setHrWorkspaceTab('rag')}
-                  className={`flex items-center gap-2 rounded-[14px] px-4 py-3 text-sm font-black transition ${
+                  className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
                     hrWorkspaceTab === 'rag'
                       ? 'bg-white text-[#2B2421] shadow-sm'
                       : 'text-[#777E83] hover:bg-white/70'
@@ -1568,11 +1618,11 @@ export const AdminSettingsPage: React.FC = () => {
 
 
   return (
-    <div className="tv4-workspace min-h-full bg-[#F4F5F5]">
+    <div className="tv4-ui tv4-workspace min-h-full bg-[#F7F8FA]">
       <div className="mx-auto max-w-[1560px] px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
-        <div className="grid gap-6 lg:grid-cols-[190px_minmax(0,1fr)] xl:gap-7">
-          <aside className="h-fit rounded-[18px] border border-[#E1E4E5] bg-[#F7F8F8]/95 p-2 shadow-[0_10px_28px_rgba(45,34,28,0.05)] backdrop-blur lg:sticky lg:top-6">
-            <nav className="space-y-1">
+        <div className="grid items-start gap-6 lg:grid-cols-[212px_minmax(0,1fr)] xl:gap-7">
+          <aside className="h-fit rounded-2xl border border-[#E1E4E5] bg-white p-2 lg:sticky lg:top-6">
+            <nav className="grid grid-cols-2 gap-1 lg:block lg:space-y-1" aria-label="Các mục cài đặt hệ thống">
               {NAV_ITEMS.map(item => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -1582,25 +1632,23 @@ export const AdminSettingsPage: React.FC = () => {
                     key={item.id}
                     type="button"
                     onClick={() => setActiveTab(item.id)}
-                    className={`relative flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`tv4-nav-item relative flex min-h-12 w-full items-center gap-2.5 rounded-xl px-3 py-3 text-left transition ${
                       isActive
-                        ? 'bg-[#FFFFFF] text-[#2B2421] shadow-[0_6px_18px_rgba(45,34,28,0.06)]'
-                        : 'text-[#757C81] hover:bg-white/70 hover:text-[#303438]'
+                        ? 'bg-[#FFFFFF] text-[#2B2421]'
+                        : 'text-[#687178] hover:bg-white/70 hover:text-[#303438]'
                     }`}
                   >
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-[#6F3042]" />
-                    )}
                     <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg sm:h-8 sm:w-8 ${
                         isActive
                           ? 'bg-[#F4E7EB] text-[#6F3042]'
-                          : 'bg-[#ECEEEE] text-[#7F868B]'
+                          : 'bg-transparent text-[#687178]'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
                     </div>
-                    <span className="text-sm font-black">{item.label}</span>
+                    <span className="text-xs font-semibold leading-5 sm:text-sm">{item.label}</span>
                   </button>
                 );
               })}

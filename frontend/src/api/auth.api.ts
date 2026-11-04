@@ -24,4 +24,8 @@ export const authApi = {
   logout: async (): Promise<{ success: boolean; message: string }> => {
     return apiClient.post('/auth/logout');
   },
+
+  unblockIp: async (ip: string = '127.0.0.1'): Promise<{ success: boolean; message: string }> => {
+    return apiClient.post('/auth/unblock-ip', { ip });
+  },
 };

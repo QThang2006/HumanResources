@@ -22,15 +22,24 @@ for (const selected of ['2096-02-29', '2099-11-30', '2099-12-31']) {
       for (const zone of ['UTC', 'Asia/Ho_Chi_Minh', 'America/Los_Angeles']) {
         process.env.TZ = zone;
         const assignment = { id: 1, reminderCount: 2, lastReminderAt: new Date(), lastReminderRunId: 'old', managerEscalatedAt: new Date() };
+        const trainings = { findOne: async () => null, create: value => value, save: async value => value };
+        const courses = {
+          findOne: async () => ({ id: 1, isArchived: false }),
+          manager: { transaction: async action => action({
+            getRepository: entity => entity.name === 'TrainingCourse' ? courses : trainings,
+          }) },
+        };
         const service = new TrainingService(
-          { findOne: async () => ({ id: 1 }) },
-          { findOne: async () => null, create: value => value, save: async value => value },
+          courses,
+          trainings,
           { findOne: async () => ({ id: 2 }) },
           {},
         );
         const created = await service.assignCourse({ userId: 2, courseId: 1, dueAt: selected });
         assertDueDate(created.dueAt, selected);
         service.employeeTrainingRepository.findOne = async () => assignment;
+        service.employeeTrainingRepository.update = async (_id, values) => Object.assign(assignment, values);
+        service.employeeTrainingRepository.findOneBy = async () => assignment;
         const updated = await service.updateDueDate(1, selected);
         assertDueDate(updated.dueAt, selected);
         assert.equal(updated.reminderCount, 0);

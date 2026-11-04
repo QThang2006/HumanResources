@@ -131,6 +131,52 @@ GEMINI_API_KEY=THAY_BẰNG_API_KEY_GEMINI
 
 Không ghi App Password, bot token hoặc khóa tự động hóa trực tiếp vào file Markdown.
 
+### 3.5. Import an toàn bằng CLI trên Linux
+
+Chuẩn bị bốn workflow với ID ổn định và trạng thái inactive. Lệnh dưới đây
+dùng cho lần khởi tạo, khi chưa có workflow RAG đang hoạt động:
+
+```bash
+node scripts/prepare-tv4-n8n-import.cjs
+for workflow_file in 01_tv4_knowledge_rag.json 02_mandatory_training_reminder.json 03_monthly_performance_review_reminder.json 04_offboarding_workflow.json; do
+  docker cp ".temp/tv4-n8n-import/$workflow_file" "hr_n8n:/tmp/tv4-import-$workflow_file"
+  docker exec hr_n8n n8n import:workflow --input="/tmp/tv4-import-$workflow_file"
+done
+```
+
+Script không ghi secret vào Git. Ba workflow 4.1–4.3 đọc
+`N8N_AUTOMATION_SECRET` từ môi trường n8n và vẫn inactive sau khi import.
+Chỉ publish sau khi đã gắn SMTP/Telegram credential và đặt địa chỉ nhận thử nghiệm.
+
+Để giữ cấu hình mail cá nhân riêng với mã nguồn nhóm, có thể đặt một file JSON
+cục bộ trong `.temp` với các trường `senderEmail`, `testEmployeeEmail`,
+`testManagerEmail`, `testInternalEmail`, `itEmail`, `accountingEmail`.
+Các trường này chỉ chứa địa chỉ mail, không chứa mật khẩu SMTP hoặc bot token.
+Có thể thêm `telegramChatId` dạng chuỗi số đã được xác minh bằng thao tác
+Telegram **Chat → Get**; giá trị sẽ được áp dụng vào node cấu hình của cả ba
+workflow thông báo. Giữ dấu âm của ID nhóm, không dùng username bot thay ID nhóm.
+Sau đó chuẩn bị import bằng:
+
+```bash
+TV4_N8N_CREDENTIAL_SOURCE_DIR=.temp/n8n-backup \
+TV4_N8N_MAIL_CONFIG_FILE=.temp/tv4-mail-routing.json \
+node scripts/prepare-tv4-n8n-import.cjs
+```
+
+`TV4_N8N_CREDENTIAL_SOURCE_DIR` trỏ tới bản export workflow cục bộ để giữ tham chiếu
+credential đã gắn. Script chỉ đọc SMTP/Telegram credential ID, không giải mã
+credential. Nếu RAG đang hoạt động, chỉ import ba file thông báo cần cập nhật,
+tránh import lại cả thư mục làm workflow RAG chuyển sang inactive.
+Sao chép từng file tới tên đích cụ thể để tránh `docker cp` lồng thư mục khi
+thư mục đích đã tồn tại, khiến CLI vô tình import lại bản cũ.
+
+Workflow RAG không gửi thông báo ngoài nên có thể publish riêng:
+
+```bash
+docker exec hr_n8n n8n publish:workflow --id=tv4KnowledgeRagV1
+docker compose restart n8n
+```
+
 ---
 
 ## 4. Workflow bổ trợ — Kho tri thức có dẫn nguồn

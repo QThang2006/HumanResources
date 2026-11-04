@@ -111,6 +111,11 @@ export interface SkillGapCourseResult {
   aiGenerated: boolean;
 }
 
+export interface GeminiJsonOptions {
+  /** Total time allowed across candidate models for this operation. */
+  timeoutMs: number;
+}
+
 /**
  * 🧠 Dịch vụ Tập Trung Google Gemini (Shared AI Engine)
  * Phục vụ chung cho: Sinh JD, Bóc tách CV, Gợi ý câu hỏi phỏng vấn, RAG Copilot, Phân tích Burnout
@@ -124,11 +129,17 @@ export class GeminiService {
   private strictLive: boolean = false;
 
   constructor(private readonly configService: ConfigService) {
+    this.refreshConfiguration();
+  }
+
+  refreshConfiguration() {
+    this.genAI = null;
+    this.model = null;
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     this.selectedModel = this.configService.get<string>('GEMINI_MODEL', 'gemini-3.6-flash');
     this.strictLive = this.configService.get<string>('GEMINI_STRICT_LIVE') === 'true';
 
-    if (apiKey && apiKey !== 'your_gemini_api_key_here' && apiKey.trim() !== '') {
+    if (apiKey && apiKey !== 'your_gemini_api_key_here' && apiKey.trim() !== '' && !/^https?:\/\//i.test(apiKey.trim())) {
       try {
         this.genAI = new GoogleGenerativeAI(apiKey);
         this.model = this.genAI.getGenerativeModel({
@@ -210,7 +221,7 @@ export class GeminiService {
   /**
    * Gọi Gemini AI với đầu ra ép buộc định dạng JSON thuần túy
    */
-  async generateJson<T>(prompt: string, systemInstruction?: string): Promise<T | null> {
+  async generateJson<T>(prompt: string, systemInstruction?: string, options?: GeminiJsonOptions): Promise<T | null> {
     if (!this.genAI) {
       if (this.strictLive) {
         throw new Error(`[STRICT LIVE ERROR] Gemini AI chưa được khởi tạo. Vui lòng cấu hình GEMINI_API_KEY.`);
@@ -220,8 +231,11 @@ export class GeminiService {
 
     const candidateModels = this.getCandidateModels();
     let lastError: any = null;
+    const deadline = options ? Date.now() + options.timeoutMs : null;
 
     for (const modelName of candidateModels) {
+      const remaining = deadline === null ? undefined : deadline - Date.now();
+      if (remaining !== undefined && remaining <= 0) break;
       try {
         const chatModel = this.genAI.getGenerativeModel({
           model: modelName,
@@ -232,7 +246,7 @@ export class GeminiService {
           systemInstruction: systemInstruction || undefined,
         });
 
-        const response = await chatModel.generateContent(prompt);
+        const response = await chatModel.generateContent(prompt, remaining === undefined ? undefined : { timeout: remaining });
         const rawText = response.response.text();
         return JSON.parse(rawText) as T;
       } catch (error: any) {
@@ -970,6 +984,7 @@ BẮT BUỘC TRẢ VỀ THEO ĐỊNH DẠNG JSON SAU (không kèm markdown ngoà
     availableCourses?: { id: number; title: string; skillsProvided: string[]; durationHours?: number; courseUrl?: string }[],
     currentRole: string = 'Nhân viên mới / Thử việc',
     targetRole: string = 'Nhân viên chính thức / Nâng chuẩn Senior',
+    options?: GeminiJsonOptions,
   ): Promise<SkillGapCourseResult> {
     this.logger.log(`🤖 AI [${this.selectedModel}] đang phân tích Skill Gap & đề xuất khóa học cho ${missingSkills.length} kỹ năng...`);
 
@@ -1017,7 +1032,7 @@ BẮT BUỘC TRẢ VỀ THEO ĐÚNG ĐỊNH DẠNG JSON SAU (không kèm markdow
 
     const systemInstruction = 'Bạn là Giám đốc Đào tạo & Phát triển Doanh nghiệp. Thiết kế lộ trình khoa học, thực tế, bám sát năng lực công nghệ hiện đại. Trả về JSON hợp lệ 100%.';
 
-    const aiResult = await this.generateJson<SkillGapCourseResult>(prompt, systemInstruction);
+    const aiResult = await this.generateJson<SkillGapCourseResult>(prompt, systemInstruction, options);
 
     if (aiResult && aiResult.recommendedCourses && aiResult.recommendedCourses.length > 0) {
       return {

@@ -66,4 +66,13 @@ export class AuthController {
       body.failedAttempts,
     );
   }
+
+  // Endpoint mở khóa IP thủ công phục vụ kiểm thử và quản trị
+  @Post('unblock-ip')
+  unblockIp(@Body() body: { ip: string }) {
+    if (!body.ip) {
+      throw new BadRequestException('Vui lòng cung cấp địa chỉ IP cần mở khóa.');
+    }
+    return this.authService.unblockIp(body.ip);
+  }
 }

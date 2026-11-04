@@ -80,6 +80,14 @@ export class Application {
   @Column({ name: 'ai_score_error', type: 'varchar', length: 500, nullable: true })
   aiScoreError: string | null;
 
+  // Durable queue metadata; old applications remain unscheduled (NULL).
+  @Column({ name: 'ai_score_attempts', default: 0 })
+  aiScoreAttempts: number;
+
+  @Index()
+  @Column({ name: 'ai_score_available_at', type: 'datetime', nullable: true })
+  aiScoreAvailableAt: Date | null;
+
   @Column({ type: 'enum', enum: ApplicationStatus, default: ApplicationStatus.APPLIED })
   status: ApplicationStatus;
 

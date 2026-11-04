@@ -1,3 +1,4 @@
+import { CvScoreQueueService } from './cv-score-queue.service';
 import { Offer, OfferStatus } from '../../entities/offer.entity';
 import { randomBytes, randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
@@ -96,6 +97,7 @@ export class ApplicationsService {
     private readonly n8n: N8nService,
     private readonly delivery: InterviewDeliveryService,
     private readonly config: ConfigService,
+    private readonly scoreQueue: CvScoreQueueService,
   ) { }
 
   private n8nAiEnabled() {
@@ -115,18 +117,27 @@ export class ApplicationsService {
   }
 
   async markAiScoreProcessing(id: number, requestId: string) {
-    await this.applications.update(id, { aiScoreStatus: 'PROCESSING', aiScoreRequestId: requestId, aiScoreError: null });
+    return this.db.transaction(async m => {
+    const repo = m.getRepository(Application);
+    const current = await repo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+    if (current?.aiScoreRequestId?.startsWith('be:'))
+      throw new ConflictException('Backend đang quản lý chấm CV. Hãy cập nhật workflow tiếp nhận.');
+    await repo.update(id, { aiScoreStatus: 'PROCESSING', aiScoreRequestId: requestId, aiScoreError: null });
     return { accepted: true, applicationId: id, requestId };
+    });
   }
 
   async saveAiScore(id: number, input: any) {
-    const app = await this.applications.findOne({ where: { id }, relations: ['job'] });
+    return this.db.transaction(async m => {
+    const repo = m.getRepository(Application);
+    const app = await repo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
     if (!app) throw new NotFoundException('Không tìm thấy hồ sơ.');
+    if (app.aiScoreRequestId?.startsWith('be:')) throw new ConflictException('Backend đang quản lý chấm CV.');
     if (input.requestId && app.aiScoreRequestId && app.aiScoreRequestId !== input.requestId) throw new ConflictException('Kết quả AI không thuộc request hiện tại.');
     if (input.status === 'FAILED') {
       app.aiScoreStatus = 'FAILED';
       app.aiScoreError = String(input.error || 'AI chấm điểm thất bại').slice(0, 500);
-      await this.applications.save(app);
+      await repo.save(app);
       return { recorded: true, status: app.aiScoreStatus };
     }
     const result = input.result || input.data || input;
@@ -141,8 +152,9 @@ export class ApplicationsService {
     if (typeof result.extractedText === 'string' && result.extractedText.trim()) app.rawCvText = result.extractedText.slice(0, 60000);
     app.aiScoreStatus = 'COMPLETED';
     app.aiScoreError = null;
-    await this.applications.save(app);
+    await repo.save(app);
     return { recorded: true, status: app.aiScoreStatus, applicationId: id, matchScore: score };
+    });
   }
 
   async aiQuestionsContext(interviewId: number) {
@@ -294,21 +306,13 @@ export class ApplicationsService {
             cvFileUrl: key,
             rawCvText,
             status: ApplicationStatus.APPLIED,
+            aiScoreStatus: 'PENDING',
+            aiScoreRequestId: 'be:' + randomUUID(),
+            aiScoreAvailableAt: new Date(),
+            aiScoreAttempts: 0,
           }),
         );
       });
-      // Gmail/Form continue to AI inside 2.1; only website submissions need a webhook.
-      if (!intake && this.n8nAiEnabled()) {
-        const requestId = randomUUID();
-        try {
-          await this.markAiScoreProcessing(app.id, requestId);
-          const accepted = await this.n8n.triggerAiResumeScore({ applicationId: app.id, requestId });
-          if (!accepted) throw new Error('n8n không nhận được webhook.');
-        } catch (error: any) {
-          this.logger.warn('Automatic CV scoring dispatch failed for application ' + app.id);
-          await this.saveAiScore(app.id, { requestId, status: 'FAILED', error: error.message }).catch(() => undefined);
-        }
-      }
       return {
         applicationId: app.id,
         submittedAt: app.createdAt,
@@ -348,70 +352,8 @@ export class ApplicationsService {
 
   async score(id: number, actor: Actor) {
     assertOperator(actor);
-    const app = await this.row(id, actor);
-    if ([ApplicationStatus.HIRED, ApplicationStatus.REJECTED].includes(app.status))
-      throw new ConflictException('Hồ sơ đã kết thúc quy trình.');
-    if (this.n8nAiEnabled()) {
-      if (app.aiScoreStatus === 'PROCESSING') {
-        return { mode: 'N8N', pending: true, saved: false, requestId: app.aiScoreRequestId, data: { matchScore: null, summary: 'Đang chờ n8n chấm điểm CV.', skillsDetected: [] } };
-      }
-      if (app.aiScoreStatus === 'COMPLETED' && app.matchScore !== null) {
-        return { mode: 'N8N', pending: false, saved: true, data: { matchScore: Number(app.matchScore), summary: app.aiSummary || '', skillsDetected: app.skillsDetected || [] } };
-      }
-      const requestId = randomUUID();
-      await this.markAiScoreProcessing(id, requestId);
-      try {
-        const accepted = await this.n8n.triggerAiResumeScore({ applicationId: id, requestId });
-        if (!accepted) await this.saveAiScore(id, { requestId, status: 'FAILED', error: 'n8n không nhận được webhook.' });
-      } catch (error: any) {
-        await this.saveAiScore(id, { requestId, status: 'FAILED', error: error.message });
-      }
-      return { mode: 'N8N', pending: true, saved: false, requestId, data: { matchScore: null, summary: 'Đang chờ n8n chấm điểm CV.', skillsDetected: [] } };
-    }
-    const key = 'score:' + id;
-    if (this.activeAi.has(key)) throw new ConflictException('Hồ sơ đang được chấm.');
-    this.activeAi.add(key);
-    try {
-      if ([ApplicationStatus.HIRED, ApplicationStatus.REJECTED].includes(app.status))
-        throw new ConflictException('Hồ sơ đã kết thúc quy trình.');
-      const jd = app.job.description + '\n' + app.job.requirements;
-      const result = app.rawCvText?.trim()
-        ? await this.ai.score(app.rawCvText, jd)
-        : await this.ai.scoreFile(
-          await this.files.read(app.cvFileUrl),
-          this.files.mimeType(app.cvFileUrl) || 'application/pdf',
-          jd,
-        );
-      // Shared schema has no provider-mode field: mock output is preview-only.
-      if (result.mode === 'MOCK') return { ...result, saved: false };
-      await this.db.transaction(async (manager) => {
-        const current = await this.locked(manager, id, actor);
-        assertFresh(current.updatedAt, app.updatedAt.toISOString());
-        const job = await manager
-          .getRepository(Job)
-          .findOne({ where: { id: app.jobId }, lock: { mode: 'pessimistic_read' } });
-        if (job.description + '\n' + job.requirements !== jd)
-          throw new ConflictException('JD đã đổi trong lúc chấm. Hãy thử lại.');
-        if ('extractedText' in result.data && typeof result.data.extractedText === 'string')
-          current.rawCvText = result.data.extractedText;
-        current.matchScore = result.data.matchScore;
-        current.aiSummary = result.data.summary;
-        current.skillsDetected = result.data.skillsDetected;
-        current.aiRecommendation =
-          result.data.matchScore >= 85
-            ? AiRecommendation.STRONG_HIRE
-            : result.data.matchScore >= 70
-              ? AiRecommendation.HIRE
-              : result.data.matchScore >= 50
-                ? AiRecommendation.CONSIDER
-                : AiRecommendation.REJECT;
-        current.updatedAt = nextRevision(current.updatedAt);
-        await manager.getRepository(Application).save(current);
-      });
-      return { ...result, saved: true };
-    } finally {
-      this.activeAi.delete(key);
-    }
+    await this.row(id, actor); // Preserve department authorization.
+    return this.scoreQueue.enqueue(id);
   }
 
   async interviewers(jobId: number, actor: Actor) {

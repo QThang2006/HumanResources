@@ -33,7 +33,6 @@ services:
       - N8N_WEBHOOK_URL=https://trek-coordinator-them-alternative.trycloudflare.com/
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     env_file:
       - ./backend/.env
     volumes:

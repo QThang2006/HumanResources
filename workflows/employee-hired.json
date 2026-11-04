@@ -1,20 +1,20 @@
 {
-  "name": "HR Pro: 1-Click Hired & Welcome Kit Provisioning",
+  "name": "05 | TV2 2.4 – Tuyển dụng, gửi thư chúc mừng và cấp tài khoản nhân sự",
   "nodes": [
     {
       "parameters": {
-        "content": "### 🎉 1-Click Hired & Onboarding Package Automation\n**Quy trình:**\n1. Nhận Webhook từ NestJS khi HR bấm nút [1-Click Tuyển dụng].\n2. Phản hồi Webhook ngay lập tức (HTTP 200 OK) xác nhận tiếp nhận.\n3. Tạo Thư Chúc Mừng & Chào Đón Thành Viên Mới (Offer / Welcome Kit Package).\n4. Tự động gửi Email HTML cho nhân sự mới kèm hướng dẫn kích hoạt tài khoản.\n5. Bắn thông báo khẩn cấp tới kênh IT & HR nội bộ để chuẩn bị Laptop và thẻ nhân viên.",
-        "height": 420,
-        "width": 380,
+        "content": "### 🎉 1-Click Hired & Employee Provisioning Automation\n**Quy trình:**\n1. Nhận Webhook từ NestJS khi HR bấm nút [Xác nhận tuyển].\n2. Phản hồi Webhook tức thì (HTTP 200 OK) để giao diện không bị treo.\n3. Soạn Thư Chúc Mừng & Chào Đón Nhân Viên Mới kèm tài khoản (Email, Mật khẩu tạm thời, Link đăng nhập).\n4. Lưu vết Cấp tài khoản vào bảng audit_logs MySQL.\n5. Gửi Email HTML chuyên nghiệp tới ứng viên qua SMTP.\n6. Bắn thông báo qua Telegram cho IT Helpdesk & HR Operations.",
+        "height": 400,
+        "width": 360,
         "color": 4
       },
-      "id": "sticky-hired-info",
-      "name": "Ghi chú – Tiếp nhận nhân sự mới",
+      "id": "sticky-hired-note",
+      "name": "Ghi chú – Tuyển dụng & Cấp tài khoản",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        160,
-        100
+        120,
+        160
       ]
     },
     {
@@ -24,113 +24,154 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-employee-hired",
-      "name": "30. Nhận sự kiện tuyển dụng nhân sự mới",
+      "id": "wh-employee-hired-trigger",
+      "name": "1. Nhận sự kiện Tuyển dụng nhân sự",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        200,
-        560
+        520,
+        240
       ],
-      "webhookId": "employee-hired"
+      "webhookId": "employee-hired-webhook"
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": \"n8n đã kích hoạt quy trình chào đón nhân sự mới\",\n  \"hiredUser\": \"{{ $json.body ? ($json.body.fullName || ($json.body.data && $json.body.data.fullName) || $json.fullName) : $json.fullName }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"n8n đã tiếp nhận sự kiện tuyển dụng và đang gửi thư chúc mừng + cấp tài khoản\",\n  \"hiredUser\": \"{{ $json.body ? ($json.body.fullName || ($json.body.data && $json.body.data.fullName) || $json.fullName) : $json.fullName }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {
           "responseCode": 200
         }
       },
-      "id": "respond-webhook-hired",
-      "name": "18. Hoàn tất xử lý yêu cầu",
+      "id": "resp-employee-hired",
+      "name": "2. Phản hồi HTTP 200 OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        440,
-        440
+        780,
+        140
       ]
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst rawBody = raw.body || raw;\nconst payload = rawBody.data || rawBody;\n\n// Hỗ trợ cả 2 chuẩn tên thuộc tính (fullName hoặc candidateName, departmentName hoặc department)\nconst fullName = payload.fullName || payload.candidateName || 'Thành Viên Mới';\nconst jobTitle = payload.jobTitle || 'Chuyên viên Kỹ thuật';\nconst department = payload.departmentName || payload.department || 'Phòng Phát Triển Công Nghệ Số';\nconst email = payload.email || payload.candidateEmail || 'quocthangngo2006@gmail.com';\nconst tempPassword = payload.tempPassword || 'Enterprise@2026#';\nconst portalUrl = payload.portalUrl || 'http://localhost:5173/login';\nconst fromEmail = payload.fromEmail || 'quocthangngo2006@gmail.com';\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }\n    .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 35px 20px; text-align: center; }\n    .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; }\n    .card-title { font-weight: 700; color: #0f172a; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #10b981; padding-bottom: 6px; display: inline-block; }\n    .cred-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 18px; margin: 20px 0; }\n    .cred-title { font-weight: 700; color: #1e40af; margin-bottom: 10px; font-size: 15px; }\n    .item { margin: 8px 0; font-size: 15px; }\n    .code-tag { background: #dbeafe; color: #1e3a8a; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 15px; font-weight: bold; }\n    .btn { display: inline-block; background: #059669; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0; }\n    .kit-box { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 15px; margin-top: 15px; color: #065f46; font-size: 14px; }\n    .footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>CHÀO MỪNG GIA NHẬP ĐỘI NGŨ</h1>\n      <p style=\"margin: 6px 0 0 0; opacity: 0.95;\">Enterprise Multi-Agent Ecosystem</p>\n    </div>\n    <div class=\"content\">\n      <p>Thân gửi <strong>${fullName}</strong>,</p>\n      <p>Ban Giám đốc cùng toàn thể đại gia đình công ty xin gửi lời chúc mừng nồng nhiệt nhất tới bạn! Chúng tôi rất vui mừng và tự hào khi bạn chính thức trở thành một thành viên quan trọng trong đội ngũ.</p>\n      \n      <div class=\"card\">\n        <div class=\"card-title\">THÔNG TIN VỊ TRÍ CÔNG TÁC</div>\n        <div class=\"item\">📌 <strong>Chức danh:</strong> ${jobTitle}</div>\n        <div class=\"item\">🏢 <strong>Phòng ban:</strong> ${department}</div>\n        <div class=\"item\">🛡️ <strong>Chế độ đãi ngộ:</strong> 100% Bảo hiểm BHXH + Thẻ sức khỏe PVI + Ngân sách học tập L&D</div>\n      </div>\n\n      <div class=\"cred-box\">\n        <div class=\"cred-title\">🔐 THÔNG TIN TÀI KHOẢN NỘI BỘ (HR PORTAL)</div>\n        <div class=\"item\">👤 <strong>Tên đăng nhập (Email):</strong> <code>${email}</code></div>\n        <div class=\"item\">🔑 <strong>Mật khẩu tạm thời:</strong> <span class=\"code-tag\">${tempPassword}</span></div>\n        <div class=\"item\">🌐 <strong>Cổng thông tin:</strong> <a href=\"${portalUrl}\">${portalUrl}</a></div>\n        <p style=\"font-size: 13px; color: #64748b; margin: 10px 0 0 0;\"><i>* Lưu ý an toàn: Vui lòng đổi mật khẩu mới ngay trong lần đầu tiên đăng nhập hệ thống.</i></p>\n      </div>\n\n      <div class=\"kit-box\">\n        🎁 <strong>Gói Chào Mừng (Welcome Kit) chuẩn bị cho bạn vào Ngày 1:</strong>\n        <ul style=\"margin: 6px 0 0 0; padding-left: 20px;\">\n          <li>Laptop chuyên dụng & Màn hình phụ làm việc.</li>\n          <li>Thẻ nhân viên, Balo công nghệ và Sổ tay văn hóa doanh nghiệp 2026.</li>\n          <li>Checklist thử việc 30 ngày và Trợ lý AI Copilot hỗ trợ 24/7.</li>\n        </ul>\n      </div>\n\n      <div style=\"text-align: center; margin: 25px 0;\">\n        <a href=\"${portalUrl}\" class=\"btn\" target=\"_blank\">🚀 Kích Hoạt & Đăng Nhập HR Portal</a>\n      </div>\n\n      <p>Chúc bạn sẽ có một hành trình làm việc tràn đầy cảm hứng, phát triển vượt bậc và gặt hái nhiều thành công rực rỡ cùng chúng tôi!</p>\n      <p>Trân trọng,<br><strong>Phòng Nhân Sự & Văn Hóa Doanh Nghiệp</strong></p>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Email này được tạo tự động bởi n8n Workflow Engine.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    userId: payload.userId,\n    fullName: fullName,\n    jobTitle: jobTitle,\n    department: department,\n    email: email,\n    tempPassword: tempPassword,\n    portalUrl: portalUrl,\n    telegramChatId: payload.telegramChatId || payload.chatId,\n    emailSubject: `[Welcome to Enterprise] Chúc mừng ${fullName} chính thức gia nhập vị trí ${jobTitle}! 🎉`,\n    emailHtml: htmlTemplate,\n    telegramAlert: `🎉 <b>NHÂN SỰ MỚI GIA NHẬP CÔNG TY</b>\\n• Họ tên: <b>${fullName}</b> (ID #${payload.userId || 'NEW'})\\n• Vị trí: <b>${jobTitle}</b>\\n• Phòng ban: <b>${department}</b>\\n• Email: <code>${email}</code>\\n\\n⚡ <i>IT Helpdesk & HR Operations vui lòng chuẩn bị Welcome Kit, Laptop và kích hoạt tài khoản nội bộ trước ngày Onboarding!</i>`\n  }\n};"
+        "jsCode": "const raw = $input.first().json;\nconst rawBody = raw.body || raw;\nconst payload = rawBody.data || rawBody;\n\nconst fullName = String(payload.fullName || payload.candidateName || 'Thành Viên Mới').trim();\nconst jobTitle = String(payload.jobTitle || 'Chuyên viên Kỹ thuật').trim();\nconst department = String(payload.departmentName || payload.department || 'Phòng Phát Triển Công Nghệ Số').trim();\nconst email = String(payload.email || payload.candidateEmail || 'quocthangngo2006@gmail.com').trim().toLowerCase();\nconst tempPassword = String(payload.tempPassword || 'Enterprise@2026#').trim();\nconst portalUrl = String(payload.portalUrl || 'https://levitra-them-utah-fonts.trycloudflare.com/login').trim();\nconst fromEmail = String(payload.fromEmail || 'quocthangngo2006@gmail.com').trim();\nconst userId = Number(payload.userId || 1);\n\nconst htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }\n    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }\n    .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; padding: 35px 20px; text-align: center; }\n    .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }\n    .content { padding: 30px; color: #334155; line-height: 1.6; }\n    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; }\n    .card-title { font-weight: 700; color: #0f172a; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #10b981; padding-bottom: 6px; display: inline-block; }\n    .cred-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 18px; margin: 20px 0; }\n    .cred-title { font-weight: 700; color: #1e40af; margin-bottom: 10px; font-size: 15px; }\n    .item { margin: 8px 0; font-size: 15px; }\n    .code-tag { background: #dbeafe; color: #1e3a8a; padding: 4px 10px; border-radius: 6px; font-family: monospace; font-size: 16px; font-weight: bold; letter-spacing: 1px; }\n    .btn { display: inline-block; background: #059669; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0; }\n    .kit-box { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 15px; margin-top: 15px; color: #065f46; font-size: 14px; }\n    .footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 20px; border-top: 1px solid #e2e8f0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>CHÀO MỪNG GIA NHẬP ĐỘI NGŨ</h1>\n      <p style=\"margin: 6px 0 0 0; opacity: 0.95; font-size: 15px;\">Enterprise Multi-Agent HR Ecosystem</p>\n    </div>\n    <div class=\"content\">\n      <p>Thân gửi <strong>${fullName}</strong>,</p>\n      <p>Ban Giám đốc cùng toàn thể đại gia đình công ty xin gửi lời chúc mừng nồng nhiệt nhất tới bạn! Chúng tôi vô cùng vui mừng khi bạn chính thức gia nhập đội ngũ.</p>\n      \n      <div class=\"card\">\n        <div class=\"card-title\">📌 THÔNG TIN VỊ TRÍ CÔNG TÁC</div>\n        <div class=\"item\"><strong>Chức danh:</strong> ${jobTitle}</div>\n        <div class=\"item\"><strong>Phòng ban:</strong> ${department}</div>\n        <div class=\"item\"><strong>Chế độ đãi ngộ:</strong> 100% Bảo hiểm BHXH/BHYT + Gói khám sức khỏe định kỳ + Trợ cấp thiết bị & đào tạo</div>\n      </div>\n\n      <div class=\"cred-box\">\n        <div class=\"cred-title\">🔐 TÀI KHOẢN TRUY CẬP HỆ THỐNG NỘI BỘ (HR PORTAL)</div>\n        <div class=\"item\">👤 <strong>Tên đăng nhập (Email):</strong> <code>${email}</code></div>\n        <div class=\"item\">🔑 <strong>Mật khẩu tạm thời:</strong> <span class=\"code-tag\">${tempPassword}</span></div>\n        <div class=\"item\">🌐 <strong>Cổng thông tin nhân sự:</strong> <a href=\"${portalUrl}\">${portalUrl}</a></div>\n        <p style=\"font-size: 13px; color: #64748b; margin: 10px 0 0 0;\"><i>* Lưu ý an toàn: Vui lòng đổi mật khẩu mới ngay trong lần đầu tiên đăng nhập hệ thống.</i></p>\n      </div>\n\n      <div class=\"kit-box\">\n        🎁 <strong>Gói Chào Mừng (Welcome Kit) chuẩn bị cho bạn vào Ngày 1 Onboarding:</strong>\n        <ul style=\"margin: 6px 0 0 0; padding-left: 20px;\">\n          <li>Laptop làm việc cấu hình cao & thẻ nhân viên.</li>\n          <li>Bộ quà tặng chào mừng (Áo polo, sổ tay văn hóa doanh nghiệp).</li>\n          <li>Lộ trình hội nhập 30 ngày (Onboarding Journey) và Buddy hỗ trợ 1-kèm-1.</li>\n        </ul>\n      </div>\n\n      <div style=\"text-align: center; margin: 25px 0;\">\n        <a href=\"${portalUrl}\" class=\"btn\" target=\"_blank\">🚀 Kích Hoạt & Đăng Nhập Hệ Thống</a>\n      </div>\n\n      <p>Chúc bạn sẽ có một hành trình phát triển vượt bậc và gặt hái nhiều thành công rực rỡ cùng chúng tôi!</p>\n      <p>Trân trọng,<br><strong>Phòng Nhân Sự & Văn Hóa Doanh Nghiệp</strong></p>\n    </div>\n    <div class=\"footer\">\n      © 2026 Enterprise Corporation. Email này được tạo và gửi tự động bởi n8n Workflow Automation.\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nconst detailsJson = JSON.stringify({ userId, fullName, jobTitle, department });\n\nreturn [{\n  json: {\n    fromEmail,\n    userId,\n    fullName,\n    jobTitle,\n    department,\n    email,\n    tempPassword,\n    portalUrl,\n    detailsJson,\n    telegramChatId: payload.telegramChatId || payload.chatId || '8928574834',\n    emailSubject: `[Welcome Kit] Chúc mừng ${fullName} chính thức gia nhập ${department} - Vị trí ${jobTitle}! 🎉`,\n    emailHtml: htmlTemplate,\n    telegramAlert: `🎉 <b>NHÂN SỰ MỚI GIA NHẬP DOANH NGHIỆP</b>\\n• Họ tên: <b>${fullName}</b> (ID #${userId})\\n• Vị trí: <b>${jobTitle}</b>\\n• Phòng ban: <b>${department}</b>\\n• Email: <code>${email}</code>\\n\\n⚡ <i>IT Helpdesk & HR Operations vui lòng chuẩn bị Welcome Kit, Laptop và bàn làm việc trước ngày Onboarding!</i>`\n  }\n}];"
       },
-      "id": "code-format-hired",
-      "name": "31. Soạn nội dung chào mừng nhân sự mới",
+      "id": "code-format-welcome-kit",
+      "name": "3. Soạn nội dung Thư chúc mừng & Tài khoản",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        440,
-        680
+        780,
+        360
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{ $json.fromEmail }}",
-        "toEmail": "={{ $json.email }}",
-        "subject": "={{ $json.emailSubject }}",
-        "html": "={{ $json.emailHtml }}"
+        "operation": "executeQuery",
+        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('EMPLOYEE_HIRED_PROVISIONED', '127.0.0.1', '{{ $json.email }}', '{{ $json.detailsJson }}', NOW());",
+        "options": {}
       },
-      "id": "send-email-hired",
-      "name": "32. Gửi thư chào mừng nhân sự mới",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
+      "id": "mysql-log-provisioning",
+      "name": "4. Lưu vết Cấp tài khoản vào MySQL",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
       "position": [
-        740,
-        560
+        1040,
+        360
       ],
+      "onError": "continueRegularOutput",
       "credentials": {
-        "smtp": {
-          "id": "pcGy7r4S7VYVboJQ",
-          "name": "SMTP account"
+        "mySql": {
+          "id": "Dre86joWTJ8RKO9C",
+          "name": "MySQL root with rootpassword"
         }
       }
     },
     {
       "parameters": {
-        "chatId": "={{ $json.telegramChatId || $json.chatId || '8928574834' }}",
-        "text": "={{ $json.telegramAlert }}",
+        "fromEmail": "={{ $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.fromEmail }}",
+        "toEmail": "={{ $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.email }}",
+        "subject": "={{ $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.emailSubject }}",
+        "html": "={{ $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.emailHtml }}",
+        "options": {}
+      },
+      "id": "email-send-welcome",
+      "name": "5. Gửi Thư chúc mừng & Tài khoản (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1280,
+        260
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "l1IYILIUOY2w4H1b",
+          "name": "Quoc Thang SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.telegramChatId }}",
+        "text": "={{ $('3. Soạn nội dung Thư chúc mừng & Tài khoản').first().json.telegramAlert }}",
         "additionalFields": {
           "parse_mode": "HTML"
         }
       },
-      "id": "telegram-hired-ops-alert",
-      "name": "33. Thông báo bộ phận IT và nhân sự qua Telegram",
+      "id": "telegram-notify-it-hr",
+      "name": "6. Thông báo IT & HR Ops qua Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        740,
-        780
-      ]
+        1280,
+        460
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "HETZB83kRcozxOI3",
+          "name": "Telegram account"
+        }
+      }
     }
   ],
   "connections": {
-    "30. Nhận sự kiện tuyển dụng nhân sự mới": {
+    "1. Nhận sự kiện Tuyển dụng nhân sự": {
       "main": [
         [
           {
-            "node": "18. Hoàn tất xử lý yêu cầu",
+            "node": "2. Phản hồi HTTP 200 OK",
             "type": "main",
             "index": 0
           },
           {
-            "node": "31. Soạn nội dung chào mừng nhân sự mới",
+            "node": "3. Soạn nội dung Thư chúc mừng & Tài khoản",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "31. Soạn nội dung chào mừng nhân sự mới": {
+    "3. Soạn nội dung Thư chúc mừng & Tài khoản": {
       "main": [
         [
           {
-            "node": "32. Gửi thư chào mừng nhân sự mới",
+            "node": "4. Lưu vết Cấp tài khoản vào MySQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Lưu vết Cấp tài khoản vào MySQL": {
+      "main": [
+        [
+          {
+            "node": "5. Gửi Thư chúc mừng & Tài khoản (SMTP)",
             "type": "main",
             "index": 0
           },
           {
-            "node": "33. Thông báo bộ phận IT và nhân sự qua Telegram",
+            "node": "6. Thông báo IT & HR Ops qua Telegram",
             "type": "main",
             "index": 0
           }
@@ -138,8 +179,8 @@
       ]
     }
   },
-  "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
   }
 }

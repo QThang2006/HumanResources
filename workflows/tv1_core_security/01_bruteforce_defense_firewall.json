@@ -191,7 +191,7 @@
     {
       "parameters": {
         "chatId": "8928574834",
-        "text": "=🚨 *[DEVSECOPS BÁO ĐỘNG ĐỎ] TỰ ĐỘNG CHẶN BRUTE-FORCE*\n\n• *Mã sự cố:* `{{ $('7. Gemini AI Threat Classifier').first().json.incidentId }}`\n• *Mức độ:* `{{ $('7. Gemini AI Threat Classifier').first().json.riskTier }}` (Điểm đe dọa: {{ $('7. Gemini AI Threat Classifier').first().json.threatScore }}/100)\n• *IP bị cấm:* `{{ $('7. Gemini AI Threat Classifier').first().json.ip }}`\n• *Mục tiêu:* `{{ $('7. Gemini AI Threat Classifier').first().json.email }}` (Role: `{{ $('7. Gemini AI Threat Classifier').first().json.targetRole }}`)\n• *Số lần gõ sai:* {{ $('7. Gemini AI Threat Classifier').first().json.failedAttempts }} lần / 15 phút\n• *Thời gian khóa:* {{ $('7. Gemini AI Threat Classifier').first().json.banMinutes }} phút (Hết hạn: {{ $('7. Gemini AI Threat Classifier').first().json.banUntil }})\n• *Động cơ AI:* {{ $('7. Gemini AI Threat Classifier').first().json.aiModel }}\n• *Nhận định:* {{ $('7. Gemini AI Threat Classifier').first().json.aiAssessment }}\n\n_Hệ thống đã tự động thêm IP vào tường lửa Blacklist Backend._",
+        "text": "={{ $('7. Gemini AI Threat Classifier').first().json.riskTier === 'CRITICAL_ATTACK' ? '🚨 *[DEVSECOPS BÁO ĐỘNG ĐỎ] TỰ ĐỘNG CHẶN BRUTE-FORCE*' : '⚠️ *[DEVSECOPS CẢNH BÁO] TỰ ĐỘNG CHẶN BRUTE-FORCE*' }}\n\n• *Mã sự cố:* `{{ $('7. Gemini AI Threat Classifier').first().json.incidentId }}`\n• *Mức độ:* `{{ $('7. Gemini AI Threat Classifier').first().json.riskTier }}` (Điểm đe dọa: {{ $('7. Gemini AI Threat Classifier').first().json.threatScore }}/100)\n• *IP bị cấm:* `{{ $('7. Gemini AI Threat Classifier').first().json.ip }}`\n• *Mục tiêu:* `{{ $('7. Gemini AI Threat Classifier').first().json.email }}` (Role: `{{ $('7. Gemini AI Threat Classifier').first().json.targetRole }}`)\n• *Số lần gõ sai:* {{ $('7. Gemini AI Threat Classifier').first().json.failedAttempts }} lần / 15 phút\n• *Thời gian khóa:* {{ $('7. Gemini AI Threat Classifier').first().json.banMinutes }} phút (Hết hạn: {{ $('7. Gemini AI Threat Classifier').first().json.banUntil }})\n• *Động cơ AI:* {{ $('7. Gemini AI Threat Classifier').first().json.aiModel }}\n• *Nhận định:* {{ $('7. Gemini AI Threat Classifier').first().json.aiAssessment }}\n\n_Hệ thống đã tự động thêm IP vào tường lửa Blacklist Backend._",
         "additionalFields": {
           "parse_mode": "Markdown"
         }
@@ -207,10 +207,11 @@
       "continueOnFail": true,
       "credentials": {
         "telegramApi": {
-          "id": "0HkzdiGpziEpFKx5",
-          "name": "Telegram account"
+          "id": "qgpdMzynZwpJh37i",
+          "name": "Quoc Thang Telegram Bot"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -228,11 +229,10 @@
         2200,
         200
       ],
-      "continueOnFail": true,
       "credentials": {
         "smtp": {
-          "id": "NTncvvMB0zaRbEnL",
-          "name": "SMTP account"
+          "id": "l1IYILIUOY2w4H1b",
+          "name": "Quoc Thang SMTP"
         }
       }
     },
@@ -253,8 +253,8 @@
       "continueOnFail": true,
       "credentials": {
         "mySql": {
-          "id": "mySqlCredentialLocal",
-          "name": "HR MySQL Database"
+          "id": "Dre86joWTJ8RKO9C",
+          "name": "MySQL root with rootpassword"
         }
       }
     },
@@ -372,7 +372,7 @@
         ],
         [
           {
-            "node": "10. Send Email Security Warning (SMTP)",
+            "node": "9. Telegram Alert DevSecOps",
             "type": "main",
             "index": 0
           }

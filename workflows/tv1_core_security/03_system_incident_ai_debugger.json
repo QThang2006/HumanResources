@@ -186,10 +186,11 @@
       "continueOnFail": true,
       "credentials": {
         "telegramApi": {
-          "id": "0HkzdiGpziEpFKx5",
-          "name": "Telegram account"
+          "id": "qgpdMzynZwpJh37i",
+          "name": "Quoc Thang Telegram Bot"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -210,10 +211,11 @@
       "continueOnFail": true,
       "credentials": {
         "telegramApi": {
-          "id": "0HkzdiGpziEpFKx5",
-          "name": "Telegram account"
+          "id": "qgpdMzynZwpJh37i",
+          "name": "Quoc Thang Telegram Bot"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -232,8 +234,8 @@
       "continueOnFail": true,
       "credentials": {
         "mySql": {
-          "id": "mySqlCredentialLocal",
-          "name": "HR MySQL Database"
+          "id": "Dre86joWTJ8RKO9C",
+          "name": "MySQL root with rootpassword"
         }
       }
     },
@@ -252,11 +254,10 @@
         2420,
         200
       ],
-      "continueOnFail": true,
       "credentials": {
         "smtp": {
-          "id": "NTncvvMB0zaRbEnL",
-          "name": "SMTP account"
+          "id": "l1IYILIUOY2w4H1b",
+          "name": "Quoc Thang SMTP"
         }
       }
     },

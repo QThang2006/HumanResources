@@ -642,7 +642,7 @@ export const KnowledgeBasePanel: React.FC<{ presentation?: 'standard' | 'admin' 
 
           {!ragResponse && !searching && (
             <div className="tv4-search-intro">
-              <p>Tra cứu chính sách từ tài liệu đã nạp. Câu trả lời sẽ kèm nguồn để bạn đối chiếu.</p>
+              <p>Tra cứu nhanh chính sách và quy định nội bộ của công ty.</p>
               {stats.ready === 0 && <button type="button" className="tv4-primary" onClick={() => setWorkspace('documents')}><UploadCloud className="h-4 w-4" /> Thêm tài liệu để bắt đầu</button>}
             </div>
           )}

@@ -89,8 +89,8 @@
       "continueOnFail": true,
       "credentials": {
         "mySql": {
-          "id": "mySqlCredentialLocal",
-          "name": "HR MySQL Database"
+          "id": "Dre86joWTJ8RKO9C",
+          "name": "MySQL root with rootpassword"
         }
       }
     },
@@ -149,7 +149,7 @@
           "parameters": [
             {
               "name": "X-Automation-Secret",
-              "value": "={{ $env.N8N_AUTOMATION_SECRET }}"
+              "value": "change_this_to_a_long_random_secret"
             }
           ]
         },
@@ -202,10 +202,11 @@
       "continueOnFail": true,
       "credentials": {
         "telegramApi": {
-          "id": "0HkzdiGpziEpFKx5",
-          "name": "Telegram account"
+          "id": "qgpdMzynZwpJh37i",
+          "name": "Quoc Thang Telegram Bot"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -222,11 +223,10 @@
         2180,
         200
       ],
-      "continueOnFail": true,
       "credentials": {
         "smtp": {
-          "id": "NTncvvMB0zaRbEnL",
-          "name": "SMTP account"
+          "id": "l1IYILIUOY2w4H1b",
+          "name": "Quoc Thang SMTP"
         }
       }
     },
@@ -247,8 +247,8 @@
       "continueOnFail": true,
       "credentials": {
         "mySql": {
-          "id": "mySqlCredentialLocal",
-          "name": "HR MySQL Database"
+          "id": "Dre86joWTJ8RKO9C",
+          "name": "MySQL root with rootpassword"
         }
       }
     },

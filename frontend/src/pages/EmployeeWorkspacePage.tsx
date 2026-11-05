@@ -958,15 +958,16 @@ export const EmployeeWorkspacePage: React.FC = () => {
               </div>
             </div>
 
-            {/* ── Grid Layout ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* ── BỐ CỤC 2 CỘT EXECUTIVE (TỈ LỆ VÀNG 8:4) ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
               {/* ══════════════════════════════════════════════════════ */}
-              {/* MOOD CHECK-IN WIDGET (col-span-2) — Thành viên 3     */}
+              {/* CỘT TRÁI (8 COLS): KHÔNG GIAN TÁC VỤ CHÍNH           */}
               {/* ══════════════════════════════════════════════════════ */}
-              <div className="lg:col-span-2">
-                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs h-full flex flex-col justify-between">
+              <div className="col-span-12 lg:col-span-7 xl:col-span-8 space-y-6">
 
+                {/* ── 1. MOOD CHECK-IN WIDGET (Weather Metaphor & Boarding Pass) ── */}
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
                   {isLoadingMood && (
                     <div className="animate-pulse space-y-4">
                       <div className="h-5 w-48 bg-slate-200 rounded-md" />
@@ -979,7 +980,7 @@ export const EmployeeWorkspacePage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* ĐÃ CHECK-IN HÔM NAY */}
+                  {/* ĐÃ CHECK-IN HÔM NAY (BOARDING PASS NĂNG LƯỢNG) */}
                   {!isLoadingMood && todayMood && (() => {
                     const cfg = getMoodConfig(todayMood.mood);
                     const MoodIcon = cfg?.icon || Sun;
@@ -1118,16 +1119,24 @@ export const EmployeeWorkspacePage: React.FC = () => {
                             Gợi ý chọn nhanh nội dung (Tùy chọn):
                           </p>
                           <div className="flex flex-wrap gap-1.5">
-                            {QUICK_FEEDBACK_TAGS.map((tag) => (
-                              <button
-                                key={tag}
-                                type="button"
-                                onClick={() => handleQuickTagClick(tag)}
-                                className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 text-slate-600 transition-colors"
-                              >
-                                {tag}
-                              </button>
-                            ))}
+                            {QUICK_FEEDBACK_TAGS.map((tag) => {
+                              const cleanTag = tag.replace(/^[^\s]+\s*/, '');
+                              const isTagActive = feedbackText.includes(cleanTag);
+                              return (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() => handleQuickTagClick(tag)}
+                                  className={`text-[11px] font-medium px-2.5 py-1 rounded-md border transition-all ${
+                                    isTagActive
+                                      ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-semibold'
+                                      : 'border-slate-200 bg-slate-50 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 text-slate-600'
+                                  }`}
+                                >
+                                  {tag}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -1196,68 +1205,74 @@ export const EmployeeWorkspacePage: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {/* ── 2. LỘ TRÌNH ONBOARDING 30 NGÀY ── */}
+                <OnboardingChecklistWidget />
+
+                {/* ── 3. KHÓA HỌC & PHÁT TRIỂN NĂNG LỰC ── */}
+                <EmployeeTrainingsWidget />
               </div>
 
               {/* ══════════════════════════════════════════════════════ */}
-              {/* STATUS TILE (col-span-1) — Nhịp Cảm Xúc 7 Ngày       */}
+              {/* CỘT PHẢI (4 COLS): STICKY RHYTHM & AI COPILOT DOCK   */}
               {/* ══════════════════════════════════════════════════════ */}
-              <div className="lg:col-span-1">
-                <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-xs h-full flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-blue-600" />
-                        <h4 className="text-sm font-bold text-slate-900">Nhịp Năng Lượng 7 Ngày</h4>
-                      </div>
-                      <span className="text-[11px] font-bold text-slate-500 uppercase">Tuần này</span>
+              <div className="col-span-12 lg:col-span-5 xl:col-span-4 space-y-6 lg:sticky lg:top-20">
+
+                {/* ── 1. NHỊP CẢM XÚC 7 NGÀY ── */}
+                <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                      <h4 className="text-sm font-bold text-slate-900">Nhịp Năng Lượng 7 Ngày</h4>
                     </div>
-
-                    <p className="text-xs text-slate-500 mb-4">
-                      Biểu đồ liên tục ghi nhận sự nhất quán trong phản hồi tâm trạng của bạn
-                    </p>
-
-                    {/* Timeline 7 Cột trực quan */}
-                    {isLoadingMood ? (
-                      <div className="animate-pulse grid grid-cols-7 gap-1.5 py-4">
-                        {[...Array(7)].map((_, i) => (
-                          <div key={i} className="h-16 bg-slate-100 rounded-lg" />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-7 gap-1.5 py-2">
-                        {getLast7Days().map((day, idx) => {
-                          const cfg = day.mood ? getMoodConfig(day.mood) : null;
-                          return (
-                            <div
-                              key={idx}
-                              className={`flex flex-col items-center justify-between p-2 rounded-lg border transition-all ${
-                                day.isToday
-                                  ? 'bg-blue-50/70 border-blue-300 ring-1 ring-blue-400/50'
-                                  : 'bg-slate-50 border-slate-200/80 hover:bg-white'
-                              }`}
-                              title={
-                                day.mood
-                                  ? `${day.dayName} (${day.dateNumber}): ${cfg?.label}`
-                                  : `${day.dayName}: Chưa check-in`
-                              }
-                            >
-                              <span className={`text-[10px] font-bold ${day.isToday ? 'text-blue-700' : 'text-slate-500'}`}>
-                                {day.dayName}
-                              </span>
-                              <span className="text-[9px] text-slate-400 font-mono">{day.dateNumber}</span>
-                              <div className="my-1.5">
-                                {day.mood ? (
-                                  <span className={`w-3 h-3 rounded-full block ${MOOD_DOT_COLORS[day.mood]}`} />
-                                ) : (
-                                  <span className="w-3 h-3 rounded-full border border-slate-300 block bg-white" />
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <span className="text-[11px] font-bold text-slate-500 uppercase">Tuần này</span>
                   </div>
+
+                  <p className="text-xs text-slate-500 mb-4">
+                    Biểu đồ liên tục ghi nhận sự nhất quán trong phản hồi tâm trạng của bạn
+                  </p>
+
+                  {/* Timeline 7 Cột trực quan */}
+                  {isLoadingMood ? (
+                    <div className="animate-pulse grid grid-cols-7 gap-1.5 py-4">
+                      {[...Array(7)].map((_, i) => (
+                        <div key={i} className="h-16 bg-slate-100 rounded-lg" />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-7 gap-1.5 py-2">
+                      {getLast7Days().map((day, idx) => {
+                        const cfg = day.mood ? getMoodConfig(day.mood) : null;
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex flex-col items-center justify-between p-2 rounded-lg border transition-all ${
+                              day.isToday
+                                ? 'bg-blue-50/70 border-blue-300 ring-1 ring-blue-400/50'
+                                : 'bg-slate-50 border-slate-200/80 hover:bg-white'
+                            }`}
+                            title={
+                              day.mood
+                                ? `${day.dayName} (${day.dateNumber}): ${cfg?.label}`
+                                : `${day.dayName}: Chưa check-in`
+                            }
+                          >
+                            <span className={`text-[10px] font-bold ${day.isToday ? 'text-blue-700' : 'text-slate-500'}`}>
+                              {day.dayName}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-mono">{day.dateNumber}</span>
+                            <div className="my-1.5">
+                              {day.mood ? (
+                                <span className={`w-3 h-3 rounded-full block ${MOOD_DOT_COLORS[day.mood]}`} />
+                              ) : (
+                                <span className="w-3 h-3 rounded-full border border-slate-300 block bg-white" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Chú thích màu */}
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-around text-[11px] text-slate-600 font-medium">
@@ -1272,28 +1287,11 @@ export const EmployeeWorkspacePage: React.FC = () => {
                     </span>
                   </div>
                 </div>
-              </div>
 
-              {/* ══════════════════════════════════════════════════════ */}
-              {/* CHECKLIST 30 NGÀY (col-span-2)                        */}
-              {/* ══════════════════════════════════════════════════════ */}
-              <div className="lg:col-span-2">
-                <OnboardingChecklistWidget />
-              </div>
-
-              {/* ══════════════════════════════════════════════════════ */}
-              {/* AI COPILOT CHAT (col-span-1)                          */}
-              {/* ══════════════════════════════════════════════════════ */}
-              <div className="lg:col-span-1">
+                {/* ── 2. AI COPILOT CHAT DOCK ── */}
                 <CopilotChatWidget />
               </div>
 
-              {/* ══════════════════════════════════════════════════════ */}
-              {/* KHÓA HỌC L&D (col-span-3)                             */}
-              {/* ══════════════════════════════════════════════════════ */}
-              <div className="lg:col-span-3">
-                <EmployeeTrainingsWidget />
-              </div>
             </div>
           </div>
         )}
@@ -1354,11 +1352,11 @@ export const EmployeeWorkspacePage: React.FC = () => {
             {managerActiveTab === 'ONBOARDING' && <ManagerTeamOnboardingWidget />}
             {managerActiveTab === 'MOOD' && <ManagerTeamMoodWidget />}
             {managerActiveTab === 'MY_CHECKLIST' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="lg:col-span-2">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="col-span-12 lg:col-span-7 xl:col-span-8">
                   <OnboardingChecklistWidget />
                 </div>
-                <div className="lg:col-span-1">
+                <div className="col-span-12 lg:col-span-5 xl:col-span-4 lg:sticky lg:top-20">
                   <CopilotChatWidget />
                 </div>
               </div>

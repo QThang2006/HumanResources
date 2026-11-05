@@ -221,7 +221,7 @@
     },
     {
       "parameters": {
-        "fromEmail": "noreply@company.com",
+        "fromEmail": "quocthangngo2006@gmail.com",
         "toEmail": "={{ $('Build Alert Card').first().json.managerEmail || $('Build Alert Card').first().json.hrEmail }}",
         "subject": "={{ $('Build Alert Card').first().json.emailSubject }}",
         "emailFormat": "text",

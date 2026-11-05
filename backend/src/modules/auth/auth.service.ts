@@ -14,10 +14,15 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, pass: string): Promise<User | null> {
-    const lookupEmail =
-        email === 'admin@company.com'
-            ? 'superadmin@company.com'
-            : email;
+    const emailAliases: Record<string, string> = {
+      'admin@company.com': 'dattrandn+superadmin@gmail.com',
+      'superadmin@company.com': 'dattrandn+superadmin@gmail.com',
+      'hr@company.com': 'vutranpoh+hr@gmail.com',
+      'manager@company.com': 'vutranpoh@gmail.com',
+      'employee@company.com': 'dattrandn@gmail.com',
+    };
+
+    const lookupEmail = emailAliases[email] || email;
 
     const user = await this.userRepository.findOne({
       where: { email: lookupEmail },

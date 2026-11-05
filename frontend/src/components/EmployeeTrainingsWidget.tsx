@@ -47,7 +47,7 @@ const TYPE_LABELS: Record<TrainingCourseType, string> = {
 
 const TYPE_CLASSES: Record<TrainingCourseType, string> = {
   MANDATORY: 'border-rose-200 bg-rose-50 text-rose-700',
-  AI_SKILL_GAP: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+  AI_SKILL_GAP: 'border-blue-200 bg-blue-50 text-blue-700',
   SOFT_SKILL: 'border-emerald-200 bg-emerald-50 text-emerald-700',
 };
 
@@ -145,9 +145,9 @@ export function EmployeeTrainingsWidget() {
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-white/50 bg-white/75 p-6 shadow-sm backdrop-blur-xl">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
         <div className="flex items-center justify-center py-14 text-slate-500">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          <Loader2 className="mr-2 h-5 w-5 animate-spin text-blue-600" />
           Đang tải khóa học...
         </div>
       </div>
@@ -155,35 +155,35 @@ export function EmployeeTrainingsWidget() {
   }
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/60 bg-white/75 shadow-sm backdrop-blur-xl">
-      <div className="border-b border-slate-200/70 bg-gradient-to-r from-slate-50/90 via-white to-indigo-50/70 px-5 py-5 sm:px-6">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+      <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-5 sm:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200/70">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">
+              <h3 className="text-base font-bold text-slate-900">
                 Khóa học & Phát triển
               </h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Theo dõi lộ trình học tập và chủ động cập nhật tiến độ của bạn.
+              <p className="mt-0.5 text-xs text-slate-500">
+                Theo dõi lộ trình đào tạo và chủ động cập nhật tiến độ nâng cao năng lực.
               </p>
             </div>
           </div>
 
-          <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
+          <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-xs">
             {trainings.length} khóa học
           </span>
         </div>
 
         {trainings.length > 0 && (
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="mt-4 grid grid-cols-3 gap-3">
             <SummaryItem
               icon={<Target className="h-4 w-4" />}
               label="Đang thực hiện"
               value={summary.active}
-              tone="indigo"
+              tone="blue"
             />
             <SummaryItem
               icon={<CheckCircle2 className="h-4 w-4" />}
@@ -203,21 +203,21 @@ export function EmployeeTrainingsWidget() {
 
       <div className="p-5 sm:p-6">
         {error && (
-          <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
+          <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
             {error}
           </div>
         )}
 
         {trainings.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-slate-200 py-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+          <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
               <BookOpen className="h-6 w-6" />
             </div>
             <p className="mt-3 text-sm font-bold text-slate-700">
               Chưa có khóa học được phân công
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              Khóa học mới sẽ xuất hiện khi Admin hoặc HR phân công.
+              Khóa học mới sẽ xuất hiện khi Quản lý hoặc Nhân sự chỉ định.
             </p>
           </div>
         ) : (
@@ -228,9 +228,9 @@ export function EmployeeTrainingsWidget() {
                   key={item.value}
                   type="button"
                   onClick={() => setFilter(item.value)}
-                  className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
                     filter === item.value
-                      ? 'bg-slate-900 text-white shadow-sm'
+                      ? 'bg-blue-600 text-white shadow-xs'
                       : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                   }`}
                 >
@@ -240,7 +240,7 @@ export function EmployeeTrainingsWidget() {
             </div>
 
             {visibleTrainings.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-sm font-semibold text-slate-500">
+              <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm font-medium text-slate-500">
                 Không có khóa học trong nhóm này.
               </div>
             ) : (
@@ -264,34 +264,34 @@ export function EmployeeTrainingsWidget() {
                   return (
                     <article
                       key={training.id}
-                      className="group flex flex-col rounded-[22px] border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg hover:shadow-slate-200/50"
+                      className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition hover:border-blue-300 hover:shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span
-                              className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${TYPE_CLASSES[type]}`}
+                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold ${TYPE_CLASSES[type]}`}
                             >
                               {TYPE_LABELS[type]}
                             </span>
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
                               <Clock3 className="h-3.5 w-3.5" />
                               {training.durationHours ?? 10} giờ
                             </span>
                           </div>
-                          <h4 className="mt-3 text-[15px] font-extrabold leading-6 text-slate-900">
+                          <h4 className="mt-2.5 text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                             {training.title}
                           </h4>
-                          {training.isCourseDeleted && <p className="mt-1 text-xs leading-5 text-slate-600">Khóa đã xóa khỏi danh mục. Tiến độ và kết quả học vẫn được giữ.</p>}
+                          {training.isCourseDeleted && <p className="mt-1 text-xs text-slate-500">Khóa đã xóa khỏi danh mục. Tiến độ học vẫn được lưu.</p>}
                         </div>
 
                         <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
                             training.status === 'COMPLETED'
-                              ? 'bg-emerald-50 text-emerald-700'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : training.status === 'IN_PROGRESS'
-                                ? 'bg-amber-50 text-amber-700'
-                                : 'bg-slate-100 text-slate-600'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}
                         >
                           {STATUS_LABELS[training.status]}
@@ -303,7 +303,7 @@ export function EmployeeTrainingsWidget() {
                           {training.skillsProvided.slice(0, 5).map(skill => (
                             <span
                               key={skill}
-                              className="rounded-lg bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200"
+                              className="rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600 border border-slate-200"
                             >
                               {skill}
                             </span>
@@ -312,32 +312,32 @@ export function EmployeeTrainingsWidget() {
                       )}
 
                       {training.aiReason && (
-                        <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3.5 py-3 text-xs leading-5 text-indigo-700">
-                          <span className="inline-flex items-center gap-1.5 font-bold">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            Lý do đề xuất
+                        <div className="mt-3.5 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-900">
+                          <span className="inline-flex items-center gap-1.5 font-bold text-blue-800">
+                            <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                            Gợi ý từ AI Onboarding
                           </span>
-                          <p className="mt-1 text-indigo-700/80">
+                          <p className="mt-1 text-slate-700">
                             {training.aiReason}
                           </p>
                         </div>
                       )}
 
-                      <div className="mt-auto pt-5">
-                        <div className="mb-2 flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-500">
+                      <div className="mt-auto pt-4">
+                        <div className="mb-1.5 flex items-center justify-between text-xs">
+                          <span className="font-medium text-slate-500">
                             Tiến độ
                           </span>
-                          <span className="font-extrabold text-slate-900">
+                          <span className="font-bold text-slate-900">
                             {progress}%
                           </span>
                         </div>
-                        <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${
                               progress === 100
                                 ? 'bg-emerald-500'
-                                : 'bg-indigo-600'
+                                : 'bg-blue-600'
                             }`}
                             style={{ width: `${progress}%` }}
                           />
@@ -351,14 +351,14 @@ export function EmployeeTrainingsWidget() {
                               onClick={() =>
                                 void updateProgress(training.id, 1)
                               }
-                              className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-900 px-3.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
                             >
                               {isUpdating ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
-                                <PlayCircle className="h-4 w-4" />
+                                <PlayCircle className="h-3.5 w-3.5" />
                               )}
-                              Bắt đầu
+                              Bắt đầu học
                             </button>
                           )}
 
@@ -378,14 +378,14 @@ export function EmployeeTrainingsWidget() {
                                     Number(event.target.value),
                                   )
                                 }
-                                className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 disabled:opacity-50"
+                                className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
                               >
                                 {progressValues.map(value => (
                                   <option key={value} value={value}>
                                     {value === progress &&
                                     !standardProgressValues.includes(value)
-                                      ? `Hiện tại ${value}%`
-                                      : `Cập nhật ${value}%`}
+                                      ? `Hiện tại: ${value}%`
+                                      : `Cập nhật: ${value}%`}
                                   </option>
                                 ))}
                               </select>
@@ -397,16 +397,16 @@ export function EmployeeTrainingsWidget() {
                               href={training.courseUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex h-9 items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                             >
-                              <ExternalLink className="h-4 w-4" />
-                              Vào học
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Vào bài giảng
                             </a>
                           )}
 
                           {training.status === 'COMPLETED' && (
-                            <span className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-700">
-                              <CheckCircle2 className="h-4 w-4" />
+                            <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 text-xs font-semibold text-emerald-700">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
                               Đã hoàn thành
                             </span>
                           )}
@@ -433,21 +433,21 @@ const SummaryItem = ({
   icon: ReactNode;
   label: string;
   value: string | number;
-  tone: 'indigo' | 'emerald' | 'amber';
+  tone: 'blue' | 'emerald' | 'amber';
 }) => {
   const toneClass = {
-    indigo: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
-    emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-    amber: 'bg-amber-50 text-amber-700 ring-amber-100',
+    blue: 'bg-blue-50 text-blue-700 border-blue-200',
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    amber: 'bg-amber-50 text-amber-700 border-amber-200',
   }[tone];
 
   return (
-    <div className={`rounded-2xl p-3 ring-1 ring-inset ${toneClass}`}>
-      <div className="flex items-center gap-1.5 text-[10px] font-bold sm:text-xs">
+    <div className={`rounded-lg p-3 border ${toneClass}`}>
+      <div className="flex items-center gap-1.5 text-xs font-medium">
         {icon}
         <span className="truncate">{label}</span>
       </div>
-      <p className="mt-1.5 text-lg font-black sm:text-xl">{value}</p>
+      <p className="mt-1 text-xl font-bold">{value}</p>
     </div>
   );
 };

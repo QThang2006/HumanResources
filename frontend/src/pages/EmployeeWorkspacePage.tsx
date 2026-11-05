@@ -29,10 +29,10 @@ const MOOD_OPTIONS = [
     label: 'Tuyệt Vời',
     subtitle: 'Năng lượng tốt',
     icon: Sun,
-    gradient: 'from-emerald-400 to-teal-500',
-    ring: 'ring-emerald-400/40',
-    shadow: 'shadow-emerald-200/60',
-    bgLight: 'bg-emerald-50',
+    activeBorder: 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20',
+    iconBg: 'bg-emerald-500 text-white shadow-sm shadow-emerald-200',
+    badgeClass: 'bg-emerald-100 text-emerald-800',
+    bgLight: 'bg-emerald-50/70 border-emerald-200/80',
     textColor: 'text-emerald-700',
     placeholder: 'Điều gì khiến bạn vui hôm nay? (không bắt buộc)',
   },
@@ -41,10 +41,10 @@ const MOOD_OPTIONS = [
     label: 'Bình Thường',
     subtitle: 'Ổn định',
     icon: CloudSun,
-    gradient: 'from-amber-400 to-orange-500',
-    ring: 'ring-amber-400/40',
-    shadow: 'shadow-amber-200/60',
-    bgLight: 'bg-amber-50',
+    activeBorder: 'border-amber-500 bg-amber-50/60 ring-2 ring-amber-500/20',
+    iconBg: 'bg-amber-500 text-white shadow-sm shadow-amber-200',
+    badgeClass: 'bg-amber-100 text-amber-800',
+    bgLight: 'bg-amber-50/70 border-amber-200/80',
     textColor: 'text-amber-700',
     placeholder: 'Bạn có muốn chia sẻ thêm không? (không bắt buộc)',
   },
@@ -53,10 +53,10 @@ const MOOD_OPTIONS = [
     label: 'Căng Thẳng',
     subtitle: 'Cần hỗ trợ',
     icon: CloudRain,
-    gradient: 'from-rose-400 to-pink-500',
-    ring: 'ring-rose-400/40',
-    shadow: 'shadow-rose-200/60',
-    bgLight: 'bg-rose-50',
+    activeBorder: 'border-rose-500 bg-rose-50/60 ring-2 ring-rose-500/20',
+    iconBg: 'bg-rose-500 text-white shadow-sm shadow-rose-200',
+    badgeClass: 'bg-rose-100 text-rose-800',
+    bgLight: 'bg-rose-50/70 border-rose-200/80',
     textColor: 'text-rose-700',
     placeholder: 'Điều gì đang khiến bạn lo lắng? (không bắt buộc)',
   },
@@ -87,7 +87,7 @@ const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
 
 const CATEGORY_BADGE: Record<TaskCategory, { label: string; className: string }> = {
   PAPERWORK: { label: 'Hành chính', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  EQUIPMENT: { label: 'Thiết bị', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+  EQUIPMENT: { label: 'Thiết bị', className: 'bg-sky-50 text-sky-700 border-sky-200' },
   TRAINING: { label: 'Đào tạo', className: 'bg-amber-50 text-amber-700 border-amber-200' },
   MEETING: { label: 'Gặp gỡ', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
 };
@@ -98,7 +98,7 @@ const calcProgressPercent = (completed: number, total: number) =>
 const SECONDARY_BUTTON_CLASS =
   'px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 ' +
   'hover:bg-slate-50 transition-colors duration-200 ' +
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ' +
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ' +
   'disabled:opacity-60 disabled:cursor-not-allowed';
 
 interface OnboardingTaskRowProps {
@@ -130,11 +130,11 @@ const OnboardingTaskRow: React.FC<OnboardingTaskRowProps> = ({ task, isUpdating,
           aria-hidden="true"
           className={`mt-0.5 flex w-5 h-5 shrink-0 items-center justify-center rounded-md border-2
             transition-colors duration-200
-            peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2
+            peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2
             ${
               task.isCompleted
                 ? 'bg-emerald-600 border-emerald-600'
-                : 'bg-white border-slate-300 group-hover:border-indigo-500'
+                : 'bg-white border-slate-300 group-hover:border-blue-500'
             }`}
         >
           {task.isCompleted && (
@@ -339,9 +339,9 @@ const OnboardingChecklistWidget: React.FC = () => {
             type="button"
             onClick={handleSeed}
             disabled={seeding}
-            className="mt-4 px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold
-              hover:bg-slate-800 transition-colors duration-200
-              focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2
+            className="mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold
+              hover:bg-blue-700 transition-colors duration-200
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
               disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {seeding ? 'Đang tạo nhiệm vụ...' : 'Tạo 10 nhiệm vụ mẫu'}
@@ -373,7 +373,7 @@ const OnboardingChecklistWidget: React.FC = () => {
   return (
     <section
       aria-labelledby="onboarding-checklist-title"
-      className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col h-[540px]"
+      className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs flex flex-col h-[540px]"
     >
       <div className="shrink-0 mb-3">
         <h3 id="onboarding-checklist-title" className="text-sm font-bold text-slate-900">
@@ -401,7 +401,7 @@ const OnboardingChecklistWidget: React.FC = () => {
             >
               <div
                 className={`h-full rounded-full transition-all duration-300 ease-out ${
-                  isAllDone ? 'bg-emerald-600' : 'bg-indigo-600'
+                  isAllDone ? 'bg-emerald-600' : 'bg-blue-600'
                 }`}
                 style={{ width: `${progress.progressPercent}%` }}
               />
@@ -419,11 +419,11 @@ const OnboardingChecklistWidget: React.FC = () => {
                 onClick={() => setActiveCategory(f.value)}
                 aria-pressed={activeCategory === f.value}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-200
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
                   ${
                     activeCategory === f.value
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
               >
                 {f.label}
@@ -481,7 +481,7 @@ const CopilotMessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) =
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <p className="max-w-[85%] px-3.5 py-2 bg-slate-900 text-white text-sm leading-relaxed rounded-2xl rounded-br-md whitespace-pre-wrap [overflow-wrap:anywhere]">
+        <p className="max-w-[85%] px-3.5 py-2 bg-blue-600 text-white text-sm leading-relaxed rounded-2xl rounded-br-sm shadow-xs whitespace-pre-wrap [overflow-wrap:anywhere]">
           {message.content}
         </p>
       </div>
@@ -491,7 +491,7 @@ const CopilotMessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) =
   const sources = message.sourceDocuments ?? [];
   return (
     <div className="flex justify-start">
-      <div className="max-w-[95%] px-3.5 py-2.5 bg-slate-50 text-slate-800 border border-slate-200 rounded-2xl rounded-bl-md">
+      <div className="max-w-[95%] px-3.5 py-2.5 bg-slate-100 text-slate-800 border border-slate-200/80 rounded-2xl rounded-bl-sm">
         <p className="text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{message.content}</p>
         {sources.length > 0 && (
           <div className="mt-2.5 pt-2 border-t border-slate-200">
@@ -586,7 +586,7 @@ const CopilotChatWidget: React.FC = () => {
   return (
     <section
       aria-labelledby="copilot-title"
-      className="h-[540px] flex flex-col bg-white border border-slate-200 rounded-3xl p-5 shadow-sm"
+      className="h-[540px] flex flex-col bg-white border border-slate-200 rounded-xl p-5 shadow-xs"
     >
       {/* Header */}
       <div className="shrink-0 flex items-start justify-between gap-3 mb-1">
@@ -618,8 +618,8 @@ const CopilotChatWidget: React.FC = () => {
                   onClick={() => submitMessage(q)}
                   disabled={isLoading}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700
-                    hover:bg-slate-50 hover:border-slate-300 transition-colors duration-150
-                    focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
+                    hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors duration-150
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1
                     disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {q}
@@ -643,7 +643,7 @@ const CopilotChatWidget: React.FC = () => {
                 disabled={isLoading}
                 className="mt-1.5 px-2.5 py-1 rounded-md border border-rose-300 bg-white text-xs font-semibold text-rose-700
                   hover:bg-rose-50 transition-colors duration-150
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1
                   disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Thử lại
@@ -669,16 +669,16 @@ const CopilotChatWidget: React.FC = () => {
           onKeyDown={handleKeyDown}
           rows={2}
           placeholder="Đặt câu hỏi về chính sách nhân sự..."
-          className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-800 placeholder-slate-400
-            resize-none max-h-32 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500"
+          className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400
+            resize-none max-h-32 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:border-blue-500"
         />
         <button
           type="submit"
           disabled={!canSend}
-          className="shrink-0 min-h-[44px] px-4 rounded-xl bg-slate-900 text-white text-xs font-semibold
-            hover:bg-slate-800 transition-colors duration-150
-            focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2
-            disabled:bg-slate-300 disabled:cursor-not-allowed"
+          className="shrink-0 min-h-[44px] px-4 rounded-lg bg-blue-600 text-white text-xs font-semibold
+            hover:bg-blue-700 transition-colors duration-150
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
+            disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed shadow-xs"
         >
           {isLoading ? 'Đang gửi' : 'Gửi'}
         </button>
@@ -825,7 +825,7 @@ export const EmployeeWorkspacePage: React.FC = () => {
   // RENDER
   // ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-emerald-50/20">
+    <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ══════════════════════════════════════════════════════════ */}
@@ -833,53 +833,53 @@ export const EmployeeWorkspacePage: React.FC = () => {
         {/* ══════════════════════════════════════════════════════════ */}
         {user?.role === 'EMPLOYEE' && (
           <div className="space-y-6">
-            {/* ── Personalized Greeting Header (Notion / Lattice / Slack style) ── */}
+            {/* ── Personalized Greeting Header ── */}
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   {getGreeting()},{' '}
-                  <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  <span className="text-blue-600">
                     {getDisplayName()}
                   </span>
                   <span className="text-2xl sm:text-3xl">👋</span>
                 </h1>
                 <div className="flex items-center gap-2 mt-1.5">
                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  <p className="text-sm text-slate-400 font-medium">
+                  <p className="text-sm text-slate-500 font-medium">
                     {getFormattedDate()}
                   </p>
                   {user?.departmentName && (
                     <>
                       <span className="text-slate-300">·</span>
-                      <p className="text-sm text-slate-400">{user.departmentName}</p>
+                      <p className="text-sm text-slate-500">{user.departmentName}</p>
                     </>
                   )}
                 </div>
               </div>
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/60 backdrop-blur border border-white/40 rounded-full shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                <span className="text-[11px] font-bold text-slate-500">Không Gian Của Tôi</span>
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span className="text-xs font-semibold text-slate-600">Không Gian Của Tôi</span>
               </div>
             </div>
 
-            {/* ── Bento Grid ── */}
+            {/* ── Grid Layout ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
               {/* ══════════════════════════════════════════════════════ */}
               {/* MOOD CHECK-IN WIDGET (col-span-2) — Thành viên 3     */}
               {/* ══════════════════════════════════════════════════════ */}
               <div className="lg:col-span-2">
-                <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-6 shadow-sm">
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
 
-                  {/* ─── Skeleton Loading (Linear / Vercel style) ─── */}
+                  {/* ─── Skeleton Loading ─── */}
                   {isLoadingMood && (
                     <div className="animate-pulse" aria-busy="true" aria-hidden="true">
-                      <div className="h-5 w-52 bg-slate-200/70 rounded-lg mb-2.5" />
-                      <div className="h-3.5 w-72 bg-slate-200/50 rounded-lg mb-7" />
+                      <div className="h-5 w-52 bg-slate-200 rounded-lg mb-2.5" />
+                      <div className="h-3.5 w-72 bg-slate-200 rounded-lg mb-7" />
                       <div className="grid grid-cols-3 gap-3 sm:gap-4">
-                        <div className="h-32 bg-gradient-to-br from-emerald-200/40 to-teal-200/40 rounded-2xl" />
-                        <div className="h-32 bg-gradient-to-br from-amber-200/40 to-orange-200/40 rounded-2xl" />
-                        <div className="h-32 bg-gradient-to-br from-rose-200/40 to-pink-200/40 rounded-2xl" />
+                        <div className="h-28 bg-slate-100 rounded-xl" />
+                        <div className="h-28 bg-slate-100 rounded-xl" />
+                        <div className="h-28 bg-slate-100 rounded-xl" />
                       </div>
                     </div>
                   )}
@@ -889,33 +889,33 @@ export const EmployeeWorkspacePage: React.FC = () => {
                     const cfg = getMoodConfig(todayMood.mood);
                     const MoodIcon = cfg?.icon || Sun;
                     return (
-                      <div className={`rounded-2xl p-6 ${cfg?.bgLight || 'bg-slate-50'} border border-white/60 transition-all duration-500`}>
+                      <div className={`rounded-xl p-5 border ${cfg?.bgLight || 'bg-slate-50 border-slate-200'} transition-all duration-300`}>
                         {/* Header */}
-                        <div className="flex items-center justify-between mb-5">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
-                              <Check className="w-4 h-4 text-white" />
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center text-white">
+                              <Check className="w-3.5 h-3.5" />
                             </div>
-                            <span className="text-sm font-bold text-slate-700">
+                            <span className="text-sm font-bold text-slate-800">
                               Đã chia sẻ hôm nay
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                             <Clock className="w-3.5 h-3.5" />
                             {formatTime(todayMood.createdAt)}
                           </div>
                         </div>
 
                         {/* Mood Display */}
-                        <div className="flex items-center gap-4">
-                          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${cfg?.gradient} flex items-center justify-center shadow-xl ${cfg?.shadow}`}>
-                            <MoodIcon className="w-8 h-8 text-white" />
+                        <div className="flex items-center gap-3.5">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${cfg?.iconBg}`}>
+                            <MoodIcon className="w-6 h-6 text-white" />
                           </div>
                           <div>
-                            <p className={`text-xl font-black ${cfg?.textColor}`}>
+                            <p className={`text-lg font-bold ${cfg?.textColor}`}>
                               {cfg?.label}
                             </p>
-                            <p className="text-xs text-slate-400 mt-0.5">
+                            <p className="text-xs text-slate-500 mt-0.5">
                               {cfg?.subtitle}
                             </p>
                           </div>
@@ -923,16 +923,16 @@ export const EmployeeWorkspacePage: React.FC = () => {
 
                         {/* Feedback text nếu có */}
                         {todayMood.feedbackText && (
-                          <div className="mt-5 bg-white/60 rounded-xl p-4 border border-white/50">
-                            <p className="text-sm text-slate-600 italic leading-relaxed">
+                          <div className="mt-4 bg-white/80 rounded-lg p-3.5 border border-slate-200/80">
+                            <p className="text-sm text-slate-700 italic leading-relaxed">
                               &ldquo;{todayMood.feedbackText}&rdquo;
                             </p>
                           </div>
                         )}
 
                         {/* Footer */}
-                        <p className="mt-5 text-xs text-slate-400 flex items-center gap-1.5">
-                          <Heart className="w-3.5 h-3.5 text-rose-400" />
+                        <p className="mt-4 text-xs text-slate-500 flex items-center gap-1.5">
+                          <Heart className="w-3.5 h-3.5 text-rose-500" />
                           Cảm ơn bạn đã chia sẻ. Hẹn gặp lại ngày mai!
                         </p>
                       </div>
@@ -943,16 +943,12 @@ export const EmployeeWorkspacePage: React.FC = () => {
                   {!isLoadingMood && !todayMood && (
                     <div>
                       {/* Header */}
-                      <div className="mb-6">
-                        <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                          Hôm nay bạn{' '}
-                          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                            cảm thấy
-                          </span>{' '}
-                          thế nào?
+                      <div className="mb-5">
+                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                          Hôm nay bạn <span className="text-blue-600">cảm thấy</span> thế nào?
                         </h3>
-                        <p className="text-sm text-slate-400 mt-1.5">
-                          Chia sẻ tâm trạng hàng ngày để chúng tôi hỗ trợ bạn tốt nhất
+                        <p className="text-xs text-slate-500 mt-1">
+                          Chia sẻ tâm trạng hàng ngày để công ty có thể đồng hành và hỗ trợ bạn tốt nhất
                         </p>
                       </div>
 
@@ -966,6 +962,7 @@ export const EmployeeWorkspacePage: React.FC = () => {
                           return (
                             <button
                               key={mood.value}
+                              type="button"
                               onClick={() => {
                                 setSelectedMood(
                                   selectedMood === mood.value ? null : mood.value,
@@ -974,25 +971,24 @@ export const EmployeeWorkspacePage: React.FC = () => {
                               }}
                               disabled={isSubmitting || submitSuccess}
                               className={`
-                                relative rounded-2xl p-4 sm:p-5 text-center
-                                bg-gradient-to-br ${mood.gradient}
-                                transition-all duration-300 ease-out
-                                focus:outline-none
+                                relative rounded-xl p-4 text-center border transition-all duration-200
                                 ${
                                   isSelected
-                                    ? `scale-105 ring-4 ${mood.ring} shadow-xl ${mood.shadow} z-10`
+                                    ? `${mood.activeBorder} shadow-sm z-10 scale-[1.02]`
                                     : hasSelection
-                                      ? 'opacity-40 scale-95 saturate-50'
-                                      : 'hover:shadow-lg hover:scale-[1.03] active:scale-[0.97]'
+                                      ? 'border-slate-200 bg-slate-50/60 opacity-60 scale-[0.98]'
+                                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 hover:shadow-xs'
                                 }
                                 ${isSubmitting || submitSuccess ? 'pointer-events-none' : 'cursor-pointer'}
                               `}
                             >
-                              <Icon className="w-8 h-8 sm:w-9 sm:h-9 text-white/90 mx-auto mb-2.5 drop-shadow" />
-                              <p className="text-sm font-black text-white drop-shadow-sm">
+                              <div className={`w-10 h-10 rounded-xl mx-auto mb-2 flex items-center justify-center ${mood.iconBg}`}>
+                                <Icon className="w-5 h-5 text-white" />
+                              </div>
+                              <p className={`text-sm font-bold ${isSelected ? mood.textColor : 'text-slate-900'}`}>
                                 {mood.label}
                               </p>
-                              <p className="text-[11px] text-white/70 mt-0.5 font-medium">
+                              <p className="text-[11px] text-slate-500 mt-0.5 font-medium">
                                 {mood.subtitle}
                               </p>
                             </button>
@@ -1003,8 +999,8 @@ export const EmployeeWorkspacePage: React.FC = () => {
                       {/* ── Textarea — Progressive Disclosure ── */}
                       <div
                         className={`
-                          overflow-hidden transition-all duration-500 ease-out
-                          ${selectedMood ? 'max-h-52 opacity-100 mt-5' : 'max-h-0 opacity-0 mt-0'}
+                          overflow-hidden transition-all duration-300 ease-out
+                          ${selectedMood ? 'max-h-52 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}
                         `}
                       >
                         <textarea
@@ -1014,10 +1010,10 @@ export const EmployeeWorkspacePage: React.FC = () => {
                           disabled={isSubmitting || submitSuccess}
                           rows={3}
                           className="
-                            w-full px-4 py-3.5 bg-white/80 border border-slate-200/80 rounded-2xl
-                            text-sm text-slate-700 placeholder-slate-400 leading-relaxed
-                            focus:outline-none focus:ring-2 focus:ring-indigo-300/50 focus:border-indigo-300
-                            resize-none transition-all duration-300
+                            w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg
+                            text-sm text-slate-800 placeholder-slate-400 leading-relaxed
+                            focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500
+                            resize-none transition-all duration-200
                             disabled:opacity-50 disabled:cursor-not-allowed
                           "
                         />
@@ -1025,47 +1021,48 @@ export const EmployeeWorkspacePage: React.FC = () => {
 
                       {/* ── Error Message ── */}
                       {errorMsg && (
-                        <div className="mt-3 px-4 py-2.5 bg-rose-50 border border-rose-200/80 rounded-xl">
-                          <p className="text-xs text-rose-600 font-medium">{errorMsg}</p>
+                        <div className="mt-3 px-3.5 py-2 bg-rose-50 border border-rose-200 rounded-lg">
+                          <p className="text-xs text-rose-700 font-medium">{errorMsg}</p>
                         </div>
                       )}
 
                       {/* ── Submit Button — 3 trạng thái ── */}
                       <div
                         className={`
-                          overflow-hidden transition-all duration-500 ease-out
-                          ${selectedMood ? 'max-h-20 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}
+                          overflow-hidden transition-all duration-300 ease-out
+                          ${selectedMood ? 'max-h-20 opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}
                         `}
                       >
                         <button
+                          type="button"
                           onClick={handleSubmitMood}
                           disabled={!selectedMood || isSubmitting || submitSuccess}
                           className={`
-                            w-full py-3.5 rounded-2xl text-sm font-bold
-                            transition-all duration-300 ease-out
-                            flex items-center justify-center gap-2
+                            w-full py-2.5 rounded-lg text-xs font-semibold
+                            transition-all duration-200 ease-out
+                            flex items-center justify-center gap-2 shadow-xs
                             ${
                               submitSuccess
-                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200/60 scale-[0.98]'
+                                ? 'bg-emerald-600 text-white'
                                 : isSubmitting
-                                  ? 'bg-indigo-400 text-white cursor-wait'
-                                  : 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-200/40 hover:shadow-xl hover:shadow-indigo-200/60 active:scale-[0.97]'
+                                  ? 'bg-blue-400 text-white cursor-wait'
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-[0.99]'
                             }
-                            disabled:cursor-not-allowed
+                            disabled:cursor-not-allowed disabled:opacity-60
                           `}
                         >
                           {submitSuccess ? (
                             <>
                               <Check className="w-4 h-4" />
-                              Đã ghi nhận!
+                              Đã ghi nhận thành công!
                             </>
                           ) : isSubmitting ? (
                             <>
                               <Loader2 className="w-4 h-4 animate-spin" />
-                              Đang gửi...
+                              Đang gửi dữ liệu...
                             </>
                           ) : (
-                            'Chia sẻ cảm nhận →'
+                            'Chia sẻ cảm nhận hôm nay →'
                           )}
                         </button>
                       </div>
@@ -1078,35 +1075,35 @@ export const EmployeeWorkspacePage: React.FC = () => {
               {/* STATUS TILE (col-span-1) — Thông tin nhanh            */}
               {/* ══════════════════════════════════════════════════════ */}
               <div className="lg:col-span-1">
-                <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-6 shadow-sm h-full flex flex-col justify-between">
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs h-full flex flex-col justify-between">
                   {/* ── Top: Trạng thái hôm nay ── */}
                   <div className="text-center">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-indigo-200/50">
-                      <Heart className="w-6 h-6 text-white" />
+                    <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center mx-auto mb-2.5 shadow-xs">
+                      <Heart className="w-5 h-5 text-blue-600" />
                     </div>
-                    <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">
+                    <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
                       Trạng thái hôm nay
                     </p>
-                    <div className="mt-2.5">
+                    <div className="mt-2">
                       {isLoadingMood ? (
-                        <div className="animate-pulse mx-auto w-24 h-6 bg-slate-200/60 rounded-full" />
+                        <div className="animate-pulse mx-auto w-24 h-6 bg-slate-200 rounded-full" />
                       ) : todayMood ? (
                         <>
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/60">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200">
                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                             <span className="text-xs font-bold text-emerald-700">Đã chia sẻ</span>
                           </div>
-                          <p className="text-[11px] text-slate-400 mt-1.5">
+                          <p className="text-[11px] text-slate-500 mt-1">
                             {formatTime(todayMood.createdAt)} · {getMoodConfig(todayMood.mood)?.label}
                           </p>
                         </>
                       ) : (
                         <>
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200/60">
-                            <div className="w-2 h-2 rounded-full bg-slate-300" />
-                            <span className="text-xs font-bold text-slate-500">Chưa chia sẻ</span>
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200">
+                            <div className="w-2 h-2 rounded-full bg-slate-400" />
+                            <span className="text-xs font-semibold text-slate-600">Chưa chia sẻ</span>
                           </div>
-                          <p className="text-[11px] text-slate-400 mt-1.5">
+                          <p className="text-[11px] text-slate-400 mt-1">
                             Chọn tâm trạng bên trái
                           </p>
                         </>
@@ -1114,24 +1111,24 @@ export const EmployeeWorkspacePage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* ── Bottom: Mood History 7 ngày (Officevibe / Culture Amp style) ── */}
-                  <div className="mt-5 pt-5 border-t border-slate-200/60">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center mb-3">
+                  {/* ── Bottom: Mood History 7 ngày ── */}
+                  <div className="mt-5 pt-4 border-t border-slate-100">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center mb-2.5">
                       7 ngày gần đây
                     </p>
                     {isLoadingMood ? (
                       <div className="animate-pulse flex justify-center gap-2.5">
                         {[...Array(7)].map((_, i) => (
                           <div key={i} className="flex flex-col items-center gap-1.5">
-                            <div className="w-3 h-3 rounded-full bg-slate-200/60" />
-                            <div className="w-4 h-2 rounded bg-slate-200/40" />
+                            <div className="w-3.5 h-3.5 rounded-full bg-slate-200" />
+                            <div className="w-4 h-2 rounded bg-slate-200" />
                           </div>
                         ))}
                       </div>
                     ) : (
                       <div className="flex justify-center gap-2.5">
                         {getLast7Days().map((day, idx) => (
-                          <div key={idx} className="flex flex-col items-center gap-1.5 group" title={
+                          <div key={idx} className="flex flex-col items-center gap-1 group" title={
                             day.mood
                               ? `${day.dayName}: ${getMoodConfig(day.mood)?.label}`
                               : `${day.dayName}: Chưa check-in`
@@ -1139,16 +1136,16 @@ export const EmployeeWorkspacePage: React.FC = () => {
                             {/* Mood Dot */}
                             <div
                               className={`
-                                w-3.5 h-3.5 rounded-full transition-all duration-300
+                                w-3.5 h-3.5 rounded-full transition-all duration-200
                                 ${day.mood
-                                  ? `${MOOD_DOT_COLORS[day.mood]} shadow-sm group-hover:scale-125`
-                                  : 'border-2 border-slate-300/60 bg-transparent'
+                                  ? `${MOOD_DOT_COLORS[day.mood]} shadow-xs group-hover:scale-125`
+                                  : 'border-2 border-slate-300 bg-white'
                                 }
-                                ${day.isToday ? 'ring-2 ring-indigo-300/50 ring-offset-1' : ''}
+                                ${day.isToday ? 'ring-2 ring-blue-500/30 ring-offset-1' : ''}
                               `}
                             />
                             {/* Day Label */}
-                            <span className={`text-[9px] font-bold ${day.isToday ? 'text-indigo-600' : 'text-slate-400'}`}>
+                            <span className={`text-[9px] font-bold ${day.isToday ? 'text-blue-600' : 'text-slate-400'}`}>
                               {day.dayName}
                             </span>
                           </div>
@@ -1189,48 +1186,48 @@ export const EmployeeWorkspacePage: React.FC = () => {
         {(user?.role === 'MANAGER' || user?.role === 'HR' || user?.role === 'SUPERADMIN') && (
           <div className="space-y-6">
             {/* Thanh Tab Chuyển Đổi Nhanh Dành Cho Quản Lý */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white/60 backdrop-blur-md p-2 rounded-2xl border border-white/60 shadow-xs">
-              <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-xs">
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
                 <button
                   type="button"
                   onClick={() => setManagerActiveTab('ONBOARDING')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all duration-150 ${
                     managerActiveTab === 'ONBOARDING'
-                      ? 'bg-white text-indigo-700 shadow-xs'
+                      ? 'bg-white text-blue-700 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <ListTodo className="w-4 h-4 text-indigo-600" />
+                  <ListTodo className="w-4 h-4 text-blue-600" />
                   Tiến Độ Thử Việc Đội Ngũ (30 Ngày)
                 </button>
                 <button
                   type="button"
                   onClick={() => setManagerActiveTab('MOOD')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all duration-150 ${
                     managerActiveTab === 'MOOD'
-                      ? 'bg-white text-slate-900 shadow-xs'
+                      ? 'bg-white text-blue-700 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Activity className="w-4 h-4 text-emerald-500" />
+                  <Activity className="w-4 h-4 text-emerald-600" />
                   Nhịp Năng Lượng Đội Ngũ (Team Mood)
                 </button>
                 <button
                   type="button"
                   onClick={() => setManagerActiveTab('MY_CHECKLIST')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all duration-150 ${
                     managerActiveTab === 'MY_CHECKLIST'
-                      ? 'bg-white text-purple-700 shadow-xs'
+                      ? 'bg-white text-blue-700 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <BookOpen className="w-4 h-4 text-purple-600" />
+                  <BookOpen className="w-4 h-4 text-blue-600" />
                   Checklist 30 Ngày (Cá Nhân & Copilot)
                 </button>
               </div>
 
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-white/80 border border-slate-200/60 rounded-xl text-[11px] font-semibold text-slate-500">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-600">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                 <span>Bàn Điều Hành Quản Lý Đội Ngũ</span>
               </div>
             </div>

@@ -125,13 +125,13 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
               <CalendarDays className="h-4 w-4" />
             </span>
             <h3 id="weekly-mood-heading" className="text-base font-bold text-slate-900 sm:text-lg">
               Tổng Hợp Nhịp Cảm Xúc Tuần (7 Ngày Gần Nhất)
             </h3>
-            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-100">
+            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 border border-blue-100">
               <Sparkles className="h-3 w-3" />
               Tổng hợp 7 ngày
             </span>
@@ -273,8 +273,8 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
                 key={day.date}
                 className={`relative flex flex-col justify-between rounded-xl border p-3 transition-all ${
                   day.isToday
-                    ? 'border-indigo-400 bg-white shadow-sm ring-2 ring-indigo-200/70'
-                    : 'border-slate-200/80 bg-white hover:border-slate-300'
+                    ? 'border-blue-400 bg-white shadow-xs ring-2 ring-blue-200/70'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
                 }`}
               >
                 {/* Header ngày */}
@@ -282,7 +282,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
                   <div>
                     <span
                       className={`text-xs font-bold ${
-                        day.isToday ? 'text-indigo-600' : 'text-slate-700'
+                        day.isToday ? 'text-blue-600' : 'text-slate-700'
                       }`}
                     >
                       {day.dayLabel}
@@ -290,7 +290,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
                     <p className="text-[10px] text-slate-400">{day.date.slice(5)}</p>
                   </div>
                   {day.isToday && (
-                    <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 uppercase">
+                    <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold text-blue-700 uppercase">
                       Hôm nay
                     </span>
                   )}
@@ -349,7 +349,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
 
       {/* Lời khuyên gợi ý từ AI / Quản lý */}
       <div className="mt-4 flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 border border-slate-200/60">
-        <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-600" />
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" />
         <span>{theme.tip}</span>
       </div>
     </section>

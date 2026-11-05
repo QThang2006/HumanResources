@@ -814,11 +814,16 @@ export const EmployeeWorkspacePage: React.FC = () => {
         return rk === dateKey;
       });
 
+      const isToday = i === 0;
+      const effectiveMood = isToday
+        ? (todayMood?.mood || moodRecord?.mood || null)
+        : (moodRecord?.mood || null);
+
       days.push({
         dayName: WEEKDAY_SHORT[date.getDay()],
         dateNumber: date.getDate(),
-        mood: moodRecord?.mood || null,
-        isToday: i === 0,
+        mood: effectiveMood,
+        isToday,
       });
     }
     return days;
@@ -860,6 +865,21 @@ export const EmployeeWorkspacePage: React.FC = () => {
         feedbackText: feedbackText.trim() || undefined,
       });
       setTodayMood(result);
+      // Cập nhật ngay lập tức vào lịch sử nhịp 7 ngày để giao diện phản hồi tức thì
+      setMoodHistory((prev) => {
+        const todayDate = new Date();
+        const todayKey = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
+        const filtered = prev.filter((m) => {
+          const rd = new Date(m.createdAt);
+          const rk = `${rd.getFullYear()}-${String(rd.getMonth() + 1).padStart(2, '0')}-${String(rd.getDate()).padStart(2, '0')}`;
+          return rk !== todayKey;
+        });
+        return [result, ...filtered];
+      });
+      // Đồng bộ ngầm lịch sử đầy đủ từ backend
+      void onboardingApi.getMoodHistory().then((history) => {
+        if (Array.isArray(history)) setMoodHistory(history);
+      });
       setSubmitSuccess(true);
       setTimeout(() => setSubmitSuccess(false), 2000);
     } catch (err: any) {
@@ -1284,10 +1304,15 @@ export const EmployeeWorkspacePage: React.FC = () => {
                     </div>
                   )}
 
-                  {!todayMood && (
+                  {!todayMood ? (
                     <div className="mt-3 p-2.5 rounded-lg bg-blue-50/60 border border-blue-200/60 flex items-center gap-2 text-xs text-blue-700">
                       <Sparkles className="w-3.5 h-3.5 shrink-0 text-blue-600" />
                       <span>Chọn 1 mức năng lượng ở bên trái để thắp sáng ngày hôm nay!</span>
+                    </div>
+                  ) : (
+                    <div className="mt-3 p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200/70 flex items-center gap-2 text-xs text-emerald-800">
+                      <Check className="w-3.5 h-3.5 shrink-0 text-emerald-600 stroke-[3]" />
+                      <span>Đã đồng bộ nhịp năng lượng hôm nay vào bảng theo dõi!</span>
                     </div>
                   )}
 

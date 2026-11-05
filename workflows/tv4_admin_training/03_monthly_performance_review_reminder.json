@@ -1,0 +1,449 @@
+{
+  "name": "TV4 - 03 Kỳ Đánh Giá KPI Tháng & Đôn Đốc Hạn Chót",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 25 * *"
+            }
+          ]
+        }
+      },
+      "id": "tv4-review-01-open-schedule",
+      "name": "Cron ngày 25 - Mở kỳ đánh giá",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 28 * *"
+            }
+          ]
+        }
+      },
+      "id": "tv4-review-02-remind-schedule",
+      "name": "Cron ngày 28 - Đôn đốc chưa nộp",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "api-base-url",
+              "name": "apiBaseUrl",
+              "type": "string",
+              "value": "http://host.docker.internal:3001/api"
+            },
+            {
+              "id": "automation-secret",
+              "name": "automationSecret",
+              "type": "string",
+              "value": "={{ $env.N8N_AUTOMATION_SECRET }}"
+            },
+            {
+              "id": "telegram-chat-id",
+              "name": "telegramChatId",
+              "type": "string",
+              "value": "THAY_BANG_CHAT_ID_NHOM_TELEGRAM"
+            },
+            {
+              "id": "sender-email",
+              "name": "senderEmail",
+              "type": "string",
+              "value": "automation@example.com"
+            },
+            {
+              "id": "test-manager-email",
+              "name": "testManagerEmail",
+              "type": "string",
+              "value": "test-manager@example.com"
+            },
+            {
+              "id": "review-form-url",
+              "name": "reviewFormUrl",
+              "type": "string",
+              "value": "http://localhost:5173/employee/workspace"
+            },
+            {
+              "id": "test-phase",
+              "name": "testPhase",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "test-as-of",
+              "name": "testAsOf",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "tv4-review-03-config",
+      "name": "Nạp cấu hình an toàn",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $json;\nconst now = config.testAsOf ? new Date(config.testAsOf) : new Date();\nif (Number.isNaN(now.getTime())) throw new Error('testAsOf không hợp lệ');\nconst dateParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);\nconst day = Number(dateParts.find((part) => part.type === 'day')?.value);\nconst automaticPhase = day === 25 ? 'OPENING' : day === 28 ? 'SECOND_REMINDER' : '';\nconst phase = String(config.testPhase || automaticPhase).trim();\nreturn [{ json: { ...config, asOf: now.toISOString(), phase, skipSchedule: !phase, runId: String($execution.id) } }];"
+      },
+      "id": "tv4-review-04-phase",
+      "name": "Xác định đợt thông báo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.apiBaseUrl + '/training/automation/review-reminders' }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "asOf",
+              "value": "={{ $json.asOf }}"
+            },
+            {
+              "name": "phase",
+              "value": "={{ $json.phase }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Secret",
+              "value": "={{ $json.automationSecret }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "tv4-review-05-fetch",
+      "name": "Lấy danh sách quản lý cần nhắc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst payload = response.data ?? response;\nconst reminders = Array.isArray(payload.reminders) ? payload.reminders : [];\nconst config = $('Xác định đợt thông báo').first().json;\nif (reminders.length === 0) return [{ json: { ...config, skip: true, reviewPeriod: payload.reviewPeriod, phase: payload.phase, message: payload.message || 'Không có trường hợp cần nhắc.' } }];\nreturn reminders.map((reminder) => ({ json: { ...config, ...reminder, skip: false } }));"
+      },
+      "id": "tv4-review-06-split",
+      "name": "Tách từng quản lý phụ trách",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        930,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-review-reminder",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tv4-review-07-if",
+      "name": "Có quản lý cần thông báo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "notes": "Nhánh true tiếp tục gửi thông báo. Nhánh false kết thúc bình thường vì không có quản lý nào còn nhân viên chưa hoàn thành đánh giá.",
+      "notesInFlow": true,
+      "position": [
+        1160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $json;\nconst esc = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst recipientEmail = String(item.testManagerEmail || item.recipient?.email || '').trim();\nif (!recipientEmail) throw new Error('Người quản lý chưa có email nhận thông báo');\nconst employeeRows = item.employees.map((employee, index) => `<tr><td style=\"padding:8px;border:1px solid #ddd\">${index + 1}</td><td style=\"padding:8px;border:1px solid #ddd\"><strong>${esc(employee.fullName)}</strong><br/><small>${esc(employee.jobTitle || 'Chưa cập nhật chức danh')}</small></td><td style=\"padding:8px;border:1px solid #ddd\">${esc(employee.departmentName)}</td></tr>`).join('');\nconst isSecond = item.phase === 'SECOND_REMINDER';\nconst title = isSecond ? 'NHẮC LẦN 2 - CÒN ĐÁNH GIÁ CHƯA NỘP' : 'MỞ KỲ ĐÁNH GIÁ KPI THÁNG';\nconst subject = isSecond ? `[Nhắc lần 2] ${item.pendingCount} đánh giá KPI ${item.reviewPeriodLabel} chưa nộp` : `[Thông báo] Mở kỳ đánh giá KPI ${item.reviewPeriodLabel}`;\nconst intro = isSecond ? `Hệ thống ghi nhận còn <strong>${item.pendingCount} nhân viên</strong> thuộc phạm vi phụ trách chưa có đánh giá KPI.` : `Kỳ đánh giá KPI <strong>${esc(item.reviewPeriodLabel)}</strong> đã được mở. Anh/chị có <strong>${item.pendingCount} nhân viên</strong> cần hoàn thành đánh giá.`;\nconst emailHtml = `<p>Chào <strong>${esc(item.recipient.fullName)}</strong>,</p><p>${intro}</p><table style=\"border-collapse:collapse;width:100%\"><thead><tr><th style=\"padding:8px;border:1px solid #ddd\">STT</th><th style=\"padding:8px;border:1px solid #ddd\">Nhân viên</th><th style=\"padding:8px;border:1px solid #ddd\">Phòng ban</th></tr></thead><tbody>${employeeRows}</tbody></table><p>Hạn hoàn thành: <strong>${esc(item.deadline)}</strong>.</p><p><a href=\"${esc(item.reviewFormUrl)}\">Mở biểu mẫu đánh giá</a></p><p><em>Đây là thông báo tự động từ hệ thống Nhân sự.</em></p>`;\nconst telegramText = `📊 <b>${title}</b>\\n\\nKỳ: <b>${esc(item.reviewPeriodLabel)}</b>\\nNgười phụ trách: <b>${esc(item.recipient.fullName)}</b>\\nSố đánh giá còn thiếu: <b>${item.pendingCount}</b>\\nHạn hoàn thành: <b>${esc(item.deadline)}</b>`;\nreturn { json: { ...item, recipientEmail, emailSubject: subject, emailHtml, telegramText, pendingEmployeeIds: item.employees.map((employee) => employee.id) } };"
+      },
+      "id": "tv4-review-08-compose",
+      "name": "Soạn nội dung đánh giá bằng tiếng Việt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1390,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Soạn nội dung đánh giá bằng tiếng Việt').item.json.senderEmail }}",
+        "toEmail": "={{ $json.recipientEmail }}",
+        "subject": "={{ $json.emailSubject }}",
+        "html": "={{ $json.emailHtml }}",
+        "options": {}
+      },
+      "id": "tv4-review-09-email",
+      "name": "Gửi thư cho quản lý",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1620,
+        220
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Soạn nội dung đánh giá bằng tiếng Việt').item.json.telegramChatId }}",
+        "text": "={{ $('Soạn nội dung đánh giá bằng tiếng Việt').item.json.telegramText }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "tv4-review-10-telegram",
+      "name": "Thông báo kênh đánh giá",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1850,
+        220
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const source = $('Soạn nội dung đánh giá bằng tiếng Việt').item.json;\nconst emailResult = $('Gửi thư cho quản lý').item.json || {};\nconst telegramResult = $('Thông báo kênh đánh giá').item.json || {};\nconst emailNotified = !emailResult.error && (!Array.isArray(emailResult.rejected) || emailResult.rejected.length === 0);\nconst telegramNotified = !telegramResult.error && telegramResult.ok !== false;\nconst successCount = Number(emailNotified) + Number(telegramNotified);\nconst status = successCount === 2 ? 'SENT' : successCount > 0 ? 'PARTIAL' : 'FAILED';\nreturn { json: { ...source, emailNotified, telegramNotified, status, detail: `Email=${emailNotified}; Telegram=${telegramNotified}` } };"
+      },
+      "id": "tv4-review-11-summary",
+      "name": "Tổng hợp kết quả thông báo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.apiBaseUrl + '/training/automation/review-reminder-results' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Secret",
+              "value": "={{ $json.automationSecret }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ reviewPeriod: $json.reviewPeriod, recipientId: $json.recipient.id, phase: $json.phase, runId: $json.runId, pendingEmployeeIds: $json.pendingEmployeeIds, emailNotified: $json.emailNotified, telegramNotified: $json.telegramNotified, status: $json.status, detail: $json.detail }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "tv4-review-12-callback",
+      "name": "Lưu kết quả nhắc đánh giá",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2310,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Cron ngày 25 - Mở kỳ đánh giá": {
+      "main": [
+        [
+          {
+            "node": "Nạp cấu hình an toàn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron ngày 28 - Đôn đốc chưa nộp": {
+      "main": [
+        [
+          {
+            "node": "Nạp cấu hình an toàn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nạp cấu hình an toàn": {
+      "main": [
+        [
+          {
+            "node": "Xác định đợt thông báo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Xác định đợt thông báo": {
+      "main": [
+        [
+          {
+            "node": "Lấy danh sách quản lý cần nhắc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lấy danh sách quản lý cần nhắc": {
+      "main": [
+        [
+          {
+            "node": "Tách từng quản lý phụ trách",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tách từng quản lý phụ trách": {
+      "main": [
+        [
+          {
+            "node": "Có quản lý cần thông báo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Có quản lý cần thông báo?": {
+      "main": [
+        [
+          {
+            "node": "Soạn nội dung đánh giá bằng tiếng Việt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Soạn nội dung đánh giá bằng tiếng Việt": {
+      "main": [
+        [
+          {
+            "node": "Gửi thư cho quản lý",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gửi thư cho quản lý": {
+      "main": [
+        [
+          {
+            "node": "Thông báo kênh đánh giá",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Thông báo kênh đánh giá": {
+      "main": [
+        [
+          {
+            "node": "Tổng hợp kết quả thông báo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tổng hợp kết quả thông báo": {
+      "main": [
+        [
+          {
+            "node": "Lưu kết quả nhắc đánh giá",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "active": false,
+  "versionId": "tv4-review-workflow-v2"
+}

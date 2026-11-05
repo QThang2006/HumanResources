@@ -51,7 +51,7 @@ function buildReadbackWorkflow(source, base = 'http://localhost:3001/api') {
         parameters: [
           {
             name: 'x-interview-callback-token',
-            value: "={{ $('Validate delivery envelope').first().json.delivery.token }}",
+            value: "={{ $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.delivery.token }}",
           },
         ],
       },
@@ -67,7 +67,7 @@ function buildReadbackWorkflow(source, base = 'http://localhost:3001/api') {
   webhook.parameters.responseMode = 'responseNode';
   const envelope = code(
     'tv2-delivery-envelope',
-    'Validate delivery envelope',
+    '02. Kiểm tra quyền xử lý yêu cầu phỏng vấn',
     `const body = $input.first().json.body || $input.first().json;
 const p = body.data || body; const d = p.delivery;
 const base = ${JSON.stringify(base)};
@@ -78,7 +78,7 @@ return [{json:{interviewId:p.interviewId, delivery:d}}];`,
   );
   const claim = http(
     'tv2-delivery-claim',
-    'Claim interview delivery',
+    '03. Nhận quyền xử lý lịch phỏng vấn',
     "={{ $json.delivery.callbackUrl + '/claim' }}",
     '={{ {requestId:$json.delivery.requestId} }}',
     480,
@@ -88,10 +88,10 @@ return [{json:{interviewId:p.interviewId, delivery:d}}];`,
   claim.retryOnFail = false;
   const payload = code(
     'tv2-authoritative-payload',
-    'Load interview payload',
+    '04. Nạp thông tin buổi phỏng vấn',
     `const r = $input.first().json.data || $input.first().json;
-const d = $('Validate delivery envelope').first().json.delivery; const p = r.payload;
-if (r.claimed !== true || !p || p.interviewId !== $('Validate delivery envelope').first().json.interviewId || r.eventId !== d.eventId) throw new Error('Interview claim mismatch');
+const d = $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.delivery; const p = r.payload;
+if (r.claimed !== true || !p || p.interviewId !== $('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn').first().json.interviewId || r.eventId !== d.eventId) throw new Error('Interview claim mismatch');
 for (const key of ['candidateEmail','fromEmail','interviewerEmail']) if (!/^[^\\s@]+@[^\\s@]+[.][^\\s@]+$/.test(p[key] || '')) throw new Error('Configured recipient and sender required');
 if (!Number.isFinite(Date.parse(p.scheduledAt)) || !Number.isSafeInteger(p.applicationId) || !Number.isSafeInteger(p.round)) throw new Error('Invalid persisted schedule');
 return [{json:{...p, delivery:d}}];`,
@@ -119,7 +119,7 @@ return [{json:{...p, delivery:d}}];`,
   const readback = {
     ...structuredClone(calendar),
     id: 'tv2-delivery-calendar-get',
-    name: 'Read back Calendar event',
+    name: '07. Đọc lại sự kiện trên Google Calendar',
     position: [1200, 400],
     parameters: {
       resource: 'event',
@@ -131,8 +131,8 @@ return [{json:{...p, delivery:d}}];`,
   };
   const verify = code(
     'tv2-delivery-calendar-verify',
-    'Verify Calendar readback',
-    `const e = $input.first().json; const p = $('Load interview payload').first().json;
+    '08. Xác minh lịch và liên kết Google Meet',
+    `const e = $input.first().json; const p = $('04. Nạp thông tin buổi phỏng vấn').first().json;
 const meet = e.hangoutLink || e.conferenceData?.entryPoints?.find(x => x.entryPointType === 'video')?.uri;
 if (e.id !== p.delivery.eventId || e.status !== 'confirmed' || Date.parse(e.start?.dateTime) !== Date.parse(p.scheduledAt) || Date.parse(e.end?.dateTime) !== Date.parse(p.scheduledAt)+45*60000 || !/^https:\\/\\/meet[.]google[.]com\\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/.test(meet || '') || e.conferenceData?.createRequest?.status?.statusCode !== 'success') throw new Error('Calendar/Meet readback not confirmed');
 return [{json:{...e,hangoutLink:meet, callback:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'CALENDAR_CONFIRMED',eventId:e.id,meetingLink:meet,scheduledAt:e.start.dateTime}}}];`,
@@ -141,8 +141,8 @@ return [{json:{...e,hangoutLink:meet, callback:{requestId:p.delivery.requestId,a
   verify.onError = 'continueErrorOutput';
   const confirmed = http(
     'tv2-delivery-meet-callback',
-    'Save Meet to ATS',
-    "={{ $('Load interview payload').first().json.delivery.callbackUrl }}",
+    '09. Lưu lịch và liên kết Meet vào ATS',
+    "={{ $('04. Nạp thông tin buổi phỏng vấn').first().json.delivery.callbackUrl }}",
     '={{ $json.callback }}',
     1680,
   );
@@ -152,7 +152,7 @@ return [{json:{...e,hangoutLink:meet, callback:{requestId:p.delivery.requestId,a
   const before = js.indexOf('const candidateName =');
   if (before < 0) throw new Error('Unexpected lead email template');
   js =
-    "const calendarItem = $('Verify Calendar readback').first().json;\nconst payload = $('Load interview payload').first().json;\nconst escapeHtml = value => String(value).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));\n" +
+    "const calendarItem = $('08. Xác minh lịch và liên kết Google Meet').first().json;\nconst payload = $('04. Nạp thông tin buổi phỏng vấn').first().json;\nconst escapeHtml = value => String(value).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));\n" +
     js.slice(before);
   js = js
     .replace(
@@ -179,8 +179,8 @@ return [{json:{...e,hangoutLink:meet, callback:{requestId:p.delivery.requestId,a
   smtp.onError = 'continueErrorOutput';
   const email = code(
     'tv2-delivery-smtp-check',
-    'Verify SMTP acceptance',
-    `const m = $input.first().json; const p = $('Load interview payload').first().json;
+    '12. Xác minh kết quả gửi thư mời',
+    `const m = $input.first().json; const p = $('04. Nạp thông tin buổi phỏng vấn').first().json;
 if (!m.messageId || !Array.isArray(m.accepted) || m.accepted.length !== 1 || String(m.accepted[0]).toLowerCase() !== p.candidateEmail.toLowerCase() || (m.rejected || []).length) throw new Error('SMTP acceptance not confirmed');
 return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'SMTP_ACCEPTED',eventId:p.delivery.eventId,recipient:p.candidateEmail,messageId:m.messageId}}];`,
     2400,
@@ -188,37 +188,37 @@ return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,even
   email.onError = 'continueErrorOutput';
   const saved = http(
     'tv2-delivery-email-callback',
-    'Save email status to ATS',
-    "={{ $('Load interview payload').first().json.delivery.callbackUrl }}",
+    '13. Lưu trạng thái gửi thư vào ATS',
+    "={{ $('04. Nạp thông tin buổi phỏng vấn').first().json.delivery.callbackUrl }}",
     '={{ $json }}',
     2640,
   );
   const calendarError = code(
     'tv2-delivery-calendar-error',
-    'Calendar failure result',
-    `const p = $('Load interview payload').first().json; return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'FAILED',stage:'CALENDAR',code:'CALENDAR_ERROR'}}];`,
+    '14. Tổng hợp lỗi tạo lịch phỏng vấn',
+    `const p = $('04. Nạp thông tin buổi phỏng vấn').first().json; return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'FAILED',stage:'CALENDAR',code:'CALENDAR_ERROR'}}];`,
     1680,
     720,
   );
   const emailError = code(
     'tv2-delivery-email-error',
-    'Email failure result',
-    `const p = $('Load interview payload').first().json; return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'FAILED',stage:'EMAIL',code:'SMTP_ERROR'}}];`,
+    '16. Tổng hợp lỗi gửi thư mời',
+    `const p = $('04. Nạp thông tin buổi phỏng vấn').first().json; return [{json:{requestId:p.delivery.requestId,applicationId:p.applicationId,event:'FAILED',stage:'EMAIL',code:'SMTP_ERROR'}}];`,
     2400,
     720,
   );
   const saveCalendarError = http(
     'tv2-delivery-save-calendar-error',
-    'Save Calendar failure to ATS',
-    "={{ $('Load interview payload').first().json.delivery.callbackUrl }}",
+    '15. Lưu lỗi tạo lịch vào ATS',
+    "={{ $('04. Nạp thông tin buổi phỏng vấn').first().json.delivery.callbackUrl }}",
     '={{ $json }}',
     1920,
     720,
   );
   const saveEmailError = http(
     'tv2-delivery-save-email-error',
-    'Save email failure to ATS',
-    "={{ $('Load interview payload').first().json.delivery.callbackUrl }}",
+    '17. Lưu lỗi gửi thư vào ATS',
+    "={{ $('04. Nạp thông tin buổi phỏng vấn').first().json.delivery.callbackUrl }}",
     '={{ $json }}',
     2640,
     720,

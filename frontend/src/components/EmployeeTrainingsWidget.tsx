@@ -1,19 +1,31 @@
-import { useCallback, useEffect, useState } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   BookOpen,
   CheckCircle2,
+  Clock3,
   ExternalLink,
   Loader2,
   PlayCircle,
+  Sparkles,
+  Target,
+  TrendingUp,
 } from 'lucide-react';
 import { onboardingApi } from '../api/onboarding.api';
 
 type TrainingStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
 type TrainingCourseType = 'MANDATORY' | 'AI_SKILL_GAP' | 'SOFT_SKILL';
+type TrainingFilter = 'ALL' | 'ACTIVE' | 'COMPLETED';
 
 interface EmployeeTraining {
   id: number;
-  courseId: number;
+  courseId: number | null;
+  isCourseDeleted?: boolean;
   title: string;
   type: TrainingCourseType;
   skillsProvided: string[];
@@ -29,14 +41,14 @@ interface EmployeeTraining {
 
 const TYPE_LABELS: Record<TrainingCourseType, string> = {
   MANDATORY: 'Bắt buộc',
-  AI_SKILL_GAP: 'AI CHỈ ĐỊNH',
+  AI_SKILL_GAP: 'AI đề xuất',
   SOFT_SKILL: 'Kỹ năng mềm',
 };
 
 const TYPE_CLASSES: Record<TrainingCourseType, string> = {
-  MANDATORY: 'bg-rose-50 text-rose-700 border-rose-200',
-  AI_SKILL_GAP: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  SOFT_SKILL: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  MANDATORY: 'border-rose-200 bg-rose-50 text-rose-700',
+  AI_SKILL_GAP: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+  SOFT_SKILL: 'border-emerald-200 bg-emerald-50 text-emerald-700',
 };
 
 const STATUS_LABELS: Record<TrainingStatus, string> = {
@@ -45,10 +57,17 @@ const STATUS_LABELS: Record<TrainingStatus, string> = {
   COMPLETED: 'Hoàn thành',
 };
 
+const FILTERS: Array<{ value: TrainingFilter; label: string }> = [
+  { value: 'ALL', label: 'Tất cả' },
+  { value: 'ACTIVE', label: 'Đang thực hiện' },
+  { value: 'COMPLETED', label: 'Đã hoàn thành' },
+];
+
 export function EmployeeTrainingsWidget() {
   const [trainings, setTrainings] = useState<EmployeeTraining[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [filter, setFilter] = useState<TrainingFilter>('ALL');
   const [error, setError] = useState('');
 
   const loadTrainings = useCallback(async () => {
@@ -56,11 +75,10 @@ export function EmployeeTrainingsWidget() {
       setError('');
 
       const response = await onboardingApi.getTrainings();
-
       const items = Array.isArray(response)
         ? response
-        : Array.isArray((response as any)?.data)
-          ? (response as any).data
+        : Array.isArray((response as { data?: unknown[] })?.data)
+          ? (response as { data: unknown[] }).data
           : [];
 
       setTrainings(items as EmployeeTraining[]);
@@ -72,7 +90,11 @@ export function EmployeeTrainingsWidget() {
   }, []);
 
   useEffect(() => {
-    void loadTrainings();
+    const loadTimer = window.setTimeout(() => {
+      void loadTrainings();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
   }, [loadTrainings]);
 
   const updateProgress = async (
@@ -82,12 +104,10 @@ export function EmployeeTrainingsWidget() {
     try {
       setUpdatingId(assignmentId);
       setError('');
-
       await onboardingApi.updateTrainingProgress(
         assignmentId,
         progressPercent,
       );
-
       await loadTrainings();
     } catch {
       setError('Không thể cập nhật tiến độ khóa học.');
@@ -96,11 +116,38 @@ export function EmployeeTrainingsWidget() {
     }
   };
 
+  const summary = useMemo(() => {
+    const active = trainings.filter(
+      training => training.status !== 'COMPLETED',
+    ).length;
+    const completed = trainings.length - active;
+    const average = trainings.length
+      ? Math.round(
+          trainings.reduce(
+            (total, training) => total + training.progressPercent,
+            0,
+          ) / trainings.length,
+        )
+      : 0;
+
+    return { active, completed, average };
+  }, [trainings]);
+
+  const visibleTrainings = useMemo(() => {
+    if (filter === 'ACTIVE') {
+      return trainings.filter(training => training.status !== 'COMPLETED');
+    }
+    if (filter === 'COMPLETED') {
+      return trainings.filter(training => training.status === 'COMPLETED');
+    }
+    return trainings;
+  }, [filter, trainings]);
+
   if (loading) {
     return (
-      <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-6 shadow-sm">
-        <div className="flex items-center justify-center py-12 text-slate-500">
-          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+      <div className="rounded-3xl border border-white/50 bg-white/75 p-6 shadow-sm backdrop-blur-xl">
+        <div className="flex items-center justify-center py-14 text-slate-500">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
           Đang tải khóa học...
         </div>
       </div>
@@ -108,165 +155,299 @@ export function EmployeeTrainingsWidget() {
   }
 
   return (
-    <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl p-6 shadow-sm">
-      <div className="flex items-start justify-between gap-4 mb-5">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-indigo-600" />
-            Khóa học & Phát triển
-          </h3>
+    <section className="overflow-hidden rounded-3xl border border-white/60 bg-white/75 shadow-sm backdrop-blur-xl">
+      <div className="border-b border-slate-200/70 bg-gradient-to-r from-slate-50/90 via-white to-indigo-50/70 px-5 py-5 sm:px-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200/70">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">
+                Khóa học & Phát triển
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Theo dõi lộ trình học tập và chủ động cập nhật tiến độ của bạn.
+              </p>
+            </div>
+          </div>
 
-          <p className="text-xs text-slate-500 mt-1">
-            Các khóa học được phân công cho bạn
-          </p>
+          <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
+            {trainings.length} khóa học
+          </span>
         </div>
 
-        <div className="text-xs font-semibold text-slate-500">
-          {trainings.length} khóa học
-        </div>
+        {trainings.length > 0 && (
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            <SummaryItem
+              icon={<Target className="h-4 w-4" />}
+              label="Đang thực hiện"
+              value={summary.active}
+              tone="indigo"
+            />
+            <SummaryItem
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              label="Hoàn thành"
+              value={summary.completed}
+              tone="emerald"
+            />
+            <SummaryItem
+              icon={<TrendingUp className="h-4 w-4" />}
+              label="Tiến độ chung"
+              value={`${summary.average}%`}
+              tone="amber"
+            />
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
-          {error}
-        </div>
-      )}
+      <div className="p-5 sm:p-6">
+        {error && (
+          <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
+            {error}
+          </div>
+        )}
 
-      {trainings.length === 0 ? (
-        <div className="border-2 border-dashed border-slate-200 rounded-2xl py-10 text-center">
-          <BookOpen className="w-7 h-7 mx-auto mb-2 text-slate-300" />
-          <p className="text-sm font-medium text-slate-600">
-            Chưa có khóa học được phân công
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
-            Khóa học mới sẽ xuất hiện tại đây khi được Admin hoặc HR phân công.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {trainings.map((training) => {
-            const isUpdating = updatingId === training.id;
-            const type = training.type ?? 'MANDATORY';
+        {trainings.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-slate-200 py-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+              <BookOpen className="h-6 w-6" />
+            </div>
+            <p className="mt-3 text-sm font-bold text-slate-700">
+              Chưa có khóa học được phân công
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Khóa học mới sẽ xuất hiện khi Admin hoặc HR phân công.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mb-5 flex flex-wrap gap-2">
+              {FILTERS.map(item => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setFilter(item.value)}
+                  className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+                    filter === item.value
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
 
-            return (
-              <div
-                key={training.id}
-                className="rounded-2xl border border-slate-200 bg-white p-5"
-              >
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold ${
-                          TYPE_CLASSES[type]
-                        }`}
-                      >
-                        {TYPE_LABELS[type]}
-                      </span>
-
-                      <span className="text-xs text-slate-400">
-                        {training.durationHours ?? 10} giờ
-                      </span>
-                    </div>
-
-                    <h4 className="font-bold text-slate-900">
-                      {training.title}
-                    </h4>
-
-                    {training.skillsProvided?.length > 0 && (
-                      <p className="mt-2 text-xs text-slate-500">
-                        Kỹ năng: {training.skillsProvided.join(', ')}
-                      </p>
-                    )}
-
-                    {training.aiReason && (
-                      <p className="mt-2 text-xs text-indigo-600">
-                        AI đề xuất: {training.aiReason}
-                      </p>
-                    )}
-                  </div>
-
-                  <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
-                    {STATUS_LABELS[training.status]}
-                  </span>
-                </div>
-
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2 text-xs">
-                    <span className="font-medium text-slate-500">
-                      Tiến độ
-                    </span>
-                    <span className="font-bold text-slate-900">
-                      {training.progressPercent}%
-                    </span>
-                  </div>
-
-                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-indigo-600 transition-all duration-300"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          Math.max(0, training.progressPercent),
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 mt-4">
-                  {training.status === 'ASSIGNED' && (
-                    <button
-                      type="button"
-                      disabled={isUpdating}
-                      onClick={() => void updateProgress(training.id, 1)}
-                      className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                    >
-                      {isUpdating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <PlayCircle className="w-4 h-4" />
-                      )}
-                      Bắt đầu
-                    </button>
-                  )}
-
-                  {training.status !== 'COMPLETED' && (
-                    <button
-                      type="button"
-                      disabled={isUpdating}
-                      onClick={() => void updateProgress(training.id, 100)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Hoàn tất
-                    </button>
-                  )}
-
-                  {training.courseUrl && (
-                    <a
-                      href={training.courseUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Vào học
-                    </a>
-                  )}
-
-                  {training.status === 'COMPLETED' && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Đã hoàn thành
-                    </span>
-                  )}
-                </div>
+            {visibleTrainings.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-sm font-semibold text-slate-500">
+                Không có khóa học trong nhóm này.
               </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+            ) : (
+              <div className="grid gap-4 xl:grid-cols-2">
+                {visibleTrainings.map(training => {
+                  const isUpdating = updatingId === training.id;
+                  const type = training.type ?? 'MANDATORY';
+                  const progress = Math.min(
+                    100,
+                    Math.max(0, training.progressPercent),
+                  );
+                  const standardProgressValues = [0, 25, 50, 75, 100];
+                  const progressValues = standardProgressValues.includes(
+                    progress,
+                  )
+                    ? standardProgressValues
+                    : [...standardProgressValues, progress].sort(
+                        (left, right) => left - right,
+                      );
+
+                  return (
+                    <article
+                      key={training.id}
+                      className="group flex flex-col rounded-[22px] border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg hover:shadow-slate-200/50"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${TYPE_CLASSES[type]}`}
+                            >
+                              {TYPE_LABELS[type]}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+                              <Clock3 className="h-3.5 w-3.5" />
+                              {training.durationHours ?? 10} giờ
+                            </span>
+                          </div>
+                          <h4 className="mt-3 text-[15px] font-extrabold leading-6 text-slate-900">
+                            {training.title}
+                          </h4>
+                          {training.isCourseDeleted && <p className="mt-1 text-xs leading-5 text-slate-600">Khóa đã xóa khỏi danh mục. Tiến độ và kết quả học vẫn được giữ.</p>}
+                        </div>
+
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            training.status === 'COMPLETED'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : training.status === 'IN_PROGRESS'
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {STATUS_LABELS[training.status]}
+                        </span>
+                      </div>
+
+                      {training.skillsProvided?.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {training.skillsProvided.slice(0, 5).map(skill => (
+                            <span
+                              key={skill}
+                              className="rounded-lg bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {training.aiReason && (
+                        <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3.5 py-3 text-xs leading-5 text-indigo-700">
+                          <span className="inline-flex items-center gap-1.5 font-bold">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Lý do đề xuất
+                          </span>
+                          <p className="mt-1 text-indigo-700/80">
+                            {training.aiReason}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-auto pt-5">
+                        <div className="mb-2 flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-500">
+                            Tiến độ
+                          </span>
+                          <span className="font-extrabold text-slate-900">
+                            {progress}%
+                          </span>
+                        </div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              progress === 100
+                                ? 'bg-emerald-500'
+                                : 'bg-indigo-600'
+                            }`}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          {training.status === 'ASSIGNED' && (
+                            <button
+                              type="button"
+                              disabled={isUpdating}
+                              onClick={() =>
+                                void updateProgress(training.id, 1)
+                              }
+                              className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-900 px-3.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                            >
+                              {isUpdating ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <PlayCircle className="h-4 w-4" />
+                              )}
+                              Bắt đầu
+                            </button>
+                          )}
+
+                          {training.status !== 'COMPLETED' && (
+                            <label className="relative">
+                              <span className="sr-only">Cập nhật tiến độ</span>
+                              <select
+                                value={
+                                  training.progressPercent > 0
+                                    ? training.progressPercent
+                                    : 0
+                                }
+                                disabled={isUpdating}
+                                onChange={event =>
+                                  void updateProgress(
+                                    training.id,
+                                    Number(event.target.value),
+                                  )
+                                }
+                                className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 disabled:opacity-50"
+                              >
+                                {progressValues.map(value => (
+                                  <option key={value} value={value}>
+                                    {value === progress &&
+                                    !standardProgressValues.includes(value)
+                                      ? `Hiện tại ${value}%`
+                                      : `Cập nhật ${value}%`}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
+
+                          {training.courseUrl && (
+                            <a
+                              href={training.courseUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex h-9 items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              Vào học
+                            </a>
+                          )}
+
+                          {training.status === 'COMPLETED' && (
+                            <span className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-700">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Đã hoàn thành
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </section>
   );
 }
+
+const SummaryItem = ({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string | number;
+  tone: 'indigo' | 'emerald' | 'amber';
+}) => {
+  const toneClass = {
+    indigo: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+    emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+    amber: 'bg-amber-50 text-amber-700 ring-amber-100',
+  }[tone];
+
+  return (
+    <div className={`rounded-2xl p-3 ring-1 ring-inset ${toneClass}`}>
+      <div className="flex items-center gap-1.5 text-[10px] font-bold sm:text-xs">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <p className="mt-1.5 text-lg font-black sm:text-xl">{value}</p>
+    </div>
+  );
+};

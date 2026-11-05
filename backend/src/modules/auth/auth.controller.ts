@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, BadRequestException, Ip, Headers } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -9,11 +9,15 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() body: LoginDto) {
+  async login(
+    @Body() body: LoginDto,
+    @Ip() clientIp: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
     if (!body.email || !body.password) {
       throw new BadRequestException('Vui lòng nhập đầy đủ email và mật khẩu.');
     }
-    return this.authService.login(body.email, body.password);
+    return this.authService.login(body.email, body.password, clientIp, userAgent);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -35,5 +39,40 @@ export class AuthController {
       success: true,
       message: 'Đăng xuất phiên làm việc thành công.',
     };
+  }
+
+  // Endpoint tiếp nhận lệnh cấm IP từ n8n WF-01 Brute-force Defense
+  @Post('block-ip')
+  blockIp(
+    @Body()
+    body: {
+      ip: string;
+      durationMinutes?: number;
+      incidentId?: string;
+      reason?: string;
+      email?: string;
+      failedAttempts?: number;
+    },
+  ) {
+    if (!body.ip) {
+      throw new BadRequestException('Vui lòng cung cấp địa chỉ IP cần khóa.');
+    }
+    return this.authService.blockIp(
+      body.ip,
+      body.durationMinutes,
+      body.incidentId,
+      body.reason,
+      body.email,
+      body.failedAttempts,
+    );
+  }
+
+  // Endpoint mở khóa IP thủ công phục vụ kiểm thử và quản trị
+  @Post('unblock-ip')
+  unblockIp(@Body() body: { ip: string }) {
+    if (!body.ip) {
+      throw new BadRequestException('Vui lòng cung cấp địa chỉ IP cần mở khóa.');
+    }
+    return this.authService.unblockIp(body.ip);
   }
 }

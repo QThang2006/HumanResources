@@ -1,0 +1,34 @@
+/* Scoped to TV4; shared navigation and other workspaces retain their own styles. */
+.tv4-ui {
+  --tv4-accent: #2563eb;
+  --tv4-accent-soft: #eff6ff;
+  min-width: 0;
+}
+
+.tv4-ui ::selection { background: var(--tv4-accent); color: #fff; }
+.tv4-ui :where(input, textarea) { caret-color: var(--tv4-accent); }
+.tv4-ui :where(input, textarea)::placeholder { color: #69737b; opacity: 1; }
+.tv4-ui :where(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--tv4-accent); outline-offset: 3px; }
+.tv4-ui :where(button, a) { touch-action: manipulation; }
+.tv4-ui :where(h1, h2, h3, h4) { text-wrap: balance; }
+.tv4-ui .tv4-table-scroll { overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: #c4cbd1 #f5f6f8; }
+.tv4-ui th { color: #59646d; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.015em; text-transform: none; }
+.tv4-ui :where(td, output) { font-variant-numeric: tabular-nums; }
+.tv4-ui .tv4-admin-table :where(th, td) { padding-inline: 1rem; }
+.tv4-ui .tv4-admin-table select { width: 100%; max-width: 100%; min-width: 0; padding-inline: 0.5rem; }
+.tv4-ui .tv4-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tv4-ui .tv4-metrics > div { border-color: #e8eaec; }
+.tv4-ui .tv4-metrics > div:nth-child(even) { border-left-width: 1px; }
+.tv4-ui .tv4-metrics > div:nth-child(n+3) { border-top-width: 1px; }
+.tv4-ui .tv4-nav-item[aria-current="page"] { background: var(--tv4-accent-soft); color: var(--tv4-accent); }
+.tv4-ui .tv4-nav-item[aria-current="page"] svg { color: var(--tv4-accent); }
+
+@media (min-width: 1280px) {
+  .tv4-ui .tv4-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tv4-ui .tv4-metrics > div:nth-child(n+2) { border-left-width: 1px; }
+  .tv4-ui .tv4-metrics > div:nth-child(n+3) { border-top-width: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv4-ui :where(button, a, input, select, textarea) { transition: none; scroll-behavior: auto; }
+}

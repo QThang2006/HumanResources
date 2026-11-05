@@ -1,4 +1,6 @@
-import { randomBytes } from 'crypto';
+import { CvScoreQueueService } from './cv-score-queue.service';
+import { Offer, OfferStatus } from '../../entities/offer.entity';
+import { randomBytes, randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { OnboardingTask, TaskCategory } from '../../entities/onboarding-task.entity';
 import {
@@ -51,6 +53,7 @@ function interviewView(row: Interview) {
     scheduledAt: row.scheduledAt,
     meetingLink: row.meetingLink || null,
     questions: row.aiSuggestedQuestions || [],
+    aiQuestionsStatus: row.aiQuestionsStatus || null,
     score: row.score,
     feedback: row.interviewerFeedback,
     result: row.result,
@@ -65,10 +68,13 @@ export function applicationView(row: Application) {
     candidateName: row.candidateName,
     candidateEmail: row.candidateEmail,
     candidatePhone: row.candidatePhone,
+    intakeChannel: row.intakeChannel,
+    acknowledgementStatus: row.acknowledgementStatus,
     status: row.status,
     matchScore: row.matchScore === null ? null : Number(row.matchScore),
     aiSummary: row.aiSummary,
     aiRecommendation: row.aiRecommendation,
+    aiScoreStatus: row.aiScoreStatus || null,
     skillsDetected: row.skillsDetected || [],
     hiredUserId: row.hiredUserId,
     createdAt: row.createdAt,
@@ -91,7 +97,95 @@ export class ApplicationsService {
     private readonly n8n: N8nService,
     private readonly delivery: InterviewDeliveryService,
     private readonly config: ConfigService,
+    private readonly scoreQueue: CvScoreQueueService,
   ) { }
+
+  private n8nAiEnabled() {
+    return this.config.get<string>('N8N_AI_ENABLED') === 'true';
+  }
+
+  async aiScoreContext(id: number) {
+    const app = await this.applications.findOne({ where: { id }, relations: ['job'] });
+    if (!app) throw new NotFoundException('Không tìm thấy hồ sơ.');
+    if ([ApplicationStatus.HIRED, ApplicationStatus.REJECTED].includes(app.status))
+      throw new ConflictException('Hồ sơ đã kết thúc quy trình.');
+    const cvAttachment = app.rawCvText?.trim() ? null : {
+      mimeType: this.files.mimeType(app.cvFileUrl) || 'application/pdf',
+      data: (await this.files.read(app.cvFileUrl)).toString('base64'),
+    };
+    return { applicationId: app.id, jobId: app.jobId, candidateName: app.candidateName, rawCvText: app.rawCvText || '', cvFileUrl: app.cvFileUrl, cvAttachment, job: { title: app.job.title, description: app.job.description, requirements: app.job.requirements }, updatedAt: app.updatedAt.toISOString() };
+  }
+
+  async markAiScoreProcessing(id: number, requestId: string) {
+    return this.db.transaction(async m => {
+    const repo = m.getRepository(Application);
+    const current = await repo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+    if (current?.aiScoreRequestId?.startsWith('be:'))
+      throw new ConflictException('Backend đang quản lý chấm CV. Hãy cập nhật workflow tiếp nhận.');
+    await repo.update(id, { aiScoreStatus: 'PROCESSING', aiScoreRequestId: requestId, aiScoreError: null });
+    return { accepted: true, applicationId: id, requestId };
+    });
+  }
+
+  async saveAiScore(id: number, input: any) {
+    return this.db.transaction(async m => {
+    const repo = m.getRepository(Application);
+    const app = await repo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+    if (!app) throw new NotFoundException('Không tìm thấy hồ sơ.');
+    if (app.aiScoreRequestId?.startsWith('be:')) throw new ConflictException('Backend đang quản lý chấm CV.');
+    if (input.requestId && app.aiScoreRequestId && app.aiScoreRequestId !== input.requestId) throw new ConflictException('Kết quả AI không thuộc request hiện tại.');
+    if (input.status === 'FAILED') {
+      app.aiScoreStatus = 'FAILED';
+      app.aiScoreError = String(input.error || 'AI chấm điểm thất bại').slice(0, 500);
+      await repo.save(app);
+      return { recorded: true, status: app.aiScoreStatus };
+    }
+    const result = input.result || input.data || input;
+    const score = Number(result.matchScore);
+    const summary = String(result.summary || '').trim();
+    const skills = Array.isArray(result.skillsDetected) ? result.skillsDetected : result.matchedSkills;
+    if (!Number.isFinite(score) || score < 0 || score > 100 || !summary || !Array.isArray(skills)) throw new BadRequestException('Kết quả AI chấm CV không hợp lệ.');
+    app.matchScore = score;
+    app.aiSummary = summary.slice(0, 10000);
+    app.skillsDetected = skills.filter((item: unknown) => typeof item === 'string').slice(0, 100) as string[];
+    app.aiRecommendation = score >= 85 ? AiRecommendation.STRONG_HIRE : score >= 70 ? AiRecommendation.HIRE : score >= 50 ? AiRecommendation.CONSIDER : AiRecommendation.REJECT;
+    if (typeof result.extractedText === 'string' && result.extractedText.trim()) app.rawCvText = result.extractedText.slice(0, 60000);
+    app.aiScoreStatus = 'COMPLETED';
+    app.aiScoreError = null;
+    await repo.save(app);
+    return { recorded: true, status: app.aiScoreStatus, applicationId: id, matchScore: score };
+    });
+  }
+
+  async aiQuestionsContext(interviewId: number) {
+    const interview = await this.db.getRepository(Interview).findOne({ where: { id: interviewId }, relations: ['application', 'application.job'] });
+    if (!interview) throw new NotFoundException('Không tìm thấy vòng phỏng vấn.');
+    if (interview.result !== InterviewResult.PENDING) throw new ConflictException('Vòng phỏng vấn đã có kết quả.');
+    return { interviewId: interview.id, applicationId: interview.applicationId, round: interview.round, candidateName: interview.application.candidateName, rawCvText: interview.application.rawCvText || '', job: { title: interview.application.job.title, requirements: interview.application.job.requirements, description: interview.application.job.description }, updatedAt: interview.updatedAt.toISOString() };
+  }
+
+  async markAiQuestionsProcessing(interviewId: number, requestId: string) {
+    await this.db.getRepository(Interview).update(interviewId, { aiQuestionsStatus: 'PROCESSING', aiQuestionsRequestId: requestId, aiQuestionsError: null });
+    return { accepted: true, interviewId, requestId };
+  }
+
+  async saveAiQuestions(interviewId: number, input: any) {
+    const interview = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
+    if (!interview) throw new NotFoundException('Không tìm thấy vòng phỏng vấn.');
+    if (input.requestId && interview.aiQuestionsRequestId && interview.aiQuestionsRequestId !== input.requestId) throw new ConflictException('Kết quả câu hỏi AI không thuộc request hiện tại.');
+    if (input.status === 'FAILED') {
+      interview.aiQuestionsStatus = 'FAILED';
+      interview.aiQuestionsError = String(input.error || 'AI tạo câu hỏi thất bại').slice(0, 500);
+    } else {
+      const questions = input.questions || input.result?.questions || input.data?.questions;
+      if (!Array.isArray(questions) || questions.length < 3 || questions.length > 10 || questions.some((q: unknown) => typeof q !== 'string' || !q.trim())) throw new BadRequestException('Danh sách câu hỏi AI không hợp lệ.');
+      interview.aiSuggestedQuestions = questions.map((q: string) => q.trim()).slice(0, 10);
+      interview.aiQuestionsStatus = 'COMPLETED';
+      interview.aiQuestionsError = null;
+    }
+    await this.db.getRepository(Interview).save(interview);
+    return { recorded: true, interviewId, status: interview.aiQuestionsStatus };
+  }
 
   private async scopedJob(id: number, actor: Actor) {
     const job = await this.db.getRepository(Job).findOneBy({ id });
@@ -190,7 +284,7 @@ export class ApplicationsService {
     return this.files.mimeType(app.cvFileUrl) || 'application/pdf';
   }
 
-  async apply(input: SubmitInput, file: Express.Multer.File) {
+  async apply(input: SubmitInput, file: Express.Multer.File, intake?: { key: string; channel: string }) {
     const job = await this.db
       .getRepository(Job)
       .findOneBy({ id: input.jobId, status: JobStatus.OPEN });
@@ -207,10 +301,15 @@ export class ApplicationsService {
         return manager.getRepository(Application).save(
           manager.getRepository(Application).create({
             ...input,
+            ...(intake ? { intakeKey: intake.key, intakeChannel: intake.channel, acknowledgementStatus: 'CLAIMED' } : {}),
             candidateEmail: input.candidateEmail.trim().toLowerCase(),
             cvFileUrl: key,
             rawCvText,
             status: ApplicationStatus.APPLIED,
+            aiScoreStatus: 'PENDING',
+            aiScoreRequestId: 'be:' + randomUUID(),
+            aiScoreAvailableAt: new Date(),
+            aiScoreAttempts: 0,
           }),
         );
       });
@@ -253,51 +352,8 @@ export class ApplicationsService {
 
   async score(id: number, actor: Actor) {
     assertOperator(actor);
-    const key = 'score:' + id;
-    if (this.activeAi.has(key)) throw new ConflictException('Hồ sơ đang được chấm.');
-    this.activeAi.add(key);
-    try {
-      const app = await this.row(id, actor);
-      if ([ApplicationStatus.HIRED, ApplicationStatus.REJECTED].includes(app.status))
-        throw new ConflictException('Hồ sơ đã kết thúc quy trình.');
-      const jd = app.job.description + '\n' + app.job.requirements;
-      const result = app.rawCvText?.trim()
-        ? await this.ai.score(app.rawCvText, jd)
-        : await this.ai.scoreFile(
-          await this.files.read(app.cvFileUrl),
-          this.files.mimeType(app.cvFileUrl) || 'application/pdf',
-          jd,
-        );
-      // Shared schema has no provider-mode field: mock output is preview-only.
-      if (result.mode === 'MOCK') return { ...result, saved: false };
-      await this.db.transaction(async (manager) => {
-        const current = await this.locked(manager, id, actor);
-        assertFresh(current.updatedAt, app.updatedAt.toISOString());
-        const job = await manager
-          .getRepository(Job)
-          .findOne({ where: { id: app.jobId }, lock: { mode: 'pessimistic_read' } });
-        if (job.description + '\n' + job.requirements !== jd)
-          throw new ConflictException('JD đã đổi trong lúc chấm. Hãy thử lại.');
-        if ('extractedText' in result.data && typeof result.data.extractedText === 'string')
-          current.rawCvText = result.data.extractedText;
-        current.matchScore = result.data.matchScore;
-        current.aiSummary = result.data.summary;
-        current.skillsDetected = result.data.skillsDetected;
-        current.aiRecommendation =
-          result.data.matchScore >= 85
-            ? AiRecommendation.STRONG_HIRE
-            : result.data.matchScore >= 70
-              ? AiRecommendation.HIRE
-              : result.data.matchScore >= 50
-                ? AiRecommendation.CONSIDER
-                : AiRecommendation.REJECT;
-        current.updatedAt = nextRevision(current.updatedAt);
-        await manager.getRepository(Application).save(current);
-      });
-      return { ...result, saved: true };
-    } finally {
-      this.activeAi.delete(key);
-    }
+    await this.row(id, actor); // Preserve department authorization.
+    return this.scoreQueue.enqueue(id);
   }
 
   async interviewers(jobId: number, actor: Actor) {
@@ -461,11 +517,35 @@ export class ApplicationsService {
   }
 
   async questions(interviewId: number, actor: Actor) {
+    const interview = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
+    if (!interview) throw new NotFoundException('Không tìm thấy lịch.');
+    if (interview.interviewerId !== actor.id)
+      throw new ForbiddenException('Chỉ người được phân công vòng này mới được gợi ý câu hỏi.');
+    const app = await this.row(interview.applicationId, actor, true);
+    if (app.status !== ApplicationStatus.INTERVIEWING || interview.result !== InterviewResult.PENDING)
+      throw new ConflictException('Chỉ tạo câu hỏi cho vòng phỏng vấn đang chờ.');
     const key = 'questions:' + interviewId;
     if (this.activeAi.has(key))
       throw new ConflictException('Vòng phỏng vấn đang được tạo câu hỏi.');
     this.activeAi.add(key);
     try {
+      if (this.n8nAiEnabled()) {
+        if (interview.aiQuestionsStatus === 'PROCESSING') {
+          return { mode: 'N8N', pending: true, saved: false, requestId: interview.aiQuestionsRequestId, data: [] };
+        }
+        if (interview.aiQuestionsStatus === 'COMPLETED') {
+          return { mode: 'N8N', pending: false, saved: true, data: interview.aiSuggestedQuestions || [] };
+        }
+        const requestId = randomUUID();
+        await this.markAiQuestionsProcessing(interviewId, requestId);
+        try {
+          const accepted = await this.n8n.triggerAiInterviewQuestions({ interviewId, requestId });
+          if (!accepted) await this.saveAiQuestions(interviewId, { requestId, status: 'FAILED', error: 'n8n không nhận được webhook.' });
+        } catch (error: any) {
+          await this.saveAiQuestions(interviewId, { requestId, status: 'FAILED', error: error.message });
+        }
+        return { mode: 'N8N', pending: true, saved: false, requestId, data: [] };
+      }
       return await this.generateQuestions(interviewId, actor);
     } finally {
       this.activeAi.delete(key);
@@ -559,6 +639,9 @@ export class ApplicationsService {
             },
           };
         }
+        const issuedOffer = await manager.getRepository(Offer).findOne({ where: { applicationId }, order: { version: 'DESC' } });
+        if (issuedOffer && issuedOffer.status !== OfferStatus.ACCEPTED)
+          throw new ConflictException('Ứng viên cần chấp nhận Offer trước khi nhận việc.');
         if (![ApplicationStatus.INTERVIEWING, ApplicationStatus.OFFERED].includes(app.status))
           throw new ConflictException('Hồ sơ chưa ở bước nhận việc.');
         const latest = await manager.getRepository(Interview).findOne({

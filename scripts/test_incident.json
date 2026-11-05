@@ -1,0 +1,8 @@
+{
+  "statusCode": 500,
+  "endpoint": "/api/auth/profile",
+  "method": "GET",
+  "errorMessage": "Cannot read properties of null in auth.service.ts:142",
+  "stackTrace": "TypeError: Cannot read properties of null\n    at AuthService.validateUser (/app/src/auth/auth.service.ts:142:25)",
+  "userId": 999
+}

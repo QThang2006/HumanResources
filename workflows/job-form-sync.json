@@ -1,0 +1,402 @@
+{
+  "id": "hrTv2JobSyncV2",
+  "name": "01 | TV2 2.0 – Đồng bộ vị trí tuyển dụng vào Google Form",
+  "active": false,
+  "nodes": [
+    {
+      "id": "hrTv2JobSyncV2-1",
+      "name": "01. Nhận thông báo thay đổi vị trí tuyển dụng",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "jobs-changed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "jobs-changed"
+    },
+    {
+      "id": "hrTv2JobSyncV2-2",
+      "name": "02. Chuẩn hóa sự kiện tuyển dụng",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst body = $json.body || $json;\nconst data = body.data || body;\nreturn { json: { action: data.action || body.action || 'UPDATED', job: data.job || body.job || null, receivedAt: body.timestamp || new Date().toISOString() } };\n"
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-3",
+      "name": "03. Lấy danh sách vị trí đang mở từ Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:3001/api/jobs",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-4",
+      "name": "04. Kiểm tra và lọc vị trí đang mở",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst root = $json;\nconst rows = Array.isArray(root.data) ? root.data : Array.isArray(root) ? root : null;\nif (!rows || rows.some(job => !Number.isSafeInteger(job.id) || job.id < 1 || typeof job.title !== 'string' || !job.title.trim())) throw Error('Backend trả về danh sách vị trí không hợp lệ.');\nconst jobs = rows.filter(job => job?.status === 'OPEN').sort((a,b) => a.id-b.id);\nconst event = $('02. Chuẩn hóa sự kiện tuyển dụng').first().json;\nreturn { json: { ...event, jobs } };\n"
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-5",
+      "name": "05. Tạo lựa chọn mã vị trí – tên công việc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst options = $json.jobs.length\n  ? $json.jobs.map(job => 'JOB-' + String(job.id).padStart(4, '0') + ' – ' + job.title)\n  : ['Hiện chưa có vị trí đang mở'];\nreturn { json: { ...$json, options, jobIds: $json.jobs.map(job => Number(job.id)) } };\n"
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-6",
+      "name": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst p = $json;\nif (!p.options.length) throw Error('Không thể tạo danh sách lựa chọn trống cho Google Form.');\nreturn { json: { ...p, formId: '1AqBqqfQT1CXqbGtDIp5DsXFtSzAwDEwiQ1kFNtX_16k' } };\n"
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-7",
+      "name": "07. Cập nhật danh sách chọn trên Google Form",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.GOOGLE_FORM_SYNC_URL || 'https://script.google.com/macros/s/AKfycbz_placeholder/exec' }}",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {formId:$json.formId, options:$json.options, jobIds:$json.jobIds, action:$json.action} }}",
+        "options": {
+          "timeout": 45000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "hrTv2JobSyncV2-8",
+      "name": "08. Kiểm tra kết quả cập nhật Google Form",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst response = $json;\nconst ok = response.success === true || response.ok === true || response.updated === true;\nconst source = $('06. Chuẩn bị dữ liệu đồng bộ Google Form').first().json;\nreturn { json: { ...source, syncOk: ok, syncResponse: response } };\n"
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-9",
+      "name": "09. Xác định đồng bộ thành công",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "09. Xác định đồng bộ thành công",
+              "leftValue": "={{ $json.syncOk === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-10",
+      "name": "10. Tổng hợp kết quả đồng bộ thành công",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nreturn { json: { success: true, action: $json.action, updatedJobIds: $json.jobIds, optionCount: $json.options.length, message: 'Đã đồng bộ danh sách vị trí đang mở vào Google Form.' } };\n"
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-11",
+      "name": "11. Phản hồi đồng bộ thành công",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2600,
+        180
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-12",
+      "name": "12. Tổng hợp lỗi đồng bộ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        500
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nreturn { json: { success: false, action: $json.action, error: 'Không cập nhật được dropdown Google Form.', detail: $json.syncResponse || null } };\n"
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-13",
+      "name": "13. Phản hồi đồng bộ thất bại",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2600,
+        500
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 502
+        }
+      }
+    },
+    {
+      "id": "hrTv2JobSyncV2-14",
+      "name": "14. Đồng bộ dự phòng mỗi 5 phút",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        80
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "01. Nhận thông báo thay đổi vị trí tuyển dụng": {
+      "main": [
+        [
+          {
+            "node": "02. Chuẩn hóa sự kiện tuyển dụng",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Chuẩn hóa sự kiện tuyển dụng": {
+      "main": [
+        [
+          {
+            "node": "03. Lấy danh sách vị trí đang mở từ Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Lấy danh sách vị trí đang mở từ Backend": {
+      "main": [
+        [
+          {
+            "node": "04. Kiểm tra và lọc vị trí đang mở",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Kiểm tra và lọc vị trí đang mở": {
+      "main": [
+        [
+          {
+            "node": "05. Tạo lựa chọn mã vị trí – tên công việc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Tạo lựa chọn mã vị trí – tên công việc": {
+      "main": [
+        [
+          {
+            "node": "06. Chuẩn bị dữ liệu đồng bộ Google Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Chuẩn bị dữ liệu đồng bộ Google Form": {
+      "main": [
+        [
+          {
+            "node": "07. Cập nhật danh sách chọn trên Google Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Cập nhật danh sách chọn trên Google Form": {
+      "main": [
+        [
+          {
+            "node": "08. Kiểm tra kết quả cập nhật Google Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Kiểm tra kết quả cập nhật Google Form": {
+      "main": [
+        [
+          {
+            "node": "09. Xác định đồng bộ thành công",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Xác định đồng bộ thành công": {
+      "main": [
+        [
+          {
+            "node": "10. Tổng hợp kết quả đồng bộ thành công",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "12. Tổng hợp lỗi đồng bộ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Tổng hợp kết quả đồng bộ thành công": {
+      "main": [
+        [
+          {
+            "node": "11. Phản hồi đồng bộ thành công",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Tổng hợp lỗi đồng bộ": {
+      "main": [
+        [
+          {
+            "node": "13. Phản hồi đồng bộ thất bại",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Đồng bộ dự phòng mỗi 5 phút": {
+      "main": [
+        [
+          {
+            "node": "02. Chuẩn hóa sự kiện tuyển dụng",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh",
+    "saveExecutionProgress": true
+  },
+  "pinData": {}
+}

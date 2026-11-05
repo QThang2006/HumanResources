@@ -1,3 +1,7 @@
+import { CvScoreQueueService } from './cv-score-queue.service';
+import { IntakeController, IntakeGuard } from './intake.controller';
+import { N8nAiController } from './n8n-ai.controller';
+import { N8nAiGuard } from './n8n-ai.guard';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApplicationsService } from './applications.service';
@@ -14,6 +18,9 @@ import { CvStorageService } from './cv-storage.service';
 import { SubmitRateGuard } from './submit-rate.guard';
 import { InterviewDelivery } from './interview-delivery.entity';
 import { InterviewDeliveryService } from './interview-delivery.service';
+import { Offer } from '../../entities/offer.entity';
+import { OfferService } from './offer.service';
+import { OfferController } from './offer.controller';
 import {
   InterviewScheduleController,
   InterviewScheduleService,
@@ -31,15 +38,20 @@ import {
       OnboardingTask,
       TrainingCourse,
       EmployeeTraining,
+      Offer,
     ]),
   ],
-  controllers: [ApplicationsController, InterviewScheduleController],
+  controllers: [IntakeController, ApplicationsController, N8nAiController, InterviewScheduleController, OfferController],
   providers: [
+    CvScoreQueueService,
     ApplicationsService,
     CvStorageService,
     SubmitRateGuard,
     InterviewDeliveryService,
     InterviewScheduleService,
+    OfferService,
+    IntakeGuard,
+    N8nAiGuard,
   ],
   exports: [ApplicationsService],
 })

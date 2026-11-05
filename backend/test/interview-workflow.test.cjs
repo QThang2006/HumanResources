@@ -14,6 +14,7 @@ nodeTest('TV2 n8n readback Code contract fixtures (no providers)', () => {
     return vm.runInNewContext(
       '(function(){' + node.parameters.jsCode + '\n})()',
       {
+        Buffer,
         $input: { first: () => ({ json: input }) },
         $: (key) => ({ first: () => ({ json: upstream[key] }) }),
       },
@@ -51,29 +52,29 @@ nodeTest('TV2 n8n readback Code contract fixtures (no providers)', () => {
     conferenceData: { createRequest: { status: { statusCode: 'success' } } },
   };
   const upstream = {
-    'Validate delivery envelope': { interviewId: 1, delivery },
-    'Load interview payload': payload,
+    '02. Kiểm tra quyền xử lý yêu cầu phỏng vấn': { interviewId: 1, delivery },
+    '04. Nạp thông tin buổi phỏng vấn': payload,
   };
   test('Envelope accepts fixed local callback', () =>
     assert.equal(
-      run('Validate delivery envelope', { body: { data: payload } })[0].json.interviewId,
+      run('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn', { body: { data: payload } })[0].json.interviewId,
       1,
     ));
   test('Envelope rejects arbitrary callback and malformed capability', () => {
     assert.throws(() =>
-      run('Validate delivery envelope', {
+      run('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn', {
         ...payload,
         delivery: { ...delivery, callbackUrl: 'https://example.test/callback' },
       }),
     );
     assert.throws(() =>
-      run('Validate delivery envelope', { ...payload, delivery: { ...delivery, token: 'bad' } }),
+      run('02. Kiểm tra quyền xử lý yêu cầu phỏng vấn', { ...payload, delivery: { ...delivery, token: 'bad' } }),
     );
   });
   test('Claim loads canonical recipient snapshot', () =>
     assert.equal(
       run(
-        'Load interview payload',
+        '04. Nạp thông tin buổi phỏng vấn',
         { data: { claimed: true, payload, eventId: delivery.eventId } },
         upstream,
       )[0].json.candidateEmail,
@@ -81,11 +82,11 @@ nodeTest('TV2 n8n readback Code contract fixtures (no providers)', () => {
     ));
   test('Claim rejects mismatching event and invalid sender', () => {
     assert.throws(() =>
-      run('Load interview payload', { claimed: true, payload, eventId: 'wrong' }, upstream),
+      run('04. Nạp thông tin buổi phỏng vấn', { claimed: true, payload, eventId: 'wrong' }, upstream),
     );
     assert.throws(() =>
       run(
-        'Load interview payload',
+        '04. Nạp thông tin buổi phỏng vấn',
         { claimed: true, payload: { ...payload, fromEmail: '' }, eventId: delivery.eventId },
         upstream,
       ),
@@ -93,7 +94,7 @@ nodeTest('TV2 n8n readback Code contract fixtures (no providers)', () => {
   });
   test('Calendar readback emits the correct authenticated result', () =>
     assert.equal(
-      run('Verify Calendar readback', event, upstream)[0].json.callback.event,
+      run('08. Xác minh lịch và liên kết Google Meet', event, upstream)[0].json.callback.event,
       'CALENDAR_CONFIRMED',
     ));
   test('Calendar rejects wrong time/id/Meet and pending conference', () => {
@@ -103,13 +104,13 @@ nodeTest('TV2 n8n readback Code contract fixtures (no providers)', () => {
       { ...event, hangoutLink: 'https://example.test/meet' },
       { ...event, conferenceData: { createRequest: { status: { statusCode: 'pending' } } } },
     ])
-      assert.throws(() => run('Verify Calendar readback', invalid, upstream));
+      assert.throws(() => run('08. Xác minh lịch và liên kết Google Meet', invalid, upstream));
   });
-  test('SMTP emits acceptance only for expected sole recipient', () =>
+  test('SMTP emits acceptance only when both recipients are accepted', () =>
     assert.equal(
       run(
-        'Verify SMTP acceptance',
-        { messageId: '<test@example.test>', accepted: [payload.candidateEmail], rejected: [] },
+        '12. Xác minh kết quả gửi thư mời',
+        { messageId: '<test@example.test>', accepted: [payload.candidateEmail, payload.interviewerEmail], rejected: [] },
         upstream,
       )[0].json.event,
       'SMTP_ACCEPTED',
@@ -121,22 +122,22 @@ nodeTest('TV2 n8n readback Code contract fixtures (no providers)', () => {
       { messageId: 'id', accepted: [payload.candidateEmail], rejected: ['other@example.test'] },
       { accepted: [payload.candidateEmail], rejected: [] },
     ])
-      assert.throws(() => run('Verify SMTP acceptance', invalid, upstream));
+      assert.throws(() => run('12. Xác minh kết quả gửi thư mời', invalid, upstream));
   });
   test('Email escapes display names instead of rendering injected HTML', () => {
     const prepared = run(
-      'Tạo Link Meet & Template Email',
+      '10. Soạn thư mời và tệp lịch ICS',
       {},
-      { ...upstream, 'Verify Calendar readback': event },
-    );
+      { ...upstream, '08. Xác minh lịch và liên kết Google Meet': event },
+    )[0];
     assert.ok(prepared.json.emailHtml.includes('&lt;img'));
     assert.equal(prepared.json.emailHtml.includes(payload.candidateName), false);
-    assert.equal(prepared.json.candidateEmail, payload.candidateEmail);
+    assert.equal(prepared.json.toEmail, payload.candidateEmail + ',' + payload.interviewerEmail);
   });
   test('Failures use fixed codes without raw provider error', () => {
     for (const [name, stage, code] of [
-      ['Calendar failure result', 'CALENDAR', 'CALENDAR_ERROR'],
-      ['Email failure result', 'EMAIL', 'SMTP_ERROR'],
+      ['14. Tổng hợp lỗi tạo lịch phỏng vấn', 'CALENDAR', 'CALENDAR_ERROR'],
+      ['16. Tổng hợp lỗi gửi thư mời', 'EMAIL', 'SMTP_ERROR'],
     ]) {
       const value = run(name, { error: 'SYNTHETIC_PRIVATE_PROVIDER_ERROR' }, upstream)[0].json;
       assert.equal(value.stage, stage);
@@ -146,7 +147,7 @@ nodeTest('TV2 n8n readback Code contract fixtures (no providers)', () => {
   });
   test('Only result callbacks retry; Calendar/SMTP/claim do not retry', () => {
     for (const node of workflow.nodes.filter((n) => n.type === 'n8n-nodes-base.httpRequest')) {
-      assert.equal(node.retryOnFail, node.name !== 'Claim interview delivery');
+      assert.equal(node.retryOnFail, node.name !== '03. Nhận quyền xử lý lịch phỏng vấn');
       if (node.retryOnFail) assert.equal(node.maxTries, 3);
     }
     for (const node of workflow.nodes.filter((n) =>

@@ -1,0 +1,511 @@
+{
+  "id": "hrTv2IntakeAiV3",
+  "name": "02 | TV2 2.1 – Tiếp nhận CV, xác nhận và chấm điểm AI",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment {filename:pdf filename:png filename:jpg filename:jpeg filename:webp} subject:JOB-",
+          "readStatus": "unread"
+        },
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "id": "6f6488c8-1395-4d91-8a24-a4d115207b44",
+      "name": "01. Theo dõi CV mới trong Gmail tuyển dụng",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        120
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1pj098X1kivBfFds",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst m = $json;\nconst sender = m.from?.value?.[0];\nconst job = String(m.subject || '').match(/\\bJOB-(\\d+)\\b/i);\nconst files = Object.values($input.item.binary || {}).filter(b => ['application/pdf','image/png','image/jpeg','image/webp'].includes(b.mimeType) || /\\.(pdf|png|jpe?g|webp)$/i.test(b.fileName || ''));\nif (!job || !sender?.address || !m.id || files.length !== 1) throw Error('Email cần tiêu đề JOB-<id>, địa chỉ người gửi và đúng 1 CV PDF hoặc ảnh PNG/JPG/WEBP.');\nreturn { json: { channel: 'GMAIL', sourceId: m.id, jobId: Number(job[1]), candidateName: sender.name || sender.address.split('@')[0], candidateEmail: sender.address, candidatePhone: String(m.text || '').match(/(?:Phone|Điện thoại)\\s*:\\s*([+\\d ()-]{7,20})/i)?.[1]?.trim() || '' }, binary: { cv: files[0] } };\n"
+      },
+      "id": "9bb2d167-4de6-4a42-9f63-363fb64eaad7",
+      "name": "02. Chuẩn hóa hồ sơ nhận qua Gmail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "14QSDBEyQGC08wyLE33G7PhMRyPdskj1Iy1vu7YzGyH8"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "2005238133"
+        },
+        "event": "anyUpdate",
+        "options": {},
+        "includeInOutput": "new"
+      },
+      "id": "602630c1-5065-4ea8-b056-6f654bc62f9d",
+      "name": "03. Phát hiện câu trả lời Google Form mới",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        500
+      ],
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "Ksp4JAjExqDxkNat",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst r = $json;\n// The public form uses Vietnamese labels; keep the internal payload stable for ATS.\nconst value = (...keys) => keys.map(key => r[key]).find(item => item !== undefined && item !== null);\nconst raw = String(value('cvFileId', 'Tải lên CV (PDF/PNG/JPG/WEBP)', 'Tải lên CV (định dạng PDF)', 'Tải lên CV') || '').trim();\nconst id = /^[\\w-]{15,}$/.test(raw) ? raw : raw.match(/^https:\\/\\/drive\\.google\\.com\\/(?:file\\/d\\/|open\\?id=)([\\w-]{15,})/)?.[1];\nconst source = r.sourceId || ((r.Timestamp || r['Dấu thời gian']) ? String(r.Timestamp || r['Dấu thời gian']) + ':' + id : '');\nconst rawJob = String(value('jobId', 'Mã vị trí ứng tuyển') || '').trim();\nconst jobId = Number(rawJob.match(/^\\s*(?:JOB-)?(\\d+)\\s*(?:[-–—]|$)/i)?.[1] || rawJob);\nif (!id || !source) throw Error('Sheet cần Timestamp hoặc sourceId duy nhất, cùng cvFileId là file Drive hoặc URL Drive hợp lệ.');\nif (!Number.isSafeInteger(jobId) || jobId < 1) throw Error('Hãy chọn một vị trí tuyển dụng hợp lệ.');\nreturn { json: { channel: 'GOOGLE_FORM', sourceId: String(source), fileId: id, jobId, candidateName: String(value('candidateName', 'Họ và tên ứng viên') || '').trim(), candidateEmail: String(value('candidateEmail', 'Địa chỉ email') || '').trim(), candidatePhone: String(value('candidatePhone', 'Số điện thoại') || '').trim() } };\n"
+      },
+      "id": "91b02c17-d6c2-4f83-8722-2060c1c8be3b",
+      "name": "04. Chuẩn hóa hồ sơ và mã vị trí từ Form",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.fileId }}"
+        },
+        "options": {
+          "binaryPropertyName": "cv"
+        }
+      },
+      "id": "8b29c33b-21f2-488d-97d1-9e55b16a2044",
+      "name": "05. Tải CV từ Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        520,
+        500
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "Zhi7B5QFjZdTcnyX",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\nconst p = $json, cv = $input.item.binary?.cv;\nif (!Number.isSafeInteger(p.jobId) || p.jobId < 1 || !p.candidateName || p.candidateName.length > 150 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(p.candidateEmail) || !cv || !/\\.(pdf|png|jpe?g|webp)$/i.test(cv.fileName || '')) throw Error('Thiếu thông tin ứng viên hoặc CV phải là PDF hoặc ảnh PNG/JPG/WEBP.');\nreturn { json: p, binary: { cv } };\n"
+      },
+      "id": "3194562b-f253-4d2b-a166-01030b34a0e3",
+      "name": "06. Kiểm tra thông tin ứng viên và tệp CV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/api/recruitment/intake",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $json.channel }}"
+            },
+            {
+              "name": "sourceId",
+              "value": "={{ $json.sourceId }}"
+            },
+            {
+              "name": "jobId",
+              "value": "={{ $json.jobId }}"
+            },
+            {
+              "name": "candidateName",
+              "value": "={{ $json.candidateName }}"
+            },
+            {
+              "name": "candidateEmail",
+              "value": "={{ $json.candidateEmail }}"
+            },
+            {
+              "name": "candidatePhone",
+              "value": "={{ $json.candidatePhone }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "cv",
+              "inputDataFieldName": "cv"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "b386ab6f-50a7-4c6c-b4b7-6761c5529441",
+      "name": "07. Lưu hồ sơ và CV vào ATS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "hrTv2IntakeHeader",
+          "name": "TV2 Backend Intake Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "08. Kiểm tra hồ sơ cần gửi xác nhận",
+              "leftValue": "={{ $json.data.shouldSend === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6491734a-a7ed-444f-84d4-7a4d1ecf6a64",
+      "name": "08. Kiểm tra hồ sơ cần gửi xác nhận",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const { renderAcknowledgementEmail } = (() => { const exports = {};\n\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.renderAcknowledgementEmail = renderAcknowledgementEmail;\nexports.renderOfferEmail = renderOfferEmail;\nexports.renderOfferReminderEmail = renderOfferReminderEmail;\nexports.renderOfferExpiryEmail = renderOfferExpiryEmail;\n/** Pure renderers shared by the Backend and the generated n8n Code node. */\nconst escapeHtml = (value) => String(value ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\nfunction safeUrl(value) {\n    try {\n        const url = new URL(value);\n        return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? escapeHtml(url.href) : '';\n    }\n    catch {\n        return '';\n    }\n}\nfunction dateVi(value, withTime = false) {\n    const date = new Date(withTime ? value : String(value).slice(0, 10) + 'T00:00:00+07:00');\n    if (Number.isNaN(date.getTime()))\n        return 'Chưa xác định';\n    return date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric',\n        ...(withTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}) });\n}\nfunction paragraph(content) {\n    return `<p style=\"margin:0 0 18px\">${content}</p>`;\n}\nfunction card(rows) {\n    return `<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"margin:24px 0;background:#f8fafc;border-left:5px solid #2563eb;border-radius:10px\"><tr><td style=\"padding:18px 24px\">${rows.map(([label, value]) => `<p style=\"margin:10px 0\"><strong style=\"color:#172554\">${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`).join('')}</td></tr></table>`;\n}\nfunction button(label, url) {\n    const href = safeUrl(url);\n    return href ? `<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" style=\"margin:26px auto\"><tr><td bgcolor=\"#2563eb\" style=\"border-radius:8px;text-align:center\"><a href=\"${href}\" style=\"display:inline-block;padding:14px 26px;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:8px\">${escapeHtml(label)}</a></td></tr></table>` : '';\n}\nfunction notice(content) {\n    return `<div style=\"padding:16px 18px;margin:22px 0;background:#eff6ff;border-radius:8px;color:#1e40af;font-size:14px\">${content}</div>`;\n}\nfunction layout(title, subtitle, preheader, content) {\n    return `<!doctype html><html lang=\"vi\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>${escapeHtml(title)}</title></head><body style=\"margin:0;padding:0;background:#f3f6fb;color:#243247;font-family:Arial,Helvetica,sans-serif;line-height:1.7\"><div style=\"display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all\">${escapeHtml(preheader)}</div><table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" bgcolor=\"#f3f6fb\"><tr><td style=\"padding:24px 12px\"><table role=\"presentation\" width=\"100%\" align=\"center\" cellspacing=\"0\" cellpadding=\"0\" style=\"max-width:760px;background:#ffffff;border-radius:18px;overflow:hidden\"><tr><td bgcolor=\"#1e3a8a\" style=\"padding:34px 24px;background:linear-gradient(120deg,#1e3a8a,#2563eb);color:#ffffff;text-align:center;border-radius:18px 18px 0 0\"><div style=\"font-size:12px;letter-spacing:2px;font-weight:bold;color:#bfdbfe;margin-bottom:10px\">HR ATS • TUYỂN DỤNG</div><h1 style=\"margin:0;font-size:26px;line-height:1.35;color:#ffffff\">${escapeHtml(title)}</h1><p style=\"margin:10px 0 0;color:#dbeafe;font-size:14px\">${escapeHtml(subtitle)}</p></td></tr><tr><td style=\"padding:32px 28px;font-size:15px\">${content}</td></tr><tr><td bgcolor=\"#f8fafc\" style=\"padding:22px 28px;text-align:center;color:#64748b;font-size:12px;border-radius:0 0 18px 18px\">Trân trọng,<br><strong style=\"color:#334155\">Phòng Nhân sự</strong><br>Enterprise HR &amp; Talent Ecosystem</td></tr></table></td></tr></table></body></html>`;\n}\nfunction renderAcknowledgementEmail(p) {\n    return layout('XÁC NHẬN ĐÃ NHẬN HỒ SƠ', 'Cảm ơn bạn đã quan tâm và ứng tuyển', `Hồ sơ #${p.applicationId} đã được tiếp nhận. Phòng Nhân sự sẽ liên hệ sau khi xem xét.`, paragraph(`Kính gửi <strong>${escapeHtml(p.candidateName)}</strong>,`) +\n        paragraph('Phòng Nhân sự xác nhận đã tiếp nhận hồ sơ ứng tuyển và CV của bạn. Cảm ơn bạn đã dành thời gian tìm hiểu và lựa chọn đồng hành cùng chúng tôi.') +\n        card([['Mã hồ sơ', '#' + p.applicationId], ['Ứng viên', p.candidateName], ['Email liên hệ', p.candidateEmail], ['Trạng thái', 'Đã tiếp nhận hồ sơ']]) +\n        notice('<strong>Bước tiếp theo</strong><br>Bộ phận tuyển dụng sẽ xem xét hồ sơ và liên hệ qua email hoặc số điện thoại bạn đã cung cấp nếu phù hợp với vị trí ứng tuyển.') +\n        paragraph('Vui lòng theo dõi hộp thư đến và thư rác để không bỏ lỡ thông báo. Nếu cần bổ sung thông tin, bạn có thể phản hồi trực tiếp email này.'));\n}\nfunction offerRows(p) {\n    return [['Mã thư mời', '#' + p.offerId], ['Vị trí nhận việc', p.jobTitle], ['Mức lương đề nghị', p.salary], ['Ngày nhận việc dự kiến', dateVi(p.startDate)]];\n}\nfunction renderOfferEmail(p) {\n    return layout('THƯ MỜI NHẬN VIỆC', 'Chào đón bạn gia nhập đội ngũ của chúng tôi', `Thư mời nhận việc vị trí ${p.jobTitle}. Vui lòng phản hồi trong vòng 48 giờ kể từ khi thư được gửi.`, paragraph(`Kính gửi <strong>${escapeHtml(p.candidateName)}</strong>,`) +\n        paragraph('Cảm ơn bạn đã tham gia quá trình tuyển dụng. Sau khi trao đổi và đánh giá, chúng tôi trân trọng gửi đến bạn lời mời nhận việc với các thông tin sau:') +\n        card(offerRows(p)) +\n        notice('<strong>Thời hạn phản hồi: 48 giờ kể từ khi thư được gửi.</strong><br>Vui lòng xem thông tin và chọn đồng ý hoặc từ chối trên trang phản hồi. Thời điểm hết hạn chính xác được hiển thị tại trang này.') +\n        button('Xem và phản hồi thư mời', p.responseUrl) +\n        paragraph('Nếu bạn cần trao đổi thêm về công việc hoặc điều kiện nhận việc, vui lòng phản hồi email này để Phòng Nhân sự hỗ trợ.') +\n        paragraph('Chúng tôi mong sớm được chào đón bạn vào đội ngũ!'));\n}\nfunction renderOfferReminderEmail(p) {\n    return layout('NHẮC PHẢN HỒI THƯ MỜI NHẬN VIỆC', 'Chúng tôi mong nhận được phản hồi từ bạn', `Thư mời #${p.offerId} đang chờ phản hồi. Hạn cuối: ${dateVi(p.expiresAt, true)} (Việt Nam).`, paragraph(`Kính gửi <strong>${escapeHtml(p.candidateName)}</strong>,`) +\n        paragraph('Phòng Nhân sự gửi bạn lời nhắc về thư mời nhận việc đã được gửi trước đó. Hiện chúng tôi vẫn chưa ghi nhận phản hồi của bạn trên hệ thống.') +\n        card([...offerRows(p), ['Hạn phản hồi (giờ Việt Nam)', dateVi(p.expiresAt, true)], ['Trạng thái', 'Đang chờ ứng viên phản hồi']]) +\n        button('Xem và phản hồi thư mời', p.responseUrl) +\n        notice('Vui lòng phản hồi trước thời hạn nêu trên. Sau thời điểm này, thư mời sẽ hết hiệu lực. Email này được đồng gửi đến Phòng Nhân sự để tiện hỗ trợ bạn.') +\n        paragraph('Nếu bạn có câu hỏi hoặc cần trao đổi thêm, hãy phản hồi trực tiếp email này. Cảm ơn bạn!'));\n}\nfunction renderOfferExpiryEmail(p) {\n    return layout('THƯ MỜI NHẬN VIỆC ĐÃ HẾT HẠN', 'Thông báo dành cho Phòng Nhân sự', `Thư mời #${p.offerId} của ${p.candidateName} đã hết hạn sau 48 giờ mà chưa có phản hồi.`, paragraph('Kính gửi <strong>Phòng Nhân sự</strong>,') +\n        paragraph('Hệ thống ghi nhận thư mời nhận việc dưới đây đã hết thời hạn 48 giờ mà chưa nhận được phản hồi của ứng viên.') +\n        card([['Ứng viên', p.candidateName], ['Email ứng viên', p.candidateEmail], ...offerRows(p), ['Thời điểm hết hạn (giờ Việt Nam)', dateVi(p.expiresAt, true)], ['Trạng thái', 'Đã hết hạn']]) +\n        button('Mở hồ sơ tuyển dụng trong ATS', p.atsUrl) +\n        notice('Vui lòng kiểm tra hồ sơ và liên hệ ứng viên nếu cần. Thông báo này không đồng nghĩa với việc ứng viên đã đồng ý nhận việc.'));\n}\n\nreturn exports; })();\nconst p=$json.data;\nreturn {json:{...p,subject:'Xác nhận đã nhận hồ sơ ứng tuyển',html:renderAcknowledgementEmail(p)}};\n"
+      },
+      "id": "5ef1a87b-05ad-4165-8d86-688d7fce76d7",
+      "name": "09. Soạn thư xác nhận đã nhận hồ sơ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.fromEmail }}",
+        "toEmail": "={{ $json.candidateEmail }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e45ea390-7aca-499a-b0ea-c5c44565b0cc",
+      "name": "10. Gửi thư xác nhận cho ứng viên",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1820,
+        160
+      ],
+      "webhookId": "ff365a9b-772f-4d4a-8ed7-65fe43932381",
+      "credentials": {
+        "smtp": {
+          "id": "dybDKTPxfG53kVLZ",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ String( 'http://host.docker.internal:3001/api/recruitment/intake/' + $('09. Soạn thư xác nhận đã nhận hồ sơ').item.json.applicationId + '/acknowledgement' ).replace(\"http://host.docker.internal:3001\", \"http://host.docker.internal:3001\").replace(\"http://127.0.0.1:3001\", \"http://host.docker.internal:3001\") }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {accepted:$json.accepted,messageId:$json.messageId} }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "17db1381-8d1d-4336-b75b-1aaa1549e53a",
+      "name": "11. Lưu kết quả gửi thư xác nhận",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        160
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "hrTv2IntakeHeader",
+          "name": "TV2 Backend Intake Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "12. Kiểm tra hồ sơ đến từ Gmail",
+              "leftValue": "={{ $('06. Kiểm tra thông tin ứng viên và tệp CV').item.json.channel === 'GMAIL' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d81a74b9-4167-43d2-9f38-5e84fff175cf",
+      "name": "12. Kiểm tra hồ sơ đến từ Gmail",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('06. Kiểm tra thông tin ứng viên và tệp CV').item.json.sourceId }}"
+      },
+      "id": "1c3568b3-8ea5-49f4-873d-dece7882f52a",
+      "name": "13. Đánh dấu email tuyển dụng đã xử lý",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2600,
+        160
+      ],
+      "webhookId": "8c928d78-7438-4200-9c68-f12f82da6039",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1pj098X1kivBfFds",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "01. Theo dõi CV mới trong Gmail tuyển dụng": {
+      "main": [
+        [
+          {
+            "node": "02. Chuẩn hóa hồ sơ nhận qua Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Chuẩn hóa hồ sơ nhận qua Gmail": {
+      "main": [
+        [
+          {
+            "node": "06. Kiểm tra thông tin ứng viên và tệp CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Phát hiện câu trả lời Google Form mới": {
+      "main": [
+        [
+          {
+            "node": "04. Chuẩn hóa hồ sơ và mã vị trí từ Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Chuẩn hóa hồ sơ và mã vị trí từ Form": {
+      "main": [
+        [
+          {
+            "node": "05. Tải CV từ Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Tải CV từ Google Drive": {
+      "main": [
+        [
+          {
+            "node": "06. Kiểm tra thông tin ứng viên và tệp CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Kiểm tra thông tin ứng viên và tệp CV": {
+      "main": [
+        [
+          {
+            "node": "07. Lưu hồ sơ và CV vào ATS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Lưu hồ sơ và CV vào ATS": {
+      "main": [
+        [
+          {
+            "node": "08. Kiểm tra hồ sơ cần gửi xác nhận",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Kiểm tra hồ sơ cần gửi xác nhận": {
+      "main": [
+        [
+          {
+            "node": "09. Soạn thư xác nhận đã nhận hồ sơ",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "12. Kiểm tra hồ sơ đến từ Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Soạn thư xác nhận đã nhận hồ sơ": {
+      "main": [
+        [
+          {
+            "node": "10. Gửi thư xác nhận cho ứng viên",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Gửi thư xác nhận cho ứng viên": {
+      "main": [
+        [
+          {
+            "node": "11. Lưu kết quả gửi thư xác nhận",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Lưu kết quả gửi thư xác nhận": {
+      "main": [
+        [
+          {
+            "node": "12. Kiểm tra hồ sơ đến từ Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Kiểm tra hồ sơ đến từ Gmail": {
+      "main": [
+        [
+          {
+            "node": "13. Đánh dấu email tuyển dụng đã xử lý",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh",
+    "saveExecutionProgress": true
+  }
+}

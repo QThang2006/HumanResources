@@ -22,6 +22,10 @@ export enum AiRecommendation {
 @Index(['jobId', 'candidateEmail'], { unique: true })
 @Entity('applications')
 export class Application {
+  @Column({ length: 64, nullable: true, unique: true, select: false }) intakeKey: string;
+  @Column({ length: 20, nullable: true }) intakeChannel: string;
+  @Column({ length: 20, nullable: true }) acknowledgementStatus: string;
+  @Column({ length: 998, nullable: true }) acknowledgementMessageId: string;
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -66,6 +70,23 @@ export class Application {
 
   @Column({ name: 'ai_recommendation', type: 'enum', enum: AiRecommendation, nullable: true })
   aiRecommendation: AiRecommendation;
+
+  @Column({ name: 'ai_score_status', type: 'varchar', length: 24, nullable: true })
+  aiScoreStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
+
+  @Column({ name: 'ai_score_request_id', type: 'varchar', length: 80, nullable: true })
+  aiScoreRequestId: string | null;
+
+  @Column({ name: 'ai_score_error', type: 'varchar', length: 500, nullable: true })
+  aiScoreError: string | null;
+
+  // Durable queue metadata; old applications remain unscheduled (NULL).
+  @Column({ name: 'ai_score_attempts', default: 0 })
+  aiScoreAttempts: number;
+
+  @Index()
+  @Column({ name: 'ai_score_available_at', type: 'datetime', nullable: true })
+  aiScoreAvailableAt: Date | null;
 
   @Column({ type: 'enum', enum: ApplicationStatus, default: ApplicationStatus.APPLIED })
   status: ApplicationStatus;

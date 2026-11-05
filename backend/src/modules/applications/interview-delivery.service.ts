@@ -89,7 +89,7 @@ export class InterviewDeliveryService {
       interviewId: payload.interviewId,
       requestId,
       tokenHash: token ? digest(token) : null,
-      payloadSnapshot: payload as unknown as Record<string, unknown>,
+      payloadSnapshot: { ...payload, requireBothRecipients: true } as unknown as Record<string, unknown>,
       expectedEventId: 'hrtv2' + requestId.replace(/-/g, ''),
       status: base ? 'PENDING' : 'UNVERIFIED',
       calendarStatus: base ? 'PENDING' : 'UNVERIFIED',
@@ -233,6 +233,11 @@ export class InterviewDeliveryService {
             String(row.payloadSnapshot.candidateEmail).toLowerCase()
         )
           throw new ConflictException('Thư chưa khớp hồ sơ và lịch Google đã xác nhận.');
+        if (row.payloadSnapshot.requireBothRecipients) {
+          const accepted = new Set((input.acceptedRecipients || []).map(x => x.toLowerCase()));
+          if (![row.payloadSnapshot.candidateEmail, row.payloadSnapshot.interviewerEmail].every(x => accepted.has(String(x).toLowerCase())))
+            throw new ConflictException('SMTP chưa chấp nhận thư cho cả ứng viên và người phỏng vấn.');
+        }
         if (row.emailStatus === 'SMTP_ACCEPTED') {
           if (row.smtpMessageId !== input.messageId)
             throw new ConflictException('Thư đã được xác nhận bằng messageId khác.');

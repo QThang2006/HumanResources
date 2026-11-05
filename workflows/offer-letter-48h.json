@@ -1,0 +1,568 @@
+{
+  "id": "hrTv2OfferV2",
+  "name": "04 | TV2 2.3 – Phát hành thư mời nhận việc và nhắc hạn 24–48 giờ",
+  "active": false,
+  "nodes": [
+    {
+      "id": "hrTv2OfferV2-1",
+      "name": "01. Nhận yêu cầu phát hành thư mời nhận việc",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "offer-issued",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "offer-issued"
+    },
+    {
+      "id": "hrTv2OfferV2-2",
+      "name": "02. Kiểm tra quyền phát hành thư mời nhận việc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst b = $input.first().json.body; const p = b?.data || b;\nif (!p || !Number.isSafeInteger(p.offerId) || p.offerId < 1 || !/^[a-f0-9]{64}$/.test(p.token || '') || !/^[a-f0-9]{64}$/.test(p.responseToken || '')) throw Error('Invalid Offer capability');\nreturn [{ json: { offerId: p.offerId, token: p.token, responseToken: p.responseToken } }];\n"
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-3",
+      "name": "03. Nhận nội dung thư mời từ Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-offer-token",
+              "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'CLAIM',responseToken:$('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.responseToken} }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-4",
+      "name": "04. Gửi thư mời nhận việc cho ứng viên",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        780,
+        300
+      ],
+      "parameters": {
+        "operation": "send",
+        "fromEmail": "={{ $json.data.fromEmail }}",
+        "toEmail": "={{ $json.data.candidateEmail }}",
+        "subject": "={{ $json.data.subject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.data.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-5",
+      "name": "05. Lưu kết quả gửi và bắt đầu hạn 48 giờ",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-offer-token",
+              "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'SENT',accepted:$json.accepted,messageId:$json.messageId} }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "hrTv2OfferV2-6",
+      "name": "06. Chờ đến mốc 24 giờ",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "resume": "specificTime",
+        "dateTime": "={{ $json.data.remindAt }}"
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-7",
+      "name": "07. Kiểm tra phản hồi ứng viên sau 24 giờ",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-offer-token",
+              "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'REMIND'} }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-8",
+      "name": "08. Kiểm tra có cần gửi thư nhắc",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "08. Kiểm tra có cần gửi thư nhắc",
+              "leftValue": "={{ $json.data.shouldSend === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-9",
+      "name": "09. Gửi thư nhắc ứng viên và thông báo HR",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2080,
+        140
+      ],
+      "parameters": {
+        "operation": "send",
+        "fromEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.fromEmail }}",
+        "toEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.candidateEmail }}",
+        "subject": "Nhắc phản hồi thư mời nhận việc",
+        "emailFormat": "html",
+        "html": "={{ '<p>Offer của bạn còn thời hạn phản hồi. Vui lòng xem lại thông tin và xác nhận qua liên kết bên dưới.</p>' + $('03. Nhận nội dung thư mời từ Backend').first().json.data.html }}",
+        "options": {
+          "appendAttribution": false,
+          "ccEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.hrEmail }}"
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-10",
+      "name": "10. Lưu kết quả gửi thư nhắc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        140
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-offer-token",
+              "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'REMINDED',accepted:$json.accepted,messageId:$json.messageId} }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "hrTv2OfferV2-11",
+      "name": "11. Chờ đến hạn 48 giờ",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2600,
+        300
+      ],
+      "parameters": {
+        "resume": "specificTime",
+        "dateTime": "={{ $('05. Lưu kết quả gửi và bắt đầu hạn 48 giờ').first().json.data.expiresAt }}"
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-12",
+      "name": "12. Kiểm tra và đóng thư mời đã hết hạn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-offer-token",
+              "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'EXPIRE'} }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-13",
+      "name": "13. Kiểm tra thư mời hết hạn cần báo HR",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3120,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "13. Kiểm tra thư mời hết hạn cần báo HR",
+              "leftValue": "={{ $json.data.shouldSend === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-14",
+      "name": "14. Thông báo HR về thư mời hết hạn",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        3380,
+        300
+      ],
+      "parameters": {
+        "operation": "send",
+        "fromEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.fromEmail }}",
+        "toEmail": "={{ $('03. Nhận nội dung thư mời từ Backend').first().json.data.hrEmail }}",
+        "subject": "Offer hết hạn sau 48 giờ",
+        "emailFormat": "html",
+        "html": "={{ '<p>Offer #' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + ' đã hết hạn mà chưa có phản hồi. Vui lòng kiểm tra hồ sơ trong ATS.</p>' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "pcGy7r4S7VYVboJQ",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "id": "hrTv2OfferV2-15",
+      "name": "15. Lưu kết quả thông báo hết hạn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3640,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://localhost:3001/api/offers/' + $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.offerId + '/delivery' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-offer-token",
+              "value": "={{ $('02. Kiểm tra quyền phát hành thư mời nhận việc').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {action:'EXPIRY_NOTIFIED',accepted:$json.accepted,messageId:$json.messageId} }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "connections": {
+    "01. Nhận yêu cầu phát hành thư mời nhận việc": {
+      "main": [
+        [
+          {
+            "node": "02. Kiểm tra quyền phát hành thư mời nhận việc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Kiểm tra quyền phát hành thư mời nhận việc": {
+      "main": [
+        [
+          {
+            "node": "03. Nhận nội dung thư mời từ Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Nhận nội dung thư mời từ Backend": {
+      "main": [
+        [
+          {
+            "node": "04. Gửi thư mời nhận việc cho ứng viên",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Gửi thư mời nhận việc cho ứng viên": {
+      "main": [
+        [
+          {
+            "node": "05. Lưu kết quả gửi và bắt đầu hạn 48 giờ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Lưu kết quả gửi và bắt đầu hạn 48 giờ": {
+      "main": [
+        [
+          {
+            "node": "06. Chờ đến mốc 24 giờ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Chờ đến mốc 24 giờ": {
+      "main": [
+        [
+          {
+            "node": "07. Kiểm tra phản hồi ứng viên sau 24 giờ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Kiểm tra phản hồi ứng viên sau 24 giờ": {
+      "main": [
+        [
+          {
+            "node": "08. Kiểm tra có cần gửi thư nhắc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Kiểm tra có cần gửi thư nhắc": {
+      "main": [
+        [
+          {
+            "node": "09. Gửi thư nhắc ứng viên và thông báo HR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "11. Chờ đến hạn 48 giờ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Gửi thư nhắc ứng viên và thông báo HR": {
+      "main": [
+        [
+          {
+            "node": "10. Lưu kết quả gửi thư nhắc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Lưu kết quả gửi thư nhắc": {
+      "main": [
+        [
+          {
+            "node": "11. Chờ đến hạn 48 giờ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Chờ đến hạn 48 giờ": {
+      "main": [
+        [
+          {
+            "node": "12. Kiểm tra và đóng thư mời đã hết hạn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Kiểm tra và đóng thư mời đã hết hạn": {
+      "main": [
+        [
+          {
+            "node": "13. Kiểm tra thư mời hết hạn cần báo HR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Kiểm tra thư mời hết hạn cần báo HR": {
+      "main": [
+        [
+          {
+            "node": "14. Thông báo HR về thư mời hết hạn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Thông báo HR về thư mời hết hạn": {
+      "main": [
+        [
+          {
+            "node": "15. Lưu kết quả thông báo hết hạn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ho_Chi_Minh",
+    "saveExecutionProgress": true
+  },
+  "pinData": {}
+}

@@ -1,0 +1,419 @@
+{
+  "name": "[TV1] WF-03: System Incident Aggregator & AI Diagnostic Debugger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incident-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000001",
+      "name": "1. Webhook Incident Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "incident-alert-tv1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-03 Node 2: Phân tích và bóc tách Stack Trace lỗi từ Backend\ntry {\n  const input = $input.first().json;\n  const raw = input.body?.data || input.body || input.data || input;\n\n  const statusCode = parseInt(raw.statusCode || 500, 10);\n  const endpoint = String(raw.path || raw.endpoint || raw.url || '/api/unknown').trim();\n  const method = String(raw.method || 'POST').toUpperCase();\n  const errorMessage = String(raw.message || raw.error || 'Internal Server Error').substring(0, 300);\n  const stackTrace = String(raw.stack || raw.stackTrace || '').substring(0, 1500);\n  const userId = raw.userId || 'GUEST';\n  const timestamp = raw.timestamp || new Date().toISOString();\n\n  // Regex trích xuất file nguồn TypeScript/JavaScript và số dòng gây lỗi\n  const fileMatch = stackTrace.match(/at\\s+(?:.*?)\\s+\\((.*?):(\\d+):(\\d+)\\)/i) || stackTrace.match(/at\\s+(.*?):(\\d+):(\\d+)/i);\n  const culpritFile = fileMatch ? fileMatch[1].split(/[\\\\/]/).pop() : 'UnknownModule.ts';\n  const culpritLine = fileMatch ? fileMatch[2] : 'N/A';\n\n  const isDatabaseError = errorMessage.includes('ER_') || errorMessage.includes('QueryFailedError') || errorMessage.includes('Connection lost') || errorMessage.includes('foreign key') || errorMessage.includes('Deadlock');\n\n  return [{\n    json: {\n      statusCode,\n      endpoint,\n      method,\n      errorMessage,\n      culpritFile,\n      culpritLine,\n      stackTrace: stackTrace || errorMessage,\n      userId,\n      timestamp,\n      isDatabaseError\n    }\n  }];\n} catch (err) {\n  throw new Error('[WF-03 Parse Error] Failed: ' + err.message);\n}"
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000002",
+      "name": "2. Parse Stack Trace & File Line",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-03 Node 3: Chống bão cảnh báo (Deduplication Signature)\nconst item = $input.first().json;\nconst errorSignature = `${item.method}_${item.endpoint}_${item.culpritFile}_${item.culpritLine}`.replace(/[^a-zA-Z0-9_]/g, '');\nconst incidentRef = 'ERR-' + Date.now().toString(36).toUpperCase();\nconst shouldNotifyImmediately = item.statusCode >= 500;\n\nreturn [{\n  json: {\n    ...item,\n    errorSignature,\n    incidentRef,\n    shouldNotifyImmediately\n  }\n}];"
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000003",
+      "name": "3. Deduplication & Incident Ref",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-serious-incident",
+              "leftValue": "={{ $json.shouldNotifyImmediately }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000004",
+      "name": "4. IF Is Serious Incident (>=500)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-03 Node 5: Gemini AI Root Cause Analysis (Hybrid AI Engine)\nconst item = $input.first().json;\nconst endpoint = item.endpoint || \"/api/unknown\";\nconst method = item.method || \"POST\";\nconst culpritFile = item.culpritFile || \"UnknownModule.ts\";\nconst culpritLine = item.culpritLine || \"N/A\";\nconst errorMessage = item.errorMessage || \"Internal Server Error\";\nconst stackTrace = item.stackTrace || errorMessage;\nconst isDbError = Boolean(item.isDatabaseError);\n\nlet rootCause = \"\";\nlet suggestedFix = \"\";\nconst severity = isDbError ? \"DATABASE_CRITICAL\" : \"LOGIC_HIGH\";\nlet aiEngineUsed = \"SRE Diagnostic Rules Engine v2.4\";\n\n// 1. Gọi Google Gemini AI nếu có GEMINI_API_KEY\nlet geminiApiKey = \"\"; try { geminiApiKey = (typeof $env !== \"undefined\" && $env.GEMINI_API_KEY) ? $env.GEMINI_API_KEY : \"\"; } catch (e) { geminiApiKey = \"\"; }\n\nif (geminiApiKey) {\n  try {\n    const prompt = `Bạn là Chuyên gia Gỡ lỗi Cấp cao (Senior Software Architect & SRE) của hệ thống Backend NestJS + TypeScript + MySQL.\nHãy phân tích lỗi hệ thống sau và trả về đúng định dạng JSON:\n{\n  \"rootCause\": \"<nguyên nhân gốc rễ ngắn gọn trong 1-2 câu>\",\n  \"suggestedFix\": \"<hướng dẫn sửa lỗi chi tiết, có kèm ví dụ code ngắn>\"\n}\n\nThông tin sự cố:\n- Endpoint: ${method} ${endpoint}\n- Tệp tin nghi vấn: ${culpritFile} (Dòng: ${culpritLine})\n- Thông báo lỗi: ${errorMessage}\n- Stack Trace: ${stackTrace.substring(0, 500)}`;\n\n    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {\n      method: \"POST\",\n      headers: { \"Content-Type\": \"application/json\" },\n      body: JSON.stringify({\n        contents: [{ parts: [{ text: prompt }] }],\n        generationConfig: { temperature: 0.1, responseMimeType: \"application/json\" }\n      })\n    });\n\n    if (response.ok) {\n      const resData = await response.json();\n      const text = resData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || \"\";\n      try {\n        const parsed = JSON.parse(text);\n        rootCause = parsed.rootCause || \"\";\n        suggestedFix = parsed.suggestedFix || \"\";\n        if (rootCause) {\n          aiEngineUsed = \"Google Gemini 2.5 Flash\";\n        }\n      } catch (e) {\n        rootCause = text;\n      }\n    }\n  } catch (apiErr) {\n    // Tự động chuyển tiếp fallback nếu offline\n  }\n}\n\n// 2. Fallback chẩn đoán chuyên sâu theo mẫu lỗi SRE chuẩn\nif (!rootCause) {\n  if (isDbError) {\n    rootCause = `Xung đột ràng buộc dữ liệu quan hệ (Foreign Key Constraint), vi phạm trùng lặp khóa duy nhất (ER_DUP_ENTRY) hoặc cạn kiệt Connection Pool tại cơ sở dữ liệu.`;\n    suggestedFix = `1. Kiểm tra lại dữ liệu khóa ngoại trước khi gọi repository.save(). 2. Bọc nghiệp vụ nhiều bước vào TypeORM DataSource QueryRunner (Transaction). 3. Tăng tham số connectionLimit trong cấu hình MySQL pool.`;\n  } else if (errorMessage.includes(\"Cannot read properties of\") || errorMessage.includes(\"is not defined\") || errorMessage.includes(\"null\")) {\n    rootCause = `Ngoại lệ NullPointerException do truy xuất thuộc tính của biến chưa khởi tạo (undefined/null) tại tệp ${culpritFile}:${culpritLine}.`;\n    suggestedFix = `Sử dụng toán tử an toàn Optional Chaining (?.) hoặc kiểm tra kỹ đầu vào DTO với class-validator (@IsNotEmpty(), @IsOptional()) trước khi xử lý.`;\n  } else {\n    rootCause = `Ngoại lệ thời gian chạy (Runtime Exception) chưa được xử lý trong luồng bất đồng bộ (Promise rejection) tại endpoint ${method} ${endpoint}.`;\n    suggestedFix = `Bổ sung khối try/catch bắt ngoại lệ cục bộ, rà soát lại các hàm async/await và kiểm tra danh sách Provider trong NestJS Module tương ứng.`;\n  }\n}\n\nreturn [{\n  json: {\n    ...item,\n    aiDiagnostic: {\n      rootCause,\n      suggestedFix,\n      severity\n    },\n    aiEngine: aiEngineUsed\n  }\n}];"
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000005",
+      "name": "5. Gemini AI Root Cause Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-03 Node 6: Định dạng Playbook khắc phục sự cố\nconst item = $input.first().json;\nconst formattedPlaybook = `\n🔥 [SỰ CỐ HỆ THỐNG CẦN XỬ LÝ]: ${item.incidentRef}\n• API Endpoint: ${item.method} ${item.endpoint}\n• Vị trí nghi vấn: File ${item.culpritFile} (Dòng ${item.culpritLine})\n• Thông báo lỗi: ${item.errorMessage}\n• Chẩn đoán AI: ${item.aiDiagnostic.rootCause}\n• Hướng dẫn khắc phục: ${item.aiDiagnostic.suggestedFix}\n`;\n\nreturn [{\n  json: {\n    ...item,\n    formattedPlaybook\n  }\n}];"
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000006",
+      "name": "6. Format Actionable Playbook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "rule-db-critical",
+                    "leftValue": "={{ $json.aiDiagnostic.severity }}",
+                    "rightValue": "DATABASE_CRITICAL",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "DATABASE_CRITICAL"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "rule-logic-high",
+                    "leftValue": "={{ $json.aiDiagnostic.severity }}",
+                    "rightValue": "LOGIC_HIGH",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "LOGIC_HIGH"
+            }
+          ]
+        }
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000007",
+      "name": "7. Switch Incident Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1520,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8928574834",
+        "text": "=🗄️ *[DBA BÁO ĐỘNG] SỰ CỐ CƠ SỞ DỮ LIỆU MYSQL*\n\n• *Mã sự cố:* `{{ $('6. Format Actionable Playbook').first().json.incidentRef }}`\n• *API:* `{{ $('6. Format Actionable Playbook').first().json.method }} {{ $('6. Format Actionable Playbook').first().json.endpoint }}`\n• *Vị trí:* `{{ $('6. Format Actionable Playbook').first().json.culpritFile }}:{{ $('6. Format Actionable Playbook').first().json.culpritLine }}`\n• *Chi tiết:* `{{ $('6. Format Actionable Playbook').first().json.errorMessage }}`\n• *Động cơ AI:* {{ $('6. Format Actionable Playbook').first().json.aiEngine }}\n• *Chẩn đoán:* {{ $('6. Format Actionable Playbook').first().json.aiDiagnostic.rootCause }}\n• *Đề xuất:* {{ $('6. Format Actionable Playbook').first().json.aiDiagnostic.suggestedFix }}\n\n_Vui lòng kiểm tra ngay connection pool và transaction timeout._",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000008",
+      "name": "8. Telegram Alert DBA Lead",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        100
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "qgpdMzynZwpJh37i",
+          "name": "Quoc Thang Telegram Bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "8928574834",
+        "text": "=⚠️ *[DEV BÁO ĐỘNG] SỰ CỐ CODE LOGIC BACKEND*\n\n• *Mã sự cố:* `{{ $('6. Format Actionable Playbook').first().json.incidentRef }}`\n• *API:* `{{ $('6. Format Actionable Playbook').first().json.method }} {{ $('6. Format Actionable Playbook').first().json.endpoint }}`\n• *Module:* `{{ $('6. Format Actionable Playbook').first().json.culpritFile }}` (Dòng {{ $('6. Format Actionable Playbook').first().json.culpritLine }})\n• *Lỗi:* `{{ $('6. Format Actionable Playbook').first().json.errorMessage }}`\n• *Động cơ AI:* {{ $('6. Format Actionable Playbook').first().json.aiEngine }}\n• *Chẩn đoán:* {{ $('6. Format Actionable Playbook').first().json.aiDiagnostic.rootCause }}\n• *AI Gợi ý:* {{ $('6. Format Actionable Playbook').first().json.aiDiagnostic.suggestedFix }}\n\n_Đã tạo ticket theo dõi sự cố trên hệ thống kiểm toán._",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000009",
+      "name": "9. Telegram Alert Dev Lead",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1980,
+        200
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "qgpdMzynZwpJh37i",
+          "name": "Quoc Thang Telegram Bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO audit_logs (action, actor_ip, target_email, details, created_at) VALUES ('SYSTEM_INCIDENT_CAPTURED', '127.0.0.1', 'devops@company.com', '{{ JSON.stringify({ incidentRef: $('6. Format Actionable Playbook').first().json.incidentRef, endpoint: $('6. Format Actionable Playbook').first().json.endpoint, file: $('6. Format Actionable Playbook').first().json.culpritFile, line: $('6. Format Actionable Playbook').first().json.culpritLine, severity: $('6. Format Actionable Playbook').first().json.aiDiagnostic.severity }) }}', NOW());",
+        "options": {}
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000010",
+      "name": "10. MySQL Incident Logger",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        2200,
+        200
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "mySql": {
+          "id": "Dre86joWTJ8RKO9C",
+          "name": "MySQL root with rootpassword"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "quocthangngo2006@gmail.com",
+        "toEmail": "quocthangngo2006@gmail.com",
+        "subject": "=[Sự Cố Kỹ Thuật] Báo cáo crash {{ $('6. Format Actionable Playbook').first().json.incidentRef }} tại {{ $('6. Format Actionable Playbook').first().json.culpritFile }}",
+        "html": "=<h3>Báo Cáo Sự Cố Ứng Dụng (Incident Report)</h3><p><b>Mã sự cố:</b> <code>{{ $('6. Format Actionable Playbook').first().json.incidentRef }}</code></p><p><b>API Endpoint:</b> <code>{{ $('6. Format Actionable Playbook').first().json.method }} {{ $('6. Format Actionable Playbook').first().json.endpoint }}</code> (Status: {{ $('6. Format Actionable Playbook').first().json.statusCode }})</p><p><b>Tệp tin xảy ra lỗi:</b> <code>{{ $('6. Format Actionable Playbook').first().json.culpritFile }}</code> (Dòng {{ $('6. Format Actionable Playbook').first().json.culpritLine }})</p><p><b>Thông báo lỗi:</b> <span style=\"color: red;\">{{ $('6. Format Actionable Playbook').first().json.errorMessage }}</span></p><hr><h4>Chẩn đoán & Gợi ý giải pháp từ AI Gemini:</h4><p><b>Nguyên nhân:</b> {{ $('6. Format Actionable Playbook').first().json.aiDiagnostic ? $('6. Format Actionable Playbook').first().json.aiDiagnostic.rootCause : 'Đang phân tích' }}</p><p><b>Đề xuất xử lý:</b> <i>{{ $('6. Format Actionable Playbook').first().json.aiDiagnostic ? $('6. Format Actionable Playbook').first().json.aiDiagnostic.suggestedFix : 'Kiểm tra log' }}</i></p><hr><pre style=\"background: #f1f5f9; padding: 10px;\">{{ $('6. Format Actionable Playbook').first().json.stackTrace }}</pre>"
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000011",
+      "name": "11. Send Email Technical Digest (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2420,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "l1IYILIUOY2w4H1b",
+          "name": "Quoc Thang SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, workflow: 'WF-03 Incident Aggregator', incidentRef: $('3. Deduplication & Incident Ref').first().json.incidentRef, targetFile: $('2. Parse Stack Trace & File Line').first().json.culpritFile, statusCode: $('2. Parse Stack Trace & File Line').first().json.statusCode, severity: ($('6. Format Actionable Playbook').isExecuted && $('6. Format Actionable Playbook').first().json.aiDiagnostic) ? $('6. Format Actionable Playbook').first().json.aiDiagnostic.severity : 'INFO_OR_WARNING', status: $('6. Format Actionable Playbook').isExecuted ? 'DISPATCHED_TO_ONCALL' : 'LOGGED_NO_ALERT_NEEDED', processedAt: new Date().toISOString() }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b1a30003-c1a3-4a03-b003-000000000012",
+      "name": "12. Respond HTTP 200 Handled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2640,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "1. Webhook Incident Event": {
+      "main": [
+        [
+          {
+            "node": "2. Parse Stack Trace & File Line",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Parse Stack Trace & File Line": {
+      "main": [
+        [
+          {
+            "node": "3. Deduplication & Incident Ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Deduplication & Incident Ref": {
+      "main": [
+        [
+          {
+            "node": "4. IF Is Serious Incident (>=500)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. IF Is Serious Incident (>=500)?": {
+      "main": [
+        [
+          {
+            "node": "5. Gemini AI Root Cause Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "12. Respond HTTP 200 Handled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Gemini AI Root Cause Analysis": {
+      "main": [
+        [
+          {
+            "node": "6. Format Actionable Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Format Actionable Playbook": {
+      "main": [
+        [
+          {
+            "node": "7. Switch Incident Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Switch Incident Type": {
+      "main": [
+        [
+          {
+            "node": "8. Telegram Alert DBA Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "9. Telegram Alert Dev Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Telegram Alert DBA Lead": {
+      "main": [
+        [
+          {
+            "node": "9. Telegram Alert Dev Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Telegram Alert Dev Lead": {
+      "main": [
+        [
+          {
+            "node": "10. MySQL Incident Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. MySQL Incident Logger": {
+      "main": [
+        [
+          {
+            "node": "11. Send Email Technical Digest (SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Send Email Technical Digest (SMTP)": {
+      "main": [
+        [
+          {
+            "node": "12. Respond HTTP 200 Handled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

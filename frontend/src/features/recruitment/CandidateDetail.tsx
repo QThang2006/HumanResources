@@ -1,3 +1,4 @@
+import { OfferPanel } from './OfferPanel';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { recruitmentApi as api } from './api';
@@ -94,6 +95,7 @@ export function CandidateDetail({
 }) {
   const { user } = useAuth();
   const operator = user?.role === 'HR' || user?.role === 'SUPERADMIN';
+  const [offerStatus, setOfferStatus] = useState<string | null>(null);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -112,8 +114,11 @@ export function CandidateDetail({
   const waitingForDelivery = !!candidate?.interviews.some((i) =>
     ['PENDING', 'RUNNING'].includes(i.automation?.status || ''),
   );
+  const waitingForAi =
+    ['PENDING', 'PROCESSING'].includes(candidate?.aiScoreStatus || '') ||
+    !!candidate?.interviews.some((i) => i.aiQuestionsStatus === 'PROCESSING');
   useEffect(() => {
-    if (!waitingForDelivery || busy) return;
+    if ((!waitingForDelivery && !waitingForAi) || busy) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
     const refresh = async () => {
@@ -134,7 +139,7 @@ export function CandidateDetail({
       active = false;
       clearTimeout(timer);
     };
-  }, [id, busy, waitingForDelivery]);
+  }, [id, busy, waitingForDelivery, waitingForAi]);
   useEffect(() => {
     let active = true;
     api
@@ -208,6 +213,7 @@ export function CandidateDetail({
   }
   const terminal = candidate && ['HIRED', 'REJECTED'].includes(candidate.status);
   const canHire =
+    (!offerStatus || offerStatus === 'ACCEPTED') &&
     !!capabilities?.hire &&
     !!candidate &&
     ['INTERVIEWING', 'OFFERED'].includes(candidate.status) &&
@@ -263,7 +269,7 @@ export function CandidateDetail({
               </button>
             </div>
             {!candidate.hasCvText && (
-              <Alert>CV không có lớp văn bản. AI Vision sẽ đọc trực tiếp PDF scan hoặc ảnh khi bạn bấm chấm điểm.</Alert>
+              <Alert>CV không có lớp văn bản. AI Vision sẽ đọc trực tiếp PDF scan hoặc ảnh khi xử lý hồ sơ.</Alert>
             )}
             <section className="space-y-3 rounded-xl bg-slate-50 p-4">
               <h3 className="font-bold">Đánh giá CV</h3>
@@ -273,6 +279,15 @@ export function CandidateDetail({
                   {candidate.matchScore === null ? 'Chưa chấm' : candidate.matchScore + '/100'}
                 </strong>
               </p>
+              {candidate.aiScoreStatus === 'PENDING' && (
+                <p className="text-sm text-indigo-700">CV đang chờ chấm tự động...</p>
+              )}
+              {candidate.aiScoreStatus === 'PROCESSING' && (
+                <p className="text-sm text-indigo-700">AI đang phân tích CV theo JD...</p>
+              )}
+              {candidate.aiScoreStatus === 'FAILED' && (
+                <p className="text-sm text-amber-700">Lần chấm CV gần nhất chưa thành công. Bạn có thể thử lại.</p>
+              )}
               {candidate.aiSummary && (
                 <p className="whitespace-pre-wrap text-sm">{candidate.aiSummary}</p>
               )}
@@ -286,14 +301,14 @@ export function CandidateDetail({
                   onClick={() =>
                     act(async () => {
                       const result = await api.score(id);
-                      setScorePreview(
-                        result.mode === 'MOCK'
-                          ? result.data.matchScore + '/100 · ' + result.data.summary
-                          : '',
-                      );
+                      setScorePreview(result.mode === 'MOCK'
+                        ? result.data.matchScore + '/100 · ' + result.data.summary
+                        : (result.mode === 'N8N' || result.mode === 'BACKEND') ? 'Yêu cầu đang được xử lý; kết quả sẽ cập nhật tự động.' : '');
                       return result.saved
                         ? 'Đã lưu đánh giá AI.'
-                        : 'Kết quả mô phỏng chỉ để xem trước, không lưu vào hồ sơ.';
+                        : (result.mode === 'N8N' || result.mode === 'BACKEND')
+                          ? 'Đã xếp hàng chấm CV. Kết quả sẽ cập nhật tự động.'
+                          : 'Kết quả mô phỏng chỉ để xem trước, không lưu vào hồ sơ.';
                     })
                   }
                 >
@@ -303,7 +318,7 @@ export function CandidateDetail({
               {operator && !capabilities?.score && (
                 <p className="text-xs text-slate-500">Chấm CV bằng AI đang chờ tích hợp.</p>
               )}
-              {scorePreview && <Alert>Bản xem trước MOCK: {scorePreview}</Alert>}
+              {scorePreview && <Alert>{scorePreview}</Alert>}
               <p className="text-xs text-slate-500">
                 Điểm AI là thông tin tham khảo. HR và người phỏng vấn quyết định dựa trên hồ sơ và
                 trao đổi thực tế.
@@ -421,6 +436,12 @@ export function CandidateDetail({
                             ? 'Google Meet: Đang chờ workflow.'
                             : 'Google Meet: Chưa nhận xác nhận từ workflow.'}
                     </p>
+                    {interview.aiQuestionsStatus === 'PROCESSING' && (
+                      <p className="text-indigo-700">n8n đang tạo câu hỏi theo CV và JD...</p>
+                    )}
+                    {interview.aiQuestionsStatus === 'FAILED' && (
+                      <p className="text-amber-700">n8n tạo câu hỏi thất bại. Có thể thử lại.</p>
+                    )}
                     <p>
                       {interview.automation?.emailStatus === 'SMTP_ACCEPTED'
                         ? 'Thư mời: Máy chủ email đã chấp nhận gửi.'
@@ -477,7 +498,9 @@ export function CandidateDetail({
                           setQuestionPreview(result.mode === 'MOCK' ? result.data : []);
                           return result.saved
                             ? 'Đã lưu bộ câu hỏi.'
-                            : 'Câu hỏi MOCK chỉ để xem trước.';
+                            : (result.mode === 'N8N' || result.mode === 'BACKEND')
+                              ? 'Đã gửi yêu cầu cho n8n. Câu hỏi sẽ cập nhật tự động.'
+                              : 'Câu hỏi MOCK chỉ để xem trước.';
                         })
                       }
                     >
@@ -528,23 +551,11 @@ export function CandidateDetail({
                 </Alert>
               )}
             </section>
+            {operator && <OfferPanel applicationId={id} jobTitle={candidate.jobTitle} canCreate={['INTERVIEWING', 'OFFERED'].includes(candidate.status) && candidate.interviews[0]?.result === 'PASSED'} statusChanged={setOfferStatus} changed={() => { act(async () => {}); }} />}
             {operator && !terminal && (
               <section className="space-y-3 border-t pt-4">
                 <div className="flex flex-wrap gap-2">
-                  {candidate.status === 'INTERVIEWING' && (
-                    <button
-                      className={buttonClass}
-                      disabled={busy || candidate.interviews[0]?.result !== 'PASSED'}
-                      onClick={() =>
-                        act(async () => {
-                          await api.state(candidate, 'OFFERED');
-                          return 'Đã chuyển sang đề xuất nhận việc.';
-                        })
-                      }
-                    >
-                      Đề xuất nhận việc
-                    </button>
-                  )}
+
                   <button
                     className={secondaryClass}
                     disabled={busy}

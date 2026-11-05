@@ -37,8 +37,9 @@ const MOOD_OPTIONS = [
     subtitle: 'Tràn đầy năng lượng',
     desc: 'Làm việc tập trung, tâm lý phấn khởi và sẵn sàng bứt phá',
     icon: Sun,
-    activeBorder: 'border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-500/20 shadow-xs',
-    iconBg: 'bg-emerald-500 text-white shadow-sm shadow-emerald-200',
+    activeBorder: 'border-emerald-500 bg-emerald-50/80 ring-2 ring-emerald-500/30 shadow-xs',
+    idleBorder: 'border-emerald-200/70 bg-emerald-50/20 hover:border-emerald-400 hover:bg-emerald-50/45',
+    iconBg: 'bg-emerald-500 text-white shadow-xs',
     badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     bgLight: 'bg-emerald-50/70 border-emerald-200',
     textColor: 'text-emerald-700',
@@ -50,8 +51,9 @@ const MOOD_OPTIONS = [
     subtitle: 'Nhịp độ ổn định',
     desc: 'Công việc diễn ra đều đặn, không có trở ngại hay áp lực lớn',
     icon: CloudSun,
-    activeBorder: 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-500/20 shadow-xs',
-    iconBg: 'bg-amber-500 text-white shadow-sm shadow-amber-200',
+    activeBorder: 'border-amber-500 bg-amber-50/80 ring-2 ring-amber-500/30 shadow-xs',
+    idleBorder: 'border-amber-200/70 bg-amber-50/20 hover:border-amber-400 hover:bg-amber-50/45',
+    iconBg: 'bg-amber-500 text-white shadow-xs',
     badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
     bgLight: 'bg-amber-50/70 border-amber-200',
     textColor: 'text-amber-700',
@@ -63,8 +65,9 @@ const MOOD_OPTIONS = [
     subtitle: 'Cần gỡ rối & hỗ trợ',
     desc: 'Khối lượng công việc cao, tiến độ dồn dập hoặc gặp thử thách kỹ thuật',
     icon: CloudRain,
-    activeBorder: 'border-rose-500 bg-rose-50/70 ring-2 ring-rose-500/20 shadow-xs',
-    iconBg: 'bg-rose-500 text-white shadow-sm shadow-rose-200',
+    activeBorder: 'border-rose-500 bg-rose-50/80 ring-2 ring-rose-500/30 shadow-xs',
+    idleBorder: 'border-rose-200/70 bg-rose-50/20 hover:border-rose-400 hover:bg-rose-50/45',
+    iconBg: 'bg-rose-500 text-white shadow-xs',
     badgeClass: 'bg-rose-100 text-rose-800 border-rose-200',
     bgLight: 'bg-rose-50/70 border-rose-200',
     textColor: 'text-rose-700',
@@ -165,7 +168,7 @@ const OnboardingTaskRow: React.FC<OnboardingTaskRowProps> = ({ task, isUpdating,
         <div className="min-w-0 flex-1">
           <p
             className={`text-sm font-semibold break-words transition-colors ${
-              task.isCompleted ? 'line-through text-slate-400' : 'text-slate-900 group-hover:text-blue-900'
+              task.isCompleted ? 'text-slate-600' : 'text-slate-900 group-hover:text-blue-700'
             }`}
           >
             {task.title}
@@ -661,20 +664,21 @@ const CopilotChatWidget: React.FC = () => {
               Copilot tra cứu trực tiếp kho tài liệu PDF nội bộ để giải đáp chính xác mọi câu hỏi của bạn.
             </p>
             <div className="mt-4 text-left">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Gợi ý nhanh</p>
-              <div className="flex flex-wrap gap-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Gợi ý câu hỏi thường gặp</p>
+              <div className="grid grid-cols-1 gap-1.5">
                 {SUGGESTED_QUESTIONS.map((q) => (
                   <button
                     key={q}
                     type="button"
                     onClick={() => submitMessage(q.replace(/^[^\s]+\s*/, ''))}
                     disabled={isLoading}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700
-                      hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors duration-150
+                    className="flex items-center justify-between w-full p-2.5 rounded-lg border border-slate-200 bg-slate-50/80 text-xs font-medium text-slate-700
+                      hover:bg-blue-50/80 hover:text-blue-700 hover:border-blue-300 transition-all duration-150 text-left
                       focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
-                      disabled:opacity-60 disabled:cursor-not-allowed"
+                      disabled:opacity-60 disabled:cursor-not-allowed group shadow-2xs"
                   >
-                    {q}
+                    <span>{q}</span>
+                    <span className="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5">→</span>
                   </button>
                 ))}
               </div>
@@ -935,22 +939,26 @@ export const EmployeeWorkspacePage: React.FC = () => {
 
               {/* 3 Thẻ Ticker Nhanh */}
               <div className="flex items-center gap-2.5 sm:gap-3 self-stretch md:self-auto overflow-x-auto pb-1 md:pb-0">
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 min-w-[110px] text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Trạng thái ngày</p>
-                  <p className="text-xs font-bold mt-0.5 text-slate-800">
-                    {todayMood ? '✅ Đã chia sẻ' : '⏳ Chưa check-in'}
+                <div className={`border rounded-lg p-2.5 min-w-[120px] text-center transition-all ${
+                  todayMood
+                    ? 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
+                    : 'bg-amber-50/80 border-amber-200 text-amber-800'
+                }`}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Trạng thái ngày</p>
+                  <p className="text-xs font-bold mt-0.5">
+                    {todayMood ? '✅ Đã check-in' : '⏳ Chưa check-in'}
                   </p>
                 </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 min-w-[110px] text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Chuỗi Check-in</p>
-                  <p className="text-xs font-bold mt-0.5 text-blue-700 flex items-center justify-center gap-1">
+                <div className="bg-blue-50/60 border border-blue-200/80 rounded-lg p-2.5 min-w-[110px] text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Chuỗi Check-in</p>
+                  <p className="text-xs font-bold mt-0.5 text-blue-900 flex items-center justify-center gap-1">
                     <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                     {moodHistory.length} ngày
                   </p>
                 </div>
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 min-w-[110px] text-center">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bảo mật thông tin</p>
-                  <p className="text-xs font-bold mt-0.5 text-emerald-700 flex items-center justify-center gap-1">
+                  <p className="text-xs font-bold mt-0.5 text-slate-700 flex items-center justify-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                     Nội bộ 100%
                   </p>
@@ -1078,10 +1086,10 @@ export const EmployeeWorkspacePage: React.FC = () => {
                                 relative rounded-xl p-4 text-left border transition-all duration-200
                                 ${
                                   isSelected
-                                    ? `${mood.activeBorder} scale-[1.02] z-10`
+                                    ? `${mood.activeBorder} scale-[1.02] z-10 ring-2`
                                     : hasSelection
-                                      ? 'border-slate-200 bg-slate-50/50 opacity-60 scale-[0.98]'
-                                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70 hover:shadow-xs'
+                                      ? 'border-slate-200 bg-slate-50/50 opacity-50 scale-[0.98]'
+                                      : `${mood.idleBorder} hover:-translate-y-0.5 hover:shadow-xs`
                                 }
                                 ${isSubmitting || submitSuccess ? 'pointer-events-none' : 'cursor-pointer'}
                               `}
@@ -1248,8 +1256,8 @@ export const EmployeeWorkspacePage: React.FC = () => {
                             key={idx}
                             className={`flex flex-col items-center justify-between p-2 rounded-lg border transition-all ${
                               day.isToday
-                                ? 'bg-blue-50/70 border-blue-300 ring-1 ring-blue-400/50'
-                                : 'bg-slate-50 border-slate-200/80 hover:bg-white'
+                                ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-500/20 shadow-xs scale-105 z-10'
+                                : 'bg-slate-50/80 border-slate-200/80 hover:bg-white'
                             }`}
                             title={
                               day.mood
@@ -1257,20 +1265,29 @@ export const EmployeeWorkspacePage: React.FC = () => {
                                 : `${day.dayName}: Chưa check-in`
                             }
                           >
-                            <span className={`text-[10px] font-bold ${day.isToday ? 'text-blue-700' : 'text-slate-500'}`}>
+                            <span className={`text-[10px] font-bold ${day.isToday ? 'text-blue-700 font-extrabold' : 'text-slate-500'}`}>
                               {day.dayName}
                             </span>
-                            <span className="text-[9px] text-slate-400 font-mono">{day.dateNumber}</span>
-                            <div className="my-1.5">
+                            <span className={`text-[9px] font-mono ${day.isToday ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>{day.dateNumber}</span>
+                            <div className="my-1.5 flex items-center justify-center h-4">
                               {day.mood ? (
-                                <span className={`w-3 h-3 rounded-full block ${MOOD_DOT_COLORS[day.mood]}`} />
+                                <span className={`w-3.5 h-3.5 rounded-full block shadow-xs ${MOOD_DOT_COLORS[day.mood]}`} />
+                              ) : day.isToday ? (
+                                <span className="w-3.5 h-3.5 rounded-full border-2 border-dashed border-blue-500 block bg-blue-100/60 animate-pulse" title="Hôm nay đang chờ bạn check-in" />
                               ) : (
-                                <span className="w-3 h-3 rounded-full border border-slate-300 block bg-white" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 block" />
                               )}
                             </div>
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {!todayMood && (
+                    <div className="mt-3 p-2.5 rounded-lg bg-blue-50/60 border border-blue-200/60 flex items-center gap-2 text-xs text-blue-700">
+                      <Sparkles className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+                      <span>Chọn 1 mức năng lượng ở bên trái để thắp sáng ngày hôm nay!</span>
                     </div>
                   )}
 

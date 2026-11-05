@@ -225,7 +225,7 @@ export function CandidateDetail({
         if (!busy) close();
       }}
     >
-      <div className="space-y-5">
+      <div className="space-y-6">
         {error && (
           <Alert>
             {error}{' '}
@@ -240,7 +240,7 @@ export function CandidateDetail({
         ) : (
           <>
             <div>
-              <p className="font-medium">
+              <p className="text-sm font-semibold text-slate-900">
                 {candidate.jobTitle} · {statusLabels[candidate.status]}
               </p>
               <p className="mt-2 break-words text-sm text-slate-600">
@@ -271,28 +271,28 @@ export function CandidateDetail({
             {!candidate.hasCvText && (
               <Alert>CV không có lớp văn bản. AI Vision sẽ đọc trực tiếp PDF scan hoặc ảnh khi xử lý hồ sơ.</Alert>
             )}
-            <section className="space-y-3 rounded-xl bg-slate-50 p-4">
-              <h3 className="font-bold">Đánh giá CV</h3>
-              <p>
-                Điểm phù hợp:{' '}
-                <strong>
+            <section className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="text-base font-semibold text-slate-900">Đánh giá CV</h3>
+              <p className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                Điểm phù hợp:
+                <strong className="inline-flex min-h-10 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-base font-bold text-blue-700">
                   {candidate.matchScore === null ? 'Chưa chấm' : candidate.matchScore + '/100'}
                 </strong>
               </p>
               {candidate.aiScoreStatus === 'PENDING' && (
-                <p className="text-sm text-indigo-700">CV đang chờ chấm tự động...</p>
+                <p className="text-sm text-blue-700">CV đang chờ chấm tự động...</p>
               )}
               {candidate.aiScoreStatus === 'PROCESSING' && (
-                <p className="text-sm text-indigo-700">AI đang phân tích CV theo JD...</p>
+                <p className="text-sm text-blue-700">AI đang phân tích CV theo JD...</p>
               )}
               {candidate.aiScoreStatus === 'FAILED' && (
                 <p className="text-sm text-amber-700">Lần chấm CV gần nhất chưa thành công. Bạn có thể thử lại.</p>
               )}
               {candidate.aiSummary && (
-                <p className="whitespace-pre-wrap text-sm">{candidate.aiSummary}</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">{candidate.aiSummary}</p>
               )}
               {candidate.skillsDetected.length > 0 && (
-                <p className="text-sm">Kỹ năng: {candidate.skillsDetected.join(', ')}</p>
+                <p className="break-words text-sm leading-relaxed text-slate-700">Kỹ năng: {candidate.skillsDetected.join(', ')}</p>
               )}
               {operator && (
                 <button
@@ -337,7 +337,7 @@ export function CandidateDetail({
                     return result.message;
                   });
                 }}
-                className="space-y-3 rounded-xl border p-4"
+                className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
               >
                 <h3 className="font-bold">
                   Xếp lịch vòng {Math.max(0, ...candidate.interviews.map((i) => i.round)) + 1}
@@ -401,7 +401,7 @@ export function CandidateDetail({
                 <p className="text-sm text-slate-500">Chưa có lịch phỏng vấn.</p>
               )}
               {candidate.interviews.map((interview) => (
-                <article key={interview.id} className="rounded-xl border p-4">
+                <article key={interview.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                   <h4 className="font-semibold">
                     Vòng {interview.round} · {interview.interviewerName}
                   </h4>
@@ -419,7 +419,7 @@ export function CandidateDetail({
                       href={interview.meetingLink}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-sm text-indigo-700 underline"
+                      className="text-sm text-blue-700 underline"
                     >
                       Mở phòng phỏng vấn
                     </a>
@@ -437,7 +437,7 @@ export function CandidateDetail({
                             : 'Google Meet: Chưa nhận xác nhận từ workflow.'}
                     </p>
                     {interview.aiQuestionsStatus === 'PROCESSING' && (
-                      <p className="text-indigo-700">n8n đang tạo câu hỏi theo CV và JD...</p>
+                      <p className="text-blue-700">n8n đang tạo câu hỏi theo CV và JD...</p>
                     )}
                     {interview.aiQuestionsStatus === 'FAILED' && (
                       <p className="text-amber-700">n8n tạo câu hỏi thất bại. Có thể thử lại.</p>
@@ -677,7 +677,7 @@ export function CandidateDetail({
               </Alert>
             )}
             {busy && (
-              <p role="status" className="text-sm text-indigo-700">
+              <p role="status" className="text-sm text-blue-700">
                 Đang xử lý, vui lòng chờ...
               </p>
             )}

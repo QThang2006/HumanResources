@@ -80,7 +80,6 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
   const getMoraleTheme = () => {
     if (moraleBadgeColor === 'rose' || moraleScore < 60) {
       return {
-        bg: 'from-rose-500/10 via-rose-500/5 to-transparent',
         border: 'border-rose-200',
         badge: 'bg-rose-100 text-rose-800 border-rose-300',
         scoreColor: 'text-rose-600',
@@ -90,7 +89,6 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
     }
     if (moraleBadgeColor === 'amber' || moraleScore < 75) {
       return {
-        bg: 'from-amber-500/10 via-amber-500/5 to-transparent',
         border: 'border-amber-200',
         badge: 'bg-amber-100 text-amber-800 border-amber-300',
         scoreColor: 'text-amber-600',
@@ -99,7 +97,6 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
       };
     }
     return {
-      bg: 'from-emerald-500/10 via-emerald-500/5 to-transparent',
       border: 'border-emerald-200',
       badge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
       scoreColor: 'text-emerald-600',
@@ -113,13 +110,8 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
   return (
     <section
       aria-labelledby="weekly-mood-heading"
-      className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-7 shadow-xs"
+      className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 sm:p-7 shadow-xs"
     >
-      {/* Nền gradient tinh tế */}
-      <div
-        className={`pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-gradient-to-br ${theme.bg} blur-3xl`}
-        aria-hidden="true"
-      />
 
       {/* ── TIÊU ĐỀ SECTION ── */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 mb-6">
@@ -154,7 +146,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
       {/* ── 4 THẺ METRICS TRỌNG TÂM ── */}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {/* Thẻ 1: Chỉ số năng lượng Morale Score */}
-        <div className={`relative overflow-hidden rounded-2xl border ${theme.border} bg-white p-4 shadow-2xs`}>
+        <div className={`relative overflow-hidden rounded-xl border ${theme.border} bg-white p-4 shadow-2xs`}>
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Chỉ Số Năng Lượng Tuần
@@ -183,7 +175,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
         </div>
 
         {/* Thẻ 2: Tuyệt vời / Hào hứng */}
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 shadow-2xs">
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
               Tuyệt Vời & Hăng Say
@@ -200,7 +192,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
         </div>
 
         {/* Thẻ 3: Bình thường / Ổn định */}
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4 shadow-2xs">
+        <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
               Bình Thường & Cân Bằng
@@ -217,7 +209,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
         </div>
 
         {/* Thẻ 4: Căng thẳng / Áp lực */}
-        <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-4 shadow-2xs">
+        <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800">
               Căng Thẳng & Áp Lực
@@ -237,7 +229,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
       </div>
 
       {/* ── DIỄN BIẾN 7 NGÀY (DAY-BY-DAY TREND TRACKER) ── */}
-      <div className="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 sm:p-5">
+      <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">

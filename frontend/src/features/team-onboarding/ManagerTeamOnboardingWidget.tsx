@@ -189,7 +189,7 @@ export const ManagerTeamOnboardingWidget: React.FC<ManagerTeamOnboardingWidgetPr
   });
 
   return (
-    <div className="bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl p-6 sm:p-7 shadow-sm transition-all duration-300">
+    <div className="bg-white border border-slate-200 rounded-xl p-6 sm:p-7 shadow-xs">
       {/* Toast thông báo nhanh */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl bg-slate-900 text-white px-4 py-2.5 text-xs font-semibold shadow-xl border border-slate-700 animate-in fade-in slide-in-from-bottom-2">
@@ -345,13 +345,13 @@ export const ManagerTeamOnboardingWidget: React.FC<ManagerTeamOnboardingWidgetPr
       {loading && (
         <div className="space-y-3 animate-pulse">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-28 bg-slate-100 rounded-2xl" />
+            <div key={i} className="h-28 bg-slate-100 rounded-xl" />
           ))}
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-rose-700">
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-3 text-rose-700">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <p className="text-xs font-medium">{error}</p>
         </div>
@@ -359,7 +359,7 @@ export const ManagerTeamOnboardingWidget: React.FC<ManagerTeamOnboardingWidgetPr
 
       {/* ── 5. DANH SÁCH NHÂN VIÊN & CHECKLIST CHI TIẾT ── */}
       {!loading && !error && filteredEmployees.length === 0 && (
-        <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl bg-white/40">
+        <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
           <UserCheck className="w-9 h-9 mx-auto mb-2 text-slate-300" />
           <p className="text-sm font-bold text-slate-700">Không tìm thấy nhân viên nào</p>
           <p className="text-xs text-slate-400 mt-0.5">

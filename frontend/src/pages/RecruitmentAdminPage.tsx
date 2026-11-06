@@ -44,7 +44,7 @@ function RecruitmentLogin() {
       <p className="my-4 text-sm text-slate-600">
         Sử dụng tài khoản HR hoặc Manager được cấp để thao tác trên hồ sơ thật.
       </p>
-      <form onSubmit={submit} className="space-y-4 rounded-2xl border bg-white p-6">
+      <form onSubmit={submit} className="space-y-4 rounded-xl border bg-white p-6">
         {error && <Alert>{error}</Alert>}
         <Field label="Email">
           <input
@@ -289,14 +289,14 @@ function RecruitmentBoard() {
     <main className="mx-auto max-w-[1600px] space-y-6 px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-indigo-600">
+          <p className="text-sm font-semibold text-blue-600">
             {user?.role === 'SUPERADMIN'
               ? 'Bàn tuyển dụng Admin'
               : operator
                 ? 'Bàn tuyển dụng HR'
                 : 'Không gian phỏng vấn Manager'}
           </p>
-          <h1 className="mt-1 text-3xl font-bold">Quản lý tuyển dụng</h1>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Quản lý tuyển dụng</h1>
         </div>
         {operator && (
           <button className={buttonClass} onClick={() => setEditor({ job: null })}>
@@ -315,7 +315,7 @@ function RecruitmentBoard() {
           className={
             'rounded-lg px-4 py-2.5 text-sm font-semibold ' +
             (section === 'board'
-              ? 'bg-white text-indigo-700 shadow-sm'
+              ? 'bg-white text-blue-700 shadow-sm'
               : 'text-slate-600 hover:bg-white/70')
           }
         >
@@ -327,7 +327,7 @@ function RecruitmentBoard() {
           className={
             'rounded-lg px-4 py-2.5 text-sm font-semibold ' +
             (section === 'schedule'
-              ? 'bg-white text-indigo-700 shadow-sm'
+              ? 'bg-white text-blue-700 shadow-sm'
               : 'text-slate-600 hover:bg-white/70')
           }
         >
@@ -344,8 +344,8 @@ function RecruitmentBoard() {
         />
       ) : (
         <div className="grid items-start gap-6 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="flex min-h-0 flex-col gap-3 rounded-2xl border bg-white p-4 lg:h-[65vh] lg:overflow-hidden">
-            <h2 className="font-bold">Vị trí tuyển dụng</h2>
+          <aside className="flex min-h-0 flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:h-[65vh] lg:overflow-hidden">
+            <h2 className="text-lg font-semibold text-slate-900">Vị trí tuyển dụng</h2>
             <input
               aria-label="Tìm vị trí tuyển dụng"
               placeholder="Tìm vị trí..."
@@ -382,7 +382,7 @@ function RecruitmentBoard() {
               role="region"
               aria-label="Danh sách vị trí tuyển dụng"
               tabIndex={0}
-              className="min-h-0 space-y-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 lg:flex-1 lg:overflow-y-auto lg:pr-1"
+              className="min-h-0 space-y-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:flex-1 lg:overflow-y-auto lg:pr-1"
             >
               {jobLoading ? (
                 <p role="status" className="text-sm">
@@ -395,10 +395,10 @@ function RecruitmentBoard() {
                     onClick={() => choose(job)}
                     aria-pressed={selected?.id === job.id}
                     className={
-                      'block w-full rounded-xl border p-3 text-left ' +
+                      'block w-full rounded-lg border p-3 text-left transition-colors ' +
                       (selected?.id === job.id
-                        ? 'border-indigo-400 bg-indigo-50'
-                        : 'border-slate-200 hover:bg-slate-50')
+                        ? 'border-blue-400 bg-blue-50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50')
                     }
                   >
                     <span className="block font-semibold">{job.title}</span>
@@ -416,12 +416,12 @@ function RecruitmentBoard() {
           </aside>
           <section className="min-w-0 space-y-4">
             {!selected ? (
-              <p className="rounded-2xl border border-dashed p-12 text-center text-slate-500">
+              <p className="rounded-xl border border-dashed p-12 text-center text-slate-500">
                 Chọn hoặc tạo vị trí tuyển dụng để bắt đầu.
               </p>
             ) : (
               <>
-                <header className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border bg-white p-5">
+                <header className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div>
                     <h2 className="text-xl font-bold">{selected.title}</h2>
                     <p className="mt-1 text-sm text-slate-500">
@@ -443,7 +443,7 @@ function RecruitmentBoard() {
                     </div>
                   )}
                 </header>
-                <div className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-[1fr_180px_auto]">
+                <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[1fr_180px_auto]">
                   <Field label="Tên hoặc email ứng viên">
                     <input
                       maxLength={150}
@@ -512,11 +512,11 @@ function RecruitmentBoard() {
                               event.preventDefault();
                               dropCandidate(column.statuses[0]);
                             }}
-                            className="flex min-h-0 min-w-0 flex-col rounded-2xl border bg-slate-50 p-3 lg:h-[62vh] lg:overflow-hidden"
+                            className="flex min-h-0 min-w-0 flex-col rounded-xl border border-slate-200 bg-slate-100/80 p-3 lg:h-[62vh] lg:overflow-hidden"
                           >
                             <h3
                               className={
-                                'mb-3 shrink-0 rounded-xl px-3 py-2 text-sm font-bold ' + column.color
+                                'mb-3 shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 ' + column.color
                               }
                             >
                               {column.title} ·{' '}
@@ -530,7 +530,7 @@ function RecruitmentBoard() {
                               role="region"
                               aria-label={'Danh sách ứng viên: ' + column.title}
                               tabIndex={0}
-                              className="min-h-0 space-y-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 lg:flex-1 lg:overflow-y-auto lg:pr-1"
+                              className="min-h-0 space-y-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 lg:flex-1 lg:overflow-y-auto lg:pr-1"
                             >
                               {data.items
                                 .filter((c) => column.statuses.includes(c.status))
@@ -554,15 +554,15 @@ function RecruitmentBoard() {
                                       setFocusHire(false);
                                       setCandidateId(candidate.id);
                                     }}
-                                    className="block w-full rounded-xl border bg-white p-4 text-left shadow-sm hover:border-indigo-400 focus-visible:outline-indigo-600"
+                                    className="block w-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm text-left shadow-sm hover:border-blue-400 focus-visible:outline-blue-600"
                                   >
                                     <span className="block break-words font-semibold">
                                       {candidate.candidateName}
                                     </span>
-                                    <span className="mt-1 block truncate text-xs text-slate-500">
+                                    <span className="mt-1 block break-all text-xs text-slate-500">
                                       {candidate.candidateEmail}
                                     </span>
-                                    <span className="mt-3 block text-sm text-indigo-700">
+                                    <span className="mt-3 block text-sm font-semibold text-blue-700">
                                       {candidate.matchScore === null
                                         ? 'Chưa chấm CV'
                                         : 'AI: ' + candidate.matchScore + '/100'}

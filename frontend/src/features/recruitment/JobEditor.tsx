@@ -150,7 +150,7 @@ export function JobEditor({
         if (!busy) close();
       }}
     >
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="space-y-5">
         {error && <Alert>{error}</Alert>}
         {lookupError && (
           <Alert>
@@ -201,8 +201,8 @@ export function JobEditor({
             </div>
           </Field>
           {departmentFormOpen && !job && (
-            <div className="space-y-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
-              <p className="text-sm font-semibold text-indigo-900">Tạo phòng ban mới</p>
+            <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
+              <p className="text-sm font-semibold text-blue-900">Tạo phòng ban mới</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <input
                   required
@@ -293,7 +293,7 @@ export function JobEditor({
               />
             </Field>
           </div>
-          <div className="space-y-3 rounded-xl bg-indigo-50 p-4">
+          <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
             <Field label="Cấp bậc để gợi ý JD">
               <input
                 maxLength={80}
@@ -319,14 +319,14 @@ export function JobEditor({
             )}
           </div>
           {preview && (
-            <section className="space-y-3 rounded-xl border p-4">
-              <h3 className="font-bold">
+            <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="text-base font-semibold text-slate-900">
                 Bản nháp AI · {preview.mode === 'MOCK' ? 'Dữ liệu mô phỏng' : 'LIVE'}
               </h3>
-              <p className="whitespace-pre-wrap text-sm">{preview.data.description}</p>
-              <p className="whitespace-pre-wrap text-sm">{preview.data.requirements}</p>
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">{preview.data.description}</p>
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">{preview.data.requirements}</p>
               {preview.data.benefits && (
-                <p className="whitespace-pre-wrap text-sm">{preview.data.benefits}</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">{preview.data.benefits}</p>
               )}
               <button
                 type="button"

@@ -50,7 +50,12 @@ export class N8nService {
       telegramChatId: payload.telegramChatId || this.defaultTelegramChatId,
       ...payload,
     };
-    return this.postWebhook(url, fullPayload, 'Xếp lịch phỏng vấn');
+    return this.postTv2Webhook(
+      url,
+      fullPayload,
+      'Xếp lịch phỏng vấn',
+      'N8N_INTERVIEW_WEBHOOK_KEY',
+    );
   }
 
   /**
@@ -76,7 +81,12 @@ export class N8nService {
   }
 
   async triggerOfferIssued(payload: { offerId: number; token: string; responseToken: string }): Promise<boolean> {
-    return this.postWebhook(this.webhookBaseUrl + '/offer-issued', payload, 'Phát hành Offer Letter');
+    return this.postTv2Webhook(
+      this.webhookBaseUrl + '/offer-issued',
+      payload,
+      'Phát hành Offer Letter',
+      'N8N_OFFER_WEBHOOK_KEY',
+    );
   }
 
   /**
@@ -165,6 +175,22 @@ export class N8nService {
       this.configService.get<string>('N8N_INTAKE_KEY');
 
     return key ? { 'x-n8n-ai-key': key } : undefined;
+  }
+
+  private postTv2Webhook(
+    url: string,
+    data: unknown,
+    actionName: string,
+    overrideKeyName: 'N8N_INTERVIEW_WEBHOOK_KEY' | 'N8N_OFFER_WEBHOOK_KEY',
+  ): Promise<boolean> {
+    const key =
+      this.configService.get<string>(overrideKeyName)?.trim() ||
+      this.configService.get<string>('N8N_AI_KEY')?.trim();
+    if (!key) {
+      this.logger.warn(`[n8n Dispatcher] ${actionName}: chưa cấu hình khóa webhook TV2`);
+      return Promise.resolve(false);
+    }
+    return this.postWebhook(url, data, actionName, { 'x-n8n-ai-key': key });
   }
 
   async triggerAiResumeScore(payload: {

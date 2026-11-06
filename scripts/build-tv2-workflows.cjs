@@ -216,8 +216,27 @@ const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//HR ATS//Interview//VI'
   ...attendees.map(email => 'ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:'+email), 'END:VEVENT','END:VCALENDAR'];
 const ics = lines.map(fold).join('\r\n')+'\r\n';
 const time = new Date(p.scheduledAt).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'});
-return [{json:{fromEmail:p.fromEmail,toEmail:attendees.join(','),emailSubject:'Thư mời phỏng vấn vòng '+p.round,
-  emailHtml:'<h2>Thư mời phỏng vấn</h2><p>Ứng viên: '+esc(p.candidateName)+'</p><p>Người phỏng vấn: '+esc(p.interviewerName)+'</p><p>Thời gian: '+esc(time)+' (Việt Nam), 45 phút.</p><p><a href="'+esc(e.hangoutLink)+'">Tham gia Google Meet</a></p><p>Lịch .ics được đính kèm cho cả hai bên. Vui lòng xác nhận trong ứng dụng lịch.</p>'},
+const endTime = new Date(Date.parse(p.scheduledAt)+45*60000).toLocaleTimeString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit'});
+const safeMeet = esc(e.hangoutLink);
+const emailHtml = '<!doctype html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+
+  'body{margin:0;background:#f3f6fb;color:#243247;font-family:Arial,Helvetica,sans-serif;line-height:1.6}' +
+  '.wrap{max-width:760px;margin:24px auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 8px 30px rgba(25,55,95,.12)}' +
+  '.hero{padding:34px 42px;background:linear-gradient(120deg,#1e3a8a,#2563eb);color:#fff;text-align:center}' +
+  '.hero h1{margin:0;font-size:27px;letter-spacing:.4px}.hero p{margin:8px 0 0;color:#dbeafe;font-size:14px}.eyebrow{font-size:12px;letter-spacing:2px;font-weight:700;color:#bfdbfe;margin-bottom:10px}' +
+  '.content{padding:34px 42px}.content p{margin:0 0 18px}.card{margin:24px 0;padding:22px 24px;background:#f8fafc;border-left:5px solid #2563eb;border-radius:10px}.row{display:flex;gap:12px;align-items:flex-start;margin:11px 0}.icon{width:24px;font-size:19px}.label{font-weight:700;color:#172554;margin-right:6px}.muted{color:#64748b;font-size:14px}.button{display:inline-block;margin:4px 0 22px;padding:13px 24px;background:#2563eb;color:#fff!important;text-decoration:none;border-radius:8px;font-weight:700}.notice{padding:15px 18px;background:#eff6ff;border-radius:8px;color:#1e40af;font-size:14px}.footer{padding:20px 42px;background:#f8fafc;color:#64748b;font-size:12px;text-align:center}@media(max-width:600px){.hero,.content,.footer{padding-left:22px;padding-right:22px}.hero h1{font-size:22px}}' +
+  '</style></head><body><div class="wrap"><div class="hero"><div class="eyebrow">HR ATS • TUYỂN DỤNG</div><h1>THƯ MỜI PHỎNG VẤN</h1><p>Enterprise HR &amp; Talent Ecosystem</p></div><div class="content">' +
+  '<p>Kính gửi <strong>'+esc(p.candidateName)+'</strong>,</p>' +
+  '<p>Cảm ơn bạn đã quan tâm và ứng tuyển vào đội ngũ công nghệ của chúng tôi. Hội đồng tuyển dụng trân trọng kính mời bạn tham dự buổi phỏng vấn với thông tin chi tiết dưới đây:</p>' +
+  '<div class="card"><div class="row"><span class="icon">⏰</span><div><span class="label">Thời gian:</span>'+esc(time)+' (Việt Nam)<br><span class="muted">Thời lượng dự kiến: 45 phút, kết thúc lúc '+esc(endTime)+'</span></div></div>' +
+  '<div class="row"><span class="icon">🎯</span><div><span class="label">Vòng phỏng vấn:</span> Vòng '+esc(p.round)+' (Chuyên môn)</div></div>' +
+  '<div class="row"><span class="icon">👤</span><div><span class="label">Người phỏng vấn:</span> '+esc(p.interviewerName)+'</div></div>' +
+  '<div class="row"><span class="icon">💻</span><div><span class="label">Hình thức:</span> Trực tuyến qua Google Meet</div></div></div>' +
+  '<a class="button" href="'+safeMeet+'">Tham gia Google Meet</a>' +
+  '<p class="muted">Vui lòng tham gia trước giờ hẹn 5 phút và kiểm tra micro, camera cùng đường truyền Internet.</p>' +
+  '<div class="notice">📅 Lịch <strong>.ics</strong> được đính kèm để bạn thêm sự kiện vào Google Calendar, Outlook hoặc ứng dụng lịch trên điện thoại.</div>' +
+  '<p style="margin-top:24px">Nếu cần thay đổi lịch, vui lòng phản hồi email này để bộ phận Nhân sự hỗ trợ.</p></div>' +
+  '<div class="footer">Trân trọng,<br><strong>Phòng Nhân sự</strong> • Enterprise HR &amp; Talent Ecosystem</div></div></body></html>';
+return [{json:{fromEmail:p.fromEmail,toEmail:attendees.join(','),emailSubject:'Thư mời phỏng vấn vòng '+p.round,emailHtml},
   binary:{calendar:{data:Buffer.from(ics).toString('base64'),mimeType:'text/calendar',fileName:'interview-'+p.interviewId+'.ics'}}}];
 `;
 const mail = find('11. Gửi thư mời phỏng vấn');

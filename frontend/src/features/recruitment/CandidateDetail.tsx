@@ -115,7 +115,7 @@ export function CandidateDetail({
     ['PENDING', 'RUNNING'].includes(i.automation?.status || ''),
   );
   const waitingForAi =
-    candidate?.aiScoreStatus === 'PROCESSING' ||
+    ['PENDING', 'PROCESSING'].includes(candidate?.aiScoreStatus || '') ||
     !!candidate?.interviews.some((i) => i.aiQuestionsStatus === 'PROCESSING');
   useEffect(() => {
     if ((!waitingForDelivery && !waitingForAi) || busy) return;
@@ -269,7 +269,7 @@ export function CandidateDetail({
               </button>
             </div>
             {!candidate.hasCvText && (
-              <Alert>CV không có lớp văn bản. AI Vision sẽ đọc trực tiếp PDF scan hoặc ảnh khi bạn bấm chấm điểm.</Alert>
+              <Alert>CV không có lớp văn bản. AI Vision sẽ đọc trực tiếp PDF scan hoặc ảnh khi xử lý hồ sơ.</Alert>
             )}
             <section className="space-y-3 rounded-xl bg-slate-50 p-4">
               <h3 className="font-bold">Đánh giá CV</h3>
@@ -279,11 +279,14 @@ export function CandidateDetail({
                   {candidate.matchScore === null ? 'Chưa chấm' : candidate.matchScore + '/100'}
                 </strong>
               </p>
+              {candidate.aiScoreStatus === 'PENDING' && (
+                <p className="text-sm text-indigo-700">CV đang chờ chấm tự động...</p>
+              )}
               {candidate.aiScoreStatus === 'PROCESSING' && (
-                <p className="text-sm text-indigo-700">n8n đang phân tích CV theo JD...</p>
+                <p className="text-sm text-indigo-700">AI đang phân tích CV theo JD...</p>
               )}
               {candidate.aiScoreStatus === 'FAILED' && (
-                <p className="text-sm text-amber-700">n8n chưa chấm được CV. Bạn có thể thử lại.</p>
+                <p className="text-sm text-amber-700">Lần chấm CV gần nhất chưa thành công. Bạn có thể thử lại.</p>
               )}
               {candidate.aiSummary && (
                 <p className="whitespace-pre-wrap text-sm">{candidate.aiSummary}</p>
@@ -300,11 +303,11 @@ export function CandidateDetail({
                       const result = await api.score(id);
                       setScorePreview(result.mode === 'MOCK'
                         ? result.data.matchScore + '/100 · ' + result.data.summary
-                        : result.mode === 'N8N' ? 'n8n đang xử lý; kết quả sẽ cập nhật tự động.' : '');
+                        : (result.mode === 'N8N' || result.mode === 'BACKEND') ? 'Yêu cầu đang được xử lý; kết quả sẽ cập nhật tự động.' : '');
                       return result.saved
                         ? 'Đã lưu đánh giá AI.'
-                        : result.mode === 'N8N'
-                          ? 'Đã gửi yêu cầu cho n8n. Kết quả sẽ xuất hiện sau khi workflow hoàn tất.'
+                        : (result.mode === 'N8N' || result.mode === 'BACKEND')
+                          ? 'Đã xếp hàng chấm CV. Kết quả sẽ cập nhật tự động.'
                           : 'Kết quả mô phỏng chỉ để xem trước, không lưu vào hồ sơ.';
                     })
                   }
@@ -495,7 +498,7 @@ export function CandidateDetail({
                           setQuestionPreview(result.mode === 'MOCK' ? result.data : []);
                           return result.saved
                             ? 'Đã lưu bộ câu hỏi.'
-                            : result.mode === 'N8N'
+                            : (result.mode === 'N8N' || result.mode === 'BACKEND')
                               ? 'Đã gửi yêu cầu cho n8n. Câu hỏi sẽ cập nhật tự động.'
                               : 'Câu hỏi MOCK chỉ để xem trước.';
                         })

@@ -1,7 +1,7 @@
 /* Scoped to TV4; shared navigation and other workspaces retain their own styles. */
 .tv4-ui {
-  --tv4-accent: #6f3042;
-  --tv4-accent-soft: #f7edf0;
+  --tv4-accent: #2563eb;
+  --tv4-accent-soft: #eff6ff;
   min-width: 0;
 }
 

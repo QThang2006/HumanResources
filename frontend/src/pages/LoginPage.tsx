@@ -58,14 +58,14 @@ export const LoginPage: React.FC = () => {
       <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
         {/* Logo & Tiêu đề */}
         <div className="text-center mb-6">
-          <div className="w-12 h-12 bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md shadow-indigo-100">
+          <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
             <Bot className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             Đăng Nhập Cổng Nội Bộ
           </h1>
           <p className="text-xs text-slate-500 mt-1 font-medium">
-            Hệ thống Quản trị Nhân sự & ATS Multi-Agent
+            Hệ thống Quản trị Tuyển dụng & Nhân sự TalentHunt ATS
           </p>
         </div>
 
@@ -125,7 +125,7 @@ export const LoginPage: React.FC = () => {
           )}
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
               Email công vụ:
             </label>
             <div className="relative">
@@ -136,13 +136,13 @@ export const LoginPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="vd: superadmin@company.com, hr@company.com..."
-                className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 placeholder:text-slate-400"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
               Mật khẩu:
             </label>
             <div className="relative">
@@ -153,7 +153,7 @@ export const LoginPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Nhập mật khẩu..."
-                className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 placeholder:text-slate-400"
               />
             </div>
           </div>
@@ -161,7 +161,7 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold h-10 rounded-lg text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"
           >
             {isLoading ? (
               <>
@@ -194,14 +194,14 @@ export const LoginPage: React.FC = () => {
             type="button"
             disabled={isLoading}
             onClick={() => handleRoleQuickFill('SUPERADMIN')}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-rose-400 hover:bg-rose-50/40 transition-all text-left group disabled:opacity-50"
+            className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:border-rose-400 hover:bg-rose-50/40 transition-colors text-left group disabled:opacity-50"
           >
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center">
                 <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-bold text-slate-900 block group-hover:text-rose-600">
+                <span className="text-xs font-semibold text-slate-900 block group-hover:text-rose-600">
                   SuperAdmin (IT Ops)
                 </span>
                 <span className="text-[10px] text-slate-500 block">Quản trị RBAC, cấu hình API Key</span>
@@ -214,34 +214,34 @@ export const LoginPage: React.FC = () => {
             type="button"
             disabled={isLoading}
             onClick={() => handleRoleQuickFill('HR')}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition-all text-left group disabled:opacity-50"
+            className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 transition-colors text-left group disabled:opacity-50"
           >
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
                 <Briefcase className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-bold text-slate-900 block group-hover:text-indigo-600">
+                <span className="text-xs font-semibold text-slate-900 block group-hover:text-blue-600">
                   HR (Talent Acquisition)
                 </span>
                 <span className="text-[10px] text-slate-500 block">Đăng Job AI, ATS Kanban, 1-Click Hire</span>
               </div>
             </div>
-            <span className="text-xs text-indigo-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Vào &rarr;</span>
+            <span className="text-xs text-blue-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Vào &rarr;</span>
           </button>
 
           <button
             type="button"
             disabled={isLoading}
             onClick={() => handleRoleQuickFill('MANAGER')}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50/40 transition-all text-left group disabled:opacity-50"
+            className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:border-amber-400 hover:bg-amber-50/40 transition-colors text-left group disabled:opacity-50"
           >
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
                 <UserCheck className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-bold text-slate-900 block group-hover:text-amber-600">
+                <span className="text-xs font-semibold text-slate-900 block group-hover:text-amber-600">
                   Manager (Trưởng Phòng Tech)
                 </span>
                 <span className="text-[10px] text-slate-500 block">Chấm điểm PV Kỹ thuật, Team Mood</span>
@@ -254,14 +254,14 @@ export const LoginPage: React.FC = () => {
             type="button"
             disabled={isLoading}
             onClick={() => handleRoleQuickFill('EMPLOYEE')}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 transition-all text-left group disabled:opacity-50"
+            className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 transition-colors text-left group disabled:opacity-50"
           >
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
                 <User className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-bold text-slate-900 block group-hover:text-emerald-600">
+                <span className="text-xs font-semibold text-slate-900 block group-hover:text-emerald-600">
                   Employee (Nhân Viên Mới)
                 </span>
                 <span className="text-[10px] text-slate-500 block">Checklist 30 ngày, Copilot RAG, Đào tạo AI</span>

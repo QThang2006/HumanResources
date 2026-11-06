@@ -373,7 +373,19 @@ export class JobsService {
     return this.savedJob(id);
   }
 
-  async generateJDWithAI(title: string, departmentName: string, level: string) {
-    return this.ai.jd(title, departmentName, level);
+  async generateJDWithAI(
+    title: string,
+    departmentName: string,
+    level: string,
+    context?: {
+      skills?: string;
+      experienceYears?: string;
+      employmentType?: string;
+      location?: string;
+      salaryRange?: string;
+      specialNotes?: string;
+    },
+  ) {
+    return this.ai.jd(title, departmentName, level, context);
   }
 }

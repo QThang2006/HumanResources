@@ -66,6 +66,7 @@ export function JobEditor({
   const [managersLoading, setManagersLoading] = useState(false);
   const [managersAttempt, setManagersAttempt] = useState(0);
   const [departmentBusy, setDepartmentBusy] = useState(false);
+  const [specialNotes, setSpecialNotes] = useState('');
   const [preview, setPreview] = useState<{
     mode: string;
     data: { description: string; requirements: string; benefits: string };
@@ -142,6 +143,14 @@ export function JobEditor({
           input.title,
           departments.find((d) => d.id === input.departmentId)?.name || '',
           input.level || level,
+          {
+            skills: input.skills?.trim() || undefined,
+            experienceYears: input.experienceYears?.trim() || undefined,
+            employmentType: input.employmentType || undefined,
+            location: input.location?.trim() || undefined,
+            salaryRange: input.salaryRange?.trim() || undefined,
+            specialNotes: specialNotes.trim() || undefined,
+          },
         ),
       );
     } catch (e) {
@@ -412,27 +421,70 @@ export function JobEditor({
           </div>
 
           {/* SECTION 3: TRỢ LÝ AI GỢI Ý JD */}
-          <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4">
-            <div className="flex items-center justify-between">
+          <div className="space-y-3.5 rounded-xl border border-blue-200 bg-blue-50/70 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-blue-600" />
                 <span className="text-sm font-bold text-blue-950">Trợ Lý AI Soạn Thảo JD Tuyển Dụng</span>
+                <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                  Đa ngữ cảnh
+                </span>
               </div>
               <button
                 type="button"
-                className={secondaryClass}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs transition-colors"
                 disabled={
                   !capabilities?.jd || !input.title.trim() || !input.departmentId || busy
                 }
                 onClick={generate}
               >
-                Gợi ý JD bằng AI
+                <Sparkles className="h-3.5 w-3.5" />
+                {busy ? 'AI đang khởi tạo...' : 'Gợi ý JD bám sát ngữ cảnh'}
               </button>
             </div>
 
             <p className="text-xs text-slate-600">
-              AI Gemini sẽ tự động tạo trọn gói Bản mô tả công việc, Tiêu chí ứng viên và Khối quyền lợi theo đúng vị trí và phòng ban đã chọn.
+              AI Gemini sẽ tự động đối chiếu các tham số ngữ cảnh (Chức danh, Cấp bậc, Tech Stack, Kinh nghiệm, Địa điểm và Yêu cầu đặc thù) để soạn thảo bản JD chính xác nhất.
             </p>
+
+            {/* Các thẻ thông số ngữ cảnh AI đang tiếp nhận */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px]">
+              <span className="font-semibold text-slate-500">Ngữ cảnh nạp vào AI:</span>
+              <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700 font-medium">
+                Cấp bậc: <strong className="text-blue-700">{input.level || 'Middle'}</strong>
+              </span>
+              <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700 font-medium">
+                Kinh nghiệm: <strong className="text-blue-700">{input.experienceYears || '1 - 3 năm'}</strong>
+              </span>
+              <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700 font-medium">
+                Hình thức: <strong className="text-blue-700">{input.employmentType || 'Toàn thời gian'}</strong>
+              </span>
+              {input.location && (
+                <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700 font-medium">
+                  Địa điểm: <strong className="text-blue-700">{input.location}</strong>
+                </span>
+              )}
+              {input.skills && (
+                <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700 font-medium truncate max-w-xs">
+                  Stack: <strong className="text-blue-700">{input.skills}</strong>
+                </span>
+              )}
+            </div>
+
+            {/* Ô nhập yêu cầu ngữ cảnh đặc thù bổ sung */}
+            <div className="pt-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Yêu cầu đặc thù & Ngữ cảnh dự án bổ sung cho AI (Tùy chọn):
+              </label>
+              <input
+                type="text"
+                className={inputClass}
+                placeholder="Ví dụ: Dự án thương mại điện tử chịu tải lớn, yêu cầu tiếng Anh giao tiếp tốt, ưu tiên kinh nghiệm AWS / Kubernetes..."
+                value={specialNotes}
+                onChange={(e) => setSpecialNotes(e.target.value)}
+                maxLength={300}
+              />
+            </div>
 
             {preview && (
               <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 mt-3">

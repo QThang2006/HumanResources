@@ -16,6 +16,15 @@ export interface JobDescriptionResult {
   aiGenerated: boolean;
 }
 
+export interface JobDescriptionContext {
+  skills?: string;
+  experienceYears?: string;
+  employmentType?: string;
+  location?: string;
+  salaryRange?: string;
+  specialNotes?: string;
+}
+
 export interface ScoreBreakdown {
   hardSkillsScore: number;
   experienceScore: number;
@@ -356,8 +365,33 @@ export class GeminiService {
     title: string,
     departmentName: string = 'Kỹ Thuật Phần Mềm',
     level: string = 'Middle - Senior',
+    context?: JobDescriptionContext,
   ): Promise<JobDescriptionResult> {
     this.logger.log(`🤖 AI [${this.selectedModel}] đang sinh mô tả công việc: ${title} (${level} - ${departmentName})`);
+
+    const contextLines: string[] = [];
+    if (context?.skills?.trim()) {
+      contextLines.push(`- Kỹ năng & Công nghệ trọng tâm (Tech Stack bắt buộc): ${context.skills.trim()}`);
+    }
+    if (context?.experienceYears?.trim()) {
+      contextLines.push(`- Số năm kinh nghiệm yêu cầu: ${context.experienceYears.trim()}`);
+    }
+    if (context?.employmentType?.trim()) {
+      contextLines.push(`- Hình thức làm việc: ${context.employmentType.trim()}`);
+    }
+    if (context?.location?.trim()) {
+      contextLines.push(`- Địa điểm làm việc: ${context.location.trim()}`);
+    }
+    if (context?.salaryRange?.trim()) {
+      contextLines.push(`- Mức thu nhập / Lương dự kiến: ${context.salaryRange.trim()}`);
+    }
+    if (context?.specialNotes?.trim()) {
+      contextLines.push(`- Yêu cầu đặc thù & Ngữ cảnh dự án bổ sung: ${context.specialNotes.trim()}`);
+    }
+
+    const contextBlock = contextLines.length > 0
+      ? `\nCÁC THÔNG SỐ NGỮ CẢNH TUYỂN DỤNG CẦN BÁM SÁT TUYỆT ĐỐI:\n${contextLines.join('\n')}\n`
+      : '';
 
     const prompt = `
 Bạn là Giám đốc Thu hút Nhân tài & Chuyên gia Tư vấn Tuyển dụng Công nghệ Cấp cao (Executive Talent Acquisition Partner & HR Director).
@@ -365,14 +399,14 @@ Nhiệm vụ của bạn là xây dựng một bản Mô tả Công việc (Job 
 - Chức danh (Job Title): ${title}
 - Phòng ban (Department): ${departmentName}
 - Cấp bậc (Seniority Level): ${level}
-
+${contextBlock}
 Bản JD cần tuân thủ các nguyên tắc:
-1. Tổng quan vai trò (summary): Nêu bật sứ mệnh cốt lõi, tầm ảnh hưởng chiến lược của vị trí này đối với mục tiêu sản phẩm và công nghệ của doanh nghiệp.
-2. Trách nhiệm chính (responsibilities): Chia thành 5-6 gạch đầu dòng rõ ràng, bao quát từ kiến trúc hệ thống, phát triển tính năng, tối ưu hiệu năng (performance tuning), chuẩn hóa quy trình kỹ thuật (CI/CD, Clean Code) đến phối hợp liên phòng ban.
-3. Yêu cầu công việc (requirements): Định lượng cụ thể số năm kinh nghiệm, kỹ năng công nghệ cốt lõi (Core Stack), tư duy kiến trúc, cơ sở dữ liệu và kỹ năng giải quyết bài toán quy mô lớn.
+1. Tổng quan vai trò (summary): Nêu bật sứ mệnh cốt lõi, tầm ảnh hưởng chiến lược của vị trí này đối với mục tiêu sản phẩm và công nghệ của doanh nghiệp.${context?.specialNotes?.trim() ? ` Lồng ghép sâu sắc ngữ cảnh đặc thù: "${context.specialNotes.trim()}".` : ''}
+2. Trách nhiệm chính (responsibilities): Chia thành 5-6 gạch đầu dòng rõ ràng, bao quát từ kiến trúc hệ thống, phát triển tính năng, tối ưu hiệu năng (performance tuning), chuẩn hóa quy trình kỹ thuật (CI/CD, Clean Code) đến phối hợp liên phòng ban.${context?.skills?.trim() ? ` Phải bám sát các công việc trực tiếp sử dụng Tech Stack: ${context.skills.trim()}.` : ''}
+3. Yêu cầu công việc (requirements): Định lượng cụ thể ${context?.experienceYears?.trim() ? `số năm kinh nghiệm (${context.experienceYears.trim()})` : 'số năm kinh nghiệm'}, các kỹ năng công nghệ cốt lõi (${context?.skills?.trim() ? context.skills.trim() : 'Core Stack'}), tư duy kiến trúc, cơ sở dữ liệu và kỹ năng giải quyết bài toán quy mô lớn.
 4. Điểm cộng ưu tiên (niceToHave): Kỹ năng mở rộng, kinh nghiệm với Microservices, Cloud (AWS/GCP), DevOps, hoặc đóng góp mã nguồn mở.
-5. Chế độ đãi ngộ & Phúc lợi (benefits): Gói đãi ngộ cạnh tranh, thưởng OKRs/KPIs, bảo hiểm sức khỏe cao cấp, tài trợ học tập và thiết bị làm việc hiện đại.
-6. Mức lương đề xuất (suggestedSalaryRange): Đưa ra dải lương thị trường sát với thực tế tại Việt Nam theo cấp bậc ${level}.
+5. Chế độ đãi ngộ & Phúc lợi (benefits): Gói đãi ngộ cạnh tranh${context?.salaryRange?.trim() ? ` (theo mức đề xuất ${context.salaryRange.trim()})` : ''}, thưởng OKRs/KPIs, bảo hiểm sức khỏe cao cấp, tài trợ học tập và thiết bị làm việc hiện đại.${context?.employmentType?.trim() || context?.location?.trim() ? ` Phù hợp với hình thức ${context?.employmentType?.trim() || 'làm việc'} tại ${context?.location?.trim() || 'trụ sở'}.` : ''}
+6. Mức lương đề xuất (suggestedSalaryRange): ${context?.salaryRange?.trim() ? context.salaryRange.trim() : `Đưa ra dải lương thị trường sát với thực tế tại Việt Nam theo cấp bậc ${level}.`}
 7. Lộ trình phát triển (careerGrowthPath): Định hướng thăng tiến rõ ràng trong 1-2 năm tới.
 
 BẮT BUỘC TRẢ VỀ THEO ĐÚNG ĐỊNH DẠNG JSON SAU (không chứa bất kỳ ký tự nào ngoài JSON):
@@ -422,7 +456,7 @@ BẮT BUỘC TRẢ VỀ THEO ĐÚNG ĐỊNH DẠNG JSON SAU (không chứa bất
 
     // Fallback Mock Data chất lượng cao khi chưa có key hoặc lỗi mạng
     this.logger.warn(`Sử dụng Fallback Mock JD cho vị trí: ${title}`);
-    return this.getFallbackJobDescription(title, departmentName, level);
+    return this.getFallbackJobDescription(title, departmentName, level, context);
   }
 
   // =========================================================================
@@ -674,58 +708,73 @@ BẮT BUỘC TRẢ VỀ ĐỊNH DẠNG JSON SAU:
     title: string,
     departmentName: string,
     level: string,
+    context?: JobDescriptionContext,
   ): JobDescriptionResult {
     const isBackend = title.toLowerCase().includes('backend') || title.toLowerCase().includes('nest') || title.toLowerCase().includes('node');
     const isFrontend = title.toLowerCase().includes('frontend') || title.toLowerCase().includes('react') || title.toLowerCase().includes('ui');
+
+    const expText = context?.experienceYears?.trim()
+      ? `Có từ ${context.experienceYears.trim()} kinh nghiệm làm việc thực chiến trong lĩnh vực chuyên môn.`
+      : (isBackend ? 'Có từ 2-4 năm kinh nghiệm làm việc với NodeJS / TypeScript (ưu tiên thành thạo NestJS).' : 'Có từ 2-3 năm kinh nghiệm lập trình giao diện với React, TypeScript và Tailwind CSS.');
+
+    const skillsList = context?.skills?.trim()
+      ? context.skills.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    const requirements = [
+      expText,
+      skillsList.length > 0
+        ? `Thành thạo các công nghệ và kỹ năng trọng tâm: ${skillsList.join(', ')}.`
+        : (isBackend ? 'Nắm vững kiến trúc cơ sở dữ liệu quan hệ (MySQL / PostgreSQL), hiểu sâu về 3NF, Transaction, Indexing.' : 'Hiểu sâu về React Lifecycle, Hooks, State Management và tối ưu hiệu năng render.'),
+      'Nắm vững quy trình phát triển phần mềm chuẩn mực (Git Flow, Clean Code, Code Review, CI/CD).',
+      'Tư duy giải quyết vấn đề tốt, trách nhiệm cao và khả năng làm việc nhóm hiệu quả.',
+    ];
+
+    if (context?.specialNotes?.trim()) {
+      requirements.push(`Yêu cầu đặc thù: ${context.specialNotes.trim()}`);
+    }
+
+    const responsibilities = isBackend
+      ? [
+        `Thiết kế, xây dựng và tối ưu hóa hệ thống Backend RESTful API và Microservices${skillsList.length > 0 ? ` sử dụng ${skillsList.slice(0, 3).join(', ')}` : ' trên nền tảng NestJS / NodeJS'}.`,
+        'Thiết kế và chuẩn hóa cơ sở dữ liệu MySQL, tối ưu truy vấn Indexing và đảm bảo toàn vẹn dữ liệu.',
+        'Tích hợp các dịch vụ bên thứ ba (Google AI Gemini, n8n Automation Engine, Webhooks).',
+        'Tham gia rà soát mã nguồn (Code Review), xây dựng chuẩn kỹ thuật và tài liệu hóa kiến trúc.',
+        'Giám sát hiệu năng hệ thống, phát hiện và xử lý sự cố kỹ thuật kịp thời.',
+      ]
+      : isFrontend
+        ? [
+          `Phát triển giao diện ứng dụng web hiện đại, chuẩn Responsive${skillsList.length > 0 ? ` với ${skillsList.slice(0, 3).join(', ')}` : ' bằng React 18, TypeScript và Tailwind CSS'}.`,
+          'Tối ưu hóa trải nghiệm người dùng (UX/UI), tốc độ tải trang và độ mượt mà của các thành phần tương tác.',
+          'Kết nối trơn tru với hệ thống Backend API thông qua Axios Interceptor và quản lý trạng thái an toàn.',
+          'Tham gia định hình Design System và xây dựng các UI Atoms tái sử dụng trong toàn bộ hệ thống.',
+        ]
+        : [
+          `Chịu trách nhiệm thực hiện các mục tiêu nghiệp vụ chính của vị trí ${title}.`,
+          'Phối hợp nhịp nhàng giữa các phòng ban để đảm bảo tiến độ và chất lượng dự án.',
+          'Chủ động đề xuất các giải pháp tự động hóa và ứng dụng AI nhằm nâng cao năng suất công việc.',
+        ];
+
+    const benefits = [
+      `Thu nhập cạnh tranh (${context?.salaryRange?.trim() || (level.toLowerCase().includes('senior') ? '30 - 45 Triệu VNĐ' : '20 - 32 Triệu VNĐ')}), đánh giá tăng lương định kỳ 2 lần/năm.`,
+      'Thưởng tháng lương thứ 13, thưởng hiệu quả kinh doanh và thưởng dự án xuất sắc.',
+      `Môi trường làm việc hiện đại (${context?.employmentType || 'Toàn thời gian'} tại ${context?.location || 'Trụ sở chính'}), khuyến khích sáng tạo và ứng dụng công nghệ AI tiên phong.`,
+      'Gói bảo hiểm sức khỏe toàn diện cao cấp và phụ cấp thiết bị làm việc.',
+    ];
 
     return {
       title,
       level,
       department: departmentName,
-      summary: `Chúng tôi đang tìm kiếm một vị trí ${title} (${level}) xuất sắc gia nhập ${departmentName} để trực tiếp xây dựng và mở rộng hệ thống phần mềm cốt lõi của công ty.`,
-      responsibilities: isBackend
-        ? [
-          'Thiết kế, xây dựng và tối ưu hóa hệ thống Backend RESTful API và Microservices trên nền tảng NestJS / NodeJS.',
-          'Thiết kế và chuẩn hóa cơ sở dữ liệu MySQL, tối ưu truy vấn Indexing và đảm bảo toàn vẹn dữ liệu.',
-          'Tích hợp các dịch vụ bên thứ ba (Google AI Gemini, n8n Automation Engine, Webhooks).',
-          'Tham gia rà soát mã nguồn (Code Review), xây dựng chuẩn kỹ thuật và tài liệu hóa kiến trúc.',
-          'Giám sát hiệu năng hệ thống, phát hiện và xử lý sự cố kỹ thuật kịp thời.',
-        ]
-        : isFrontend
-          ? [
-            'Phát triển giao diện ứng dụng web hiện đại, chuẩn Responsive bằng React 18, TypeScript và Tailwind CSS.',
-            'Tối ưu hóa trải nghiệm người dùng (UX/UI), tốc độ tải trang và độ mượt mà của các thành phần tương tác.',
-            'Kết nối trơn tru với hệ thống Backend API thông qua Axios Interceptor và quản lý trạng thái an toàn.',
-            'Tham gia định hình Design System và xây dựng các UI Atoms tái sử dụng trong toàn bộ hệ thống.',
-          ]
-          : [
-            `Chịu trách nhiệm thực hiện các mục tiêu nghiệp vụ chính của vị trí ${title}.`,
-            'Phối hợp nhịp nhàng giữa các phòng ban để đảm bảo tiến độ và chất lượng dự án.',
-            'Chủ động đề xuất các giải pháp tự động hóa và ứng dụng AI nhằm nâng cao năng suất công việc.',
-          ],
-      requirements: isBackend
-        ? [
-          'Có từ 2-4 năm kinh nghiệm làm việc với NodeJS / TypeScript (ưu tiên thành thạo NestJS).',
-          'Nắm vững kiến trúc cơ sở dữ liệu quan hệ (MySQL / PostgreSQL), hiểu sâu về 3NF, Transaction, Indexing.',
-          'Có kinh nghiệm làm việc với Docker, Git Flow và triển khai hệ thống an toàn.',
-          'Tư duy giải quyết vấn đề tốt, trách nhiệm cao và khả năng làm việc nhóm hiệu quả.',
-        ]
-        : [
-          'Có từ 2-3 năm kinh nghiệm lập trình giao diện với React, TypeScript và Tailwind CSS.',
-          'Hiểu sâu về React Lifecycle, Hooks, State Management và tối ưu hiệu năng render.',
-          'Khả năng chuyển đổi thiết kế Figma thành giao diện web pixel-perfect.',
-        ],
+      summary: `Chúng tôi đang tìm kiếm vị trí ${title} (${level}) xuất sắc gia nhập ${departmentName} để trực tiếp xây dựng và mở rộng hệ thống phần mềm cốt lõi của công ty.${context?.specialNotes ? ` Định hướng dự án: ${context.specialNotes.trim()}.` : ''}`,
+      responsibilities,
+      requirements,
       niceToHave: [
         'Có hiểu biết hoặc kinh nghiệm thực tế về AI LLM (Gemini, OpenAI) hoặc các công cụ tự động hóa quy trình (n8n).',
         'Có kinh nghiệm làm việc trong môi trường Agile/Scrum và kiến trúc Microservices.',
       ],
-      benefits: [
-        'Thu nhập cạnh tranh, đánh giá tăng lương định kỳ 2 lần/năm.',
-        'Thưởng tháng lương thứ 13, thưởng hiệu quả kinh doanh và thưởng dự án xuất sắc.',
-        'Môi trường làm việc hiện đại, khuyến khích sáng tạo và ứng dụng công nghệ AI tiên phong.',
-        'Gói bảo hiểm sức khỏe toàn diện cao cấp và phụ cấp thiết bị làm việc.',
-      ],
-      suggestedSalaryRange: level.toLowerCase().includes('senior') ? '30 - 45 Triệu VNĐ' : '20 - 32 Triệu VNĐ',
+      benefits,
+      suggestedSalaryRange: context?.salaryRange?.trim() || (level.toLowerCase().includes('senior') ? '30 - 45 Triệu VNĐ' : '20 - 32 Triệu VNĐ'),
       careerGrowthPath: 'Lộ trình thăng tiến rõ ràng lên Technical Lead hoặc Solution Architect trong vòng 1-2 năm.',
       aiGenerated: false,
     };

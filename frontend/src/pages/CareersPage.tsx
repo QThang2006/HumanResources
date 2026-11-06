@@ -273,54 +273,93 @@ export function CareersPage() {
               aria-label="Vị trí đang tuyển"
               className="grid grid-cols-1 gap-6 md:grid-cols-2"
             >
-              {state.data.items.map((job) => (
-                <article
-                  key={job.id}
-                  className="flex min-w-0 flex-col justify-between rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-blue-400 hover:shadow-md"
-                >
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
-                        {job.departmentName}
-                      </span>
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                        Đang mở tuyển
-                      </span>
+              {state.data.items.map((job) => {
+                const skillsArray = job.skills
+                  ? job.skills.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 4)
+                  : [];
+                return (
+                  <article
+                    key={job.id}
+                    className="flex min-w-0 flex-col justify-between rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-blue-400 hover:shadow-md"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+                            {job.departmentName}
+                          </span>
+                          {job.level && (
+                            <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                              {job.level}
+                            </span>
+                          )}
+                        </div>
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                          Đang mở tuyển
+                        </span>
+                      </div>
+                      <h2 className="break-words text-lg font-bold text-slate-900 hover:text-blue-600">
+                        <Link to={'/careers/' + job.id}>{job.title}</Link>
+                      </h2>
+                      <p className="break-words whitespace-pre-line text-sm text-slate-600 mt-2 line-clamp-2">
+                        {job.description}
+                      </p>
+
+                      {skillsArray.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {skillsArray.map((skill, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[11px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-100"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-4 mt-4 text-xs font-medium text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <MapPin
+                            aria-hidden="true"
+                            className="w-3.5 h-3.5 shrink-0 text-slate-400"
+                          />
+                          {job.location}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <DollarSign
+                            aria-hidden="true"
+                            className="w-3.5 h-3.5 shrink-0 text-slate-400"
+                          />
+                          {job.salaryRange}
+                        </span>
+                        {job.employmentType && (
+                          <span className="text-slate-600 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded">
+                            {job.employmentType}
+                          </span>
+                        )}
+                        {job.deadline && (
+                          <span className="text-slate-500">
+                            Hạn nộp: {job.deadline}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <h2 className="break-words text-lg font-bold text-slate-900 hover:text-blue-600">
-                      <Link to={'/careers/' + job.id}>{job.title}</Link>
-                    </h2>
-                    <p className="break-words whitespace-pre-line text-sm text-slate-600 mt-2 line-clamp-2">
-                      {job.description}
-                    </p>
-                    <div className="flex flex-wrap gap-4 mt-4 text-xs font-medium text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <MapPin
-                          aria-hidden="true"
-                          className="w-3.5 h-3.5 shrink-0 text-slate-400"
-                        />
-                        {job.location}
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-xs text-slate-400 font-medium">
+                        {job.experienceYears ? `Kinh nghiệm: ${job.experienceYears}` : 'Tuyển dụng chính thức'}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <DollarSign
-                          aria-hidden="true"
-                          className="w-3.5 h-3.5 shrink-0 text-slate-400"
-                        />
-                        {job.salaryRange}
-                      </span>
+                      <Link
+                        to={'/careers/' + job.id}
+                        className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                        aria-label={'Xem chi tiết: ' + job.title}
+                      >
+                        Xem chi tiết & Nộp CV <ArrowRight aria-hidden="true" className="w-3.5 h-3.5" />
+                      </Link>
                     </div>
-                  </div>
-                  <div className="mt-6 pt-4 border-t border-slate-100">
-                    <Link
-                      to={'/careers/' + job.id}
-                      className="inline-inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700"
-                      aria-label={'Xem chi tiết: ' + job.title}
-                    >
-                      Xem chi tiết <ArrowRight aria-hidden="true" className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </section>
             {state.data.total > state.data.pageSize && (
               <nav

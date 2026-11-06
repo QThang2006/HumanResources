@@ -88,8 +88,8 @@ function JobDetail({ id }: { id: number }) {
     }
   }
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <Link className="text-sm font-semibold text-indigo-700" to="/careers">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+      <Link className="text-sm font-semibold text-blue-700 hover:text-blue-800" to="/careers">
         ← Tất cả vị trí
       </Link>
       {loading ? (
@@ -108,10 +108,10 @@ function JobDetail({ id }: { id: number }) {
       ) : (
         job && (
           <div className="mt-6 grid items-start gap-8 lg:grid-cols-[1.3fr_1fr]">
-            <article className="min-w-0 break-words space-y-7 rounded-2xl border bg-white p-6 sm:p-8">
+            <article className="min-w-0 space-y-7 break-words rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
               <header>
-                <p className="text-sm font-semibold text-indigo-600">{job.departmentName}</p>
-                <h1 className="mt-2 text-3xl font-bold">{job.title}</h1>
+                <p className="text-sm font-semibold text-blue-600">{job.departmentName}</p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{job.title}</h1>
                 <p className="mt-4 text-slate-600">
                   {job.location} · {job.salaryRange || 'Lương thỏa thuận'}
                 </p>
@@ -125,8 +125,8 @@ function JobDetail({ id }: { id: number }) {
                 <p className="whitespace-pre-wrap break-words text-slate-700">{job.requirements}</p>
               </section>
             </article>
-            <section className="rounded-2xl border bg-white p-6 shadow-sm">
-              <h2 className="mb-5 text-xl font-bold">Ứng tuyển vị trí này</h2>
+            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-5 text-xl font-semibold text-slate-900">Ứng tuyển vị trí này</h2>
               {receipt ? (
                 <div className="space-y-4">
                   <Alert success>
@@ -176,7 +176,7 @@ function JobDetail({ id }: { id: number }) {
                       e.preventDefault();
                       if (!busy) chooseFile(e.dataTransfer.files[0]);
                     }}
-                    className="rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-5"
+                    className="rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/60 p-5 transition-colors hover:border-blue-500"
                   >
                     <Field label="CV PDF hoặc ảnh · tối đa 5 MiB">
                       <input
@@ -186,7 +186,7 @@ function JobDetail({ id }: { id: number }) {
                         accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
                         disabled={busy}
                         onChange={(e) => chooseFile(e.target.files?.[0])}
-                        className="block w-full text-sm"
+                        className="block w-full min-w-0 text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-2 file:font-medium file:text-blue-700 hover:file:bg-blue-200"
                       />
                     </Field>
                     <p id="cv-help" className="mt-3 break-words text-xs text-slate-600">
@@ -197,7 +197,7 @@ function JobDetail({ id }: { id: number }) {
                     {file && (
                       <button
                         type="button"
-                        className="mt-3 text-sm font-semibold text-indigo-700"
+                        className="mt-3 text-sm font-semibold text-blue-700"
                         disabled={busy}
                         onClick={() => {
                           chooseFile();
@@ -231,7 +231,7 @@ export function JobDetailPage() {
   if (!id || !/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id))) {
     return (
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-10">
-        <Link to="/careers" className="text-indigo-700">
+        <Link to="/careers" className="text-blue-700">
           Tất cả vị trí
         </Link>
         <Alert>Mã vị trí không hợp lệ.</Alert>

@@ -98,19 +98,19 @@ export function CareersPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <header className="text-center max-w-2xl mx-auto mb-10">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+    <div className="mx-auto min-h-screen max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <header className="mx-auto mb-10 max-w-2xl space-y-2 text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
           Cơ Hội Nghề Nghiệp Tại Công Ty
         </h1>
-        <p className="text-sm text-slate-500 mt-2">
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
           Khám phá các vị trí đang tuyển và tìm cơ hội phù hợp với bạn.
         </p>
       </header>
 
       <section
         aria-label="Tìm kiếm vị trí tuyển dụng"
-        className="mb-6 rounded-2xl border border-slate-200 bg-white p-5"
+        className="mx-auto mb-6 max-w-7xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
       >
         <label htmlFor="job-search" className="mb-2 block text-sm font-semibold text-slate-700">
           Tìm theo tên công việc
@@ -123,7 +123,7 @@ export function CareersPage() {
             value={query}
             onChange={(event) => search(event.target.value)}
             placeholder="Ví dụ: Backend, Kế toán..."
-            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {query && (
             <button
@@ -152,7 +152,7 @@ export function CareersPage() {
                 setPage(1);
                 setState({ status: 'loading' });
               }}
-              className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+              className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400"
             >
               <option value="">Tất cả phòng ban</option>
               {filters.status === 'ready' &&
@@ -182,7 +182,7 @@ export function CareersPage() {
                 setPage(1);
                 setState({ status: 'loading' });
               }}
-              className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+              className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400"
             >
               <option value="">Tất cả địa điểm</option>
               {filters.status === 'ready' &&
@@ -230,13 +230,13 @@ export function CareersPage() {
       {state.status === 'error' && (
         <div
           role="alert"
-          className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center"
+          className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center"
         >
           <p className="text-sm text-amber-900">{state.message}</p>
           <button
             type="button"
             onClick={retry}
-            className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 focus-visible:outline-indigo-600"
+            className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline-blue-600"
           >
             Thử lại
           </button>
@@ -247,7 +247,7 @@ export function CareersPage() {
         (state.data.items.length === 0 ? (
           <div
             role="status"
-            className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center"
+            className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center"
           >
             <Briefcase aria-hidden="true" className="w-8 h-8 mx-auto mb-3 text-slate-400" />
             <p className="text-sm text-slate-600">
@@ -271,23 +271,23 @@ export function CareersPage() {
             </div>
             <section
               aria-label="Vị trí đang tuyển"
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              className="grid grid-cols-1 gap-6 md:grid-cols-2"
             >
               {state.data.items.map((job) => (
                 <article
                   key={job.id}
-                  className="min-w-0 p-6 bg-white rounded-2xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between"
+                  className="flex min-w-0 flex-col justify-between rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-blue-400 hover:shadow-md"
                 >
                   <div>
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                      <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
                         {job.departmentName}
                       </span>
-                      <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                         Đang mở tuyển
                       </span>
                     </div>
-                    <h2 className="break-words text-lg font-bold text-slate-900 hover:text-indigo-600">
+                    <h2 className="break-words text-lg font-bold text-slate-900 hover:text-blue-600">
                       <Link to={'/careers/' + job.id}>{job.title}</Link>
                     </h2>
                     <p className="break-words whitespace-pre-line text-sm text-slate-600 mt-2 line-clamp-2">
@@ -313,7 +313,7 @@ export function CareersPage() {
                   <div className="mt-6 pt-4 border-t border-slate-100">
                     <Link
                       to={'/careers/' + job.id}
-                      className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-700"
+                      className="inline-inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700"
                       aria-label={'Xem chi tiết: ' + job.title}
                     >
                       Xem chi tiết <ArrowRight aria-hidden="true" className="w-3.5 h-3.5" />
@@ -325,7 +325,7 @@ export function CareersPage() {
             {state.data.total > state.data.pageSize && (
               <nav
                 aria-label="Phân trang vị trí tuyển dụng"
-                className="mt-8 flex items-center justify-center gap-3"
+                className="mt-8 flex flex-wrap items-center justify-center gap-3"
               >
                 <button
                   type="button"

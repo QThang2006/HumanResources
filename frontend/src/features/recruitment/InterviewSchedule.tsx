@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import {
   CalendarDays,
   ChevronLeft,
@@ -31,7 +32,7 @@ const resultLabels: Record<InterviewResult, string> = {
   FAILED: 'Chưa đạt',
 };
 const resultStyle: Record<InterviewResult, string> = {
-  PENDING: 'border-indigo-200 bg-indigo-50 text-indigo-900',
+  PENDING: 'border-amber-200 bg-amber-50 text-amber-900',
   PASSED: 'border-emerald-200 bg-emerald-50 text-emerald-900',
   FAILED: 'border-rose-200 bg-rose-50 text-rose-900',
 };
@@ -125,8 +126,8 @@ function ScheduleDetail({
               <h3 className="mt-3 text-2xl font-bold text-slate-900">{row.candidateName}</h3>
               <p className="mt-1 break-words text-sm text-slate-500">{row.candidateEmail}</p>
             </div>
-            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
-              <p className="flex items-center gap-2 text-xl font-bold text-indigo-950">
+            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+              <p className="flex items-center gap-2 text-xl font-bold text-blue-950">
                 <Clock3 size={20} aria-hidden="true" />
                 {timeLabel(row.scheduledAt)}
               </p>
@@ -155,7 +156,7 @@ function ScheduleDetail({
             </dl>
             <section
               aria-label="Phòng phỏng vấn"
-              className="rounded-2xl border border-slate-200 p-4"
+              className="rounded-xl border border-slate-200 bg-white p-4"
             >
               <h4 className="flex items-center gap-2 font-semibold">
                 <Video size={18} aria-hidden="true" />
@@ -167,7 +168,7 @@ function ScheduleDetail({
                     href={link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 block break-all text-sm text-indigo-700 underline underline-offset-4"
+                    className="mt-3 block break-all text-sm font-medium text-blue-700 underline underline-offset-4 hover:text-blue-800"
                   >
                     {link}
                   </a>
@@ -205,6 +206,8 @@ function ScheduleDetail({
 }
 
 export function InterviewSchedule({ openCandidate }: { openCandidate: (id: number) => void }) {
+  const { user } = useAuth();
+  const isHrOrAdmin = user?.role === 'HR' || user?.role === 'SUPERADMIN';
   const [anchor, setAnchor] = useState(() => dayKey());
   const [period, setPeriod] = useState<CalendarPeriod>('week');
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
@@ -320,9 +323,22 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
     <section aria-label="Lịch phỏng vấn" className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Lịch phỏng vấn</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xl font-bold text-slate-900">Lịch phỏng vấn</h2>
+            {isHrOrAdmin ? (
+              <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
+                Toàn hệ thống (HR)
+              </span>
+            ) : (
+              <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
+                Lịch cá nhân phụ trách
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-slate-500">
-            Theo dõi giờ hẹn và mở phòng Meet từ từng buổi phỏng vấn.
+            {isHrOrAdmin
+              ? 'Theo dõi toàn bộ lịch phỏng vấn và mở phòng Google Meet của tất cả vị trí.'
+              : `Chỉ hiển thị các buổi phỏng vấn được phân công cho ${user?.fullName || 'bạn'}.`}
           </p>
         </div>
         <button
@@ -334,7 +350,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
           Làm mới
         </button>
       </header>
-      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-4">
         <Field label="Tìm ứng viên hoặc vị trí">
           <input
             className={inputClass}
@@ -355,18 +371,27 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
           </select>
         </Field>
         <Field label="Người phỏng vấn">
-          <select
-            className={inputClass}
-            value={interviewerId}
-            onChange={(e) => setInterviewerId(e.target.value)}
-          >
-            <option value="">Tất cả người phỏng vấn</option>
-            {filters.interviewers.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </select>
+          {isHrOrAdmin ? (
+            <select
+              className={inputClass}
+              value={interviewerId}
+              onChange={(e) => setInterviewerId(e.target.value)}
+            >
+              <option value="">Tất cả người phỏng vấn</option>
+              {filters.interviewers.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex items-center justify-between rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <span className="font-medium truncate">{user?.fullName || 'Người phỏng vấn'}</span>
+              <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                Chỉ định
+              </span>
+            </div>
+          )}
         </Field>
         <Field label="Kết quả phỏng vấn">
           <select className={inputClass} value={result} onChange={(e) => setResult(e.target.value)}>
@@ -387,7 +412,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
           </button>
         </Alert>
       )}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 p-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1">
@@ -435,7 +460,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                   className={
                     'rounded-lg px-3 py-2 text-sm font-medium ' +
                     (period === value
-                      ? 'bg-white text-indigo-700 shadow-sm'
+                      ? 'bg-white text-blue-700 shadow-sm'
                       : 'text-slate-600 hover:bg-white/70')
                   }
                 >
@@ -453,7 +478,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                 onClick={() => setView('calendar')}
                 className={
                   'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ' +
-                  (view === 'calendar' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600')
+                  (view === 'calendar' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600')
                 }
               >
                 <CalendarDays size={16} aria-hidden="true" />
@@ -464,7 +489,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                 onClick={() => setView('list')}
                 className={
                   'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ' +
-                  (view === 'list' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600')
+                  (view === 'list' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600')
                 }
               >
                 <List size={16} aria-hidden="true" />
@@ -513,7 +538,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
         ) : view === 'calendar' ? (
           <>
             <div
-              className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600 lg:max-h-[65vh] lg:overflow-auto"
+              className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600 lg:max-h-[65vh] lg:overflow-auto"
               role="region"
               aria-label="Lịch phỏng vấn dạng lịch"
               tabIndex={0}
@@ -542,7 +567,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                           'min-h-[148px] border-b border-r border-slate-100 p-2 ' +
                           (period === 'week' ? 'min-h-[350px] ' : '') +
                           (key === today
-                            ? 'bg-indigo-50/35'
+                            ? 'bg-blue-50/35'
                             : period === 'month' && key.slice(0, 7) !== anchor.slice(0, 7)
                               ? 'bg-slate-50'
                               : '')
@@ -553,7 +578,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                             aria-current={key === today ? 'date' : undefined}
                             className={
                               'inline-flex h-8 min-w-8 items-center justify-center rounded-full text-sm font-semibold ' +
-                              (key === today ? 'bg-indigo-600 text-white' : 'text-slate-600')
+                              (key === today ? 'bg-blue-600 text-white' : 'text-slate-600')
                             }
                           >
                             {period === 'month' ? Number(key.slice(8)) : shortDateLabel(key)}
@@ -572,7 +597,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                               onClick={() => setSelectedId(row.id)}
                               aria-label={`${row.candidateName}, ${timeLabel(row.scheduledAt)}, ${shortDateLabel(key)}, vòng ${row.round}`}
                               className={
-                                'block w-full rounded-lg border p-2.5 text-left outline-offset-2 hover:shadow-sm focus-visible:outline-indigo-600 ' +
+                                'block w-full rounded-lg border p-2.5 text-left outline-offset-2 hover:shadow-sm focus-visible:outline-blue-600 ' +
                                 resultStyle[row.result]
                               }
                             >
@@ -599,7 +624,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                         </div>
                         {limited && events.length > 3 && (
                           <button
-                            className="mt-2 w-full rounded-lg px-2 py-1 text-left text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                            className="mt-2 w-full rounded-lg px-2 py-1 text-left text-xs font-semibold text-blue-700 hover:bg-blue-50"
                             onClick={() => setExpanded((current) => [...current, key])}
                           >
                             Xem thêm {events.length - 3} buổi
@@ -621,7 +646,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
           </>
         ) : rows.length ? (
           <div
-            className="divide-y divide-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600 lg:max-h-[65vh] lg:overflow-y-auto"
+            className="divide-y divide-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600 lg:max-h-[65vh] lg:overflow-y-auto"
             role="region"
             aria-label="Danh sách lịch phỏng vấn"
             tabIndex={0}
@@ -634,7 +659,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                     <span>
                       {dateLabel(key + 'T12:00:00+07:00')}
                       {key === today && (
-                        <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">
+                        <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
                           Hôm nay
                         </span>
                       )}
@@ -648,7 +673,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                       <button
                         key={row.id}
                         onClick={() => setSelectedId(row.id)}
-                        className="flex w-full flex-wrap items-center gap-4 px-5 py-4 text-left hover:bg-indigo-50/40 focus-visible:outline-indigo-600 sm:flex-nowrap"
+                        className="flex w-full flex-wrap items-center gap-4 px-5 py-4 text-left hover:bg-blue-50/40 focus-visible:outline-blue-600 sm:flex-nowrap"
                       >
                         <span className="w-14 shrink-0 text-lg font-bold tabular-nums text-slate-900">
                           {timeLabel(row.scheduledAt)}
@@ -674,7 +699,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
                           <span
                             className={
                               'inline-flex items-center gap-1 text-xs ' +
-                              (safeMeetLink(row.meetingLink) ? 'text-indigo-700' : 'text-slate-400')
+                              (safeMeetLink(row.meetingLink) ? 'text-blue-700' : 'text-slate-400')
                             }
                           >
                             <Video size={15} aria-hidden="true" />
@@ -692,9 +717,13 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
           <div className="grid min-h-[280px] place-items-center p-8 text-center">
             <div>
               <CalendarDays className="mx-auto text-slate-300" size={36} aria-hidden="true" />
-              <h4 className="mt-3 font-semibold text-slate-700">Chưa có buổi phỏng vấn phù hợp</h4>
+              <h4 className="mt-3 font-semibold text-slate-700">
+                {isHrOrAdmin ? 'Chưa có buổi phỏng vấn phù hợp' : 'Chưa có lịch phỏng vấn được phân công'}
+              </h4>
               <p className="mt-1 text-sm text-slate-500">
-                Chọn khoảng thời gian khác hoặc bỏ bớt bộ lọc.
+                {isHrOrAdmin
+                  ? 'Chọn khoảng thời gian khác hoặc bỏ bớt bộ lọc.'
+                  : `Hiện tại chưa có buổi phỏng vấn nào được gán cho ${user?.fullName || 'bạn'} trong khoảng thời gian này.`}
               </p>
             </div>
           </div>

@@ -58,10 +58,15 @@ export class InterviewScheduleService {
       .innerJoin('application.job', 'job')
       .innerJoin('job.department', 'department')
       .innerJoin('interview.interviewer', 'interviewer');
-    if (actor.role === UserRole.MANAGER) {
-      if (actor.departmentId) qb.where('job.departmentId = :scope', { scope: actor.departmentId });
-      else qb.where('1 = 0');
-    } else assertOperator(actor);
+
+    // Chỉ có HR và SuperAdmin mới xem được full toàn bộ lịch phỏng vấn hệ thống
+    if ([UserRole.HR, UserRole.SUPERADMIN].includes(actor.role)) {
+      return qb;
+    }
+
+    // Những người được chỉ định phân công (Manager hoặc người phỏng vấn được gán)
+    // CHỈ xem được lịch do chính người đó phụ trách
+    qb.where('interview.interviewerId = :actorId', { actorId: actor.id });
     return qb;
   }
 
@@ -111,7 +116,7 @@ export class InterviewScheduleService {
       { from, to },
     );
     if (input.jobId) qb.andWhere('job.id = :jobId', { jobId: input.jobId });
-    if (input.interviewerId)
+    if (input.interviewerId && [UserRole.HR, UserRole.SUPERADMIN].includes(actor.role))
       qb.andWhere('interview.interviewerId = :interviewerId', {
         interviewerId: input.interviewerId,
       });

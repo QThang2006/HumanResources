@@ -18,7 +18,7 @@ export const MainLayout: React.FC = () => {
       <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+            <div className="w-5 h-5 rounded-lg bg-blue-600 text-white flex items-center justify-center">
               <Bot className="w-3 h-3" />
             </div>
             <span className="font-bold text-slate-700">HR Tech AI Ecosystem</span>

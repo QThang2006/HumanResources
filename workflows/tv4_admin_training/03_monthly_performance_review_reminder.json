@@ -60,6 +60,12 @@
               "name": "reviewFormUrl",
               "type": "string",
               "value": "http://localhost:5173/employee/workspace"
+            },
+            {
+              "id": "tv4-manualRunDate",
+              "name": "manualRunDate",
+              "type": "string",
+              "value": ""
             }
           ]
         },
@@ -76,7 +82,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nreturn (function reviewPhase() {\n  const validated = (function configValidation() {\n  const item = $json;\n  if (!httpUrl(item.apiBaseUrl)) throw Error('Địa chỉ backend không hợp lệ.');\n  if (!String(item.automationSecret || '').trim()) throw Error('Thiếu khóa xác thực tự động hóa.');\n  if (!emailValid(item.senderEmail)) throw Error('Email gửi không hợp lệ.');\n  return [{ json: { ...item, apiBaseUrl: item.apiBaseUrl.replace(/\\/+$/, ''), senderEmail: item.senderEmail.trim(), telegramReady: chatValid(item.telegramChatId) } }];\n})();\n  const config = validated[0].json;\n  if (!httpUrl(config.reviewFormUrl)) throw Error('Đường dẫn thực hiện đánh giá không hợp lệ.');\n  return [{ json: { ...config, runId: String($execution.id) } }];\n})();"
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nreturn (function reviewPhase() {\n  const validated = (function configValidation() {\n  const item = $json;\n  if (!httpUrl(item.apiBaseUrl)) throw Error('Địa chỉ backend không hợp lệ.');\n  if (!String(item.automationSecret || '').trim()) throw Error('Thiếu khóa xác thực tự động hóa.');\n  if (!emailValid(item.senderEmail)) throw Error('Email gửi không hợp lệ.');\n  return [{ json: { ...item, apiBaseUrl: item.apiBaseUrl.replace(/\\/+$/, ''), senderEmail: item.senderEmail.trim(), telegramReady: chatValid(item.telegramChatId) } }];\n})();\n  const config = validated[0].json;\n  if (!httpUrl(config.reviewFormUrl)) throw Error('Đường dẫn thực hiện đánh giá không hợp lệ.');\n  return [{ json: { ...config, ...(function manualScheduleOptions() {\n  const manual = $execution.mode === 'test';\n  const date = manual ? String($json.manualRunDate || '').trim() : '';\n  if (date) {\n    const parsed = new Date(date + 'T00:00:00Z');\n    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0,10) !== date || Number(date.slice(0,4)) < 2000 || Number(date.slice(0,4)) > 2100) throw Error('Ngày chạy thủ công phải là ngày hợp lệ dạng YYYY-MM-DD (2000–2100).');\n  }\n  return { allowRepeat: manual, asOf: date ? date + 'T08:00:00+07:00' : '' };\n})(), runId: String($execution.id) } }];\n})();"
       },
       "id": "tv4-review-04-phase",
       "name": "Prepare Review Request",
@@ -90,7 +96,7 @@
     {
       "parameters": {
         "url": "={{ $json.apiBaseUrl + '/training/automation/review-reminders' }}",
-        "sendQuery": false,
+        "sendQuery": true,
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -102,6 +108,18 @@
         },
         "options": {
           "timeout": 10000
+        },
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "asOf",
+              "value": "={{ $json.asOf }}"
+            },
+            {
+              "name": "repeat",
+              "value": "={{ $json.allowRepeat ? 'true' : 'false' }}"
+            }
+          ]
         }
       },
       "id": "tv4-review-05-fetch",

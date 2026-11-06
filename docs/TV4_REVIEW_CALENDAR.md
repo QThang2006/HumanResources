@@ -13,11 +13,11 @@ Bảng riêng `performance_review_schedules` lưu một dòng cho mỗi tháng, 
 
 Ba ngày phải là ngày hợp lệ trong cùng kỳ, với **mở kỳ < nhắc lần hai <= hạn hoàn thành**. Việc ghi dùng phiên bản để từ chối lưu đè từ một phiên cũ (HTTP 409). Thay đổi lịch không xóa kết quả thông báo đã có.
 
-Workflow KPI local có **19 node**, một Schedule Trigger **Daily Review Schedule** chạy lúc 08:00 mỗi ngày, múi giờ Việt Nam. API backend xác định đợt theo lịch đã lưu và ngày hiện tại; workflow kiểm tra `phase` từ response. Ngoài ngày phù hợp thì dừng trước các bước gửi. Không còn dùng `testPhase`/`testAsOf` trong cấu hình workflow. Các query mô phỏng cũ của automation API vẫn được giữ để tương thích kiểm thử có xác thực.
+Workflow KPI local có **19 node**, một Schedule Trigger **Daily Review Schedule** chạy lúc 08:00 mỗi ngày, múi giờ Việt Nam. API backend xác định đợt theo lịch đã lưu và ngày hiện tại; workflow kiểm tra `phase` từ response. Ngoài ngày phù hợp thì dừng trước các bước gửi. Không dùng `testPhase`/`testAsOf`; trường `manualRunDate` cho phép chọn ngày riêng khi Execute thủ công. Khi chạy theo lịch tự động, trường này bị bỏ qua. Các query mô phỏng cũ của automation API vẫn được giữ để tương thích kiểm thử có xác thực.
 
-Đối tượng nhắc vẫn lấy từ dữ liệu thật: nhân viên đang hoạt động chưa có đánh giá trong kỳ, gom theo quản lý trực tiếp/phòng ban/HR dự phòng. Cơ chế chống gửi lặp theo kỳ, đợt và người nhận giữ nguyên. Ngày đã qua không tự gửi bù; lịch chỉ chạy khi đúng ngày. Hai lần Execute sau khi ghi SENT cho cùng kỳ/đợt/người nhận sẽ không gửi lại chỉ vì đã sửa ngày.
+Đối tượng nhắc vẫn lấy từ dữ liệu thật: nhân viên đang hoạt động chưa có đánh giá trong kỳ, gom theo quản lý trực tiếp/phòng ban/HR dự phòng. Cơ chế chống gửi lặp theo kỳ, đợt và người nhận giữ nguyên. Ngày đã qua không tự gửi bù; lịch chỉ chạy khi đúng ngày. Khi chạy tự động, SENT trong cùng kỳ/đợt/người nhận vẫn được bỏ qua. Execute thủ công cho phép gửi lại và có thể dùng manualRunDate để chọn ngày kiểm tra; điều kiện chưa được đánh giá và đúng lịch của kỳ vẫn được áp dụng.
 
-Lịch chỉ cấu hình ngày, không thay đổi giờ 08:00 hoặc quyền truy cập. Chọn một tháng trên giao diện không làm workflow chạy theo tháng ấy: n8n luôn dùng tháng hiện tại theo giờ Việt Nam.
+Lịch chỉ cấu hình ngày, không thay đổi giờ 08:00 hoặc quyền truy cập. Chọn một tháng trên giao diện không làm workflow chạy theo tháng ấy: chạy tự động dùng tháng hiện tại theo giờ Việt Nam; Execute dùng manualRunDate nếu có, nếu trống dùng ngày hiện tại.
 
 ## API và dữ liệu
 

@@ -46,6 +46,7 @@ export class PerformanceReviewService {
   async getPendingReviewReminders(
     asOfInput?: string,
     phaseOverride?: ReviewReminderPhase,
+    allowRepeat = false,
   ) {
     const asOf = asOfInput ? new Date(asOfInput) : new Date();
     if (Number.isNaN(asOf.getTime())) {
@@ -151,7 +152,7 @@ export class PerformanceReviewService {
 
     const deadline = calendar.deadline;
     const reminders = [...grouped.values()]
-      .filter((group) => !deliveredRecipientIds.has(group.recipient.id))
+      .filter((group) => allowRepeat === true || !deliveredRecipientIds.has(group.recipient.id))
       .map((group) => ({
         notificationKey: `${reviewPeriod}:${phase}:${group.recipient.id}`,
         reviewPeriod,

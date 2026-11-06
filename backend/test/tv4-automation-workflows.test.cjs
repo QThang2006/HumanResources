@@ -174,7 +174,8 @@ test('workflow 4.2 có các nhánh kiểm soát và tổng kết, lịch hằng 
 
   assert.equal(value.nodes.length, 19);
   assert.equal(nodes.get('Daily Review Schedule').parameters.rule.interval[0].expression, '0 8 * * *');
-  assert.equal(nodes.get('Fetch Review Recipients').parameters.sendQuery, false);
+  assert.equal(nodes.get('Fetch Review Recipients').parameters.sendQuery, true);
+  assert.deepEqual(nodes.get('Fetch Review Recipients').parameters.queryParameters.parameters.map(item => item.name), ['asOf', 'repeat']);
   assert.equal(
     nodes.get('Compose Review Notices').parameters.mode,
     'runOnceForEachItem',

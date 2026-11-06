@@ -27,7 +27,7 @@
     "test:tv4-automation": "node --test test/training-reminder.test.cjs test/tv4-automation-workflows.test.cjs test/tv4-security.test.cjs",
     "test:review-calendar": "node --test test/review-calendar.test.cjs",
     "test:review-calendar-http": "node --test test/review-calendar-http.test.cjs",
-    "test:tv4-workflows": "node --test test/training-reminder.test.cjs test/tv4-automation-workflows.test.cjs test/tv4-workflow-upgrade.test.cjs",
+    "test:tv4-workflows": "node --test test/training-reminder.test.cjs test/tv4-automation-workflows.test.cjs test/tv4-workflow-upgrade.test.cjs test/manual-workflow-runs.test.cjs",
     "test:documents": "node --test test/documents.test.cjs"
   },
   "dependencies": {

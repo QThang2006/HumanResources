@@ -38,6 +38,15 @@ function configValidation() {
   if (!emailValid(item.senderEmail)) throw Error('Email gửi không hợp lệ.');
   return [{ json: { ...item, apiBaseUrl: item.apiBaseUrl.replace(/\/+$/, ''), senderEmail: item.senderEmail.trim(), telegramReady: chatValid(item.telegramChatId) } }];
 }
+function manualScheduleOptions() {
+  const manual = $execution.mode === 'test';
+  const date = manual ? String($json.manualRunDate || '').trim() : '';
+  if (date) {
+    const parsed = new Date(date + 'T00:00:00Z');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0,10) !== date || Number(date.slice(0,4)) < 2000 || Number(date.slice(0,4)) > 2100) throw Error('Ngày chạy thủ công phải là ngày hợp lệ dạng YYYY-MM-DD (2000–2100).');
+  }
+  return { allowRepeat: manual, asOf: date ? date + 'T08:00:00+07:00' : '' };
+}
 function classifyTraining() {
   const item = $json;
   if (!Number.isInteger(item.assignmentId) || !item.employee || !item.course || !Number.isFinite(item.daysRemaining)) throw Error('Dữ liệu lượt học không hợp lệ.');
@@ -60,7 +69,7 @@ function reviewPhase() {
   const validated = CONFIG_VALIDATION;
   const config = validated[0].json;
   if (!httpUrl(config.reviewFormUrl)) throw Error('Đường dẫn thực hiện đánh giá không hợp lệ.');
-  return [{ json: { ...config, runId: String($execution.id) } }];
+  return [{ json: { ...config, ...MANUAL_SCHEDULE_OPTIONS, runId: String($execution.id) } }];
 }
 function reviewSummary() {
   const source = $('Compose Review Notices').item.json;
@@ -141,6 +150,10 @@ function build(file) {
   if(file.startsWith('02')) {
     w.name='[TV4] WF-02: Mandatory Training Reminder & Escalation';
     code('Validate Training Configuration',configValidation);
+    get('Validate Training Configuration').parameters.jsCode = helpers + '\nconst validated = (' + configValidation.toString() + ')(); return [{ json: { ...validated[0].json, ...(' + manualScheduleOptions.toString() + ')() } }];';
+    adjustConfig('Load Workflow Configuration','manualRunDate','');
+    get('Fetch Training Reminders').parameters.sendQuery = true;
+    get('Fetch Training Reminders').parameters.queryParameters = { parameters: [{name:'asOf',value:'={{ $json.asOf }}'},{name:'repeat',value: "={{ $json.allowRepeat ? 'true' : 'false' }}"}] };
     code('Classify Training Alert',classifyTraining,true);
     loop('Process Training Assignments');
     gate('Has Valid Employee Email?',"$('Compose Training Notices').item.json.employeeEmailReady");
@@ -170,7 +183,8 @@ function build(file) {
     get('Daily Review Schedule').parameters = { rule: { interval: [{ field: 'cronExpression', expression: '0 8 * * *' }] } };
     get('Load Workflow Configuration').parameters.assignments.assignments = get('Load Workflow Configuration').parameters.assignments.assignments.filter(field => !['testPhase','testAsOf'].includes(field.name));
     editCode('Prepare Review Request',reviewPhase);
-    get('Prepare Review Request').parameters.jsCode=get('Prepare Review Request').parameters.jsCode.replace('CONFIG_VALIDATION','('+configValidation.toString()+')()');
+    get('Prepare Review Request').parameters.jsCode=get('Prepare Review Request').parameters.jsCode.replace('CONFIG_VALIDATION','('+configValidation.toString()+')()').replace('MANUAL_SCHEDULE_OPTIONS','('+manualScheduleOptions.toString()+')()');
+    adjustConfig('Load Workflow Configuration','manualRunDate','');
     gate('Is Review Phase Active?',"Boolean(($json.data ?? $json).phase)");
     loop('Process Review Recipients');
     gate('Has Valid Reviewer Email?',"$('Compose Review Notices').item.json.recipientEmailReady");
@@ -186,8 +200,8 @@ function build(file) {
     }
     editCode('Summarize Review Delivery',reviewSummary,true);finishCallback('Record Review Delivery');
     gate('Has Review Summary Route?', '$json.telegramReady');
-    get('Fetch Review Recipients').parameters.sendQuery = false;
-    delete get('Fetch Review Recipients').parameters.queryParameters;
+    get('Fetch Review Recipients').parameters.sendQuery = true;
+    get('Fetch Review Recipients').parameters.queryParameters = { parameters: [{name:'asOf',value:'={{ $json.asOf }}'},{name:'repeat',value: "={{ $json.allowRepeat ? 'true' : 'false' }}"}] };
     chain('Daily Review Schedule','Load Workflow Configuration','Prepare Review Request','Fetch Review Recipients','Is Review Phase Active?');
     edge('Is Review Phase Active?','Split Review Recipients',0);
     chain('Split Review Recipients','Has Review Recipients?');

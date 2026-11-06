@@ -1,0 +1,23 @@
+/* Portalled to body so notices remain visible while the workspace scrolls. */
+.tv4-training-toast {
+  position: fixed; z-index: 80; top: 88px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: flex-start; gap: 12px;
+  width: min(440px, calc(100vw - 48px)); padding: 16px;
+  border: 1px solid; border-radius: 12px;
+  background: var(--tv4-surface); color: var(--tv4-text);
+  box-shadow: 0 8px 24px #0f172a14;
+}
+.tv4-training-toast.is-success { border-color: #a7f3d0; }
+.tv4-training-toast.is-warning { border-color: var(--tv4-warning-border); }
+.tv4-training-toast.is-error { border-color: #fecdd3; }
+.tv4-training-toast.is-error > svg { color: var(--tv4-danger); }
+.tv4-training-toast > svg { flex-shrink: 0; margin-top: 2px; }
+.tv4-training-toast.is-success > svg { color: var(--tv4-success); }
+.tv4-training-toast.is-warning > svg { color: var(--tv4-warning); }
+.tv4-training-toast p { flex: 1; min-width: 0; margin: 0; font-size: 14px; line-height: 1.6; font-weight: 500; overflow-wrap: anywhere; }
+.tv4-training-toast button { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; margin: -4px -4px 0 0; border-radius: 8px; background: transparent; color: var(--tv4-muted); cursor: pointer; }
+.tv4-training-toast button:hover { background: var(--tv4-subtle); color: var(--tv4-ink); }
+@media (max-width: 640px) {
+  .tv4-training-toast { top: 80px; width: min(440px, calc(100vw - 32px)); padding: 12px; }
+  .tv4-training-toast button { width: 40px; height: 40px; }
+}

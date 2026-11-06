@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../entities/user.entity';
+import { UpdateTrainingCourse } from './update-training-course';
 
 @Controller('training')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -52,6 +53,10 @@ export class TrainingController {
     @Patch('courses/:id/restore')
     restoreCourse(@Param('id', ParseIntPipe) courseId: number) {
         return this.trainingService.setCourseArchived(courseId, false);
+    }
+    @Patch('courses/:id')
+    updateCourse(@Param('id', ParseIntPipe) courseId: number, @Body() body: UpdateTrainingCourse) {
+        return this.trainingService.updateCourse(courseId, body);
     }
     @Post('courses')
     createCourse(

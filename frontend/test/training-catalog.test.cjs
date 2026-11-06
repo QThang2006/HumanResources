@@ -23,6 +23,7 @@ function loadComponent(name) {
 const CourseLearnersPanel = loadComponent('CourseLearnersPanel');
 const CourseRemoveDialog = loadComponent('CourseRemoveDialog');
 const CoursePermanentDeleteDialog = loadComponent('CoursePermanentDeleteDialog');
+const CourseEditDialog = loadComponent('CourseEditDialog');
 const course = { id: 1, title: 'Đào tạo an toàn', isArchived: false, assignmentCount: 1 };
 const assignment = {
   id: 1, user: { fullName: 'Nhân viên A', email: 'learner@example.invalid', departmentName: 'Kỹ thuật', isActive: true },
@@ -87,4 +88,34 @@ test('permanent deletion explains retained history and continuing learning', () 
   assert.match(html, /vẫn có thể tiếp tục học và cập nhật tiến độ/);
   assert.doesNotMatch(html, /xóa luôn toàn bộ tiến độ/);
   assert.match(html, /không thể khôi phục khóa học/);
+});
+
+const editCourse = { ...course, type: 'SOFT_SKILL', skillsProvided: ['Giao tiếp', 'Excel'], durationHours: 8, courseUrl: 'https://example.invalid/course' };
+const edit = props => renderToStaticMarkup(React.createElement(CourseEditDialog, {
+  course: editCourse, busy: false, error: '', onCancel: noop, onConfirm: noop, ...props,
+}));
+
+test('course editor pre-fills metadata and locks type and skills for an assigned course', () => {
+  const html = edit();
+  for (const content of ['Chỉnh sửa khóa học', 'Đào tạo an toàn', 'Giao tiếp, Excel', 'https://example.invalid/course', 'tiến độ, hạn và kết quả được giữ nguyên']) {
+    assert.ok(html.includes(content), content);
+  }
+  assert.match(html, /<select[^>]*disabled=""/);
+  assert.match(html, /<textarea[^>]*disabled=""/);
+  assert.doesNotMatch(html, /<input[^>]*disabled=""/);
+  assert.match(html, /type="submit"/);
+});
+
+test('an unassigned course can edit content; busy and failure feedback remain explicit', () => {
+  const html = edit({ course: { ...editCourse, assignmentCount: 0 } });
+  assert.doesNotMatch(html, /disabled=""/);
+  assert.match(html, /Việc lưu không tự tạo lượt gán mới/);
+  const failed = edit({ error: 'Không thể lưu. Vui lòng thử lại.' });
+  assert.match(failed, /role="alert"/);
+  assert.match(failed, /Không thể lưu/);
+  assert.match(failed, /Giao tiếp, Excel/);
+  const busy = edit({ busy: true });
+  assert.match(busy, /aria-busy="true"/);
+  assert.match(busy, /Đang lưu/);
+  assert.match(busy, /<button[^>]*type="submit"[^>]*disabled=""/);
 });

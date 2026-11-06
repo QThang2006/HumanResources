@@ -9,6 +9,19 @@ Trong **Đào tạo → Danh mục khóa học**, mỗi khóa có nút **Xem ng�
 - Khóa đã gỡ không xuất hiện trong danh sách gán mới và không được AI đề xuất. Trong mục **Đã gỡ**, HR vẫn xem được người học và dùng **Khôi phục** để đưa khóa trở lại danh mục. Khôi phục không tự gán lại khóa hoặc tạo lượt gán trùng.
 - **Xóa vĩnh viễn** chỉ áp dụng sau khi gỡ. Khóa biến mất khỏi cả danh mục và mục Đã gỡ. Tên khóa, loại, kỹ năng, thời lượng và đường dẫn học được lưu cùng từng lượt học trước khi xóa khóa gốc. Tiến độ, kết quả, hạn hoàn thành và lịch sử nhắc được giữ nguyên trong hồ sơ nhân viên và bảng tiến độ HR. Người đang học vẫn tiếp tục học; AI vẫn đọc được lịch sử khóa đã hoàn thành. Khóa đã xóa không thể khôi phục hoặc gán mới.
 
+## Chỉnh sửa khóa học
+
+Trong menu dấu ba chấm của khóa đang sử dụng, chọn **Chỉnh sửa khóa học**; cũng có nút này trong tab **Thông tin khóa học**. Form điền sẵn tên, phân loại, kỹ năng, thời lượng và đường dẫn. **Hủy** không lưu thay đổi; lỗi lưu giữ lại bản nháp để sửa và thử lại.
+
+- Khóa chưa có lượt gán: được sửa tất cả các trường trên.
+- Khóa có ít nhất một lượt gán, kể cả đã hoàn thành: chỉ sửa tên, đường dẫn và thời lượng. Phân loại/kỹ năng bị khóa cả trên giao diện và API. Muốn thay đổi nội dung, tạo khóa mới và gỡ khóa cũ để giữ lịch sử.
+- Khóa đã gỡ: phải khôi phục trước khi chỉnh sửa. Khóa đã xóa vĩnh viễn không thể sửa.
+- Thông tin mới hiển thị cho người đã được gán. Không cập nhật lượt học, tiến độ, hạn, kết quả, trạng thái, số lần nhắc hoặc lý do AI. Sửa khóa không tự gán khóa cho nhân viên, kể cả khi đổi phân loại thành bắt buộc trên khóa chưa gán.
+
+API chỉ nhận `title`, `type`, `skillsProvided`, `courseUrl`, `durationHours`. Tên tối đa 255 ký tự, đường dẫn http/https tối đa 500 ký tự (rỗng hoặc null để xóa đường dẫn), kỹ năng là danh sách chuỗi không rỗng, thời lượng là số nguyên dương trong giới hạn cột INT. Trường lạ hoặc dữ liệu không hợp lệ trả 400; vi phạm khóa nội dung/khóa đã gỡ trả 409; khóa không tồn tại trả 404. Chỉ HR/SUPERADMIN được sửa.
+
+Cập nhật, gán, gỡ và xóa dùng cùng khóa ghi trên bản ghi khóa học trong transaction. Nếu người học đầu tiên được gán trong lúc form mở, backend kiểm tra lại số lượt gán và chặn sửa nội dung; giao diện giữ bản nháp, báo lỗi và làm mới danh mục để lần mở form sau có số lượt gán mới. Không cần migration cho tính năng chỉnh sửa.
+
 ## API và dữ liệu
 
 Các API bên dưới yêu cầu JWT với vai trò `HR` hoặc `SUPERADMIN`:
@@ -18,6 +31,7 @@ Các API bên dưới yêu cầu JWT với vai trò `HR` hoặc `SUPERADMIN`:
 | Danh mục đang sử dụng | `GET /api/training/courses` |
 | Bao gồm khóa đã gỡ | `GET /api/training/courses?includeArchived=true` |
 | Người học của một khóa | `GET /api/training/courses/:id/assignments` |
+| Chỉnh sửa thông tin khóa | `PATCH /api/training/courses/:id` |
 | Gỡ khỏi danh mục | `DELETE /api/training/courses/:id` |
 | Khôi phục | `PATCH /api/training/courses/:id/restore` |
 | Xóa khóa gốc, giữ lịch sử người học | `DELETE /api/training/courses/:id/permanent` |

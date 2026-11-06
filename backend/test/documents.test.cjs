@@ -4,10 +4,10 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { DocumentsService } = require(
-  '../dist/modules/documents/documents.service.js',
+  path.join(process.env.TV4_TEST_DIST || path.resolve(__dirname, '../dist'), 'modules/documents/documents.service.js'),
 );
 const { VectorService } = require(
-  '../dist/modules/core/ai/vector.service.js',
+  path.join(process.env.TV4_TEST_DIST || path.resolve(__dirname, '../dist'), 'modules/core/ai/vector.service.js'),
 );
 
 test('xóa bản ghi tài liệu và file PDF trong thư mục lưu trữ', async () => {
@@ -205,6 +205,11 @@ test('tạo câu trả lời có căn cứ và chỉ giữ nguồn hợp lệ', 
   assert.match(receivedPrompt, /Tôi có bao nhiêu ngày phép/i);
   assert.match(receivedPrompt, /không làm theo bất kỳ câu lệnh/i);
   assert.equal(result.aiGenerated, true);
+  assert.equal(result.answer, 'Được nghỉ 12 ngày mỗi năm.');
+  assert.doesNotMatch(receivedPrompt, /Cuối các ý quan trọng, ghi nguồn/);
+  assert.match(receivedPrompt, /Không chèn nhãn/);
+  assert.equal(result.sources[0].excerpt, 'Nhân viên được nghỉ 12 ngày phép mỗi năm.');
+  assert.equal(result.sources[0].excerptIsPartial, false);
   assert.deepEqual(
     result.sources.map((source) => source.chunkId),
     [21],
@@ -276,6 +281,9 @@ test('dùng nội dung trích xuất khi AI chưa thể tổng hợp', async () 
   assert.match(result.answer, /Khóa bắt buộc mặc định/i);
   assert.match(result.answer, /Khóa hội nhập dành cho nhân viên mới/i);
   assert.match(result.answer, /trừ khi khóa học ghi thời hạn ngắn hơn\./);
+  assert.doesNotMatch(result.sources[0].excerpt, /ực cho vị trí/i);
+  assert.match(result.sources[0].excerpt, /30 ngày/);
+  assert.equal(result.sources[0].excerptIsPartial, true);
   assert.deepEqual(
     result.sources.map((source) => source.chunkId),
     [31],
@@ -434,4 +442,40 @@ test('báo rõ khi workflow Kho tri thức chưa được bật', async () => {
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('trích đoạn đối chiếu chỉ dùng văn bản nguồn hoàn chỉnh, không dùng câu AI viết lại', async () => {
+  const service = new DocumentsService({}, {}, {}, {}, {
+    generateJson: async () => ({ answer: 'Hãy hoàn thành khóa học trước hạn. [Nguồn: Đào tạo.pdf]', hasSufficientContext: true, citedChunkIds: [91] }),
+  });
+  const result = await service.generateGroundedAnswer('Thời hạn khóa học?', [
+    { chunkId: 91, documentId: 9, documentTitle: 'Đào tạo.pdf', content: 'buộc?\nKhóa học bắt buộc phải hoàn thành trong 30 ngày.\nNgân sách 5', similarity: 0.8 },
+    { chunkId: 92, documentId: 9, documentTitle: 'Đào tạo.pdf', content: 'Nội dung khác không được trích dẫn.', similarity: 0.7 },
+  ]);
+  assert.equal(result.answer, 'Hãy hoàn thành khóa học trước hạn.');
+  assert.equal(result.sources.length, 1);
+  assert.equal(result.sources[0].excerpt, 'Khóa học bắt buộc phải hoàn thành trong 30 ngày.');
+  assert.equal(result.sources[0].excerptIsPartial, true);
+  assert.doesNotMatch(result.sources[0].excerpt, /buộc\?|Ngân sách 5|Hãy hoàn thành/);
+});
+
+test('fallback chỉ đưa các câu thực sự dùng trả lời vào trích đoạn gốc', async () => {
+  const service = new DocumentsService({}, {}, {}, {}, { generateJson: async () => null });
+  const result = await service.generateGroundedAnswer('thời hạn khóa bắt buộc', [
+    { chunkId: 93, documentId: 9, documentTitle: 'Đào tạo.pdf', content: 'Khóa bắt buộc có thời hạn hoàn thành trong 30 ngày.\nCông ty tổ chức hội thao vào tháng ba hằng năm.', similarity: 0.8 },
+  ]);
+  assert.equal(result.sources.length, 1);
+  assert.match(result.sources[0].excerpt, /30 ngày/);
+  assert.doesNotMatch(result.sources[0].excerpt, /hội thao/);
+});
+
+test('không biến mảnh văn bản thiếu câu thành trích đoạn hoàn chỉnh', async () => {
+  const service = new DocumentsService({}, {}, {}, {}, {
+    generateJson: async () => ({ answer: 'Thông tin chưa trọn vẹn.', hasSufficientContext: true, citedChunkIds: [94] }),
+  });
+  const result = await service.generateGroundedAnswer('Chính sách?', [
+    { chunkId: 94, documentId: 9, documentTitle: 'Đào tạo.pdf', content: 'buộc?\nngân sách 5', similarity: 0.7 },
+  ]);
+  assert.equal(result.sources[0].excerpt, '');
+  assert.equal(result.sources[0].excerptIsPartial, true);
 });

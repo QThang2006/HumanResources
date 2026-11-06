@@ -25,6 +25,9 @@
     "migrate:training-history": "node scripts/migrate-tv4-training-history.cjs",
     "test:training-ai": "node --test test/training-ai.test.cjs test/gemini-timeout.test.cjs",
     "test:tv4-automation": "node --test test/training-reminder.test.cjs test/tv4-automation-workflows.test.cjs test/tv4-security.test.cjs",
+    "test:review-calendar": "node --test test/review-calendar.test.cjs",
+    "test:review-calendar-http": "node --test test/review-calendar-http.test.cjs",
+    "test:tv4-workflows": "node --test test/training-reminder.test.cjs test/tv4-automation-workflows.test.cjs test/tv4-workflow-upgrade.test.cjs",
     "test:documents": "node --test test/documents.test.cjs"
   },
   "dependencies": {

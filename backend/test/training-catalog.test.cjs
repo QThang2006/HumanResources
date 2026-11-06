@@ -112,6 +112,81 @@ test('catalog removal, roster and restore with isolated MySQL, HTTP and real JWT
   ]);
   let snapshot = JSON.stringify(await assignmentsRepo.find({ where: { courseId: course.id }, order: { id: 'ASC' } }));
 
+  await t.test('editing an unassigned course validates fields, enforces roles and never creates assignments', async () => {
+    const editable = await createFixtureCourse('Khóa chỉnh sửa');
+    try {
+      const endpoint = `/training/courses/${editable.id}`;
+      for (const actor of [null, 'manager', 'employee']) {
+        assert.equal((await request(endpoint, 'PATCH', { title: 'Không được sửa' }, actor)).status, actor ? 403 : 401);
+      }
+      for (const body of [{}, { title: ' ' }, { title: 'a'.repeat(256) }, { type: 'OTHER' }, { skillsProvided: [] },
+        { skillsProvided: [123] }, { courseUrl: 'javascript:alert(1)' }, { courseUrl: 'x'.repeat(501) },
+        { durationHours: 0 }, { durationHours: 1.5 }, { durationHours: '4' }, { isArchived: true }, { title: 'Hợp lệ', id: 100 }]) {
+        assert.equal((await request(endpoint, 'PATCH', body)).status, 400, JSON.stringify(body));
+      }
+      assert.equal((await coursesRepo.findOneBy({ id: editable.id })).title, 'Khóa chỉnh sửa');
+      const result = await request(endpoint, 'PATCH', { title: '  Khóa cập nhật  ', type: 'MANDATORY',
+        skillsProvided: [' Giao tiếp ', 'Excel', 'Excel'], courseUrl: ' https://example.invalid/learn ', durationHours: 6 }, 'admin');
+      assert.equal(result.status, 200);
+      assert.equal(result.data.title, 'Khóa cập nhật');
+      assert.equal(result.data.type, 'MANDATORY');
+      assert.deepEqual(result.data.skillsProvided, ['Giao tiếp', 'Excel']);
+      assert.equal(result.data.courseUrl, 'https://example.invalid/learn');
+      assert.equal(result.data.durationHours, 6);
+      assert.equal(result.data.assignmentCount, 0);
+      assert.equal(await assignmentsRepo.countBy({ courseId: editable.id }), 0);
+      assert.equal((await request(endpoint, 'PATCH', { courseUrl: null })).data.courseUrl, null);
+      await coursesRepo.update(editable.id, { isArchived: true });
+      assert.equal((await request(endpoint, 'PATCH', { title: 'Không sửa khóa đã gỡ' })).status, 409);
+      assert.equal((await request('/training/courses/999999', 'PATCH', { title: 'Không tồn tại' })).status, 404);
+      assert.equal((await request('/training/courses/not-an-id', 'PATCH', { title: 'Sai mã' })).status, 400);
+    } finally { await coursesRepo.delete(editable.id); }
+  });
+
+  await t.test('editing assigned metadata preserves every learning field and rejects content/type changes', async () => {
+    const editable = await createFixtureCourse('Khóa đang học');
+    try {
+      const assignment = await assignmentsRepo.save({ userId: actors.employee.id, courseId: editable.id, progressPercent: 75,
+        status: 'IN_PROGRESS', dueAt, reminderCount: 3, lastReminderRunId: 'keep-run', lastReminderAt: new Date(), assignedByAi: true, aiReason: 'Giữ lý do AI' });
+      const before = JSON.stringify(await assignmentsRepo.findOneBy({ id: assignment.id }));
+      const endpoint = `/training/courses/${editable.id}`;
+      const result = await request(endpoint, 'PATCH', { title: 'Tên mới', durationHours: 12, courseUrl: 'https://example.invalid/new' });
+      assert.equal(result.status, 200);
+      assert.equal(result.data.assignmentCount, 1);
+      assert.equal((await request(endpoint, 'PATCH', { type: 'MANDATORY' })).status, 409);
+      assert.equal((await request(endpoint, 'PATCH', { skillsProvided: ['Kỹ năng khác'] })).status, 409);
+      assert.equal((await request(endpoint, 'PATCH', { type: 'SOFT_SKILL', skillsProvided: ['TypeScript'] })).status, 200);
+      assert.equal(JSON.stringify(await assignmentsRepo.findOneBy({ id: assignment.id })), before);
+      const history = await request('/onboarding/trainings', 'GET', undefined, 'employee');
+      const item = history.data.find(item => item.id === assignment.id);
+      assert.equal(item.title, 'Tên mới');
+      assert.equal(item.courseUrl, 'https://example.invalid/new');
+      assert.equal(item.progressPercent, 75);
+    } finally {
+      await assignmentsRepo.delete({ courseId: editable.id });
+      await coursesRepo.delete(editable.id);
+    }
+  });
+
+  await t.test('first assignment and content editing serialize under the same course lock', async () => {
+    const editable = await createFixtureCourse('Khóa sửa đồng thời');
+    try {
+      const [edited, assigned] = await Promise.all([
+        request(`/training/courses/${editable.id}`, 'PATCH', { skillsProvided: ['Excel'] }),
+        request('/training/assignments', 'POST', { courseId: editable.id, userId: actors.employee.id }),
+      ]);
+      assert.equal(assigned.status, 201);
+      assert.ok([200, 409].includes(edited.status));
+      const saved = await coursesRepo.findOneBy({ id: editable.id });
+      assert.deepEqual(saved.skillsProvided, edited.status === 200 ? ['Excel'] : ['TypeScript']);
+      assert.equal(await assignmentsRepo.countBy({ courseId: editable.id }), 1);
+      assert.equal((await request(`/training/courses/${editable.id}`, 'PATCH', { type: 'MANDATORY' })).status, 409);
+    } finally {
+      await assignmentsRepo.delete({ courseId: editable.id });
+      await coursesRepo.delete(editable.id);
+    }
+  });
+
   await t.test('upgrading the legacy course foreign key preserves existing assignments', async () => {
     const queryRunner = db.createQueryRunner();
     try {

@@ -1,6 +1,10 @@
 // Prepare safe, inactive TV4 workflow imports without writing credentials to Git.
-const { readFile, readdir, mkdir, writeFile } = require('node:fs/promises');
+const { readFile, readdir, mkdir, writeFile, chmod } = require('node:fs/promises');
 const { resolve, join } = require('node:path');
+const { tmpdir } = require('node:os');
+const { mappings } = require('./build-tv4-workflows.cjs');
+const englishName = name => new Map(mappings).get(name) || name;
+const workflowKey = name => /^TV4\s*-|^\[TV4\]/.test(name) ? name.match(/(?:WF-|-\s*)(0[1-4])\b/)?.[1] : undefined;
 
 const workflows = [
   ['01_tv4_knowledge_rag.json', 'tv4KnowledgeRagV1'],
@@ -22,8 +26,8 @@ function validate(workflow, filename) {
   for (const [source, outputs] of Object.entries(workflow.connections)) {
     if (!names.has(source)) throw new Error(`Không tìm thấy node nguồn: ${source}`);
     for (const groups of Object.values(outputs)) {
-      for (const group of groups) {
-        for (const edge of group) {
+      for (const group of groups || []) {
+        for (const edge of group || []) {
           if (!names.has(edge.node)) {
             throw new Error(`Không tìm thấy node đích: ${edge.node}`);
           }
@@ -41,7 +45,8 @@ async function loadCredentialReferences(directory) {
     if (!filename.endsWith('.json')) continue;
     const raw = JSON.parse(await readFile(join(directory, filename), 'utf8'));
     const workflow = Array.isArray(raw) ? raw[0] : raw;
-    if (!workflow?.name || !Array.isArray(workflow.nodes)) continue;
+    const role = workflowKey(workflow?.name || '');
+    if (!role || !Array.isArray(workflow.nodes)) continue;
 
     for (const node of workflow.nodes) {
       if (
@@ -53,7 +58,7 @@ async function loadCredentialReferences(directory) {
         continue;
       }
 
-      const key = `${workflow.name}\u0000${node.name}`;
+      const key = `${role}\u0000${englishName(node.name)}`;
       const candidateSize = Object.keys(node.credentials).length;
       const existingSize = Object.keys(references.get(key) || {}).length;
       if (candidateSize > existingSize) references.set(key, node.credentials);
@@ -91,16 +96,21 @@ async function loadMailRouting(filename) {
 (async () => {
   const root = resolve(__dirname, '..');
   const sourceDir = join(root, 'workflows', 'tv4_admin_training');
-  const outputDir = join(root, '.temp', 'tv4-n8n-import');
+  // Instance settings must not be written into the repository, even if ignored.
+  const outputDir = resolve(process.env.TV4_N8N_IMPORT_OUTPUT_DIR || join(tmpdir(), 'tv4-n8n-import'));
+  if (outputDir === root || outputDir.startsWith(root + require('node:path').sep)) {
+    throw new Error('Instance import output must stay outside the repository.');
+  }
   const credentialReferences = await loadCredentialReferences(
     process.env.TV4_N8N_CREDENTIAL_SOURCE_DIR,
   );
   const mailRouting = await loadMailRouting(
     process.env.TV4_N8N_MAIL_CONFIG_FILE,
   );
-  await mkdir(outputDir, { recursive: true });
+  await mkdir(outputDir, { recursive: true, mode: 0o700 });
 
   for (const [filename, id] of workflows) {
+    if (filename.startsWith('01') && !process.argv.includes('--include-knowledge')) continue;
     const workflow = JSON.parse(await readFile(join(sourceDir, filename), 'utf8'));
     validate(workflow, filename);
     workflow.id = id;
@@ -108,9 +118,8 @@ async function loadMailRouting(filename) {
     delete workflow.versionId;
     delete workflow.activeVersionId;
     for (const node of workflow.nodes) {
-      const credentials = credentialReferences.get(
-        `${workflow.name}\u0000${node.name}`,
-      );
+      const credentialNode = node.name === 'Send Review Run Summary' ? 'Send Review Telegram' : node.name;
+      const credentials = credentialReferences.get(`${workflowKey(workflow.name)}\u0000${englishName(credentialNode)}`);
       if (credentials) node.credentials = credentials;
       if (mailRouting && node.type === 'n8n-nodes-base.set') {
         for (const assignment of node.parameters.assignments?.assignments || []) {
@@ -123,8 +132,9 @@ async function loadMailRouting(filename) {
     await writeFile(
       join(outputDir, filename),
       `${JSON.stringify(workflow, null, 2)}\n`,
-      'utf8',
+      { encoding: 'utf8', mode: 0o600 },
     );
+    await chmod(join(outputDir, filename), 0o600);
     console.log(`Prepared inactive TV4 import: ${filename}`);
   }
 

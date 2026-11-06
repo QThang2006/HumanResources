@@ -46,9 +46,9 @@ const TYPE_LABELS: Record<TrainingCourseType, string> = {
 };
 
 const TYPE_CLASSES: Record<TrainingCourseType, string> = {
-  MANDATORY: 'border-rose-200 bg-rose-50 text-rose-700',
-  AI_SKILL_GAP: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-  SOFT_SKILL: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  MANDATORY: 'border-amber-200 bg-amber-50 text-amber-800',
+  AI_SKILL_GAP: 'border-primary-200 bg-primary-50 text-primary-700',
+  SOFT_SKILL: 'border-slate-200 bg-slate-100 text-slate-700',
 };
 
 const STATUS_LABELS: Record<TrainingStatus, string> = {
@@ -145,7 +145,7 @@ export function EmployeeTrainingsWidget() {
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-white/50 bg-white/75 p-6 shadow-sm backdrop-blur-xl">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-center py-14 text-slate-500">
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
           Đang tải khóa học...
@@ -155,15 +155,15 @@ export function EmployeeTrainingsWidget() {
   }
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/60 bg-white/75 shadow-sm backdrop-blur-xl">
-      <div className="border-b border-slate-200/70 bg-gradient-to-r from-slate-50/90 via-white to-indigo-50/70 px-5 py-5 sm:px-6">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200/70 bg-slate-50 px-5 py-5 sm:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200/70">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-white shadow-sm">
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">
+              <h3 className="text-base font-semibold text-slate-900">
                 Khóa học & Phát triển
               </h3>
               <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -178,7 +178,7 @@ export function EmployeeTrainingsWidget() {
         </div>
 
         {trainings.length > 0 && (
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
             <SummaryItem
               icon={<Target className="h-4 w-4" />}
               label="Đang thực hiện"
@@ -203,14 +203,14 @@ export function EmployeeTrainingsWidget() {
 
       <div className="p-5 sm:p-6">
         {error && (
-          <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
             {error}
           </div>
         )}
 
         {trainings.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-slate-200 py-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+          <div className="rounded-xl border-2 border-dashed border-slate-200 py-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
               <BookOpen className="h-6 w-6" />
             </div>
             <p className="mt-3 text-sm font-bold text-slate-700">
@@ -228,9 +228,9 @@ export function EmployeeTrainingsWidget() {
                   key={item.value}
                   type="button"
                   onClick={() => setFilter(item.value)}
-                  className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+                  className={`rounded-lg px-3.5 py-2 text-xs font-bold transition ${
                     filter === item.value
-                      ? 'bg-slate-900 text-white shadow-sm'
+                      ? 'bg-primary-600 text-white shadow-sm'
                       : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                   }`}
                 >
@@ -240,7 +240,7 @@ export function EmployeeTrainingsWidget() {
             </div>
 
             {visibleTrainings.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-sm font-semibold text-slate-500">
+              <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm font-semibold text-slate-500">
                 Không có khóa học trong nhóm này.
               </div>
             ) : (
@@ -264,13 +264,13 @@ export function EmployeeTrainingsWidget() {
                   return (
                     <article
                       key={training.id}
-                      className="group flex flex-col rounded-[22px] border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg hover:shadow-slate-200/50"
+                      className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition hover:border-primary-200 hover:shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span
-                              className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${TYPE_CLASSES[type]}`}
+                              className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold ${TYPE_CLASSES[type]}`}
                             >
                               {TYPE_LABELS[type]}
                             </span>
@@ -279,7 +279,7 @@ export function EmployeeTrainingsWidget() {
                               {training.durationHours ?? 10} giờ
                             </span>
                           </div>
-                          <h4 className="mt-3 text-[15px] font-extrabold leading-6 text-slate-900">
+                          <h4 className="mt-3 text-[15px] font-semibold leading-6 text-slate-900">
                             {training.title}
                           </h4>
                           {training.isCourseDeleted && <p className="mt-1 text-xs leading-5 text-slate-600">Khóa đã xóa khỏi danh mục. Tiến độ và kết quả học vẫn được giữ.</p>}
@@ -312,12 +312,12 @@ export function EmployeeTrainingsWidget() {
                       )}
 
                       {training.aiReason && (
-                        <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3.5 py-3 text-xs leading-5 text-indigo-700">
+                        <div className="mt-4 rounded-xl border border-primary-100 bg-primary-50/70 px-3.5 py-3 text-xs leading-5 text-primary-700">
                           <span className="inline-flex items-center gap-1.5 font-bold">
                             <Sparkles className="h-3.5 w-3.5" />
                             Lý do đề xuất
                           </span>
-                          <p className="mt-1 text-indigo-700/80">
+                          <p className="mt-1 text-primary-700/80">
                             {training.aiReason}
                           </p>
                         </div>
@@ -328,7 +328,7 @@ export function EmployeeTrainingsWidget() {
                           <span className="font-semibold text-slate-500">
                             Tiến độ
                           </span>
-                          <span className="font-extrabold text-slate-900">
+                          <span className="font-semibold text-slate-900">
                             {progress}%
                           </span>
                         </div>
@@ -337,7 +337,7 @@ export function EmployeeTrainingsWidget() {
                             className={`h-full rounded-full transition-all duration-500 ${
                               progress === 100
                                 ? 'bg-emerald-500'
-                                : 'bg-indigo-600'
+                                : 'bg-primary-600'
                             }`}
                             style={{ width: `${progress}%` }}
                           />
@@ -351,7 +351,7 @@ export function EmployeeTrainingsWidget() {
                               onClick={() =>
                                 void updateProgress(training.id, 1)
                               }
-                              className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-900 px-3.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary-600 px-3.5 text-xs font-bold text-white transition hover:bg-primary-700 disabled:opacity-50"
                             >
                               {isUpdating ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -378,7 +378,7 @@ export function EmployeeTrainingsWidget() {
                                     Number(event.target.value),
                                   )
                                 }
-                                className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 disabled:opacity-50"
+                                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100 disabled:opacity-50"
                               >
                                 {progressValues.map(value => (
                                   <option key={value} value={value}>
@@ -397,7 +397,7 @@ export function EmployeeTrainingsWidget() {
                               href={training.courseUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex h-9 items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
+                              className="inline-flex h-9 items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-3.5 text-xs font-bold text-primary-700 transition hover:bg-primary-100"
                             >
                               <ExternalLink className="h-4 w-4" />
                               Vào học
@@ -436,18 +436,18 @@ const SummaryItem = ({
   tone: 'indigo' | 'emerald' | 'amber';
 }) => {
   const toneClass = {
-    indigo: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+    indigo: 'bg-primary-50 text-primary-700 ring-primary-100',
     emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
     amber: 'bg-amber-50 text-amber-700 ring-amber-100',
   }[tone];
 
   return (
-    <div className={`rounded-2xl p-3 ring-1 ring-inset ${toneClass}`}>
-      <div className="flex items-center gap-1.5 text-[10px] font-bold sm:text-xs">
+    <div className={`rounded-xl p-3 ring-1 ring-inset ${toneClass}`}>
+      <div className="flex items-center gap-1.5 text-xs font-semibold">
         {icon}
-        <span className="truncate">{label}</span>
+        <span className="break-words">{label}</span>
       </div>
-      <p className="mt-1.5 text-lg font-black sm:text-xl">{value}</p>
+      <p className="mt-1.5 text-lg font-semibold sm:text-xl">{value}</p>
     </div>
   );
 };

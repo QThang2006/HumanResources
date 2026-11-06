@@ -112,6 +112,14 @@ export interface TrainingAiReadiness {
     availableCourseCount: number;
     missingData: string[];
 }
+export interface TrainingCourseUpdate {
+    title?: string;
+    type?: TrainingCourseType;
+    skillsProvided?: string[];
+    courseUrl?: string | null;
+    durationHours?: number;
+}
+
 export const trainingApi = {
 
     getCourses: async (includeArchived = false): Promise<TrainingCourse[]> => {
@@ -128,6 +136,9 @@ export const trainingApi = {
 
     restoreCourse: async (courseId: number): Promise<TrainingCourseMutation> => {
         return apiClient.patch(`/training/courses/${courseId}/restore`);
+    },
+    updateCourse: async (courseId: number, data: TrainingCourseUpdate): Promise<TrainingCourse> => {
+        return apiClient.patch(`/training/courses/${courseId}`, data);
     },
 
     deleteCoursePermanently: async (courseId: number): Promise<TrainingCourseMutation> => {

@@ -17,7 +17,7 @@ Sau phần trình bày, người nghe cần hiểu được bốn ý chính:
 |---|---|---|---|
 | Bổ trợ | Kho tri thức có dẫn nguồn | Người dùng đặt câu hỏi trên giao diện | Câu trả lời và nguồn tham khảo |
 | 4.1 | Nhắc khóa học bắt buộc | 08:00 mỗi ngày hoặc chạy thủ công | Thư nhân viên, thư quản lý, Telegram, kết quả lưu về backend |
-| 4.2 | Mở kỳ và nhắc đánh giá KPI | Ngày 25 và 28 hoặc chạy thủ công | Thư quản lý, Telegram, kết quả lưu về backend |
+| 4.2 | Mở kỳ và nhắc đánh giá KPI | Lịch cấu hình trên website, kiểm tra 08:00 hằng ngày hoặc Execute | Thư quản lý, Telegram, kết quả lưu về backend |
 | 4.3 | Điều phối thôi việc | HR/SuperAdmin duyệt hồ sơ | Thư IT, Kế toán, nhân viên, Telegram, trạng thái hồ sơ |
 
 ---
@@ -245,53 +245,35 @@ Việc email quản lý là địa chỉ giả không làm workflow n8n luôn b�
 
 ---
 
-## 8. Demo workflow 4.2 — Mở kỳ và đôn đốc đánh giá KPI
+## 8. Demo workflow 4.2 — Nhắc đánh giá theo lịch cấu hình
 
 ### 8.1. Bối cảnh nghiệp vụ
 
-> “Ngày 25 hằng tháng, hệ thống mở đợt đánh giá và nhắc quản lý thực hiện. Đến ngày 28, hệ thống chỉ tiếp tục đôn đốc các trường hợp chưa hoàn thành. Đây là tác vụ theo thời gian nên phù hợp để n8n đảm nhiệm.”
+Admin cấu hình lịch mở kỳ, nhắc lần hai và hạn hoàn thành trên website. HR xem tình trạng đánh giá và kết quả gửi. Workflow kiểm tra lịch lúc 08:00 mỗi ngày; backend quyết định giai đoạn và người cần nhắc.
 
-### 8.2. Cách demo không cần chờ đúng ngày
+### 8.2. Chuẩn bị trên website
 
-Trong node `Nạp cấu hình an toàn`, chỉ dùng giá trị thử nghiệm trong buổi demo:
+1. Đăng nhập Super Admin local, mở Đào tạo & Phát triển → Đánh giá định kỳ.
+2. Chọn tháng hiện tại theo giờ Việt Nam. Danh sách lấy từ nhân viên đang hoạt động và đánh giá thật trong tháng.
+3. Đặt ngày mở kỳ là hôm nay, ngày nhắc lần hai sau hôm nay và hạn không trước ngày nhắc, cùng tháng. Lưu và xác nhận.
+4. Kiểm tra email chuyển hướng, SMTP/Telegram credential và backend URL trong WF-03. Không cần sửa Code node, testPhase hoặc testAsOf.
 
-- `testPhase = OPENING`
-- `testAsOf = 2026-10-25T01:00:00.000Z`
+### 8.3. Chạy workflow và kiểm chứng
 
-Sau khi demo xong, xóa hai giá trị thử nghiệm để lịch thật quyết định giai đoạn.
+1. Mở `[TV4] WF-03: Monthly KPI Review Cycle & Follow-up` local, Execute.
+2. Mở **Fetch Review Recipients**: response phải có phase=OPENING và lịch vừa lưu. Danh sách có thể rỗng nếu đã gửi thành công hoặc không còn người chưa được đánh giá.
+3. Quan sát vòng lặp từng quản lý, email, Telegram và callback.
+4. Mở thư/tin nhận được để đối chiếu, rồi chọn Làm mới trên website để xem kết quả thông báo mở kỳ.
 
-### 8.3. Các bước demo giai đoạn ngày 25
+### 8.4. Đợt nhắc lần hai
 
-1. Mở workflow 4.2.
-2. Điền hai giá trị thử nghiệm nêu trên.
-3. Chạy workflow thủ công.
-4. Mở node `Xác định đợt thông báo`, chỉ ra giai đoạn `OPENING`.
-5. Mở node `Lấy danh sách quản lý cần nhắc`, chỉ ra số quản lý và nhân viên phụ trách.
-6. Mở email quản lý để cho thấy danh sách cần đánh giá và đường dẫn vào hệ thống.
-7. Mở Telegram để cho thấy thông báo toàn đợt.
-8. Mở node callback để chứng minh kết quả đã được lưu về backend.
+Muốn thử SECOND_REMINDER vào cùng ngày, lịch của tháng phải có ngày mở kỳ trước hôm nay, ngày nhắc lần hai là hôm nay, hạn không trước ngày nhắc. Lưu lịch rồi Execute; backend chỉ trả người chưa có đánh giá và chưa nhận thành công ở đợt này. Không thể dùng cách này vào ngày đầu tháng vì ngày mở kỳ phải nằm trong cùng tháng và trước ngày nhắc.
 
-### 8.4. Demo nhanh giai đoạn ngày 28
+Đây là thay đổi lịch thật ở local. Không đổi lịch trên host dùng chung để phục vụ demo. Gửi thành công được lưu theo kỳ/đợt/người nhận; đổi ngày không đặt lại lịch sử để gửi lặp.
 
-Đổi cấu hình thử nghiệm thành:
+### 8.5. Sau demo
 
-- `testPhase = SECOND_REMINDER`
-- `testAsOf = 2026-10-28T01:00:00.000Z`
-
-Chạy lại và giải thích rằng backend chỉ trả về các trường hợp chưa nộp hoặc chưa hoàn tất đánh giá.
-
-Lời nói gợi ý:
-
-> “Hai Schedule Trigger dùng chung phần xử lý phía sau. Node xác định giai đoạn giúp nội dung ngày 25 và ngày 28 khác nhau. Backend gom nhân viên theo quản lý trực tiếp; nếu thiếu, hệ thống dùng quản lý phòng ban, sau đó mới dùng đầu mối HR làm phương án dự phòng.”
-
-### 8.5. Việc bắt buộc sau demo
-
-- Xóa `testPhase`.
-- Xóa `testAsOf`.
-- Lưu workflow.
-- Kiểm tra lại hai lịch ngày 25 và 28.
-
-Nếu để lại giá trị thử nghiệm, workflow có thể gửi sai giai đoạn trong lần chạy thật.
+Khôi phục các ngày phù hợp vận hành. Khi Publish, workflow vẫn kiểm tra hằng ngày nhưng chỉ gửi khi ngày hiện tại khớp lịch. Tháng chưa cấu hình dùng ngày 25/28 và hạn cuối tháng. Xem [hướng dẫn lịch KPI](../../docs/TV4_REVIEW_CALENDAR.md) về quyền, migration và giới hạn.
 
 ---
 
@@ -389,7 +371,7 @@ Lời nói gợi ý:
 | 0:40–2:00 | Giao diện Đào tạo và AI | Hai chế độ phân tích, gán khóa, tiến độ |
 | 2:00–2:50 | Kho tri thức | Câu trả lời có nguồn và execution n8n |
 | 2:50–4:10 | Workflow 4.1 | `count = 1`, email, Telegram, callback |
-| 4:10–5:20 | Workflow 4.2 | Giai đoạn ngày 25/28, email quản lý |
+| 4:10–5:20 | Workflow 4.2 | Lịch website, phase backend và email quản lý |
 | 5:20–6:40 | Workflow 4.3 | Execution, ba email, Telegram, trạng thái |
 | 6:40–7:20 | An toàn, xử lý lỗi và kết luận | Secret, thử lại, truy vết |
 
@@ -403,7 +385,7 @@ Nếu thời lượng chỉ còn năm phút, demo trực tiếp Kho tri thức v
 |---|---|---|---|
 | Kho tri thức | Giao diện có câu trả lời | Nguồn tài liệu được hiển thị | Execution n8n thành công |
 | 4.1 | API trả `count > 0` | Email/Telegram nhận được | Callback ghi kết quả |
-| 4.2 | Giai đoạn đúng ngày 25 hoặc 28 | Email quản lý/Telegram | Callback ghi số người được nhắc |
+| 4.2 | Giai đoạn khớp lịch tháng đã lưu | Email quản lý/Telegram | Callback ghi số người được nhắc |
 | 4.3 | Hồ sơ được backend lưu | IT/Kế toán/nhân viên nhận thư | Trạng thái `SENT/PARTIAL/FAILED` |
 
 Không nên kết luận “workflow chạy đúng” chỉ vì các node trên canvas chuyển màu xanh. Phải kiểm tra cả nội dung nhận được và kết quả lưu về hệ thống.
@@ -436,9 +418,9 @@ Workflow chỉ nhắc khóa bắt buộc có rủi ro trễ hạn: tiến độ 
 
 Backend tìm quản lý theo phòng ban. Nếu vẫn không có, workflow bỏ qua riêng thư quản lý nhưng vẫn nhắc nhân viên và thông báo kênh đào tạo; kết quả được ghi rõ khi tổng hợp.
 
-### 12.7. Vì sao workflow 4.2 chạy ngày 25 và 28?
+### 12.7. Vì sao workflow 4.2 kiểm tra mỗi ngày?
 
-Ngày 25 dùng để mở đợt và thông báo lần đầu. Ngày 28 dùng để đôn đốc các trường hợp chưa hoàn tất trước hạn chót.
+Để đọc lịch tháng do Super Admin cấu hình trên website. Ngày 25/28 chỉ là mặc định khi tháng chưa có lịch riêng. Backend xác định phase theo giờ Việt Nam; ngoài lịch thì không gửi.
 
 ### 12.8. Nếu Telegram lỗi nhưng email gửi thành công thì sao?
 
@@ -468,7 +450,7 @@ Backend có cửa sổ chống gửi lại đối với nhắc đào tạo, work
 | Node Email đỏ | SMTP sai tài khoản, mật khẩu ứng dụng, cổng hoặc SSL | Mở credential SMTP và thử riêng node |
 | Telegram không có tin | Sai Bot Token, Chat ID hoặc Bot chưa ở trong nhóm | Gửi tin trong nhóm, lấy lại Chat ID và chạy thử node |
 | `$env` báo không truy cập được từ giao diện n8n | n8n chặn biến môi trường trong trình chỉnh sửa | Dùng giá trị Fixed an toàn hoặc credential phù hợp |
-| 4.2 chạy sai giai đoạn | Còn `testPhase/testAsOf` hoặc ngày hệ thống không đúng | Xóa giá trị thử và kiểm tra múi giờ |
+| 4.2 chạy sai giai đoạn | Lịch tháng hoặc ngày hệ thống không đúng | Kiểm tra lịch đã lưu, múi giờ và phiên bản WF-03 mới |
 | 4.3 không tạo execution | Workflow chưa Active hoặc URL webhook sai | Kích hoạt workflow và kiểm tra `N8N_WEBHOOK_URL` |
 | Kho tri thức không có nguồn | PDF chưa lập chỉ mục hoặc câu hỏi không khớp | Kiểm tra trạng thái tài liệu và hỏi lại đúng phạm vi |
 | AI báo thiếu dữ liệu | Nhân viên thiếu phòng ban/chức danh và chưa có KPI | Bổ sung dữ liệu hồ sơ hoặc tạo đánh giá hiệu suất |
@@ -497,7 +479,7 @@ Khi phải dùng bằng chứng dự phòng, nói rõ đó là kết quả của
 
 ## 16. Việc cần làm ngay sau buổi demo
 
-- Xóa `testPhase` và `testAsOf` khỏi workflow 4.2.
+- Kiểm tra lịch tháng trên website và khôi phục ngày phù hợp vận hành sau demo local.
 - Xóa hoặc vô hiệu hóa các email thử nghiệm nếu chuyển sang dữ liệu thật.
 - Không commit credential, token hoặc khóa tự động hóa.
 - Kiểm tra lại lịch `Active` của 4.1 và 4.2.

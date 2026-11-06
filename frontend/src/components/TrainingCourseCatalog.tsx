@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, BookOpen, Clock3, ExternalLink, Loader2, MoreHorizontal, Plus, Search, Users, X } from 'lucide-react';
+import { ArrowRight, BookOpen, Clock3, ExternalLink, Loader2, MoreHorizontal, Pencil, Plus, Search, Users, X } from 'lucide-react';
 import { trainingApi, type TrainingCourse, type TrainingCourseRoster, type TrainingCourseType } from '../api/training.api';
 import './training-course-catalog.css';
 
@@ -26,9 +26,10 @@ interface Props {
   onToggleCreate: () => void;
   onAssign: (course: TrainingCourse) => void;
   onTrack: (course: TrainingCourse) => void;
+  onEdit: (course: TrainingCourse) => void;
 }
 
-export function TrainingCourseCatalog({ courses, catalogScope, onScopeChange, mutationBusy, onRemove, onRestore, onPermanentDelete, showCreateCourse, onToggleCreate, onAssign, onTrack }: Props) {
+export function TrainingCourseCatalog({ courses, catalogScope, onScopeChange, mutationBusy, onRemove, onRestore, onPermanentDelete, showCreateCourse, onToggleCreate, onAssign, onTrack, onEdit }: Props) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ALL');
   const [sort, setSort] = useState('name');
@@ -90,6 +91,7 @@ export function TrainingCourseCatalog({ courses, catalogScope, onScopeChange, mu
         <td className="tv4-catalog-actions"><button type="button" className="tv4-catalog-detail" onClick={() => openDetail(course.id)} aria-label={`Chi tiết khóa ${course.title}`}>Chi tiết</button>
           {course.isArchived ? <button type="button" className="tv4-catalog-assign" disabled={mutationBusy} onClick={() => onRestore(course)} aria-label={`Khôi phục khóa ${course.title}`}>Khôi phục</button> : <button type="button" className="tv4-catalog-assign" onClick={() => onAssign(course)} aria-label={`Gán khóa ${course.title}`}>Gán khóa <ArrowRight size={15} aria-hidden="true" /></button>}
           <details className="tv4-course-menu"><summary aria-label={`Thao tác khác với khóa ${course.title}`}><MoreHorizontal size={18} aria-hidden="true" /></summary><div>
+            {!course.isArchived && <button type="button" disabled={mutationBusy} className="tv4-course-edit" onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); onEdit(course); }}><Pencil size={15} aria-hidden="true" />Chỉnh sửa khóa học</button>}
             <button type="button" disabled={mutationBusy} onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); if (course.isArchived) onPermanentDelete(course); else onRemove(course); }}>{course.isArchived ? 'Xóa vĩnh viễn' : 'Gỡ khỏi danh mục'}</button>
           </div></details>
         </td>
@@ -100,11 +102,11 @@ export function TrainingCourseCatalog({ courses, catalogScope, onScopeChange, mu
       <p>{search || filter !== 'ALL' ? 'Thử tên khóa học, kỹ năng khác hoặc bỏ bớt bộ lọc.' : catalogScope === 'archived' ? 'Khóa đã gỡ được giữ tại đây để xem lại hoặc khôi phục; lịch sử học tập vẫn được giữ nguyên.' : 'Tạo khóa học để có thể gán và theo dõi việc học của nhân viên.'}</p>
       {(search || filter !== 'ALL') ? <button type="button" className="tv4-filter" onClick={reset}>Xóa bộ lọc</button> : catalogScope === 'active' && <button type="button" className="tv4-filter" onClick={onToggleCreate}>{showCreateCourse ? 'Đóng biểu mẫu' : 'Tạo khóa học đầu tiên'}</button>}
     </div>}
-    {detail && <CourseDetail course={detail} initialView={detailView} onClose={() => setDetailId(null)} onAssign={() => { setDetailId(null); onAssign(detail); }} onTrack={() => { setDetailId(null); onTrack(detail); }} />}
+    {detail && <CourseDetail course={detail} initialView={detailView} onClose={() => setDetailId(null)} onAssign={() => { setDetailId(null); onAssign(detail); }} onTrack={() => { setDetailId(null); onTrack(detail); }} onEdit={() => { setDetailId(null); onEdit(detail); }} mutationBusy={mutationBusy} />}
   </section>;
 }
 
-function CourseDetail({ course, initialView, onClose, onAssign, onTrack }: { course: TrainingCourse; initialView: 'overview' | 'employees'; onClose: () => void; onAssign: () => void; onTrack: () => void }) {
+function CourseDetail({ course, initialView, onClose, onAssign, onTrack, onEdit, mutationBusy }: { course: TrainingCourse; initialView: 'overview' | 'employees'; onClose: () => void; onAssign: () => void; onTrack: () => void; onEdit: () => void; mutationBusy: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [view, setView] = useState(initialView);
   const [employeeSearch, setEmployeeSearch] = useState('');
@@ -153,6 +155,7 @@ function CourseDetail({ course, initialView, onClose, onAssign, onTrack }: { cou
       <dl><div><dt><Clock3 size={17} aria-hidden="true" />Thời lượng</dt><dd>{course.durationHours} giờ</dd></div><div><dt><Users size={17} aria-hidden="true" />Đã triển khai</dt><dd>{course.assignmentCount} lượt đào tạo</dd></div></dl>
       <h4>Kỹ năng cung cấp</h4><div className="tv4-drawer-skills">{course.skillsProvided.length ? course.skillsProvided.map((skill, index) => <span key={`${skill}-${index}`}>{skill}</span>) : <p>Chưa bổ sung kỹ năng cho khóa học này.</p>}</div>
       <h4>Tài liệu học tập</h4>{link ? <a className="tv4-course-resource" href={link} target="_blank" rel="noopener noreferrer">Mở tài liệu khóa học <ExternalLink size={16} aria-hidden="true" /><span className="sr-only"> (mở trong thẻ mới)</span></a> : <p className="tv4-course-no-resource">Chưa có đường dẫn tài liệu học tập.</p>}
+      {!course.isArchived && <button type="button" disabled={mutationBusy} onClick={onEdit} className="tv4-course-edit-info"><Pencil size={16} aria-hidden="true" />Chỉnh sửa khóa học</button>}
       </> : <section className="tv4-course-employees" aria-label="Nhân viên được gán khóa học">
         {rosterLoading || (!roster && !rosterError) ? <p role="status"><Loader2 size={18} className="animate-spin" aria-hidden="true" /> Đang tải danh sách người học…</p> : rosterError ? <div role="alert" className="tv4-course-employee-empty"><p>{rosterError}</p><button type="button" onClick={() => { setRosterLoading(true); setRosterError(''); setRetry(value => value + 1); }}>Thử lại</button></div> : assignments.length > 0 ? <>
           <p>Những nhân viên đã được gán khóa học này. Xem tiến độ và điều chỉnh tại màn hình theo dõi.</p>

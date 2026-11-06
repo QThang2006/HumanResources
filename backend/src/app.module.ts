@@ -32,6 +32,7 @@ import { ApplicationsModule } from './modules/applications/applications.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { InterviewDelivery } from './modules/applications/interview-delivery.entity';
 import { OffboardingModule } from './modules/offboarding/offboarding.module';
+import { PerformanceReviewSchedule } from './modules/training/performance-review-schedule.entity';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { OffboardingModule } from './modules/offboarding/offboarding.module';
           EmployeeTraining,
           PerformanceReview,
           PerformanceReviewReminder,
+          PerformanceReviewSchedule,
           OffboardingCase,
           EmployeeMood,
           AuditLog,

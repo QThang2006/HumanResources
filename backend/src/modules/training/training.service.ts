@@ -21,6 +21,7 @@ import { User, UserRole } from '../../entities/user.entity';
 import { GeminiService } from '../core/ai/gemini.service';
 import { getTrainingCourseDetails } from './training-course-history';
 import { parseTrainingDueDate } from './training-due-date';
+import { validateCourseUpdate } from './update-training-course';
 
 @Injectable()
 export class TrainingService {
@@ -149,6 +150,31 @@ export class TrainingService {
             };
         });
     }
+    async updateCourse(courseId: number, input: unknown) {
+        const update = validateCourseUpdate(input);
+        // Assignment/archive/delete take the same course lock. A first learner
+        // cannot be added between checking the count and changing course content.
+        return this.courseRepository.manager.transaction(async manager => {
+            const courses = manager.getRepository(TrainingCourse);
+            const course = await courses.findOne({
+                where: { id: courseId },
+                lock: { mode: 'pessimistic_write' },
+            });
+            if (!course) throw new NotFoundException('Không tìm thấy khóa học.');
+            if (course.isArchived) throw new ConflictException('Hãy khôi phục khóa học trước khi chỉnh sửa.');
+            const assignmentCount = await manager.getRepository(EmployeeTraining).countBy({ courseId });
+            const sameSkills = update.skillsProvided === undefined ||
+                JSON.stringify([...new Set(course.skillsProvided ?? [])].sort()) === JSON.stringify([...update.skillsProvided].sort());
+            if (assignmentCount > 0 && ((update.type !== undefined && update.type !== course.type) || !sameSkills)) {
+                throw new ConflictException('Khóa học đã được gán. Không thể thay đổi phân loại hoặc kỹ năng; hãy tạo khóa mới nếu nội dung thay đổi. Đóng và mở lại biểu mẫu để cập nhật số lượt gán.');
+            }
+            // Never save assignments or invoke the mandatory-course creation flow.
+            await courses.update(courseId, update);
+            Object.assign(course, update);
+            return this.toCourseResponse(course, assignmentCount);
+        });
+    }
+
     async createCourse(data: {
         title: string;
         type: TrainingCourseType;

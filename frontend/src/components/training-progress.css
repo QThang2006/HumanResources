@@ -1,0 +1,98 @@
+/* TV4 progress uses the catalog's spacing, surfaces and control vocabulary. */
+.tv4-workspace .tv4-progress-panel {
+  overflow: hidden;
+  border: 1px solid var(--tv4-border);
+  border-radius: 12px;
+  background: var(--tv4-surface);
+}
+.tv4-workspace .tv4-progress-heading { padding: 20px 24px 12px; }
+.tv4-workspace .tv4-progress-heading h3 { font-weight: 650; }
+.tv4-workspace .tv4-progress-heading p { margin-top: 6px; color: var(--tv4-muted); font-size: 13px; line-height: 1.6; }
+.tv4-workspace .tv4-progress-toolbar { display: flex; align-items: center; gap: 16px; padding: 0 24px 20px; }
+.tv4-workspace .tv4-progress-search { position: relative; display: flex; flex: 1; align-items: center; min-width: 180px; }
+.tv4-workspace .tv4-progress-search > svg { position: absolute; left: 13px; pointer-events: none; color: var(--tv4-muted); }
+.tv4-workspace .tv4-progress-search-input,
+.tv4-workspace .tv4-progress-filter-input {
+  width: 100%; height: 44px; border: 1px solid var(--tv4-input-border); border-radius: 8px;
+  background: var(--tv4-surface); color: var(--tv4-ink); font-size: 14px;
+}
+.tv4-workspace .tv4-progress-search-input { padding: 10px 12px 10px 40px; }
+.tv4-workspace .tv4-progress-status-filter { width: 195px; }
+.tv4-workspace .tv4-progress-filter-input { padding: 8px 12px; }
+.tv4-workspace .tv4-progress-attention { min-height: 44px; font-size: 13px; }
+.tv4-workspace .tv4-progress-attention[aria-pressed='true'] { color: var(--tv4-warning); border-color: var(--tv4-warning-border); background: var(--tv4-warning-soft); }
+.tv4-workspace .tv4-progress-table-wrap { overflow-x: auto; }
+.tv4-workspace .tv4-progress-table { width: 100%; min-width: 1040px; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+.tv4-workspace .tv4-progress-table th { padding: 12px; text-align: left; font-size: 12px; font-weight: 500; color: var(--tv4-muted); background: var(--tv4-canvas); border-block: 1px solid var(--tv4-border); letter-spacing: normal; }
+.tv4-workspace .tv4-progress-table th:nth-child(1) { width: 18%; padding-left: 24px; }
+.tv4-workspace .tv4-progress-table th:nth-child(2) { width: 22%; }
+.tv4-workspace .tv4-progress-table th:nth-child(3) { width: 11%; }
+.tv4-workspace .tv4-progress-table th:nth-child(4) { width: 18%; }
+.tv4-workspace .tv4-progress-table th:nth-child(5) { width: 20%; }
+.tv4-workspace .tv4-progress-table th:nth-child(6) { width: 11%; }
+.tv4-workspace .tv4-progress-table td { padding: 20px 12px; vertical-align: middle; border-bottom: 1px solid var(--tv4-border); }
+.tv4-workspace .tv4-progress-table td:first-child { padding-left: 24px; }
+.tv4-workspace .tv4-progress-table tr:last-child td { border-bottom: 0; }
+.tv4-workspace .tv4-progress-table tbody tr:hover { background: var(--tv4-canvas); }
+.tv4-workspace .tv4-progress-table .tv4-overdue-row:hover { background: var(--tv4-danger-soft); }
+.tv4-workspace .tv4-progress-person-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.tv4-workspace .tv4-progress-person-icon { display: grid; place-items: center; width: 36px; height: 40px; flex-shrink: 0; border-radius: 8px; color: var(--tv4-accent); background: var(--tv4-accent-soft); }
+.tv4-workspace .tv4-progress-person-identity > div { min-width: 0; }
+.tv4-workspace .tv4-progress-person p { overflow-wrap: anywhere; }
+.tv4-workspace .tv4-progress-person p:first-child { line-height: 1.55; }
+.tv4-workspace .tv4-progress-person p + p { font-weight: 400; line-height: 1.6; }
+.tv4-workspace .tv4-progress-course-identity { display: flex; align-items: flex-start; gap: 8px; color: var(--tv4-ink); font-size: 14px; font-weight: 600; line-height: 1.6; }
+.tv4-workspace .tv4-progress-course-identity > svg { flex-shrink: 0; margin-top: 3px; color: var(--tv4-accent); }
+.tv4-workspace .tv4-progress-course-identity > div { min-width: 0; overflow-wrap: anywhere; }
+.tv4-workspace .tv4-progress-type-badge { display: inline-flex; max-width: 100%; font-weight: 500; line-height: 1.5; }
+.tv4-workspace .tv4-progress-date-control { display: flex; align-items: center; gap: 8px; }
+.tv4-workspace .tv4-progress-date-input,
+.tv4-workspace .tv4-progress-select { min-width: 0; height: 40px; border: 1px solid var(--tv4-input-border); border-radius: 8px; background: var(--tv4-surface); color: var(--tv4-ink); padding: 8px; font-size: 13px; font-weight: 500; }
+.tv4-workspace .tv4-progress-date-input { width: 100%; }
+.tv4-workspace .tv4-progress-date-input:disabled { background: var(--tv4-subtle); opacity: .6; }
+.tv4-workspace .tv4-progress-date-input[aria-invalid='true'] { border-color: var(--tv4-danger); }
+.tv4-workspace .tv4-progress-reminder { display: inline-flex; margin-top: 8px; padding: 3px 8px; border-radius: 999px; background: var(--tv4-warning-soft); color: var(--tv4-warning); font-size: 12px; }
+.tv4-workspace .tv4-progress-controls { display: flex; align-items: center; gap: 12px; }
+.tv4-workspace .tv4-progress-meter { flex: 1; min-width: 48px; }
+.tv4-workspace .tv4-progress-track { height: 6px; border-radius: 999px; overflow: hidden; background: var(--tv4-border); }
+.tv4-workspace .tv4-progress-percent { margin-top: 6px; font-size: 12px; color: var(--tv4-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.tv4-workspace .tv4-progress-select { flex-shrink: 0; width: 72px; }
+.tv4-workspace .tv4-progress-state-badge { font-weight: 500; line-height: 1.5; }
+.tv4-workspace .tv4-progress-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 56px 24px; border-top: 1px solid var(--tv4-border); color: var(--tv4-muted); font-size: 14px; text-align: center; }
+
+@media (max-width: 1200px) {
+  .tv4-workspace .tv4-progress-person-icon { display: none; }
+}
+@media (max-width: 900px) {
+  .tv4-workspace .tv4-progress-toolbar { flex-wrap: wrap; }
+  .tv4-workspace .tv4-progress-search { flex-basis: 100%; }
+  .tv4-workspace .tv4-progress-status-filter { flex: 1; }
+  .tv4-workspace .tv4-progress-table-wrap { overflow: visible; }
+  .tv4-workspace .tv4-progress-table { min-width: 0; }
+  .tv4-workspace .tv4-progress-table, .tv4-workspace .tv4-progress-table tbody { display: block; }
+  .tv4-workspace .tv4-progress-table thead { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
+  .tv4-workspace .tv4-progress-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 16px; padding: 20px; border-top: 1px solid var(--tv4-border); }
+  .tv4-workspace .tv4-progress-table td, .tv4-workspace .tv4-progress-table td:first-child { display: block; padding: 0; border: 0; }
+  .tv4-workspace .tv4-progress-person { grid-column: 1; grid-row: 1; }
+  .tv4-workspace .tv4-progress-state { grid-column: 2; grid-row: 1; text-align: right; }
+  .tv4-workspace .tv4-progress-course { grid-column: 1 / -1; grid-row: 2; }
+  .tv4-workspace .tv4-progress-type { grid-column: 1 / -1; grid-row: 3; }
+  .tv4-workspace .tv4-progress-deadline { grid-column: 1; grid-row: 4; }
+  .tv4-workspace .tv4-progress-value { grid-column: 2; grid-row: 4; }
+  .tv4-workspace .tv4-progress-table td[data-label]::before { display: block; content: attr(data-label); color: var(--tv4-muted); font-size: 12px; font-weight: 500; margin-bottom: 8px; }
+  .tv4-workspace .tv4-progress-controls { flex-direction: column; align-items: stretch; gap: 8px; }
+  .tv4-workspace .tv4-progress-select { width: 100%; }
+  .tv4-workspace .tv4-progress-meter { min-height: 28px; }
+  .tv4-workspace .tv4-progress-person-icon { display: none; }
+}
+@media (max-width: 480px) {
+  .tv4-workspace .tv4-progress-heading { padding: 20px 20px 12px; }
+  .tv4-workspace .tv4-progress-toolbar { padding-inline: 20px; gap: 12px; }
+  .tv4-workspace .tv4-progress-status-filter, .tv4-workspace .tv4-progress-attention { flex-basis: 100%; }
+  .tv4-workspace .tv4-progress-search-input, .tv4-workspace .tv4-progress-filter-input,
+  .tv4-workspace .tv4-progress-date-input, .tv4-workspace .tv4-progress-select { font-size: 16px; }
+  .tv4-workspace .tv4-progress-table tbody tr { gap: 16px; padding: 20px; }
+  .tv4-workspace .tv4-progress-deadline, .tv4-workspace .tv4-progress-value { min-width: 0; }
+  .tv4-workspace .tv4-progress-deadline .tv4-due-actions { flex-wrap: wrap; }
+  .tv4-workspace .tv4-progress-deadline .tv4-due-actions button { min-height: 40px; }
+}

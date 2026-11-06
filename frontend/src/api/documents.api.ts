@@ -35,6 +35,9 @@ export interface RagWorkflowSearchResponse {
         documentId: number;
         documentTitle: string;
         similarity: number;
+        chunkIndex?: number;
+        excerpt?: string;
+        excerptIsPartial?: boolean;
     }>;
     results: RagSearchResult[];
     suggestedFollowUpQuestions: string[];

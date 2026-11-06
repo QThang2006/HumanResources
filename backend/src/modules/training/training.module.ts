@@ -14,6 +14,8 @@ import { TrainingAutomationController } from './training-automation.controller';
 import { AutomationSecretGuard } from '../../common/guards/automation-secret.guard';
 import { PerformanceReviewService } from './performance-review.service';
 import { PerformanceReviewController } from './performance-review.controller';
+import { PerformanceReviewSchedule } from './performance-review-schedule.entity';
+import { ReviewCalendarService } from './review-calendar.service';
 
 @Module({
     imports: [
@@ -23,6 +25,7 @@ import { PerformanceReviewController } from './performance-review.controller';
             User,
             PerformanceReview,
             PerformanceReviewReminder,
+            PerformanceReviewSchedule,
         ]),
         AiModule,
     ],
@@ -31,7 +34,7 @@ import { PerformanceReviewController } from './performance-review.controller';
         TrainingAutomationController,
         PerformanceReviewController,
     ],
-    providers: [TrainingService, PerformanceReviewService, AutomationSecretGuard],
+    providers: [TrainingService, PerformanceReviewService, ReviewCalendarService, AutomationSecretGuard],
     exports: [TrainingService],
 })
 export class TrainingModule {}

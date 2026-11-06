@@ -65,7 +65,7 @@ test('TV4 automation workflows read the secret from n8n environment', () => {
       read(`workflows/tv4_admin_training/${filename}`),
     );
     const configNode = workflow.nodes.find((node) =>
-      ['Nạp cấu hình an toàn', 'Nạp cấu hình liên phòng ban'].includes(node.name),
+      ['Load Workflow Configuration', 'Load Offboarding Configuration'].includes(node.name),
     );
     const secret = configNode.parameters.assignments.assignments.find(
       (item) => item.name === 'automationSecret',

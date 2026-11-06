@@ -23,6 +23,7 @@ import {
   type TrainingAiSuggestion,
   type TrainingAssignment,
   type TrainingCourse,
+  type TrainingCourseUpdate,
   type TrainingCourseType,
   type TrainingStatus,
   type TrainingSummary,
@@ -30,10 +31,15 @@ import {
 import { TrainingCourseCatalog } from './TrainingCourseCatalog';
 import { trainingDateInput as dateInputValue, trainingDayKey } from './training-date';
 import { usersApi } from '../api/users.api';
+import { useAuth } from '../context/AuthContext';
+import { ReviewCalendarPanel } from './ReviewCalendarPanel';
 import type { User } from '../types';
 import { CourseRemoveDialog } from './CourseRemoveDialog';
 import { CoursePermanentDeleteDialog } from './CoursePermanentDeleteDialog';
+import { CourseEditDialog } from './CourseEditDialog';
+import { TrainingToast } from './TrainingToast';
 import '../styles/tv4-ui.css';
+import './training-progress.css';
 
 const COURSE_TYPE_LABELS: Record<TrainingCourseType, string> = {
   MANDATORY: 'BẮT BUỘC',
@@ -48,9 +54,9 @@ const PRIORITY_LABELS: Record<'HIGH' | 'MEDIUM' | 'LOW', string> = {
 };
 
 const COURSE_TYPE_STYLES: Record<TrainingCourseType, string> = {
-  MANDATORY: 'border-[#EDC7CC] bg-[#FBF1F2] text-[#9D4150]',
-  AI_SKILL_GAP: 'border-[#E6D7BF] bg-[#FBF6ED] text-[#936A38]',
-  SOFT_SKILL: 'border-[#D7D4E8] bg-[#F5F3FA] text-[#6A5D8E]',
+  MANDATORY: 'border-amber-200 bg-amber-50 text-amber-800',
+  AI_SKILL_GAP: 'border-primary-200 bg-primary-50 text-primary-700',
+  SOFT_SKILL: 'border-slate-200 bg-slate-50 text-slate-700',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -59,10 +65,12 @@ const STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'Hoàn thành',
 };
 
-type TrainingWorkspace = 'setup' | 'catalog' | 'progress';
+type TrainingWorkspace = 'setup' | 'catalog' | 'progress' | 'reviews';
 type AssignmentFilter = 'ALL' | TrainingStatus;
 
 export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = ({ presentation = 'standard' }) => {
+  const { user: currentUser } = useAuth();
+  const canViewReviews = currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'HR';
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [assignments, setAssignments] = useState<TrainingAssignment[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -94,7 +102,16 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
   const analysisResultRef = useRef<HTMLDivElement>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [updatingDueId, setUpdatingDueId] = useState<number | null>(null);
-  const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState<{ id: number; message: string } | null>(null);
+  const noticeSequence = useRef(0);
+  const message = notice?.message ?? '';
+  const setMessage = useCallback((text: string) => {
+    setNotice(text ? { id: ++noticeSequence.current, message: text } : null);
+  }, []);
+  const noticeId = notice?.id;
+  const dismissNotice = useCallback(() => {
+    setNotice(current => current?.id === noticeId ? null : current);
+  }, [noticeId]);
   const [activeWorkspace, setActiveWorkspace] =
     useState<TrainingWorkspace>('progress');
   const [showCreateCourse, setShowCreateCourse] = useState(false);
@@ -106,6 +123,9 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
   const [pendingPermanentDelete, setPendingPermanentDelete] = useState<TrainingCourse | null>(null);
   const [permanentDeleteError, setPermanentDeleteError] = useState('');
   const [permanentDeleting, setPermanentDeleting] = useState(false);
+  const [pendingEdit, setPendingEdit] = useState<TrainingCourse | null>(null);
+  const [editingCourse, setEditingCourse] = useState(false);
+  const [editError, setEditError] = useState('');
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [trackedCourseId, setTrackedCourseId] = useState<number | null>(null);
   const [assignmentFilter, setAssignmentFilter] =
@@ -240,6 +260,33 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       setMessage(error instanceof Error ? error.message : 'Không thể khôi phục khóa học.');
     } finally {
       setCourseMutationId(null);
+    }
+  };
+
+  const handleEditCourse = async (data: TrainingCourseUpdate) => {
+    if (!pendingEdit || editingCourse) return;
+    setEditingCourse(true);
+    setEditError('');
+    try {
+      const saved = await trainingApi.updateCourse(pendingEdit.id, data);
+      setCourses(current => current.map(course => course.id === saved.id ? saved : course));
+      setAssignments(current => current.map(assignment => assignment.course.id === saved.id && !assignment.course.isDeleted
+        ? { ...assignment, course: { ...assignment.course, ...saved } } : assignment));
+      if (aiSuggestion?.courseId === saved.id) {
+        setAiSuggestion(null);
+        setAssignedByAi(false);
+        setAiReason('');
+      }
+      setPendingEdit(null);
+      setMessage('Đã cập nhật thông tin khóa học. Tiến độ và lịch sử người học được giữ nguyên.');
+      window.requestAnimationFrame(() => document.getElementById('tv4-catalog-heading')?.focus());
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : 'Không thể cập nhật khóa học. Vui lòng thử lại.');
+      // Refresh counts for the next opening if another administrator assigned
+      // or archived this course while the form was open. Keep the current draft.
+      try { setCourses(await trainingApi.getCourses(true)); } catch { /* Keep the original save error. */ }
+    } finally {
+      setEditingCourse(false);
     }
   };
 
@@ -445,6 +492,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       setUpdatingId(assignmentId);
       setMessage('');
       await trainingApi.updateProgress(assignmentId, progressPercent);
+      setMessage(`Đã cập nhật tiến độ học tập: ${progressPercent}%.`);
       await loadData();
     } catch (error) {
       console.error(error);
@@ -536,7 +584,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
   if (loading) {
     return (
-      <div className="flex min-h-80 items-center justify-center gap-3 rounded-2xl border border-[#E2E5E7] bg-white text-[#687178]">
+      <div className="flex min-h-80 items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-slate-600">
         <Loader2 className="h-5 w-5 animate-spin" />
         <span className="text-sm font-semibold">Đang tải dữ liệu đào tạo...</span>
       </div>
@@ -554,6 +602,9 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
   return (
     <div className={`tv4-training space-y-5 ${presentation === 'admin' ? 'tv4-training-admin' : ''}`}>
+      {pendingEdit && <CourseEditDialog key={pendingEdit.id} course={pendingEdit} busy={editingCourse} error={editError}
+        onCancel={() => { if (!editingCourse) { setPendingEdit(null); setEditError(''); } }}
+        onConfirm={data => void handleEditCourse(data)} />}
       <CourseRemoveDialog
         course={pendingRemove}
         busy={courseMutationId !== null}
@@ -568,27 +619,16 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
         onCancel={() => { if (!permanentDeleting) { setPendingPermanentDelete(null); setPermanentDeleteError(''); } }}
         onConfirm={() => void handlePermanentDelete()}
       />
-      {message && (
-        <div
-          role="status"
-          className={`rounded-2xl border bg-white px-4 py-3 text-sm font-semibold shadow-sm ${
-            isSuccessMessage
-              ? 'border-[#CDE3D6] text-[#2F6B4F]'
-              : 'border-[#E8D5B8] text-[#936A38]'
-          }`}
-        >
-          {message}
-        </div>
-      )}
+      {notice && <TrainingToast key={notice.id} message={message} success={isSuccessMessage} onClose={dismissNotice} />}
 
-      <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
-        <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7 sm:py-6">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="max-w-2xl">
-              <h2 className="text-xl font-black tracking-tight text-[#1D2023]">
+              <h2 className="text-xl font-semibold tracking-tight text-slate-900">
                 Đào tạo & Phát triển
               </h2>
-              <p className="mt-2 text-sm leading-6 text-[#687178]">
+              <p className="mt-2 text-sm leading-6 text-slate-600">
               Thiết kế khóa học, phân tích năng lực và theo dõi tiến độ
               </p>
             </div>
@@ -600,7 +640,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             <button
               type="button"
               onClick={() => void loadData()}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D8DCDE] bg-white px-3.5 text-xs font-semibold text-[#666D72] transition hover:bg-[#F2F4F4]"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Làm mới
@@ -649,7 +689,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             </button>
           </div>
         ) : (
-        <div className="tv4-training-metrics grid divide-y divide-[#E8EAEC] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+        <div className="tv4-training-metrics grid divide-y divide-slate-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
           <MetricCard
             label="Khóa học"
             value={availableCourses.length}
@@ -678,8 +718,8 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
         )}
       </section>
 
-      <section className="rounded-2xl border border-[#E2E5E7] bg-[#F8F9F9] p-1.5">
-        <div className="grid grid-cols-3 gap-1.5">
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-1.5">
+        <div className={`grid gap-1.5 ${canViewReviews ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-3'}`}>
           <WorkspaceTab
             active={activeWorkspace === 'setup'}
             icon={<Sparkles className="h-4 w-4" />}
@@ -701,19 +741,28 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             description={`${summary.inProgress} đang học · ${dueSoonCount} cần chú ý`}
             onClick={() => { setTrackedCourseId(null); setActiveWorkspace('progress'); }}
           />
+          {canViewReviews && <WorkspaceTab
+            active={activeWorkspace === 'reviews'}
+            icon={<CalendarDays className="h-4 w-4" />}
+            title="Đánh giá định kỳ"
+            description="Lịch nhắc và tình trạng đánh giá"
+            onClick={() => setActiveWorkspace('reviews')}
+          />}
         </div>
       </section>
+
+      {activeWorkspace === 'reviews' && canViewReviews && <ReviewCalendarPanel />}
 
       {(activeWorkspace === 'setup' || (activeWorkspace === 'catalog' && showCreateCourse)) && (
       <section className="tv4-training-setup">
         {activeWorkspace === 'catalog' && (
-        <div className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F6E9ED] text-[#6F3042]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
               <Plus className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-[#202326]">Tạo khóa học</h3>
+              <h3 className="text-base font-semibold text-slate-900">Tạo khóa học</h3>
             </div>
           </div>
 
@@ -761,7 +810,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                   placeholder="10"
                   className={`${inputClass} pr-14`}
                 />
-                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#687178]">
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-600">
                   giờ
                 </span>
               </div>
@@ -783,7 +832,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             type="button"
             onClick={handleCreateCourse}
             disabled={savingCourse}
-            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#6F3042] px-5 text-sm font-semibold text-white transition hover:bg-[#5D2737] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary-600 px-5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {savingCourse ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -795,14 +844,14 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
         </div>
         )}
         {activeWorkspace === 'setup' && (
-        <div className="rounded-[24px] border border-[#E2E5E7] bg-white p-5 shadow-[0_12px_34px_rgba(45,34,28,0.055)] sm:p-7">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EFF1F1] text-[#A26D3F]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-primary-600">
               <UserPlus className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-[#202326]">Gán khóa học</h3>
-              <p className="mt-1 text-sm text-[#636A70]">Chọn nhân viên, xem đề xuất và duyệt khóa học phù hợp.</p>
+              <h3 className="text-sm font-semibold text-slate-900">Gán khóa học</h3>
+              <p className="mt-1 text-sm text-slate-600">Chọn nhân viên, xem đề xuất và duyệt khóa học phù hợp.</p>
             </div>
           </div>
 
@@ -850,7 +899,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                   className={inputClass}
                 />
               </FormField>
-              <p className="mt-1.5 text-xs font-semibold text-[#687178]">
+              <p className="mt-1.5 text-xs font-semibold text-slate-600">
                 Hệ thống tự động nhắc khi khóa bắt buộc còn tối đa 3 ngày và tiến độ dưới 50%.
               </p>
             </div>
@@ -864,14 +913,14 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           )}
 
           {checkingReadiness && (
-            <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#E2E5E7] bg-[#F8F9F9] px-4 py-3 text-sm font-semibold text-[#666D72]">
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
               <Loader2 className="h-4 w-4 animate-spin" />
               Đang kiểm tra dữ liệu nhân viên...
             </div>
           )}
 
           {aiReadiness && !aiReadiness.canAnalyze && (
-            <div className="mt-4 rounded-2xl border border-[#E8D5B8] bg-[#FBF6ED] px-4 py-3 text-sm text-[#7A572F]">
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               <div className="flex items-start gap-2 font-semibold">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />
                 Chưa đủ dữ liệu để phân tích khoảng trống năng lực
@@ -883,7 +932,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           )}
 
           {aiReadiness?.canAnalyze && !aiReadiness.hasPerformanceReviews && !aiSuggestion && (
-            <div className="mt-4 rounded-2xl border border-[#E8D5B8] bg-[#FBF6ED] px-4 py-3 text-sm text-[#7A572F]">
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               <div className="flex items-start gap-2 font-semibold">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />
                 Phân tích sơ bộ — chưa có dữ liệu KPI
@@ -899,7 +948,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           )}
 
           {aiReadiness?.canAnalyze && aiReadiness.hasPerformanceReviews && !aiSuggestion && (
-            <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-[#DCE5DF] bg-[#F4F8F5] p-3 text-xs text-[#496154]">
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
               <span><strong>{aiReadiness.reviewCount}</strong> lần đánh giá hiệu suất</span>
               <span>Điểm hiệu suất mới nhất: <strong>{aiReadiness.latestKpiScore ?? '—'}</strong></span>
               <span><strong>{aiReadiness.trainingHistoryCount}</strong> lượt đào tạo</span>
@@ -913,7 +962,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
               aria-busy={aiSuggesting}
               aria-describedby={aiError ? 'training-ai-error' : undefined}
               disabled={!selectedUserId || checkingReadiness || !aiReadiness?.canAnalyze || aiSuggesting}
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#E6D7BF] bg-[#FBF6ED] px-4 text-sm font-semibold text-[#936A38] transition hover:bg-[#F5EAD8] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-4 text-sm font-semibold text-primary-700 transition hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {aiSuggesting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -926,19 +975,19 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 : 'Phân tích năng lực bằng AI'}
           </button>
 
-          {aiSuggesting && <p role="status" className="mt-3 text-sm leading-6 text-[#636A70]">Đang phân tích hồ sơ và đối chiếu danh mục khóa học. Vui lòng chờ kết quả.</p>}
-          {aiError && <p id="training-ai-error" role="alert" className="mt-3 rounded-xl border border-[#EDC7CC] bg-[#FBF1F2] px-4 py-3 text-sm leading-6 text-[#9D4150]">{aiError}</p>}
+          {aiSuggesting && <p role="status" className="mt-3 text-sm leading-6 text-slate-600">Đang phân tích hồ sơ và đối chiếu danh mục khóa học. Vui lòng chờ kết quả.</p>}
+          {aiError && <p id="training-ai-error" role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">{aiError}</p>}
 
           {aiSuggestion && (
-            <div ref={analysisResultRef} tabIndex={-1} role="region" aria-label={`Kết quả phân tích năng lực: ${aiSuggestion.employeeName}`} className="mt-4 overflow-hidden rounded-2xl border border-[#D8CCC2] bg-[#FCFAF7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153]">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8DED5] px-4 py-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-[#6F3042]">
+            <div ref={analysisResultRef} tabIndex={-1} role="region" aria-label={`Kết quả phân tích năng lực: ${aiSuggestion.employeeName}`} className="mt-4 overflow-hidden rounded-xl border border-primary-200 bg-primary-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-600">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-primary-200 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary-600">
                   <BrainCircuit className="h-4 w-4" />
                   {aiSuggestion.analysisMode === 'PRELIMINARY'
                     ? 'Kết quả phân tích sơ bộ'
                     : 'Kết quả phân tích khoảng trống năng lực'}
                 </div>
-                <span className="rounded-full bg-[#6F3042] px-3 py-1 text-xs font-semibold text-white">
+                <span className="rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold text-white">
                   {aiSuggestion.analysisMode === 'PRELIMINARY'
                     ? 'Điểm tham khảo'
                     : 'Mức sẵn sàng'}{' '}
@@ -948,20 +997,20 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
 
               <div className="space-y-4 p-4 text-sm">
                 {aiSuggestion.analysisMode === 'PRELIMINARY' && (
-                  <div className="rounded-xl border border-[#E8D5B8] bg-[#FBF6ED] px-3 py-2 text-xs font-semibold leading-5 text-[#7A572F]">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
                     {aiSuggestion.dataNotice ||
                       'Phân tích sơ bộ — chưa có dữ liệu KPI. Kết quả chỉ mang tính gợi ý phát triển.'}
                   </div>
                 )}
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                     {aiSuggestion.analysisMode === 'PRELIMINARY'
                       ? 'Kỹ năng nên phát triển'
                       : 'Khoảng trống kỹ năng'}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {aiSuggestion.skillGaps.map(skill => (
-                      <span key={skill} className="rounded-full border border-[#E6D7BF] bg-white px-2.5 py-1 text-xs font-bold text-[#7A572F]">
+                      <span key={skill} className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs font-bold text-amber-800">
                         {skill}
                       </span>
                     ))}
@@ -971,36 +1020,36 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 <details className="tv4-ai-details">
                   <summary>Nhận định và định hướng phát triển</summary>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                     {aiSuggestion.analysisMode === 'PRELIMINARY'
                       ? 'Nhận định sơ bộ'
                       : 'Đánh giá tổng quan'}
                   </p>
-                  <p className="mt-1 leading-6 text-[#454B4F]">{aiSuggestion.summary}</p>
+                  <p className="mt-1 leading-6 text-slate-700">{aiSuggestion.summary}</p>
                 </div>
-                <p className="mt-3 leading-6 text-[#454B4F]">{aiSuggestion.careerAdvice}</p>
+                <p className="mt-3 leading-6 text-slate-700">{aiSuggestion.careerAdvice}</p>
                 </details>
 
-                <div className="rounded-xl border border-[#E6D7BF] bg-white p-3">
+                <div className="rounded-xl border border-amber-200 bg-white p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8179]">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                         {aiSuggestion.hasMatchingCourse ? 'Khóa học đề xuất' : 'Trạng thái kho khóa học'}
                       </p>
-                      <p className="mt-1 font-semibold text-[#202326]">
+                      <p className="mt-1 font-semibold text-slate-900">
                         {aiSuggestion.courseTitle ?? 'Chưa có khóa học phù hợp'}
                       </p>
                     </div>
                     {aiSuggestion.priority && (
-                      <span className="rounded-full bg-[#FBF1F2] px-2.5 py-1 text-xs font-semibold text-[#9D4150]">
+                      <span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
                         {PRIORITY_LABELS[aiSuggestion.priority]}
                       </span>
                     )}
                   </div>
                   {aiSuggestion.estimatedTimeToComplete && (
-                    <p className="mt-2 text-xs font-semibold text-[#716A64]">Thời gian: {aiSuggestion.estimatedTimeToComplete}</p>
+                    <p className="mt-2 text-xs font-semibold text-slate-600">Thời gian: {aiSuggestion.estimatedTimeToComplete}</p>
                   )}
-                  <p className="mt-2 text-xs leading-5 text-[#53595E]">{aiSuggestion.reason}</p>
+                  <p className="mt-2 text-xs leading-5 text-slate-700">{aiSuggestion.reason}</p>
                 </div>
 
               </div>
@@ -1011,7 +1060,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             type="button"
             onClick={handleAssignCourse}
             disabled={assigning || aiSuggesting || checkingReadiness || !selectedUserId || !selectedCourseId}
-            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#202326] px-5 text-sm font-semibold text-white transition hover:bg-[#171412] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary-600 px-5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {assigning ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -1034,7 +1083,8 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           courses={courses}
           catalogScope={catalogScope}
           onScopeChange={setCatalogScope}
-          mutationBusy={courseMutationId !== null || permanentDeleting}
+          mutationBusy={courseMutationId !== null || permanentDeleting || editingCourse}
+          onEdit={course => { setEditError(''); setPendingEdit(course); }}
           onRemove={course => { setRemoveError(''); setPendingRemove(course); }}
           onRestore={course => void handleRestoreCourse(course)}
           onPermanentDelete={course => { setPermanentDeleteError(''); setPendingPermanentDelete(course); }}
@@ -1061,44 +1111,44 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       )}
 
       {activeWorkspace === 'progress' && (
-      <section className="overflow-hidden rounded-2xl border border-[#E2E5E7] bg-white">
-        <div className="border-b border-[#E8EAEC] px-5 py-5 sm:px-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h3 id="tv4-training-progress-title" tabIndex={-1} className="text-lg font-semibold text-[#202326]">Tiến độ đào tạo</h3>
-              <p className="mt-1 text-xs font-semibold text-[#687178]">
+      <section className="tv4-progress-panel" aria-labelledby="tv4-training-progress-title">
+        <header className="tv4-progress-heading">
+          <div>
+              <h3 id="tv4-training-progress-title" tabIndex={-1} className="text-lg font-semibold text-slate-900">Tiến độ đào tạo</h3>
+              <p>
                 Theo dõi hạn hoàn thành, số lần nhắc và trạng thái của từng nhân viên.
               </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button type="button" onClick={() => setAttentionOnly(value => !value)} aria-pressed={attentionOnly} className={`tv4-filter ${attentionOnly ? 'is-active' : ''}`}>
-                <CalendarDays className="h-4 w-4" /> Cần chú ý ({dueSoonCount})
-              </button>
-              <div className="relative min-w-0 sm:w-72">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#90979C]" />
+          </div>
+        </header>
+        <div className="tv4-progress-toolbar">
+              <div className="tv4-progress-search">
+                <Search size={18} aria-hidden="true" />
                 <input
                   aria-label="Tìm nhân viên hoặc khóa học trong tiến độ"
                   value={assignmentSearch}
                   onChange={event => setAssignmentSearch(event.target.value)}
                   placeholder="Tìm nhân viên, khóa học..."
-                  className={`${inputClass} pl-10`}
+                  className="tv4-progress-search-input"
                 />
               </div>
+              <div className="tv4-progress-status-filter">
               <select
                 aria-label="Lọc trạng thái học tập"
                 value={assignmentFilter}
                 onChange={event =>
                   setAssignmentFilter(event.target.value as AssignmentFilter)
                 }
-                className={`${inputClass} sm:w-44`}
+                className="tv4-progress-filter-input"
               >
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="ASSIGNED">Đã giao</option>
                 <option value="IN_PROGRESS">Đang học</option>
                 <option value="COMPLETED">Hoàn thành</option>
               </select>
-            </div>
-          </div>
+              </div>
+              <button type="button" onClick={() => setAttentionOnly(value => !value)} aria-pressed={attentionOnly} className={`tv4-filter tv4-progress-attention ${attentionOnly ? 'is-active' : ''}`}>
+                <CalendarDays className="h-4 w-4" aria-hidden="true" /> Cần chú ý ({dueSoonCount})
+              </button>
         </div>
 
         {trackedCourseId !== null && <div className="tv4-tracked-course" role="status">
@@ -1107,11 +1157,11 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
           <button type="button" onClick={() => setTrackedCourseId(null)}>Xem tất cả khóa học</button>
         </div>}
         {assignments.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm font-semibold text-[#687178]">Chưa có lượt đào tạo nào.</div>
+          <div className="tv4-progress-empty">Chưa có lượt đào tạo nào.</div>
         ) : filteredAssignments.length === 0 ? (
-          <div className="px-5 py-12 text-center">
-            <Search className="mx-auto h-5 w-5 text-[#9FA6AB]" />
-            <p className="mt-2 text-sm font-semibold text-[#53595E]">
+          <div className="tv4-progress-empty">
+            <Search className="mx-auto h-5 w-5 text-slate-500" />
+            <p className="mt-2 text-sm font-semibold text-slate-700">
               Không có lượt đào tạo phù hợp
             </p>
             <button
@@ -1122,20 +1172,21 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 setTrackedCourseId(null);
                 setAttentionOnly(false);
               }}
-              className="mt-3 text-xs font-semibold text-[#6F3042] hover:underline"
+              className="mt-3 text-xs font-semibold text-primary-600 hover:underline"
             >
               Xóa bộ lọc
             </button>
           </div>
         ) : (
-          <div className="tv4-table-scroll overflow-x-auto" role="region" aria-label="Bảng tiến độ đào tạo" tabIndex={0}>
-            <table className="w-full min-w-[900px]">
+          <div className="tv4-table-scroll tv4-progress-table-wrap" role="region" aria-label="Bảng tiến độ đào tạo" tabIndex={0}>
+            <table className="tv4-progress-table">
               <thead>
-                <tr className="border-b border-[#E8EAEC] bg-[#F8F9F9]">
+                <tr className="border-b border-slate-200 bg-slate-50">
                   {['Nhân viên', 'Khóa học', 'Loại', 'Hạn hoàn thành', 'Tiến độ', 'Trạng thái'].map(column => (
                     <th
                       key={column}
-                      className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[#687178] sm:px-7"
+                      scope="col"
+                      className="tv4-progress-column"
                     >
                       {column}
                     </th>
@@ -1143,7 +1194,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-[#E9ECEC]">
+              <tbody className="divide-y divide-slate-200">
                 {filteredAssignments.map(assignment => {
                   const progress = Math.max(0, Math.min(100, assignment.progressPercent));
                   const overdue = assignment.status !== 'COMPLETED' && assignment.dueAt && new Date(assignment.dueAt).getTime() < referenceTime;
@@ -1151,25 +1202,32 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                   const hasDueDraft = dueDrafts[assignment.id] !== undefined && dueDrafts[assignment.id] !== savedDueDate;
 
                   return (
-                    <tr key={assignment.id} className={overdue ? 'tv4-overdue-row' : 'transition hover:bg-[#FFFFFF]'}>
-                      <td className="px-5 py-4 sm:px-7">
-                        <p className="text-sm font-semibold text-[#303438]">{assignment.user.fullName}</p>
-                        <p className="mt-0.5 text-xs text-[#687178]">{assignment.user.email}</p>
+                    <tr key={assignment.id} className={overdue ? 'tv4-overdue-row' : 'tv4-progress-row'}>
+                      <td className="tv4-progress-person">
+                        <div className="tv4-progress-person-identity">
+                        <span className="tv4-progress-person-icon"><Users size={18} aria-hidden="true" /></span>
+                        <div>
+                        <p className="text-sm font-semibold text-slate-900">{assignment.user.fullName}</p>
+                        <p className="mt-0.5 text-xs text-slate-600">{assignment.user.email}</p>
+                        </div>
+                        </div>
                       </td>
 
-                      <td className="px-5 py-4 text-sm font-semibold text-[#636A70] sm:px-7">
+                      <td className="tv4-progress-course">
+                        <div className="tv4-progress-course-identity"><BookOpen size={17} aria-hidden="true" /><div>
                         {assignment.course.title}
-                        {assignment.course.isDeleted ? <p className="mt-1 text-xs font-normal text-[#80521F]">Khóa đã xóa · Lịch sử được giữ</p> : assignment.course.isArchived && <p className="mt-1 text-xs font-normal text-[#80521F]">Đã gỡ khỏi danh mục</p>}
+                        {assignment.course.isDeleted ? <p className="mt-1 text-xs font-normal text-amber-800">Khóa đã xóa · Lịch sử được giữ</p> : assignment.course.isArchived && <p className="mt-1 text-xs font-normal text-amber-800">Đã gỡ khỏi danh mục</p>}
+                        </div></div>
                       </td>
 
-                      <td className="px-5 py-4 sm:px-7">
-                        <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${COURSE_TYPE_STYLES[assignment.course.type]}`}>
+                      <td className="tv4-progress-type" data-label="Loại khóa học">
+                        <span className={`tv4-progress-type-badge rounded-full border px-2.5 py-1 text-xs font-semibold ${COURSE_TYPE_STYLES[assignment.course.type]}`}>
                           {COURSE_TYPE_LABELS[assignment.course.type]}
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 text-xs font-semibold text-[#636A70] sm:px-7">
-                        <div className="flex items-center gap-2">
+                      <td className="tv4-progress-deadline" data-label="Hạn hoàn thành">
+                        <div className="tv4-progress-date-control">
                           <input
                             type="date"
                             aria-label={`Hạn hoàn thành khóa ${assignment.course.title} của ${assignment.user.fullName}`}
@@ -1182,7 +1240,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                               setDueDrafts(current => ({ ...current, [assignment.id]: event.target.value }));
                               setDueErrors(current => ({ ...current, [assignment.id]: '' }));
                             }}
-                            className="h-8 rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-2 text-xs font-bold outline-none focus:border-[#8A4153] disabled:opacity-50"
+                            className="tv4-progress-date-input"
                           />
                           {updatingDueId === assignment.id && (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1198,26 +1256,26 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                         {dueErrors[assignment.id] && <p id={`due-error-${assignment.id}`} role="alert" className="tv4-overdue-label">{dueErrors[assignment.id]}</p>}
                         {overdue && <p className="tv4-overdue-label">Đã quá hạn</p>}
                         {assignment.reminderCount > 0 && (
-                          <p className="mt-1 text-xs font-bold text-[#936A38]">
+                          <p className="tv4-progress-reminder">
                             Đã nhắc {assignment.reminderCount} lần
                           </p>
                         )}
                       </td>
 
-                      <td className="px-5 py-4 sm:px-7">
-                        <div className="flex items-center gap-3">
-                          <div className="w-28">
-                            <div className="h-1.5 overflow-hidden rounded-full bg-[#EAE2DB]">
+                      <td className="tv4-progress-value" data-label="Tiến độ học tập">
+                        <div className="tv4-progress-controls">
+                          <div className="tv4-progress-meter">
+                            <div className="tv4-progress-track">
                               <div
-                                className="h-full rounded-full bg-[#B48855] transition-all"
+                                className="h-full rounded-full bg-primary-600 transition-all"
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
-                            <p className="mt-1 text-xs font-bold text-[#687178]">{progress}%</p>
+                            <p className="tv4-progress-percent">{progress}%</p>
                           </div>
 
                           {updatingId === assignment.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-[#6F3042]" />
+                            <Loader2 className="h-4 w-4 animate-spin text-primary-600" />
                           ) : (
                             <select
                               aria-label={`Tiến độ khóa ${assignment.course.title} của ${assignment.user.fullName}`}
@@ -1228,7 +1286,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                                   Number(event.target.value),
                                 )
                               }
-                              className="h-8 rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-2 text-xs font-bold text-[#636A70] outline-none focus:border-[#8A4153]"
+                              className="tv4-progress-select"
                             >
                               {[0, 25, 50, 75, 100].map(value => (
                                 <option key={value} value={value}>
@@ -1240,13 +1298,13 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 sm:px-7">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      <td className="tv4-progress-state">
+                        <span className={`tv4-progress-state-badge inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                           assignment.status === 'COMPLETED'
-                            ? 'bg-[#EFF7F1] text-[#2F6B4F]'
+                            ? 'bg-emerald-50 text-emerald-700'
                             : assignment.status === 'IN_PROGRESS'
-                              ? 'bg-[#FBF6ED] text-[#936A38]'
-                              : 'bg-[#F1EEEB] text-[#687178]'
+                              ? 'bg-amber-50 text-amber-800'
+                              : 'bg-slate-100 text-slate-600'
                         }`}>
                           {STATUS_LABELS[assignment.status] || assignment.status}
                         </span>
@@ -1275,24 +1333,24 @@ const WorkspaceTab: React.FC<{
     type="button"
     aria-pressed={active}
     onClick={onClick}
-    className={`flex min-h-[76px] items-center gap-3 rounded-xl border px-3 py-3 text-left transition sm:px-4 ${
+    className={`flex min-h-[76px] items-center gap-3 rounded-lg border px-3 py-3 text-left transition sm:px-4 ${
       active
-        ? 'border-[#E4CBD3] bg-[#FBF5F7] text-[#6F3042]'
-        : 'border-transparent text-[#687178] hover:bg-white hover:text-[#303438]'
+        ? 'border-primary-200 bg-primary-50 text-primary-600'
+        : 'border-transparent text-slate-600 hover:bg-white hover:text-slate-900'
     }`}
   >
     <span
       className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:flex ${
         active
-          ? 'bg-[#F4E7EB] text-[#6F3042]'
-          : 'bg-white text-[#687178]'
+          ? 'bg-primary-50 text-primary-600'
+          : 'bg-white text-slate-600'
       }`}
     >
       {icon}
     </span>
     <span className="min-w-0">
       <span className="block text-xs font-semibold leading-5 sm:text-sm">{title}</span>
-      <span className="mt-1 hidden text-xs font-normal leading-5 text-[#687178] sm:block">
+      <span className="mt-1 hidden text-xs font-normal leading-5 text-slate-600 sm:block">
         {description}
       </span>
     </span>
@@ -1300,14 +1358,14 @@ const WorkspaceTab: React.FC<{
 );
 
 const inputClass =
-  'h-11 w-full rounded-xl border border-[#D8DCDE] bg-[#F8F9F9] px-3.5 text-sm text-[#2E3235] outline-none transition focus:border-[#8A4153] focus:bg-white focus:ring-4 focus:ring-[#8A4153]/10';
+  'h-10 w-full rounded-lg border border-slate-300 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-600 focus:bg-white focus:ring-4 focus:ring-primary-600/10';
 
 const FormField: React.FC<{
   label: string;
   children: React.ReactNode;
 }> = ({ label, children }) => (
   <label className="block">
-    <span className="mb-2 block text-sm font-medium text-[#515C65]">{label}</span>
+    <span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>
     {children}
   </label>
 );
@@ -1319,13 +1377,13 @@ const MetricCard: React.FC<{
   icon: React.ReactNode;
 }> = ({ label, value, sub, icon }) => (
   <div className="flex min-w-0 items-start gap-3 px-4 py-4 sm:px-6 sm:py-5">
-    <span className="mt-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F4F5F7] text-[#687178] sm:flex">{icon}</span>
+    <span className="mt-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 sm:flex">{icon}</span>
     <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <span className="text-sm font-medium text-[#515C65]">{label}</span>
-        <span className="text-2xl font-bold tabular-nums tracking-tight text-[#1D2023]">{value}</span>
+        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{value}</span>
       </div>
-      <p className="mt-1 text-xs leading-5 text-[#687178]">{sub}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-600">{sub}</p>
     </div>
   </div>
 );

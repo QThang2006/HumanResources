@@ -14,7 +14,6 @@ import {
   Award,
   GraduationCap,
   Clock,
-  LogIn,
   X,
   HeartHandshake,
   Laptop,
@@ -131,74 +130,29 @@ export function CareersPage() {
   const hasActiveFilters = Boolean(query.trim() || departmentId || location);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
-      {/* ──────────────── TOP BRAND NAVIGATION BAR ──────────────── */}
-      <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-sm shadow-xs">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-500/30">
-              <Briefcase className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-lg font-bold tracking-tight text-slate-900 block leading-tight">
-                TalentHunt <span className="text-blue-600 font-semibold">Careers</span>
-              </span>
-              <span className="text-xs text-slate-500 font-medium">Cổng Tuyển Dụng Doanh Nghiệp</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <a
-              href="#jobs-section"
-              className="hidden sm:inline-flex text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors"
-            >
-              Vị trí tuyển dụng
-            </a>
-            <a
-              href="#culture-section"
-              className="hidden md:inline-flex text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors"
-            >
-              Văn hóa & Phúc lợi
-            </a>
-            <a
-              href="#process-section"
-              className="hidden md:inline-flex text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors"
-            >
-              Quy trình tuyển dụng
-            </a>
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-all shadow-xs"
-            >
-              <LogIn className="h-3.5 w-3.5 text-slate-500" />
-              Đăng nhập nội bộ
-            </Link>
-          </div>
-        </div>
-      </nav>
-
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-12">
       {/* ──────────────── HERO BANNER ──────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/70 via-white to-slate-50 border-b border-slate-200/80 pt-12 pb-16 lg:pt-16 lg:pb-20">
+      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/70 via-white to-slate-50 border-b border-slate-200/80 pt-10 pb-14 lg:pt-14 lg:pb-16">
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/80 px-3.5 py-1 text-xs font-semibold text-blue-700 shadow-xs mb-5">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/80 px-3.5 py-1 text-xs font-semibold text-blue-700 shadow-xs mb-4">
             <Sparkles className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
-            <span>Đón chào nhân tài mới gia nhập năm 2026</span>
+            <span>Cổng thông tin tuyển dụng nhân tài 2026</span>
           </div>
 
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-5xl max-w-3xl mx-auto leading-tight sm:leading-tight">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl max-w-3xl mx-auto leading-tight sm:leading-tight">
             Xây Dựng Sự Nghiệp Vững Vàng Cùng{' '}
             <span className="text-blue-600 underline decoration-blue-300 decoration-wavy decoration-2 underline-offset-8">
               TalentHunt
             </span>
           </h1>
 
-          <p className="mt-5 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed text-slate-600 font-normal">
+          <p className="mt-4 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed text-slate-600 font-normal">
             Khám phá các vị trí tuyển dụng hấp dẫn, môi trường làm việc cởi mở, lộ trình phát triển rõ ràng
             và chế độ đãi ngộ vượt trội cho những chuyên gia hàng đầu.
           </p>
 
           {/* Quick Metrics Bar */}
-          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 max-w-4xl mx-auto">
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 max-w-4xl mx-auto">
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs text-center">
               <div className="flex items-center justify-center text-blue-600 mb-1">
                 <Building2 className="h-5 w-5" />
@@ -237,7 +191,7 @@ export function CareersPage() {
       </section>
 
       {/* ──────────────── MAIN JOB SEARCH & LIST CONTENT ──────────────── */}
-      <main id="jobs-section" className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+      <main id="jobs-section" className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* SEARCH & FILTERS CONTAINER */}
         <section
           aria-label="Tìm kiếm và lọc cơ hội việc làm"
@@ -609,16 +563,16 @@ export function CareersPage() {
       </main>
 
       {/* ──────────────── WHY JOIN US (CULTURE & PERKS) ──────────────── */}
-      <section id="culture-section" className="border-t border-slate-200 bg-white py-16">
+      <section id="culture-section" className="border-t border-slate-200 bg-white py-14 mt-6">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
+          <div className="text-center max-w-2xl mx-auto mb-10">
             <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
               Quyền Lợi & Môi Trường
             </span>
             <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
               Vì Sao Nên Phát Triển Sự Nghiệp Tại TalentHunt?
             </h2>
-            <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
               Chúng tôi coi con người là tài sản quý giá nhất, không ngừng xây dựng môi trường phát triển
               toàn diện và trao quyền tự chủ tối đa.
             </p>
@@ -669,16 +623,16 @@ export function CareersPage() {
       </section>
 
       {/* ──────────────── 4-STEP RECRUITMENT PROCESS ──────────────── */}
-      <section id="process-section" className="border-t border-slate-200 bg-slate-50/70 py-16">
+      <section id="process-section" className="border-t border-slate-200 bg-slate-50/70 py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
+          <div className="text-center max-w-2xl mx-auto mb-10">
             <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
               Quy Trình Tuyển Dụng
             </span>
             <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
               Hành Trình Gia Nhập Minh Bạch & Tinh Gọn
             </h2>
-            <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
               Ứng dụng công nghệ AI tự động hóa giúp rút ngắn tối đa thời gian phản hồi và tôn trọng trải nghiệm ứng viên.
             </p>
           </div>
@@ -726,25 +680,6 @@ export function CareersPage() {
           </div>
         </div>
       </section>
-
-      {/* ──────────────── FOOTER ──────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-10 text-xs text-slate-500">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white font-bold">
-              T
-            </div>
-            <span className="font-semibold text-slate-800 text-sm">TalentHunt Enterprise ATS</span>
-            <span className="text-slate-400">· Hệ sinh thái Quản trị Tuyển dụng & Nhân sự</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-6 text-slate-600">
-            <span>Email tuyển dụng: <strong className="text-slate-800">recruitment@talenthunt.vn</strong></span>
-            <span>Hotline: <strong className="text-slate-800">1900 6868</strong></span>
-            <span>© 2026 TalentHunt. All rights reserved.</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

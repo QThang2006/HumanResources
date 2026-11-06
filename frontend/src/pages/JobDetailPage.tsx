@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Briefcase,
   Building2,
+  Calendar,
   CheckCircle2,
   Clock,
   DollarSign,
@@ -26,7 +27,114 @@ import {
   X,
   Award,
   Check,
+  GraduationCap,
+  Users,
+  Layers,
 } from 'lucide-react';
+
+// ─────────────────────────────────────────────────────────────────────
+// HELPER TRÍCH XUẤT THÔNG TIN BỔ TRỢ TUYỂN DỤNG CHUYÊN NGHIỆP
+// ─────────────────────────────────────────────────────────────────────
+
+function formatDate(dateStr?: string | Date): string {
+  if (!dateStr) return 'Mới cập nhật';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'Mới cập nhật';
+    return d.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  } catch {
+    return 'Mới cập nhật';
+  }
+}
+
+function calculateDeadline(dateStr?: string | Date): string {
+  try {
+    const d = dateStr ? new Date(dateStr) : new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  } catch {
+    return '30/11/2026';
+  }
+}
+
+function inferJobLevel(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes('lead') || t.includes('trưởng') || t.includes('head') || t.includes('manager')) {
+    return 'Trưởng nhóm / Quản lý (Lead / Manager)';
+  }
+  if (t.includes('senior') || t.includes('cao cấp') || t.includes('chính')) {
+    return 'Chuyên viên cao cấp (Senior Level)';
+  }
+  if (t.includes('junior') || t.includes('fresher') || t.includes('mới')) {
+    return 'Nhân viên / Khởi đầu (Junior / Fresher)';
+  }
+  if (t.includes('intern') || t.includes('thực tập')) {
+    return 'Thực tập sinh (Internship)';
+  }
+  return 'Chuyên viên / Nhân viên chính thức (Middle Level)';
+}
+
+function inferExperience(title: string, requirements: string): string {
+  const text = (title + ' ' + (requirements || '')).toLowerCase();
+  if (text.includes('5 năm') || text.includes('5+ năm') || text.includes('> 5')) {
+    return 'Tối thiểu 5 năm kinh nghiệm';
+  }
+  if (text.includes('3 năm') || text.includes('3-5 năm') || text.includes('3+ năm')) {
+    return 'Từ 3 - 5 năm kinh nghiệm';
+  }
+  if (text.includes('2 năm') || text.includes('2-3 năm') || text.includes('2+ năm')) {
+    return 'Từ 2 - 3 năm kinh nghiệm';
+  }
+  if (text.includes('1 năm') || text.includes('1-2 năm') || text.includes('1+ năm')) {
+    return 'Từ 1 - 2 năm kinh nghiệm';
+  }
+  if (text.includes('không yêu cầu') || text.includes('fresher') || text.includes('intern')) {
+    return 'Không yêu cầu kinh nghiệm (Được đào tạo)';
+  }
+  return '1 - 3 năm kinh nghiệm chuyên môn';
+}
+
+function inferSkills(title: string, dept: string, requirements: string): string[] {
+  const combined = (title + ' ' + dept + ' ' + (requirements || '')).toLowerCase();
+  const skills: string[] = [];
+
+  const checkList = [
+    { name: 'React', kw: ['react', 'reactjs'] },
+    { name: 'TypeScript', kw: ['typescript', 'ts'] },
+    { name: 'Node.js', kw: ['node', 'nodejs'] },
+    { name: 'NestJS', kw: ['nest', 'nestjs'] },
+    { name: 'Python / AI', kw: ['python', 'ai', 'machine learning', 'llm'] },
+    { name: 'MySQL / Database', kw: ['mysql', 'sql', 'database', 'postgresql'] },
+    { name: 'Docker / CI/CD', kw: ['docker', 'ci/cd', 'devops'] },
+    { name: 'RESTful API', kw: ['api', 'restful'] },
+    { name: 'Git & Version Control', kw: ['git', 'github', 'gitlab'] },
+    { name: 'UI / UX Design', kw: ['figma', 'ui', 'ux', 'design'] },
+    { name: 'Marketing & SEO', kw: ['marketing', 'seo', 'content', 'ads'] },
+    { name: 'Talent Acquisition', kw: ['tuyển dụng', 'recruitment', 'nhân sự', 'hr'] },
+    { name: 'Kỹ năng giao tiếp', kw: ['giao tiếp', 'communication'] },
+    { name: 'Làm việc nhóm', kw: ['làm việc nhóm', 'teamwork'] },
+  ];
+
+  for (const item of checkList) {
+    if (item.kw.some((k) => combined.includes(k))) {
+      skills.push(item.name);
+    }
+  }
+
+  if (skills.length === 0) {
+    skills.push('Làm việc nhóm', 'Giải quyết vấn đề', 'Tư duy chủ động', 'Kỹ năng giao tiếp');
+  }
+
+  return skills.slice(0, 6);
+}
 
 function JobDetail({ id }: { id: number }) {
   const [job, setJob] = useState<Job | null>(null);
@@ -131,27 +239,32 @@ function JobDetail({ id }: { id: number }) {
     }
   }
 
+  // Thông tin bổ trợ suy luận
+  const jobLevel = job ? inferJobLevel(job.title) : 'Chuyên viên';
+  const jobExperience = job ? inferExperience(job.title, job.requirements) : '1 - 3 năm kinh nghiệm';
+  const jobSkills = job ? inferSkills(job.title, job.departmentName, job.requirements) : [];
+  const postedDate = job ? formatDate(job.createdAt) : 'Mới cập nhật';
+  const deadlineDate = job ? calculateDeadline(job.createdAt) : '30/11/2026';
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
-      {/* ──────────────── TOP NAVIGATION / BREADCRUMB BAR ──────────────── */}
-      <nav className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-sm shadow-xs">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-16">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* ── BREADCRUMB & TOP ACTIONS BAR (KHÔNG DÙNG HEADER ĐÈ) ── */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
             <Link
               to="/careers"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-xs"
+              className="inline-flex items-center gap-1.5 font-semibold text-blue-600 hover:text-blue-700 transition-colors"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Tất cả việc làm
+              <ArrowLeft className="h-4 w-4" /> Cổng việc làm
             </Link>
-
             {job && (
-              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-                <span>/</span>
-                <span className="text-slate-600 font-medium">{job.departmentName}</span>
-                <span>/</span>
-                <span className="text-slate-800 font-semibold truncate max-w-xs">{job.title}</span>
-              </div>
+              <>
+                <span className="text-slate-300">/</span>
+                <span className="text-slate-500 font-medium">{job.departmentName}</span>
+                <span className="text-slate-300">/</span>
+                <span className="font-bold text-slate-900 truncate max-w-xs sm:max-w-md">{job.title}</span>
+              </>
             )}
           </div>
 
@@ -169,7 +282,7 @@ function JobDetail({ id }: { id: number }) {
               ) : (
                 <>
                   <Share2 className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Chia sẻ</span>
+                  <span>Chia sẻ tin</span>
                 </>
               )}
             </button>
@@ -178,17 +291,14 @@ function JobDetail({ id }: { id: number }) {
               <button
                 type="button"
                 onClick={scrollToApplyForm}
-                className="hidden sm:inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 shadow-xs transition-all"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 shadow-xs transition-all"
               >
-                Ứng tuyển ngay
+                Ứng tuyển ngay <ArrowRight className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
         </div>
-      </nav>
 
-      {/* ──────────────── MAIN CONTENT ──────────────── */}
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* LOADING STATE */}
         {loading && (
           <div className="py-20 text-center">
@@ -237,10 +347,16 @@ function JobDetail({ id }: { id: number }) {
                   {job.departmentName}
                 </span>
 
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
-                  Đang mở tuyển dụng
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    Đang mở tuyển dụng
+                  </span>
+                  <span className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/70">
+                    <Calendar className="h-3 w-3 text-slate-400" />
+                    Đăng ngày: {postedDate}
+                  </span>
+                </div>
               </div>
 
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
@@ -249,9 +365,9 @@ function JobDetail({ id }: { id: number }) {
 
               {/* Job Key Highlights Strip */}
               <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 pt-6 border-t border-slate-100">
-                <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 border border-slate-200/60">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                    <MapPin className="h-4 w-4" />
+                <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                    <MapPin className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs text-slate-500 font-medium">Địa điểm làm việc</p>
@@ -259,9 +375,9 @@ function JobDetail({ id }: { id: number }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 border border-slate-200/60">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                    <DollarSign className="h-4 w-4" />
+                <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                    <DollarSign className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs text-slate-500 font-medium">Mức thu nhập</p>
@@ -271,33 +387,113 @@ function JobDetail({ id }: { id: number }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 border border-slate-200/60">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                    <Clock className="h-4 w-4" />
+                <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <Clock className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs text-slate-500 font-medium">Hình thức</p>
-                    <p className="text-sm font-bold text-slate-900 truncate">Toàn thời gian</p>
+                    <p className="text-xs text-slate-500 font-medium">Hình thức làm việc</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">Toàn thời gian · Hybrid</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 border border-slate-200/60">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                    <Sparkles className="h-4 w-4" />
+                <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                    <Calendar className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs text-slate-500 font-medium">Quy trình tuyển</p>
-                    <p className="text-sm font-bold text-slate-900 truncate">Phản hồi 24-48h</p>
+                    <p className="text-xs text-slate-500 font-medium">Hạn nộp hồ sơ</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">{deadlineDate}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ── 2-COLUMN MAIN CONTENT (LEFT: JD, RIGHT: FORM) ── */}
+            {/* ── 2-COLUMN MAIN CONTENT (LEFT: JD & SPECS, RIGHT: FORM) ── */}
             <div className="grid items-start gap-8 lg:grid-cols-[1.35fr_1fr]">
-              {/* LEFT COLUMN: JOB OVERVIEW & DETAILS */}
+              {/* LEFT COLUMN: SPECS, JD, REQUIREMENTS, PERKS */}
               <div className="space-y-6">
-                {/* 1. MÔ TẢ CÔNG VIỆC */}
+                {/* 1. BẢNG CỘT THÔNG TIN TUYỂN DỤNG TỔNG QUAN (JOB SPECIFICATIONS) */}
+                <article className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-7 shadow-sm">
+                  <div className="flex items-center gap-2.5 pb-4 mb-5 border-b border-slate-100">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <Layers className="h-4 w-4" />
+                    </div>
+                    <h2 className="text-lg font-bold text-slate-900">Thông Tin Tuyển Dụng Tổng Quan</h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/70 border border-slate-100">
+                      <Briefcase className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-slate-500 block">Cấp bậc công việc:</span>
+                        <strong className="text-slate-900 font-semibold text-sm">{jobLevel}</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/70 border border-slate-100">
+                      <Clock className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-slate-500 block">Kinh nghiệm yêu cầu:</span>
+                        <strong className="text-slate-900 font-semibold text-sm">{jobExperience}</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/70 border border-slate-100">
+                      <Users className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-slate-500 block">Số lượng cần tuyển:</span>
+                        <strong className="text-slate-900 font-semibold text-sm">02 - 03 nhân sự</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/70 border border-slate-100">
+                      <GraduationCap className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-slate-500 block">Trình độ học vấn:</span>
+                        <strong className="text-slate-900 font-semibold text-sm">Cao đẳng / Đại học trở lên</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/70 border border-slate-100">
+                      <Building2 className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-slate-500 block">Khối phòng ban:</span>
+                        <strong className="text-slate-900 font-semibold text-sm">{job.departmentName}</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/70 border border-slate-100">
+                      <Sparkles className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-slate-500 block">Cơ chế phản hồi:</span>
+                        <strong className="text-blue-700 font-semibold text-sm">AI sàng lọc trong 24-48h</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Kỹ năng trọng tâm / Skill tags */}
+                  {jobSkills.length > 0 && (
+                    <div className="mt-5 pt-4 border-t border-slate-100">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                        Kỹ năng & Từ khóa trọng tâm:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {jobSkills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200/70"
+                          >
+                            <Check className="h-3 w-3 text-blue-500" />
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </article>
+
+                {/* 2. MÔ TẢ CÔNG VIỆC */}
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
                   <div className="flex items-center gap-2.5 pb-4 mb-5 border-b border-slate-100">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
@@ -310,7 +506,7 @@ function JobDetail({ id }: { id: number }) {
                   </div>
                 </article>
 
-                {/* 2. YÊU CẦU ỨNG VIÊN */}
+                {/* 3. YÊU CẦU ỨNG VIÊN */}
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
                   <div className="flex items-center gap-2.5 pb-4 mb-5 border-b border-slate-100">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
@@ -323,13 +519,13 @@ function JobDetail({ id }: { id: number }) {
                   </div>
                 </article>
 
-                {/* 3. CHẾ ĐỘ PHÚC LỢI & ĐÃI NGỘ */}
+                {/* 4. CHẾ ĐỘ PHÚC LỢI & ĐÃI NGỘ */}
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
                   <div className="flex items-center gap-2.5 pb-4 mb-5 border-b border-slate-100">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
                       <ShieldCheck className="h-4 w-4" />
                     </div>
-                    <h2 className="text-lg font-bold text-slate-900">Quyền Lợi & Môi Trường Làm Việc</h2>
+                    <h2 className="text-lg font-bold text-slate-900">Chế Độ Đãi Ngộ & Quyền Lợi</h2>
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -375,7 +571,7 @@ function JobDetail({ id }: { id: number }) {
                   </div>
                 </article>
 
-                {/* 4. QUY TRÌNH TUYỂN DỤNG VỊ TRÍ NÀY */}
+                {/* 5. QUY TRÌNH TUYỂN DỤNG VỊ TRÍ NÀY */}
                 <article className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
                   <h3 className="text-base font-bold text-slate-900 mb-4">Các Bước Tuyển Dụng Vị Trí Này</h3>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-center">
@@ -448,7 +644,7 @@ function JobDetail({ id }: { id: number }) {
                         <p className="font-bold text-slate-900 text-sm">Bước tiếp theo:</p>
                         <p className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                          <span>Hệ thống đã gửi xác nhận tiếp nhận tới email của bạn.</span>
+                          <span>Hệ thống đã ghi nhận hồ sơ và gửi thông báo tới ban tuyển dụng.</span>
                         </p>
                         <p className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />

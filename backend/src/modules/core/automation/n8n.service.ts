@@ -97,7 +97,12 @@ export class N8nService {
     action: 'CREATED' | 'UPDATED' | 'STATUS_CHANGED';
     job: Record<string, unknown>;
   }): Promise<boolean> {
-    return this.postWebhook(this.webhookBaseUrl + '/jobs-changed', payload, 'Đồng bộ danh sách vị trí Google Form');
+    return this.postWebhook(
+      this.webhookBaseUrl + '/jobs-changed',
+      payload,
+      'Đồng bộ danh sách vị trí Google Form',
+      this.aiHeaders(),
+    );
   }
 
   /**

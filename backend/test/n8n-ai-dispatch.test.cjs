@@ -34,6 +34,15 @@ test('AI dispatch adds only AI header and preserves request data', async () => {
     }
   } finally { global.fetch = original; }
 });
+test('jobs-changed uses the shared TV2 Header Auth key', async () => {
+  const original = global.fetch; let captured;
+  global.fetch = async (url, options) => { captured = { url, options }; return { ok: true, status: 200 }; };
+  try {
+    assert.equal(await new N8nService(config(settings)).triggerJobsChanged({ action: 'UPDATED', job: { id: 7 } }), true);
+    assert.equal(captured.url, 'http://n8n.test/webhook/jobs-changed');
+    assert.equal(captured.options.headers['x-n8n-ai-key'], settings.N8N_AI_KEY);
+  } finally { global.fetch = original; }
+});
 test('TV4 automation header survives integration and does not receive AI key', async () => {
   const original = global.fetch; let captured;
   global.fetch = async (url, options) => { captured = { url, options }; return { ok: true, status: 200 }; };

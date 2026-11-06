@@ -80,7 +80,6 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
   const getMoraleTheme = () => {
     if (moraleBadgeColor === 'rose' || moraleScore < 60) {
       return {
-        bg: 'from-rose-500/10 via-rose-500/5 to-transparent',
         border: 'border-rose-200',
         badge: 'bg-rose-100 text-rose-800 border-rose-300',
         scoreColor: 'text-rose-600',
@@ -90,7 +89,6 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
     }
     if (moraleBadgeColor === 'amber' || moraleScore < 75) {
       return {
-        bg: 'from-amber-500/10 via-amber-500/5 to-transparent',
         border: 'border-amber-200',
         badge: 'bg-amber-100 text-amber-800 border-amber-300',
         scoreColor: 'text-amber-600',
@@ -99,7 +97,6 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
       };
     }
     return {
-      bg: 'from-emerald-500/10 via-emerald-500/5 to-transparent',
       border: 'border-emerald-200',
       badge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
       scoreColor: 'text-emerald-600',
@@ -113,25 +110,20 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
   return (
     <section
       aria-labelledby="weekly-mood-heading"
-      className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-7 shadow-xs"
+      className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 sm:p-7 shadow-xs"
     >
-      {/* Nền gradient tinh tế */}
-      <div
-        className={`pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-gradient-to-br ${theme.bg} blur-3xl`}
-        aria-hidden="true"
-      />
 
       {/* ── TIÊU ĐỀ SECTION ── */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
               <CalendarDays className="h-4 w-4" />
             </span>
             <h3 id="weekly-mood-heading" className="text-base font-bold text-slate-900 sm:text-lg">
               Tổng Hợp Nhịp Cảm Xúc Tuần (7 Ngày Gần Nhất)
             </h3>
-            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-100">
+            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 border border-blue-100">
               <Sparkles className="h-3 w-3" />
               Tổng hợp 7 ngày
             </span>
@@ -154,7 +146,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
       {/* ── 4 THẺ METRICS TRỌNG TÂM ── */}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {/* Thẻ 1: Chỉ số năng lượng Morale Score */}
-        <div className={`relative overflow-hidden rounded-2xl border ${theme.border} bg-white p-4 shadow-2xs`}>
+        <div className={`relative overflow-hidden rounded-xl border ${theme.border} bg-white p-4 shadow-2xs`}>
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Chỉ Số Năng Lượng Tuần
@@ -183,7 +175,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
         </div>
 
         {/* Thẻ 2: Tuyệt vời / Hào hứng */}
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 shadow-2xs">
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
               Tuyệt Vời & Hăng Say
@@ -200,7 +192,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
         </div>
 
         {/* Thẻ 3: Bình thường / Ổn định */}
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4 shadow-2xs">
+        <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
               Bình Thường & Cân Bằng
@@ -217,7 +209,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
         </div>
 
         {/* Thẻ 4: Căng thẳng / Áp lực */}
-        <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-4 shadow-2xs">
+        <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800">
               Căng Thẳng & Áp Lực
@@ -237,7 +229,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
       </div>
 
       {/* ── DIỄN BIẾN 7 NGÀY (DAY-BY-DAY TREND TRACKER) ── */}
-      <div className="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 sm:p-5">
+      <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -273,8 +265,8 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
                 key={day.date}
                 className={`relative flex flex-col justify-between rounded-xl border p-3 transition-all ${
                   day.isToday
-                    ? 'border-indigo-400 bg-white shadow-sm ring-2 ring-indigo-200/70'
-                    : 'border-slate-200/80 bg-white hover:border-slate-300'
+                    ? 'border-blue-400 bg-white shadow-xs ring-2 ring-blue-200/70'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
                 }`}
               >
                 {/* Header ngày */}
@@ -282,7 +274,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
                   <div>
                     <span
                       className={`text-xs font-bold ${
-                        day.isToday ? 'text-indigo-600' : 'text-slate-700'
+                        day.isToday ? 'text-blue-600' : 'text-slate-700'
                       }`}
                     >
                       {day.dayLabel}
@@ -290,7 +282,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
                     <p className="text-[10px] text-slate-400">{day.date.slice(5)}</p>
                   </div>
                   {day.isToday && (
-                    <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 uppercase">
+                    <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold text-blue-700 uppercase">
                       Hôm nay
                     </span>
                   )}
@@ -349,7 +341,7 @@ export const WeeklyMoodAnalyticsWidget: React.FC<WeeklyMoodAnalyticsWidgetProps>
 
       {/* Lời khuyên gợi ý từ AI / Quản lý */}
       <div className="mt-4 flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 border border-slate-200/60">
-        <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-600" />
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" />
         <span>{theme.tip}</span>
       </div>
     </section>

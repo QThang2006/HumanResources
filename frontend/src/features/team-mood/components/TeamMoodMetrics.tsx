@@ -59,7 +59,7 @@ export const TeamMoodMetrics: React.FC<{ data: MetricsData }> = ({ data }) => {
               ? `${notCheckedIn} thành viên chưa check-in`
               : 'Cả đội đã check-in'}
         </p>
-        <ProgressBar percent={checkInPercent ?? 0} barClass="bg-indigo-500" label="Tỷ lệ check-in hôm nay" />
+        <ProgressBar percent={checkInPercent ?? 0} barClass="bg-blue-600" label="Tỷ lệ check-in hôm nay" />
       </section>
 
       {/* ── Năng lượng tích cực ── */}

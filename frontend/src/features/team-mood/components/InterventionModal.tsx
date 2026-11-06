@@ -132,7 +132,7 @@ export const InterventionModal: React.FC<InterventionModalProps> = ({
               onClick={requestClose}
               disabled={isSubmitting}
               aria-label="Đóng"
-              className="-m-1 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50"
+              className="-m-1 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -175,7 +175,7 @@ export const InterventionModal: React.FC<InterventionModalProps> = ({
                 placeholder="Ví dụ: Đã hẹn trao đổi 14h hôm nay để giảm tải task..."
                 aria-describedby={error ? errorId : undefined}
                 aria-invalid={error ? true : undefined}
-                className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 read-only:bg-slate-50 read-only:text-slate-500"
+                className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 read-only:bg-slate-50 read-only:text-slate-500"
               />
               <p className="mt-1 text-xs text-slate-500">
                 Không bắt buộc. Nếu để trống, hệ thống sẽ ghi nhận ghi chú mặc định.

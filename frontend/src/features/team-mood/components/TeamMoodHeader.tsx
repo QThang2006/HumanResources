@@ -43,8 +43,8 @@ export const TeamMoodHeader: React.FC<TeamMoodHeaderProps> = ({
               <label htmlFor="team-mood-dept-select" className="sr-only">
                 Lọc theo phòng ban
               </label>
-              <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 focus-within:ring-2 focus-within:ring-indigo-500">
-                <Building2 className="h-3.5 w-3.5 text-indigo-500" />
+              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-xs transition hover:border-slate-300 focus-within:ring-2 focus-within:ring-blue-500">
+                <Building2 className="h-3.5 w-3.5 text-blue-600" />
                 <select
                   id="team-mood-dept-select"
                   value={departmentId ?? ''}
@@ -61,10 +61,10 @@ export const TeamMoodHeader: React.FC<TeamMoodHeaderProps> = ({
               </div>
             </div>
           ) : (
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50/70 px-3 py-1 text-xs font-semibold text-indigo-800 shadow-xs">
-              <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-1 text-xs font-semibold text-blue-800 shadow-xs">
+              <Building2 className="h-3.5 w-3.5 text-blue-600" />
               <span>{departmentName || (departments && departments[0]?.name) || 'Đội ngũ trực thuộc'}</span>
-              <span className="ml-1 rounded bg-indigo-200/60 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">Đội ngũ của bạn</span>
+              <span className="ml-1 rounded bg-blue-200/60 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">Đội ngũ của bạn</span>
             </div>
           )}
         </div>
@@ -83,7 +83,7 @@ export const TeamMoodHeader: React.FC<TeamMoodHeaderProps> = ({
           type="button"
           onClick={onRefresh}
           disabled={isRefreshing || isLoading}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
           title="Làm mới dữ liệu Team Mood"
           aria-label="Làm mới dữ liệu"
         >

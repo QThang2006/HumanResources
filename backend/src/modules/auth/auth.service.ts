@@ -16,17 +16,24 @@ export class AuthService {
   async validateUser(email: string, pass: string): Promise<User | null> {
     const emailAliases: Record<string, string> = {
       'admin@company.com': 'superadmin@company.com',
-      'hr@company.com': 'vutranpoh+hr@gmail.com',
       'manager@company.com': 'vutranpoh@gmail.com',
       'employee@company.com': 'dattrandn@gmail.com',
     };
 
     const lookupEmail = emailAliases[email] || (email === 'admin@company.com' ? 'superadmin@company.com' : email);
 
-    const user = await this.userRepository.findOne({
+    let user = await this.userRepository.findOne({
       where: { email: lookupEmail },
       relations: ['department'],
     });
+
+    // Fallback sang email ban đầu nếu alias không tồn tại trong CSDL
+    if (!user && lookupEmail !== email) {
+      user = await this.userRepository.findOne({
+        where: { email },
+        relations: ['department'],
+      });
+    }
 
     // Phải kiểm tra null TRƯỚC khi đọc isActive
     if (!user) {

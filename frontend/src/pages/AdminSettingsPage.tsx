@@ -75,10 +75,14 @@ const IntegrationsPanel: React.FC<{
   n8nTesting: boolean;
   n8nTestMessage: string;
   n8nTestSuccess: boolean | null;
+  crashTesting: boolean;
+  crashTestMessage: string;
+  crashTestSuccess: boolean | null;
   onGeminiKeyChange: (value: string) => void;
   onN8nUrlChange: (value: string) => void;
   onTestGemini: () => void;
   onTestN8n: () => void;
+  onTestCrash: () => void;
   onSave: () => void;
 }> = props => {
   const geminiKeyIsUrl = /^https?:\/\//i.test(props.geminiApiKey.trim());
@@ -189,7 +193,22 @@ const IntegrationsPanel: React.FC<{
             />
           </div>
 
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={props.onTestCrash}
+              disabled={props.crashTesting}
+              title="Kích hoạt sự cố 500 để demo WF-03 AI Debugger"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {props.crashTesting ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <ShieldAlert className="h-4 w-4 shrink-0" />
+              )}
+              {props.crashTesting ? 'Đang kích hoạt...' : '🚨 Mô phỏng sự cố 500 (AI Debugger)'}
+            </button>
+
             <button
               type="button"
               onClick={props.onTestN8n}
@@ -209,6 +228,12 @@ const IntegrationsPanel: React.FC<{
             success={props.n8nTestSuccess}
             text={props.n8nTestMessage}
           />
+          <div role="status" aria-live="polite" aria-atomic="true">
+            <ConnectionStatus
+              success={props.crashTestSuccess}
+              text={props.crashTestMessage}
+            />
+          </div>
         </div>
       </div>
 
@@ -260,6 +285,11 @@ export const AdminSettingsPage: React.FC = () => {
   const [geminiTesting, setGeminiTesting] = useState(false);
   const [geminiTestMessage, setGeminiTestMessage] = useState('');
   const [geminiTestSuccess, setGeminiTestSuccess] =
+    useState<boolean | null>(null);
+
+  const [crashTesting, setCrashTesting] = useState(false);
+  const [crashTestMessage, setCrashTestMessage] = useState('');
+  const [crashTestSuccess, setCrashTestSuccess] =
     useState<boolean | null>(null);
 
   useEffect(() => {
@@ -384,6 +414,26 @@ export const AdminSettingsPage: React.FC = () => {
       );
     } finally {
       setGeminiTesting(false);
+    }
+  };
+
+  const handleTestCrash = async () => {
+    if (crashTesting) return;
+    try {
+      setCrashTesting(true);
+      setCrashTestSuccess(null);
+      setCrashTestMessage('Đang kích hoạt sự cố 500...');
+      const result = await systemConfigApi.testCrash();
+      if (result?.statusCode !== 500) {
+        throw new Error('Backend chưa trả về lỗi 500 như dự kiến.');
+      }
+      setCrashTestSuccess(true);
+      setCrashTestMessage('Backend đã trả về lỗi 500 mô phỏng. Kiểm tra lịch sử WF-03 của TV1, Telegram và email để xác nhận kết quả cảnh báo.');
+    } catch (error) {
+      setCrashTestSuccess(false);
+      setCrashTestMessage(error instanceof Error ? error.message : 'Không thể thực hiện yêu cầu mô phỏng. Hãy kiểm tra kết nối backend và thử lại.');
+    } finally {
+      setCrashTesting(false);
     }
   };
 
@@ -515,6 +565,9 @@ export const AdminSettingsPage: React.FC = () => {
                 n8nTesting={n8nTesting}
                 n8nTestMessage={n8nTestMessage}
                 n8nTestSuccess={n8nTestSuccess}
+                crashTesting={crashTesting}
+                crashTestMessage={crashTestMessage}
+                crashTestSuccess={crashTestSuccess}
                 onGeminiKeyChange={value => {
                   setGeminiApiKey(value);
                   setConfigMessage('');
@@ -529,6 +582,7 @@ export const AdminSettingsPage: React.FC = () => {
                 }}
                 onTestGemini={handleTestGemini}
                 onTestN8n={handleTestN8n}
+                onTestCrash={handleTestCrash}
                 onSave={handleSaveConfig}
               />
             )}

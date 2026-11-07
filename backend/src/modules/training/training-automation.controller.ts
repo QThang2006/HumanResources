@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards, ParseBoolPipe } from '@nestjs/common';
 import { AutomationSecretGuard } from '../../common/guards/automation-secret.guard';
 import { TrainingService } from './training.service';
 import { AutomationDeliveryStatus, ReviewReminderPhase } from '../../entities';
@@ -13,8 +13,8 @@ export class TrainingAutomationController {
   ) {}
 
   @Get('pending-reminders')
-  getPendingReminders(@Query('asOf') asOf?: string) {
-    return this.trainingService.getPendingTrainingReminders(asOf);
+  getPendingReminders(@Query('asOf') asOf?: string, @Query('repeat', new ParseBoolPipe({ optional: true })) repeat?: unknown) {
+    return this.trainingService.getPendingTrainingReminders(asOf, repeat === true);
   }
 
   @Post('reminder-results')
@@ -37,8 +37,9 @@ export class TrainingAutomationController {
   getReviewReminders(
     @Query('asOf') asOf?: string,
     @Query('phase') phase?: ReviewReminderPhase,
+    @Query('repeat', new ParseBoolPipe({ optional: true })) repeat?: unknown,
   ) {
-    return this.performanceReviewService.getPendingReviewReminders(asOf, phase);
+    return this.performanceReviewService.getPendingReviewReminders(asOf, phase, repeat === true);
   }
 
   @Post('review-reminder-results')

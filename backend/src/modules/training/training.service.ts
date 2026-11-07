@@ -799,7 +799,7 @@ Yêu cầu:
         });
         return this.employeeTrainingRepository.findOneBy({ id: assignmentId });
     }
-    async getPendingTrainingReminders(asOf?: string) {
+    async getPendingTrainingReminders(asOf?: string, allowRepeat = false) {
         const now = asOf ? new Date(asOf) : new Date();
         if (Number.isNaN(now.getTime())) {
             throw new BadRequestException(
@@ -858,7 +858,7 @@ Yêu cầu:
                     return false;
                 }
 
-                return !assignment.lastReminderAt ||
+                return allowRepeat === true || !assignment.lastReminderAt ||
                     now.getTime() - assignment.lastReminderAt.getTime() >= reminderCooldownMs;
             })
             .map((assignment) => {

@@ -33,6 +33,7 @@ import { trainingDateInput as dateInputValue, trainingDayKey } from './training-
 import { usersApi } from '../api/users.api';
 import { useAuth } from '../context/AuthContext';
 import { ReviewCalendarPanel } from './ReviewCalendarPanel';
+import { OffboardingPanel } from './OffboardingPanel';
 import type { User } from '../types';
 import { CourseRemoveDialog } from './CourseRemoveDialog';
 import { CoursePermanentDeleteDialog } from './CoursePermanentDeleteDialog';
@@ -65,12 +66,13 @@ const STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'Hoàn thành',
 };
 
-type TrainingWorkspace = 'setup' | 'catalog' | 'progress' | 'reviews';
+type TrainingWorkspace = 'setup' | 'catalog' | 'progress' | 'reviews' | 'offboarding';
 type AssignmentFilter = 'ALL' | TrainingStatus;
 
 export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = ({ presentation = 'standard' }) => {
   const { user: currentUser } = useAuth();
   const canViewReviews = currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'HR';
+  const [offboardingOpened, setOffboardingOpened] = useState(false);
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [assignments, setAssignments] = useState<TrainingAssignment[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -719,7 +721,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-slate-50 p-1.5">
-        <div className={`grid gap-1.5 ${canViewReviews ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-3'}`}>
+        <div className={`grid gap-1.5 ${canViewReviews ? 'grid-cols-2 xl:grid-cols-5' : 'grid-cols-3'}`}>
           <WorkspaceTab
             active={activeWorkspace === 'setup'}
             icon={<Sparkles className="h-4 w-4" />}
@@ -748,10 +750,18 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             description="Lịch nhắc và tình trạng đánh giá"
             onClick={() => setActiveWorkspace('reviews')}
           />}
+          {canViewReviews && <WorkspaceTab
+            active={activeWorkspace === 'offboarding'}
+            icon={<Users className="h-4 w-4" />}
+            title="Hồ sơ thôi việc"
+            description="Điều phối và kết quả thông báo"
+            onClick={() => { setOffboardingOpened(true); setActiveWorkspace('offboarding'); }}
+          />}
         </div>
       </section>
 
       {activeWorkspace === 'reviews' && canViewReviews && <ReviewCalendarPanel />}
+      {offboardingOpened && canViewReviews && <div hidden={activeWorkspace !== 'offboarding'}><OffboardingPanel active={activeWorkspace === 'offboarding'} /></div>}
 
       {(activeWorkspace === 'setup' || (activeWorkspace === 'catalog' && showCreateCourse)) && (
       <section className="tv4-training-setup">

@@ -23,10 +23,10 @@ export class UsersController {
 
   // =========================================================
   // DANH SÁCH NGƯỜI DÙNG
-  // SUPERADMIN và HR được xem
+  // SUPERADMIN, HR và MANAGER được xem
   // =========================================================
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPERADMIN, UserRole.HR)
+  @Roles(UserRole.SUPERADMIN, UserRole.HR, UserRole.MANAGER)
   @Get()
   async findAll() {
     return this.usersService.findAll();

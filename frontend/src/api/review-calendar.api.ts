@@ -34,7 +34,17 @@ export interface ReviewCalendarBoard {
   employees: ReviewCalendarEmployee[];
 }
 export type ReviewCalendarUpdate = Pick<ReviewCalendar, 'openingDate' | 'reminderDate' | 'deadline' | 'version'>;
+
+export interface SubmitReviewInput {
+  userId: number;
+  reviewPeriod: string;
+  kpiScore: number;
+  managerComment?: string;
+  ratingRank: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'POOR';
+}
+
 export const reviewCalendarApi = {
   get: (period: string, signal?: AbortSignal): Promise<ReviewCalendarBoard> => apiClient.get(`/performance-reviews/calendar/${encodeURIComponent(period)}`, { signal }),
   update: (period: string, data: ReviewCalendarUpdate): Promise<ReviewCalendar> => apiClient.put(`/performance-reviews/calendar/${encodeURIComponent(period)}`, data),
+  submitReview: (data: SubmitReviewInput): Promise<{ message: string; review: any }> => apiClient.post('/performance-reviews', data),
 };

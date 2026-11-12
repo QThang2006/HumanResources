@@ -71,7 +71,7 @@ type AssignmentFilter = 'ALL' | TrainingStatus;
 
 export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = ({ presentation = 'standard' }) => {
   const { user: currentUser } = useAuth();
-  const canViewReviews = currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'HR';
+  const canViewReviews = currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'HR' || currentUser?.role === 'MANAGER';
   const [offboardingOpened, setOffboardingOpened] = useState(false);
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [assignments, setAssignments] = useState<TrainingAssignment[]>([]);

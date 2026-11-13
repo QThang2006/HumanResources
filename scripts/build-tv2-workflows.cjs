@@ -87,6 +87,7 @@ node(intake, '13. Đánh dấu email tuyển dụng đã xử lý', 'gmail', { r
 chain(intake, ['01. Theo dõi CV mới trong Gmail tuyển dụng', '02. Chuẩn hóa hồ sơ nhận qua Gmail', '06. Kiểm tra thông tin ứng viên và tệp CV']);
 chain(intake, ['03. Phát hiện câu trả lời Google Form mới', '04. Chuẩn hóa hồ sơ và mã vị trí từ Form', '05. Tải CV từ Google Drive', '06. Kiểm tra thông tin ứng viên và tệp CV', '07. Lưu hồ sơ và CV vào ATS', '08. Kiểm tra hồ sơ cần gửi xác nhận', '09. Soạn thư xác nhận đã nhận hồ sơ', '10. Gửi thư xác nhận cho ứng viên', '11. Lưu kết quả gửi thư xác nhận', '12. Kiểm tra hồ sơ đến từ Gmail', '13. Đánh dấu email tuyển dụng đã xử lý']);
 connect(intake, '08. Kiểm tra hồ sơ cần gửi xác nhận', '12. Kiểm tra hồ sơ đến từ Gmail', 1);
+Object.assign(intake, require('./patch-wf02-website-ack.cjs').addWebsiteAcknowledgement(intake, { allowPlaceholders: true }));
 save(intake, 'candidate-intake-omnichannel.json');
 
 // Synchronize the Backend job catalog into the Google Form dropdown.

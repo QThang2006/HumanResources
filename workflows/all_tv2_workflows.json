@@ -732,6 +732,163 @@
           "mode": "runOnceForEachItem",
           "jsCode": "return { json: { success: true, processedEmailId: $json.sourceId, status: 'PROCESSED' } };"
         }
+      },
+      {
+        "id": "tv2-website-ack-1",
+        "name": "WEB-01. Receive Website Application",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          900
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "application-received",
+          "authentication": "headerAuth",
+          "responseMode": "onReceived",
+          "options": {}
+        },
+        "webhookId": "application-received",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "hrTv2IntakeHeader",
+            "name": "TV2 Backend Intake Key"
+          }
+        }
+      },
+      {
+        "id": "tv2-website-ack-2",
+        "name": "WEB-02. Claim Website Acknowledgment in ATS",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          280,
+          900
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ (() => { const raw = $json.body || $json; const p = raw.data || raw; const id = Number(p.applicationId); if (!Number.isSafeInteger(id) || id < 1) throw Error('Invalid applicationId'); return \"http://host.docker.internal:3001/api/recruitment/intake/\" + id + '/acknowledgement/claim'; })() }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "options": {
+            "timeout": 20000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "hrTv2IntakeHeader",
+            "name": "TV2 Backend Intake Key"
+          }
+        },
+        "retryOnFail": false
+      },
+      {
+        "id": "tv2-website-ack-3",
+        "name": "WEB-03. Check Website Acknowledgment Claim",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          560,
+          900
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "website-claim",
+                "leftValue": "={{ ($json.data || $json).shouldSend === true }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "tv2-website-ack-4",
+        "name": "WEB-04. Draft Website Acknowledgment",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          840,
+          900
+        ],
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "\nconst p = $json.data;\nconst esc = s => String(s).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));\nreturn { json: { ...p, subject: 'Xác nhận đã nhận hồ sơ ứng tuyển', html: '<p>Chào ' + esc(p.candidateName) + ',</p><p>Phòng Nhân sự đã nhận CV của bạn. Mã hồ sơ: <b>' + p.applicationId + '</b>.</p><p>Chúng tôi sẽ liên hệ sau khi xem xét hồ sơ. Cảm ơn bạn đã ứng tuyển!</p>' } };\n"
+        }
+      },
+      {
+        "id": "tv2-website-ack-5",
+        "name": "WEB-05. Send Website Acknowledgment",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          1120,
+          900
+        ],
+        "parameters": {
+          "operation": "send",
+          "fromEmail": "={{ $json.fromEmail }}",
+          "toEmail": "={{ $json.candidateEmail }}",
+          "subject": "={{ $json.subject }}",
+          "emailFormat": "html",
+          "html": "={{ $json.html }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "credentials": {
+          "smtp": {
+            "id": "pcGy7r4S7VYVboJQ",
+            "name": "SMTP account"
+          }
+        },
+        "retryOnFail": false,
+        "onError": "stopWorkflow"
+      },
+      {
+        "id": "tv2-website-ack-6",
+        "name": "WEB-06. Record Website Acknowledgment",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1400,
+          900
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://host.docker.internal:3001/api/recruitment/intake/\" + $('WEB-04. Draft Website Acknowledgment').item.json.applicationId + '/acknowledgement' }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { accepted: $json.accepted, messageId: $json.messageId } }}",
+          "options": {
+            "timeout": 20000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "hrTv2IntakeHeader",
+            "name": "TV2 Backend Intake Key"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
       }
     ],
     "connections": {
@@ -868,6 +1025,61 @@
           [
             {
               "node": "13. Đánh dấu email tuyển dụng đã xử lý",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "WEB-01. Receive Website Application": {
+        "main": [
+          [
+            {
+              "node": "WEB-02. Claim Website Acknowledgment in ATS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "WEB-02. Claim Website Acknowledgment in ATS": {
+        "main": [
+          [
+            {
+              "node": "WEB-03. Check Website Acknowledgment Claim",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "WEB-03. Check Website Acknowledgment Claim": {
+        "main": [
+          [
+            {
+              "node": "WEB-04. Draft Website Acknowledgment",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "WEB-04. Draft Website Acknowledgment": {
+        "main": [
+          [
+            {
+              "node": "WEB-05. Send Website Acknowledgment",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "WEB-05. Send Website Acknowledgment": {
+        "main": [
+          [
+            {
+              "node": "WEB-06. Record Website Acknowledgment",
               "type": "main",
               "index": 0
             }

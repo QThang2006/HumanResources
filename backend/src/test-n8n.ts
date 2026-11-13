@@ -15,8 +15,8 @@ async function testN8n() {
 
   // Email của bạn để nhận trực tiếp email thật từ cả 3 luồng
   const testEmail = 'quocthangngo2006@gmail.com';
-  // Nếu bạn có Chat ID Telegram từ @userinfobot thì điền vào đây, nếu chưa có thì để trống
-  const testTelegramChatId = '8928574834'; 
+  // Chat ID nhóm chung Telegram HR BOT
+  const testTelegramChatId = '-1004330084381'; 
 
   console.log('1. Bắn Webhook xếp lịch phỏng vấn (interview-schedule)...');
   await n8nService.triggerInterviewScheduled({

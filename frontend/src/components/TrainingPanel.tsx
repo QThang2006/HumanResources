@@ -71,7 +71,8 @@ type AssignmentFilter = 'ALL' | TrainingStatus;
 
 export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = ({ presentation = 'standard' }) => {
   const { user: currentUser } = useAuth();
-  const canViewReviews = currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'HR';
+  const canViewReviews = currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'HR' || currentUser?.role === 'MANAGER';
+  const canViewOffboarding = currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'HR';
   const [offboardingOpened, setOffboardingOpened] = useState(false);
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [assignments, setAssignments] = useState<TrainingAssignment[]>([]);
@@ -750,7 +751,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
             description="Lịch nhắc và tình trạng đánh giá"
             onClick={() => setActiveWorkspace('reviews')}
           />}
-          {canViewReviews && <WorkspaceTab
+          {canViewOffboarding && <WorkspaceTab
             active={activeWorkspace === 'offboarding'}
             icon={<Users className="h-4 w-4" />}
             title="Hồ sơ thôi việc"
@@ -761,7 +762,7 @@ export const TrainingPanel: React.FC<{ presentation?: 'standard' | 'admin' }> = 
       </section>
 
       {activeWorkspace === 'reviews' && canViewReviews && <ReviewCalendarPanel />}
-      {offboardingOpened && canViewReviews && <div hidden={activeWorkspace !== 'offboarding'}><OffboardingPanel active={activeWorkspace === 'offboarding'} /></div>}
+      {offboardingOpened && canViewOffboarding && <div hidden={activeWorkspace !== 'offboarding'}><OffboardingPanel active={activeWorkspace === 'offboarding'} /></div>}
 
       {(activeWorkspace === 'setup' || (activeWorkspace === 'catalog' && showCreateCourse)) && (
       <section className="tv4-training-setup">

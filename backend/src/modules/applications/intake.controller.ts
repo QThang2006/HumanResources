@@ -9,6 +9,7 @@ import { SubmitInput } from '../jobs/recruitment.dto';
 import { Application } from '../../entities/application.entity';
 import { ApplicationsService } from './applications.service';
 import { MAX_CV_BYTES } from './cv-storage.service';
+import { ApplicationAcknowledgementService } from './application-acknowledgement.service';
 @Injectable()
 export class IntakeGuard implements CanActivate {
     constructor(private readonly config: ConfigService) { }
@@ -41,7 +42,8 @@ class AcknowledgementInput {
 @Controller('recruitment/intake')
 @UseGuards(IntakeGuard)
 export class IntakeController {
-    constructor(private readonly applications: ApplicationsService, private readonly db: DataSource, private readonly config: ConfigService) { }
+    constructor(private readonly applications: ApplicationsService, private readonly db: DataSource, private readonly config: ConfigService,
+        private readonly acknowledgements: ApplicationAcknowledgementService) { }
     @Post()
     @UseInterceptors(FileInterceptor('cv', { storage: memoryStorage(), limits: { fileSize: MAX_CV_BYTES, files: 1, fields: 6, fieldSize: 1000, parts: 8 } }))
     async ingest(
@@ -67,6 +69,10 @@ export class IntakeController {
             throw e;
         }
     }
+    @Post(':id/acknowledgement/claim')
+    async claimAcknowledgement(@Param('id', ParseIntPipe) id: number) {
+        return this.acknowledgements.claim(id);
+    }
     @Post(':id/acknowledgement')
     async acknowledge(
     @Param('id', ParseIntPipe)
@@ -75,10 +81,13 @@ export class IntakeController {
     input: AcknowledgementInput) {
         return this.db.transaction(async (m) => {
             const row = await m.getRepository(Application).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
-            if (!row?.intakeChannel || !input.accepted.map(e => e.toLowerCase()).includes(row.candidateEmail.toLowerCase()))
+            if (!row || !['CLAIMED', 'SMTP_ACCEPTED'].includes(row.acknowledgementStatus) ||
+                !input.accepted.map(e => e.toLowerCase()).includes(row.candidateEmail.toLowerCase()))
                 throw new ConflictException('SMTP chưa xác nhận đúng ứng viên.');
             if (row.acknowledgementMessageId && row.acknowledgementMessageId !== input.messageId)
                 throw new ConflictException('Hồ sơ đã xác nhận bằng thư khác.');
+            if (row.acknowledgementStatus === 'SMTP_ACCEPTED' && row.acknowledgementMessageId === input.messageId)
+                return { recorded: true };
             row.acknowledgementStatus = 'SMTP_ACCEPTED';
             row.acknowledgementMessageId = input.messageId;
             await m.getRepository(Application).save(row);

@@ -437,7 +437,7 @@ export const AdminSettingsPage: React.FC = () => {
     }
   };
 
-  if (user?.role === 'MANAGER' || user?.role === 'EMPLOYEE') {
+  if (user?.role === 'EMPLOYEE') {
     return (
       <div className="min-h-full bg-slate-50 px-4 py-20">
         <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -455,7 +455,7 @@ export const AdminSettingsPage: React.FC = () => {
     );
   }
 
-  if (user?.role === 'HR') {
+  if (user?.role === 'HR' || user?.role === 'MANAGER') {
     return (
       <div className="tv4-ui tv4-workspace min-h-full bg-slate-50">
         <div className="mx-auto max-w-[1500px] px-4 py-8 sm:px-6 lg:px-8">

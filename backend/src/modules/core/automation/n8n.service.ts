@@ -105,7 +105,12 @@ export class N8nService {
     action: 'CREATED' | 'UPDATED' | 'STATUS_CHANGED';
     job: Record<string, unknown>;
   }): Promise<boolean> {
-    return this.postWebhook(this.webhookBaseUrl + '/jobs-changed', payload, 'Đồng bộ danh sách vị trí Google Form');
+    return this.postWebhook(
+      this.webhookBaseUrl + '/jobs-changed',
+      payload,
+      'Đồng bộ danh sách vị trí Google Form',
+      this.aiHeaders(),
+    );
   }
 
   /**
@@ -201,6 +206,22 @@ export class N8nService {
     return this.postWebhook(url, data, actionName, { 'x-n8n-ai-key': key });
   }
 
+  async triggerApplicationCreated(payload: { applicationId: number }): Promise<boolean> {
+    // The live WF-02 intake credential already authenticates n8n -> BE callbacks.
+    // Reuse that credential for this receipt webhook, independently of AI credentials.
+    const key = this.configService.get<string>('N8N_INTAKE_KEY');
+    if (!key || key.length < 32) {
+      this.logger.warn('[n8n Dispatcher] Chưa cấu hình khóa intake cho xác nhận hồ sơ website');
+      return false;
+    }
+    return this.postWebhook(
+      `${this.webhookBaseUrl.replace(/\/+$/, '')}/application-received`,
+      payload,
+      'Xác nhận hồ sơ website',
+      { 'x-intake-key': key },
+    );
+  }
+
   async triggerAiResumeScore(payload: {
     applicationId: number;
     requestId?: string;
@@ -241,7 +262,7 @@ export class N8nService {
         headers['X-Webhook-Secret'] = this.webhookSecret;
       }
 
-      fetch(url, {
+      const response = await fetch(url, {
         method: 'POST',
         headers,
         signal: AbortSignal.timeout(10000),
@@ -251,23 +272,13 @@ export class N8nService {
           ...data,
           data,
         }),
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            this.logger.warn(
-              `[n8n Dispatcher] Webhook [${actionName}] trả về mã HTTP ${res.status}: ${res.statusText}`,
-            );
-            await this.saveOutboxIfAvailable(url, data, `HTTP ${res.status}: ${res.statusText}`);
-          }
-        })
-        .catch(async (err) => {
-          this.logger.warn(
-            `[n8n Dispatcher] Không thể kết nối tới server n8n (${url}): ${err.message}`,
-          );
-          await this.saveOutboxIfAvailable(url, data, err.message);
-        });
-
-      return true;
+      });
+      if (!response.ok) {
+        const reason = `HTTP ${response.status}: ${response.statusText}`;
+        this.logger.warn(`[n8n Dispatcher] Webhook [${actionName}] trả về mã HTTP ${response.status}: ${response.statusText}`);
+        await this.saveOutboxIfAvailable(url, data, reason);
+      }
+      return response.ok;
     } catch (err: any) {
       this.logger.error(`[n8n Dispatcher] Lỗi ngoại lệ: ${err.message}`);
       return false;

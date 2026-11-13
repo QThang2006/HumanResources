@@ -19,6 +19,13 @@ export interface Job {
   salaryRange: string;
   description: string;
   requirements: string;
+  level?: string;
+  employmentType?: string;
+  experienceYears?: string;
+  headcount?: number;
+  deadline?: string | null;
+  benefits?: string | null;
+  skills?: string | null;
   status: 'OPEN' | 'CLOSED';
   createdAt: string;
   applicationCount?: number;

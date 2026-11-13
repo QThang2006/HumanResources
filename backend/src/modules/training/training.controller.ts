@@ -21,7 +21,7 @@ import { UpdateTrainingCourse } from './update-training-course';
 
 @Controller('training')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.SUPERADMIN, UserRole.HR)
+@Roles(UserRole.SUPERADMIN, UserRole.HR, UserRole.MANAGER)
 export class TrainingController {
     @Get('summary')
     getTrainingSummary() {

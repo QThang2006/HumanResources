@@ -33,6 +33,13 @@ export interface Job {
   salaryRange: string;
   description: string;
   requirements: string;
+  level?: string;
+  employmentType?: string;
+  experienceYears?: string;
+  headcount?: number;
+  deadline?: string | null;
+  benefits?: string | null;
+  skills?: string | null;
   status: JobStatus;
   createdAt: string;
   updatedAt: string;
@@ -45,6 +52,13 @@ export interface JobInput {
   salaryRange: string;
   description: string;
   requirements: string;
+  level?: string;
+  employmentType?: string;
+  experienceYears?: string;
+  headcount?: number;
+  deadline?: string;
+  benefits?: string;
+  skills?: string;
 }
 export interface Interview {
   id: number;

@@ -29,6 +29,13 @@ function jobView(job: Job & { applicationCount?: number }) {
     salaryRange: job.salaryRange,
     description: job.description,
     requirements: job.requirements,
+    level: job.level || 'Middle',
+    employmentType: job.employmentType || 'Toàn thời gian',
+    experienceYears: job.experienceYears || '1 - 3 năm',
+    headcount: job.headcount ?? 1,
+    deadline: job.deadline ? (job.deadline instanceof Date ? job.deadline.toISOString().split('T')[0] : String(job.deadline)) : null,
+    benefits: job.benefits || null,
+    skills: job.skills || null,
     status: job.status,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
@@ -289,6 +296,13 @@ export class JobsService {
         salaryRange: input.salaryRange,
         description: input.description,
         requirements: input.requirements,
+        level: input.level || 'Middle',
+        employmentType: input.employmentType || 'Toàn thời gian',
+        experienceYears: input.experienceYears || '1 - 3 năm',
+        headcount: input.headcount ?? 1,
+        deadline: input.deadline ? new Date(input.deadline) : null,
+        benefits: input.benefits || null,
+        skills: input.skills || null,
         createdBy: userId,
         status: JobStatus.OPEN,
       }),
@@ -333,6 +347,13 @@ export class JobsService {
       job.requirements = input.requirements;
       if (input.location !== undefined) job.location = input.location;
       if (input.salaryRange !== undefined) job.salaryRange = input.salaryRange;
+      if (input.level !== undefined) job.level = input.level;
+      if (input.employmentType !== undefined) job.employmentType = input.employmentType;
+      if (input.experienceYears !== undefined) job.experienceYears = input.experienceYears;
+      if (input.headcount !== undefined) job.headcount = input.headcount;
+      if (input.deadline !== undefined) job.deadline = input.deadline ? new Date(input.deadline) : null;
+      if (input.benefits !== undefined) job.benefits = input.benefits;
+      if (input.skills !== undefined) job.skills = input.skills;
       job.updatedAt = this.nextRevision(job.updatedAt);
       await repository.save(job);
     });
@@ -352,7 +373,19 @@ export class JobsService {
     return this.savedJob(id);
   }
 
-  async generateJDWithAI(title: string, departmentName: string, level: string) {
-    return this.ai.jd(title, departmentName, level);
+  async generateJDWithAI(
+    title: string,
+    departmentName: string,
+    level: string,
+    context?: {
+      skills?: string;
+      experienceYears?: string;
+      employmentType?: string;
+      location?: string;
+      salaryRange?: string;
+      specialNotes?: string;
+    },
+  ) {
+    return this.ai.jd(title, departmentName, level, context);
   }
 }

@@ -14,7 +14,7 @@ export class PerformanceReviewController {
   constructor(private readonly performanceReviewService: PerformanceReviewService, private readonly calendarService: ReviewCalendarService) {}
 
   @Get('calendar/:period')
-  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN, UserRole.MANAGER)
   getCalendar(@CurrentUser('id') viewerId: number, @Param('period') period: string) {
     return this.performanceReviewService.getCalendarBoard(viewerId, period);
   }

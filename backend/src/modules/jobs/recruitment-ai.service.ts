@@ -44,7 +44,7 @@ export class RecruitmentAiService {
     };
   }
 
-  private async call(method: Method, args: string[]): Promise<AiResult<Record<string, unknown>>> {
+  private async call(method: Method, args: unknown[]): Promise<AiResult<Record<string, unknown>>> {
     const fn = (this.gemini as unknown as Sdk)[method];
     if (typeof fn !== 'function')
       throw new ServiceUnavailableException(
@@ -99,8 +99,22 @@ export class RecruitmentAiService {
     }
   }
 
-  async jd(title: string, dept: string, level: string) {
-    const result = await this.call('generateJobDescription', [title, dept, level]);
+  async jd(
+    title: string,
+    dept: string,
+    level: string,
+    context?: {
+      skills?: string;
+      experienceYears?: string;
+      employmentType?: string;
+      location?: string;
+      salaryRange?: string;
+      specialNotes?: string;
+    },
+  ) {
+    const args: unknown[] = [title, dept, level];
+    if (context) args.push(context);
+    const result = await this.call('generateJobDescription', args);
     return {
       mode: result.mode,
       data: {

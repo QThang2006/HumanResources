@@ -71,6 +71,8 @@ async function startHarness({
     hireCalls: [],
     offerCalls: [],
     jobsCalls: [],
+    acknowledgementCalls: [],
+    async triggerApplicationCreated(payload) { this.acknowledgementCalls.push(payload); return true; },
     offerAccepted: true,
     async triggerOfferIssued(payload) { this.offerCalls.push(payload); return this.offerAccepted; },
     accepted: true,
@@ -106,7 +108,7 @@ async function startHarness({
         TypeOrmModule.forRoot({
           ...options,
           username: options.user,
-          type: 'mysql',
+          type: process.env.ATS_TEST_DB_TYPE === 'mariadb' ? 'mariadb' : 'mysql',
           database: name,
           entities: [
             ...Object.values(entities).filter((v) => typeof v === 'function'),

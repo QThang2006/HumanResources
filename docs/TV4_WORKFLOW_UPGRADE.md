@@ -34,7 +34,7 @@ Export trước/sau, bản import có cấu hình instance và log kiểm thử 
 4. Rà soát email chuyển hướng trước khi Execute. KPI: lịch hiện được cấu hình ở tab Đánh giá định kỳ; xem `TV4_REVIEW_CALENDAR.md`. Không đặt dữ liệu ghim để thay hồ sơ thôi việc thật.
 5. Publish riêng từng workflow TV4 khi sẵn sàng. Không khởi động lại instance dùng chung hoặc sửa workflow của thành viên khác.
 
-`reviewFormUrl` hiện có thể là đường dẫn workspace; workflow không triển khai biểu mẫu KPI. Thôi việc SENT/COMPLETED xác nhận việc thông báo theo logic backend hiện tại, không xác nhận các phòng ban đã hoàn thành bàn giao.
+`reviewFormUrl` phải trỏ tới `/admin/settings`, nơi Manager truy cập Đánh giá định kỳ; không trỏ tới workspace cá nhân. Xem cấu hình người nhận tại [TV4_PRODUCTION_MAIL_ROUTING.md](TV4_PRODUCTION_MAIL_ROUTING.md). Thôi việc SENT/COMPLETED xác nhận việc thông báo theo logic backend hiện tại, không xác nhận các phòng ban đã hoàn thành bàn giao.
 
 SMTP xác nhận server chấp nhận thư không bảo đảm thư vào inbox. Thử lại khi mất kết nối có thể giao thư trùng; alreadyNotified ngăn gửi lại kênh backend đã lưu thành công, không bảo đảm giao đúng một lần trong mọi sự cố hoặc khi hai lần chạy đồng thời.
 

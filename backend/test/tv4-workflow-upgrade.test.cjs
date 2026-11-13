@@ -19,7 +19,7 @@ function run(workflow, name, input = {}, outputs = {}) {
   let source;
   if (node.type === 'n8n-nodes-base.code') source = `(function(){${node.parameters.jsCode}\n})()`;
   else if (node.type === 'n8n-nodes-base.if') source = node.parameters.conditions.conditions[0].leftValue.slice(3, -2);
-  else source = node.parameters.responseBody.slice(3, -2);
+  else source = '(' + node.parameters.responseBody.slice(3, -2) + ')';
   const result = vm.runInNewContext(source, context, { timeout: 1000 });
   return JSON.parse(JSON.stringify(result));
 }
@@ -148,10 +148,11 @@ test('Offboarding invalid employee email does not prevent IT and Finance notices
   assert.doesNotMatch(source.farewellHtml, /href="undefined"|href=""/);
 });
 test('Offboarding response reports callback failure instead of false success', () => {
-  const outputs = { 'Summarize Offboarding Delivery': { caseId: 19, status: 'SENT', itNotified: true, financeNotified: true, employeeNotified: true, telegramNotified: true } };
-  const bad = JSON.parse(run(workflows[2], 'Respond to Offboarding Request', { error: 'timeout' }, outputs));
-  assert.equal(bad.success, false);
-  assert.equal(bad.callbackRecorded, false);
-  const good = JSON.parse(run(workflows[2], 'Respond to Offboarding Request', { data: { recorded: true } }, outputs));
-  assert.equal(good.success, true);
+  const response = workflows[2].nodes.find(node => node.name === 'Respond to Offboarding Request').parameters;
+  assert.equal(response.respondWith, 'firstIncomingItem');
+  assert.equal(response.responseBody, undefined);
+  const statusCode = input => vm.runInNewContext('(' + response.options.responseCode.slice(3, -2) + ')', { $json: input });
+  for (const input of [{ error: 'timeout' }, { data: { recorded: false } }, {}]) assert.equal(statusCode(input), 502);
+  assert.equal(statusCode({ data: { recorded: true } }), 200);
+  assert.equal(statusCode({ recorded: true, duplicate: true }), 200);
 });

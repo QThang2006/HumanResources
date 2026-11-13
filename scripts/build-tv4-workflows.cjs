@@ -215,7 +215,7 @@ function build(file) {
     editCode('Authenticate Offboarding Request',offboardingAuthentication);get('Authenticate Offboarding Request').parameters.jsCode=get('Authenticate Offboarding Request').parameters.jsCode.replace('CONFIG_VALIDATION','('+configValidation.toString()+')()');
     const fetch=get('Fetch Approved Offboarding Case');fetch.onError='continueRegularOutput';
     gate('Is Approved Case Valid?',"!$json.error && Number(($json.data ?? $json).caseId) === $('Authenticate Offboarding Request').first().json.caseId && Boolean(($json.data ?? $json).employee?.fullName) && /^\\d{4}-\\d{2}-\\d{2}$/.test(($json.data ?? $json).lastWorkingDate || '') && !Number.isNaN(Date.parse(($json.data ?? $json).lastWorkingDate)) && ['APPROVED','IN_PROGRESS','PARTIAL','FAILED'].includes(($json.data ?? $json).status)");
-    add({id:'tv4-offboarding-invalid-response',name:'Respond to Invalid Case',type:'n8n-nodes-base.respondToWebhook',typeVersion:1.4,position:[0,0],parameters:{respondWith:'json',responseBody:'={{ JSON.stringify({success:false,errorCode:"INVALID_OFFBOARDING_CASE",message:"Không thể điều phối hồ sơ. Kiểm tra mã hồ sơ, trạng thái duyệt và kết nối backend."}) }}',options:{responseCode:409}}});
+    add({id:'tv4-offboarding-invalid-response',name:'Respond to Invalid Case',type:'n8n-nodes-base.respondToWebhook',typeVersion:1.4,position:[0,0],parameters:{respondWith:'json',responseBody:'={{ {success:false,errorCode:"INVALID_OFFBOARDING_CASE",message:"Không thể điều phối hồ sơ. Kiểm tra mã hồ sơ, trạng thái duyệt và kết nối backend."} }}',options:{responseCode:409}}});
     if (!get('Compose Offboarding Notices').parameters.jsCode.includes('// TV4_UPGRADE_COMPOSE_V2')) {
     let compose=get('Compose Offboarding Notices').parameters.jsCode;
     compose=helpers+'\n'+compose.replace("if (!employeeRecipient || !itRecipient || !accountingRecipient) throw new Error('Thiếu email nhận thông báo thôi việc');",'')
@@ -228,7 +228,8 @@ function build(file) {
     for(const [name,flag] of [['Should Notify IT?','sendIt'],['Should Notify Finance?','sendFinance'],['Should Notify Employee?','sendEmployee'],['Should Notify Offboarding Telegram?','sendTelegram']])gate(name,"$('Compose Offboarding Notices').item.json."+flag);
     editCode('Summarize Offboarding Delivery',offboardingSummary); finishCallback('Record Offboarding Delivery');
     // Keep 18 nodes: the existing response node validates callback acknowledgement directly.
-    get('Respond to Offboarding Request').parameters.responseBody='={{ JSON.stringify((() => { const response=$json; const payload=response.data ?? response; const source=$("Summarize Offboarding Delivery").item.json; const recorded=!response.error && payload.recorded===true; return {success:recorded && source.status!=="FAILED",caseId:source.caseId,status:source.status,callbackRecorded:recorded,errorCode:recorded?null:"CALLBACK_FAILED",notifications:{it:source.itNotified,accounting:source.financeNotified,employee:source.employeeNotified,telegram:source.telegramNotified}}; })()) }}';
+    get('Respond to Offboarding Request').parameters.respondWith='firstIncomingItem';
+    delete get('Respond to Offboarding Request').parameters.responseBody;
     get('Respond to Offboarding Request').parameters.options={responseCode:'={{ $json.error || ($json.data ?? $json).recorded !== true ? 502 : 200 }}'};
     chain('Offboarding Approval Webhook','Load Offboarding Configuration','Authenticate Offboarding Request','Fetch Approved Offboarding Case','Is Approved Case Valid?');
     edge('Is Approved Case Valid?','Compose Offboarding Notices',0);edge('Is Approved Case Valid?','Respond to Invalid Case',1);edge('Compose Offboarding Notices','Should Notify IT?');

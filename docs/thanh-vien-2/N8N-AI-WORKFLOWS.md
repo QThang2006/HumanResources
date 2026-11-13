@@ -11,8 +11,8 @@ Live local vẫn có đúng 4 workflow 2.0/2.1/2.2/2.3; 2.1/2.2 live là bản 2
 
 ## Phân công
 
-- Website nộp CV/bấm chấm lại: FE → BE lưu/xác thực → webhook AI-01 → n8n lấy CV/JD, gọi Gemini, kiểm tra và callback ATS.
-- Gmail/Form: n8n nhận email hoặc Sheet phản hồi, tải CV Drive, lưu ATS; node 07 tách song song gửi xác nhận và chấm AI. Duplicate được bỏ qua.
+- Website nộp CV/bấm chấm lại: FE → BE lưu/xác thực → Backend score queue lấy CV/JD, gọi Gemini và lưu điểm vào ATS; không gửi lại hồ sơ intake sang n8n.
+- Gmail/Form: n8n nhận email hoặc Sheet phản hồi, tải CV Drive, lưu ATS và gửi thư xác nhận. Backend là nơi chấm AI tự động cho intake; AI-01 chỉ dùng cho thao tác chấm lại có chủ đích, nên node 07 không nối sang AI-02.
 - Xếp lịch: FE → BE lưu lịch → webhook 01. n8n tạo Calendar/Meet, xác minh event, gửi email/ICS hai bên và callback. Node 04 còn kích hoạt AI; Q01 là webhook câu hỏi độc lập.
 - FE đọc trạng thái/điểm/câu hỏi từ ATS. BE giữ dữ liệu, quyền truy cập và chống callback cũ; n8n điều phối dịch vụ ngoài.
 
@@ -42,7 +42,7 @@ Bằng chứng lịch sử: website/Gmail/Form/PDF chấm thật (273/279/282/28
 
 1. Backup workflow/database; giữ profile/credential và execution Offer đang Wait. Không restore snapshot test vào live.
 2. BE cần N8N_AI_ENABLED, N8N_AI_KEY, N8N_WEBHOOK_URL và schema AI. Môi trường tắt TypeORM synchronize cần migration.
-3. Chọn Header Auth x-n8n-ai-key cùng BE cho context/callback/AI webhook, x-goog-api-key cho AI-07, googlePalmApi cho Q07; kiểm tra Google/SMTP credential và host.docker.internal:3001.
+3. Dùng cùng Header Auth x-n8n-ai-key và giá trị N8N_AI_KEY của BE cho jobs-changed, context/callback và AI webhook; x-goog-api-key cho AI-07, googlePalmApi cho Q07; kiểm tra Google/SMTP credential và host.docker.internal:3001.
 4. Import đè đúng ID 2.1/2.2 rồi kiểm tra trước publish; mỗi webhook/poller chỉ có một chủ sở hữu. Không đổi 2.0/2.3.
 5. Retest FE: CV text/PDF → điểm; lịch PENDING → Meet/email/câu hỏi. Đợi AI hoàn tất trước khi nhập kết quả phỏng vấn để tránh lỗi 409 do chính test.
 

@@ -28,7 +28,9 @@
     "test:review-calendar": "node --test test/review-calendar.test.cjs",
     "test:review-calendar-http": "node --test test/review-calendar-http.test.cjs",
     "test:tv4-workflows": "node --test test/training-reminder.test.cjs test/tv4-automation-workflows.test.cjs test/tv4-workflow-upgrade.test.cjs test/manual-workflow-runs.test.cjs",
-    "test:documents": "node --test test/documents.test.cjs"
+    "test:documents": "node --test test/documents.test.cjs",
+    "test:website-ack": "node --test test/website-acknowledgement.test.cjs ../scripts/test-website-acknowledgement-workflow.cjs",
+    "test:website-ack:http": "node --test test/website-acknowledgement-http.test.cjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

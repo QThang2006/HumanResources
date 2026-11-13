@@ -1,4 +1,5 @@
 import { CvScoreQueueService } from './cv-score-queue.service';
+import { ApplicationAcknowledgementService } from './application-acknowledgement.service';
 import { Offer, OfferStatus } from '../../entities/offer.entity';
 import { randomBytes, randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
@@ -98,6 +99,7 @@ export class ApplicationsService {
     private readonly delivery: InterviewDeliveryService,
     private readonly config: ConfigService,
     private readonly scoreQueue: CvScoreQueueService,
+    private readonly acknowledgements: ApplicationAcknowledgementService,
   ) { }
 
   private n8nAiEnabled() {
@@ -301,7 +303,8 @@ export class ApplicationsService {
         return manager.getRepository(Application).save(
           manager.getRepository(Application).create({
             ...input,
-            ...(intake ? { intakeKey: intake.key, intakeChannel: intake.channel, acknowledgementStatus: 'CLAIMED' } : {}),
+            ...(intake ? { intakeKey: intake.key, intakeChannel: intake.channel, acknowledgementStatus: 'CLAIMED' }
+              : { acknowledgementStatus: 'PENDING' }),
             candidateEmail: input.candidateEmail.trim().toLowerCase(),
             cvFileUrl: key,
             rawCvText,
@@ -313,6 +316,9 @@ export class ApplicationsService {
           }),
         );
       });
+      // Receipt delivery never delays AI work or turns a committed application into an error.
+      // dispatch() absorbs network failures; the worker retries unclaimed PENDING receipts.
+      if (!intake) void this.acknowledgements.dispatch(app.id);
       return {
         applicationId: app.id,
         submittedAt: app.createdAt,

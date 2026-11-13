@@ -255,7 +255,7 @@ test('không phân tích sơ bộ khi nhân viên thiếu chức danh hoặc ph�
   assert.ok(readiness.missingData.includes('chức danh'));
 });
 
-test('workflow 4.1 giữ đúng 12 node và ghi nhận cả kết quả Telegram', () => {
+test('workflow 4.1 giữ 18 node có kiểm soát gửi và ghi nhận cả kết quả Telegram', () => {
   const workflowPath = path.resolve(
     __dirname,
     '../../workflows/tv4_admin_training/02_mandatory_training_reminder.json',
@@ -263,10 +263,10 @@ test('workflow 4.1 giữ đúng 12 node và ghi nhận cả kết quả Telegram
   const workflow = JSON.parse(fs.readFileSync(workflowPath, 'utf8'));
   const nodeByName = new Map(workflow.nodes.map((node) => [node.name, node]));
   const configFields = nodeByName
-    .get('Nạp cấu hình an toàn')
+    .get('Load Workflow Configuration')
     .parameters.assignments.assignments;
 
-  assert.equal(workflow.nodes.length, 12);
+  assert.equal(workflow.nodes.length, 18);
   assert.equal(
     configFields.find((field) => field.name === 'apiBaseUrl').value,
     'http://host.docker.internal:3001/api',
@@ -276,19 +276,19 @@ test('workflow 4.1 giữ đúng 12 node và ghi nhận cả kết quả Telegram
     '={{ $env.N8N_AUTOMATION_SECRET }}',
   );
   assert.match(
-    nodeByName.get('Tổng hợp kết quả gửi').parameters.jsCode,
+    nodeByName.get('Summarize Training Delivery').parameters.jsCode,
     /telegramNotified/,
   );
   assert.match(
-    nodeByName.get('Lưu kết quả về hệ thống').parameters.body,
+    nodeByName.get('Record Training Delivery').parameters.body,
     /telegramNotified/,
   );
   assert.equal(
-    nodeByName.get('Có trường hợp cần nhắc?').notesInFlow,
+    nodeByName.get('Has Training Reminders?').notesInFlow,
     true,
   );
   assert.match(
-    nodeByName.get('Có trường hợp cần nhắc?').notes,
-    /false kết thúc bình thường/,
+    nodeByName.get('Has Training Reminders?').notes,
+    /false branch completes normally/,
   );
 });

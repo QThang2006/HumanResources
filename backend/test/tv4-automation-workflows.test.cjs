@@ -45,6 +45,7 @@ function runCodeNode(value, name, inputs, namedOutputs = {}) {
         if (!items) throw new Error(`Node not executed: ${nodeName}`);
         return {
           item: { json: items[index] },
+          all: () => items.map(json => ({ json })),
           first: () => ({ json: items[0] }),
         };
       },
@@ -73,10 +74,10 @@ test('workflow đào tạo giữ đủ nhiều nhân viên, tên riêng và xu�
     daysRemaining: id === 1 ? 2 : -1,
     progressPercent: 25,
   }));
-  const split = runCodeNode(value, 'Tách từng lượt đào tạo', [{ data: { reminders } }], {
-    'Nạp cấu hình an toàn': [{ senderEmail: 'sender@example.invalid' }],
+  const split = runCodeNode(value, 'Split Training Assignments', [{ data: { reminders } }], {
+    'Validate Training Configuration': [{ senderEmail: 'sender@example.invalid', telegramChatId: '-5413459681' }],
   });
-  const composed = runCodeNode(value, 'Soạn nội dung nhắc bằng tiếng Việt', split);
+  const composed = runCodeNode(value, 'Compose Training Notices', split);
   assert.equal(composed.length, 2);
   assert.deepEqual(composed.map(item => item.assignmentId), [1, 2]);
   assert.deepEqual(composed.map(item => item.employeeEmail), reminders.map(item => item.employee.email));
@@ -87,11 +88,11 @@ test('workflow đào tạo giữ đủ nhiều nhân viên, tên riêng và xu�
   assert.equal(composed[1].hasManager, false);
   assert.match(composed[1].emailSubject, /Quá hạn/);
 
-  const summarized = runCodeNode(value, 'Tổng hợp kết quả gửi', [{}, {}], {
-    'Soạn nội dung nhắc bằng tiếng Việt': composed,
-    'Gửi thư nhắc nhân viên': [{ accepted: ['employee1@example.invalid'], rejected: [] }, { rejected: ['employee2@example.invalid'] }],
-    'Thông báo cho quản lý': [{ rejected: [] }, {}],
-    'Thông báo kênh đào tạo': [{ ok: true }, { ok: false, description: 'Chat unavailable' }],
+  const summarized = runCodeNode(value, 'Summarize Training Delivery', [{}, {}], {
+    'Compose Training Notices': composed,
+    'Send Employee Reminder': [{ accepted: ['employee1@example.invalid'], rejected: [] }, { rejected: ['employee2@example.invalid'] }],
+    'Send Manager Reminder': [{ messageId: 'fixture-accepted', rejected: [] }, {}],
+    'Send Training Telegram': [{ ok: true }, { ok: false, description: 'Chat unavailable' }],
   });
   assert.deepEqual(summarized.map(item => item.assignmentId), [1, 2]);
   assert.deepEqual(summarized.map(item => item.status), ['SENT', 'FAILED']);
@@ -102,20 +103,20 @@ test('workflow đào tạo giữ đủ nhiều nhân viên, tên riêng và xu�
 test('workflow KPI soạn riêng từng quản lý và báo PARTIAL khi Telegram thất bại', () => {
   const value = workflow('03_monthly_performance_review_reminder.json');
   const input = ['OPENING', 'SECOND_REMINDER'].map((phase, index) => ({
-    phase, reviewPeriod: '2026-10', reviewPeriodLabel: '10/2026',
+    phase, telegramChatId: '-5413459681', reviewPeriod: '2026-10', reviewPeriodLabel: '10/2026',
     recipient: { id: index + 1, fullName: `Quản lý ${index + 1}`, email: `manager${index + 1}@example.invalid` },
     employees: [{ id: index + 10, fullName: 'Nhân viên <QA>', departmentName: 'Kỹ thuật & AI' }],
     pendingCount: 1, deadline: '31/10/2026', reviewFormUrl: 'https://example.invalid/review',
   }));
-  const composed = runCodeNode(value, 'Soạn nội dung đánh giá bằng tiếng Việt', input);
+  const composed = runCodeNode(value, 'Compose Review Notices', input);
   assert.equal(composed.length, 2);
   assert.match(composed[0].emailSubject, /Mở kỳ/);
   assert.match(composed[1].emailSubject, /Nhắc lần 2/);
   assert.match(composed[0].emailHtml, /&lt;QA&gt;/);
-  const result = runCodeNode(value, 'Tổng hợp kết quả thông báo', [{}, {}], {
-    'Soạn nội dung đánh giá bằng tiếng Việt': composed,
-    'Gửi thư cho quản lý': [{ rejected: [] }, { rejected: [] }],
-    'Thông báo kênh đánh giá': [{ ok: true }, { ok: false }],
+  const result = runCodeNode(value, 'Summarize Review Delivery', [{}, {}], {
+    'Compose Review Notices': composed,
+    'Send Review Email': [{ messageId: 'fixture-accepted', rejected: [] }, { messageId: 'fixture-accepted', rejected: [] }],
+    'Send Review Telegram': [{ ok: true }, { ok: false }],
   });
   assert.deepEqual(result.map(item => item.status), ['SENT', 'PARTIAL']);
   assert.deepEqual(result.map(item => item.recipient.id), [1, 2]);
@@ -123,26 +124,26 @@ test('workflow KPI soạn riêng từng quản lý và báo PARTIAL khi Telegram
 
 test('workflow thôi việc dùng đúng email theo kênh và phản ánh kênh bị từ chối', () => {
   const value = workflow('04_offboarding_workflow.json');
-  const config = { itEmail: 'it@example.invalid', accountingEmail: 'finance@example.invalid', exitSurveyUrl: 'https://example.invalid/survey' };
+  const config = { telegramChatId: '-5413459681', itEmail: 'it@example.invalid', accountingEmail: 'finance@example.invalid', exitSurveyUrl: 'https://example.invalid/survey' };
   const record = {
     caseId: 19, lastWorkingDate: '2026-11-15',
     employee: { fullName: 'Nhân viên <QA>', personalEmail: 'personal@example.invalid', workEmail: 'work@example.invalid', departmentName: 'Kỹ thuật' },
     approvedBy: { fullName: 'HR kiểm thử' },
   };
-  const composed = runCodeNode(value, 'Soạn nội dung điều phối bằng tiếng Việt', [{ data: record }], {
-    'Xác thực yêu cầu từ hệ thống': [config],
+  const composed = runCodeNode(value, 'Compose Offboarding Notices', [{ data: record }], {
+    'Authenticate Offboarding Request': [config],
   });
   assert.equal(composed[0].itRecipient, config.itEmail);
   assert.equal(composed[0].accountingRecipient, config.accountingEmail);
   assert.equal(composed[0].employeeRecipient, record.employee.personalEmail);
   assert.match(composed[0].itHtml, /15\/11\/2026/);
   assert.match(composed[0].itHtml, /&lt;QA&gt;/);
-  const result = runCodeNode(value, 'Tổng hợp kết quả liên phòng ban', [{}], {
-    'Soạn nội dung điều phối bằng tiếng Việt': composed,
-    'Gửi ticket cho phòng IT': [{ rejected: [] }],
-    'Gửi thông báo cho Kế toán': [{ rejected: [] }],
-    'Gửi thư cảm ơn và khảo sát': [{ rejected: ['personal@example.invalid'] }],
-    'Thông báo kênh liên phòng ban': [{ ok: true }],
+  const result = runCodeNode(value, 'Summarize Offboarding Delivery', [{}], {
+    'Compose Offboarding Notices': composed,
+    'Send IT Handover Notice': [{ messageId: 'fixture-accepted', rejected: [] }],
+    'Send Finance Handover Notice': [{ messageId: 'fixture-accepted', rejected: [] }],
+    'Send Employee Farewell': [{ rejected: ['personal@example.invalid'] }],
+    'Send Offboarding Telegram': [{ ok: true }],
   });
   assert.equal(result[0].status, 'PARTIAL');
   assert.equal(result[0].employeeNotified, false);
@@ -153,11 +154,11 @@ test('workflow 4.1 tách riêng email thử nghiệm của nhân viên và quả
   const value = workflow('02_mandatory_training_reminder.json');
   const nodes = new Map(value.nodes.map((node) => [node.name, node]));
   const assignments = nodes
-    .get('Nạp cấu hình an toàn')
+    .get('Load Workflow Configuration')
     .parameters.assignments.assignments;
   const configNames = assignments.map((item) => item.name);
   const composeCode = nodes
-    .get('Soạn nội dung nhắc bằng tiếng Việt')
+    .get('Compose Training Notices')
     .parameters.jsCode;
 
   assert.ok(configNames.includes('testEmployeeEmail'));
@@ -167,43 +168,38 @@ test('workflow 4.1 tách riêng email thử nghiệm của nhân viên và quả
   assert.match(composeCode, /testManagerEmail \|\| manager\.email/);
 });
 
-test('workflow 4.2 có 12 node, hai lịch đúng ngày và ghi kết quả về backend', () => {
+test('workflow 4.2 có các nhánh kiểm soát và tổng kết, lịch hằng ngày đọc cấu hình backend và ghi kết quả về backend', () => {
   const value = workflow('03_monthly_performance_review_reminder.json');
   const nodes = new Map(value.nodes.map((node) => [node.name, node]));
 
-  assert.equal(value.nodes.length, 12);
+  assert.equal(value.nodes.length, 19);
+  assert.equal(nodes.get('Daily Review Schedule').parameters.rule.interval[0].expression, '0 8 * * *');
+  assert.equal(nodes.get('Fetch Review Recipients').parameters.sendQuery, true);
+  assert.deepEqual(nodes.get('Fetch Review Recipients').parameters.queryParameters.parameters.map(item => item.name), ['asOf', 'repeat']);
   assert.equal(
-    nodes.get('Cron ngày 25 - Mở kỳ đánh giá').parameters.rule.interval[0].expression,
-    '0 8 25 * *',
-  );
-  assert.equal(
-    nodes.get('Cron ngày 28 - Đôn đốc chưa nộp').parameters.rule.interval[0].expression,
-    '0 8 28 * *',
-  );
-  assert.equal(
-    nodes.get('Soạn nội dung đánh giá bằng tiếng Việt').parameters.mode,
+    nodes.get('Compose Review Notices').parameters.mode,
     'runOnceForEachItem',
   );
   assert.match(
-    nodes.get('Lưu kết quả nhắc đánh giá').parameters.url,
+    nodes.get('Record Review Delivery').parameters.url,
     /review-reminder-results/,
   );
 });
 
-test('workflow 4.3 có 12 node, dùng hồ sơ backend và theo dõi đủ bốn kênh', () => {
+test('workflow 4.3 có 18 node phục hồi gửi, dùng hồ sơ backend và theo dõi đủ bốn kênh', () => {
   const value = workflow('04_offboarding_workflow.json');
   const nodes = new Map(value.nodes.map((node) => [node.name, node]));
 
-  assert.equal(value.nodes.length, 12);
+  assert.equal(value.nodes.length, 18);
   assert.equal(
-    nodes.get('Webhook - HR Duyệt Thôi Việc').parameters.path,
+    nodes.get('Offboarding Approval Webhook').parameters.path,
     'tv4-offboarding',
   );
   assert.match(
-    nodes.get('Lấy hồ sơ thôi việc đã duyệt').parameters.url,
+    nodes.get('Fetch Approved Offboarding Case').parameters.url,
     /offboarding\/automation/,
   );
-  const summaryCode = nodes.get('Tổng hợp kết quả liên phòng ban').parameters.jsCode;
+  const summaryCode = nodes.get('Summarize Offboarding Delivery').parameters.jsCode;
   assert.match(summaryCode, /itNotified/);
   assert.match(summaryCode, /financeNotified/);
   assert.match(summaryCode, /employeeNotified/);

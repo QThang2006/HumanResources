@@ -46,7 +46,7 @@ const SevenDayHistoryDots: React.FC<{ history?: MemberHistoryDay[] }> = ({ histo
           <div key={day.date} className="group relative flex flex-col items-center">
             <span
               className={`h-2.5 w-2.5 rounded-full transition-transform group-hover:scale-125 ${dotStyle} ${
-                day.isToday ? 'ring-1 ring-offset-1 ring-indigo-500' : ''
+                day.isToday ? 'ring-1 ring-offset-1 ring-blue-500' : ''
               }`}
               title={`${day.dayName} (${day.date.slice(5)}): ${label}${day.isToday ? ' (Hôm nay)' : ''}`}
             />

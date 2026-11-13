@@ -60,10 +60,22 @@ export const recruitmentApi = {
       status: job.status === 'OPEN' ? 'CLOSED' : 'OPEN',
       expectedUpdatedAt: job.updatedAt,
     }),
-  jd: (title: string, departmentName: string, level: string) =>
+  jd: (
+    title: string,
+    departmentName: string,
+    level: string,
+    context?: {
+      skills?: string;
+      experienceYears?: string;
+      employmentType?: string;
+      location?: string;
+      salaryRange?: string;
+      specialNotes?: string;
+    },
+  ) =>
     post<AiResult<{ description: string; requirements: string; benefits: string }>>(
       '/jobs/ai-generate',
-      { title, departmentName, level },
+      { title, departmentName, level, ...context },
     ),
   apply: (data: FormData, signal?: AbortSignal) =>
     apiClient.post<unknown, { applicationId: number; message: string; warning: string | null }>(

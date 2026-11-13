@@ -37,7 +37,10 @@ export const systemConfigApi = {
   testGemini: async (): Promise<GeminiTestResult> => {
     return apiClient.post('/system-config/test-gemini');
   },
-  testCrash: async (): Promise<any> => {
-    return apiClient.get('/system-config/demo-crash');
+  testCrash: async (): Promise<{ statusCode: number }> => {
+    return apiClient.get('/system-config/demo-crash', {
+      // This endpoint deliberately returns 500; network/auth errors still reject.
+      validateStatus: status => status === 500,
+    });
   },
 };

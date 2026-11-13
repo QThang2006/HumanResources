@@ -20,6 +20,8 @@ import {
 import { User, UserRole } from '../../entities/user.entity';
 import { GeminiService } from '../core/ai/gemini.service';
 import { getTrainingCourseDetails } from './training-course-history';
+import { parseTrainingDueDate } from './training-due-date';
+import { validateCourseUpdate } from './update-training-course';
 
 @Injectable()
 export class TrainingService {
@@ -148,6 +150,31 @@ export class TrainingService {
             };
         });
     }
+    async updateCourse(courseId: number, input: unknown) {
+        const update = validateCourseUpdate(input);
+        // Assignment/archive/delete take the same course lock. A first learner
+        // cannot be added between checking the count and changing course content.
+        return this.courseRepository.manager.transaction(async manager => {
+            const courses = manager.getRepository(TrainingCourse);
+            const course = await courses.findOne({
+                where: { id: courseId },
+                lock: { mode: 'pessimistic_write' },
+            });
+            if (!course) throw new NotFoundException('Không tìm thấy khóa học.');
+            if (course.isArchived) throw new ConflictException('Hãy khôi phục khóa học trước khi chỉnh sửa.');
+            const assignmentCount = await manager.getRepository(EmployeeTraining).countBy({ courseId });
+            const sameSkills = update.skillsProvided === undefined ||
+                JSON.stringify([...new Set(course.skillsProvided ?? [])].sort()) === JSON.stringify([...update.skillsProvided].sort());
+            if (assignmentCount > 0 && ((update.type !== undefined && update.type !== course.type) || !sameSkills)) {
+                throw new ConflictException('Khóa học đã được gán. Không thể thay đổi phân loại hoặc kỹ năng; hãy tạo khóa mới nếu nội dung thay đổi. Đóng và mở lại biểu mẫu để cập nhật số lượt gán.');
+            }
+            // Never save assignments or invoke the mandatory-course creation flow.
+            await courses.update(courseId, update);
+            Object.assign(course, update);
+            return this.toCourseResponse(course, assignmentCount);
+        });
+    }
+
     async createCourse(data: {
         title: string;
         type: TrainingCourseType;
@@ -610,11 +637,7 @@ Yêu cầu:
         }
 
         const dueAt = data.dueAt
-            ? new Date(
-                /^\d{4}-\d{2}-\d{2}$/.test(data.dueAt)
-                    ? `${data.dueAt}T23:59:59.999`
-                    : data.dueAt,
-            )
+            ? parseTrainingDueDate(data.dueAt)
             : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
         if (Number.isNaN(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {
@@ -748,11 +771,7 @@ Yêu cầu:
         return this.employeeTrainingRepository.findOneBy({ id: assignmentId });
     }
     async updateDueDate(assignmentId: number, dueAtInput: string) {
-        const dueAt = new Date(
-            /^\d{4}-\d{2}-\d{2}$/.test(dueAtInput || '')
-                ? `${dueAtInput}T23:59:59.999`
-                : dueAtInput,
-        );
+        const dueAt = parseTrainingDueDate(dueAtInput);
         if (Number.isNaN(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {
             throw new BadRequestException(
                 'Hạn hoàn thành phải là một ngày hợp lệ trong tương lai.',
@@ -780,7 +799,7 @@ Yêu cầu:
         });
         return this.employeeTrainingRepository.findOneBy({ id: assignmentId });
     }
-    async getPendingTrainingReminders(asOf?: string) {
+    async getPendingTrainingReminders(asOf?: string, allowRepeat = false) {
         const now = asOf ? new Date(asOf) : new Date();
         if (Number.isNaN(now.getTime())) {
             throw new BadRequestException(
@@ -839,7 +858,7 @@ Yêu cầu:
                     return false;
                 }
 
-                return !assignment.lastReminderAt ||
+                return allowRepeat === true || !assignment.lastReminderAt ||
                     now.getTime() - assignment.lastReminderAt.getTime() >= reminderCooldownMs;
             })
             .map((assignment) => {

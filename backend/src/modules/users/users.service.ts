@@ -5,10 +5,11 @@ import {
     ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../../entities/user.entity';
 import { Department } from '../../entities/department.entity';
+import { validateUserAccountUpdate } from './user-account-update';
 @Injectable()
 export class UsersService {
   constructor(
@@ -110,6 +111,9 @@ export class UsersService {
         departmentId?: number;
         role: UserRole;
     }) {
+        if (data.role === UserRole.SUPERADMIN) {
+            throw new BadRequestException('Hệ thống chỉ có một Super Admin. Không thể tạo thêm tài khoản có vai trò này.');
+        }
         const fullName = data.fullName.trim();
         const email = data.email.trim().toLowerCase();
         const password = data.password;
@@ -221,8 +225,13 @@ export class UsersService {
             role?: UserRole;
             isActive?: boolean;
         },
+        currentUserId?: number,
     ) {
+        validateUserAccountUpdate(data);
         const user = await this.findById(userId);
+        if (userId === currentUserId && ((data.role !== undefined && data.role !== user.role) || (data.isActive !== undefined && data.isActive !== user.isActive))) {
+            throw new BadRequestException('Không thể tự đổi quyền hoặc trạng thái tài khoản đang đăng nhập.');
+        }
 
         if (data.departmentId !== undefined) {
             const department = await this.deptRepository.findOne({
@@ -246,6 +255,9 @@ export class UsersService {
         }
 
         if (data.role !== undefined) {
+            if (data.role === UserRole.SUPERADMIN && user.id !== 1) {
+                throw new BadRequestException('Hệ thống chỉ có một Super Admin. Không thể cấp vai trò này cho tài khoản khác.');
+            }
             if (user.id === 1 && data.role !== UserRole.SUPERADMIN) {
                 throw new BadRequestException(
                     'Không thể thay đổi vai trò của tài khoản Quản trị viên gốc.',
@@ -288,36 +300,48 @@ export class UsersService {
         };
     }
     async deleteUser(userId: number, currentUserId: number) {
-        if (userId === currentUserId) {
-            throw new BadRequestException(
-                'Bạn không thể tự xóa tài khoản đang đăng nhập.',
-            );
-        }
-
-        const user = await this.findById(userId);
-
-        if (user.id === 1) {
-            throw new BadRequestException(
-                'Không thể xóa tài khoản Quản trị viên gốc.',
-            );
-        }
-
+        if (userId === currentUserId) throw new BadRequestException('Bạn không thể tự xóa tài khoản đang đăng nhập.');
+        if (userId === 1) throw new BadRequestException('Không thể xóa tài khoản Quản trị viên gốc.');
         try {
-            await this.userRepository.remove(user);
-
-            return {
-                success: true,
-                message: `Đã xóa vĩnh viễn người dùng "${user.fullName}".`,
-            };
+            return await this.userRepository.manager.transaction(async manager => {
+                const repository = manager.getRepository(User);
+                const user = await repository.findOne({ where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+                if (!user) throw new NotFoundException('Không tìm thấy tài khoản.');
+                if (user.isActive) throw new BadRequestException('Hãy vô hiệu hóa tài khoản trước khi xóa vĩnh viễn.');
+                // Check every mapped FK, including CASCADE and SET NULL, before deleting.
+                // The user lock also serializes FK-backed writes referencing this account.
+                for (const metadata of manager.connection.entityMetadatas) {
+                    for (const foreignKey of metadata.foreignKeys.filter(key => key.referencedEntityMetadata.target === User)) {
+                        const query = manager.getRepository(metadata.target).createQueryBuilder('related');
+                        foreignKey.columns.forEach((column, index) => {
+                            const referenced = foreignKey.referencedColumns[index].getEntityValue(user);
+                            query.andWhere(`related.${column.propertyPath} = :reference${index}`, { [`reference${index}`]: referenced });
+                        });
+                        if (await query.getExists()) throw new ConflictException('Không thể xóa tài khoản vì còn dữ liệu liên quan. Hãy giữ tài khoản ở trạng thái vô hiệu hóa để bảo toàn lịch sử.');
+                    }
+                }
+                await repository.remove(user);
+                return { success: true, message: `Đã xóa vĩnh viễn người dùng "${user.fullName}".` };
+            });
         } catch (error) {
-            throw new BadRequestException(
-                'Không thể xóa người dùng này vì vẫn còn dữ liệu liên quan trong hệ thống.',
-            );
+            if (error instanceof QueryFailedError && error.driverError?.code === 'ER_ROW_IS_REFERENCED_2') {
+                throw new ConflictException('Không thể xóa tài khoản vì còn dữ liệu liên quan. Hãy giữ tài khoản ở trạng thái vô hiệu hóa.');
+            }
+            throw error;
         }
     }
   // Đây chính là hàm SuperAdmin thay đổi Role của nhân sự
-  async updateRole(userId: number, newRole: UserRole) {
+  async updateRole(userId: number, newRole: UserRole, currentUserId?: number) {
+    validateUserAccountUpdate({ role: newRole });
     const user = await this.findById(userId);
+
+    if (newRole === UserRole.SUPERADMIN && user.id !== 1) {
+      throw new BadRequestException('Hệ thống chỉ có một Super Admin. Không thể cấp vai trò này cho tài khoản khác.');
+    }
+
+    if (userId === currentUserId && newRole !== user.role) {
+      throw new BadRequestException('Không thể tự đổi quyền tài khoản đang đăng nhập.');
+    }
 
     // Không cho phép hạ quyền tài khoản SuperAdmin gốc nếu là ID 1
     if (user.id === 1 && newRole !== UserRole.SUPERADMIN) {

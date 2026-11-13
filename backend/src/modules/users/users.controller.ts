@@ -23,10 +23,10 @@ export class UsersController {
 
   // =========================================================
   // DANH SÁCH NGƯỜI DÙNG
-  // SUPERADMIN và HR được xem
+  // SUPERADMIN, HR và MANAGER được xem
   // =========================================================
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPERADMIN, UserRole.HR)
+  @Roles(UserRole.SUPERADMIN, UserRole.HR, UserRole.MANAGER)
   @Get()
   async findAll() {
     return this.usersService.findAll();
@@ -88,8 +88,9 @@ export class UsersController {
         role?: UserRole;
         isActive?: boolean;
       },
+      @CurrentUser('id') currentUserId: number,
   ) {
-    return this.usersService.updateUser(id, body);
+    return this.usersService.updateUser(id, body, currentUserId);
   }
 
   // =========================================================
@@ -102,8 +103,9 @@ export class UsersController {
   async updateRole(
       @Param('id', ParseIntPipe) id: number,
       @Body('role') role: UserRole,
+      @CurrentUser('id') currentUserId: number,
   ) {
-    return this.usersService.updateRole(id, role);
+    return this.usersService.updateRole(id, role, currentUserId);
   }
 
   // =========================================================

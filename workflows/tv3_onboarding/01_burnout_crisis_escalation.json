@@ -111,11 +111,14 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-3.1-flash-lite",
+        "modelName": "models/gemini-flash-latest",
         "options": {
           "temperature": 0.3
         }
       },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
       "id": "a1c30e01-b7a4-4f01-a001-000000000007",
       "name": "Google Gemini Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
@@ -133,7 +136,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-01 | Dựng thẻ cảnh báo (Telegram HTML + Email text)\nconst CONFIG = { HR_EMAIL: 'hr@company.com' }; // TODO: đổi sang email HR thật\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\ntry {\n  const base = $('Data Validation & Sanitize').first().json;\n  const profile = $('MySQL User Profile').first().json || {};\n  const aiRaw = String($input.first().json.text || '').trim();\n  const aiOk = aiRaw.length > 0;\n\n  const name = profile.full_name || base.employeeName;\n  const job = profile.job_title || 'Nhân viên';\n  const dept = profile.dept_name || base.departmentName;\n  const isCritical = base.riskTier === 'CRITICAL';\n\n  const aiTg = aiOk ? esc(aiRaw.slice(0, 2200)) : 'AI không khả dụng — vui lòng liên hệ trực tiếp với nhân viên.';\n  const aiMail = aiOk ? aiRaw.slice(0, 4000) : 'AI không khả dụng — vui lòng liên hệ trực tiếp với nhân viên.';\n\n  const header = isCritical\n    ? '🔴 <b>BÁO ĐỘNG ĐỎ: NGUY CƠ KIỆT SỨC NGHIÊM TRỌNG</b>'\n    : '🟡 <b>CẢNH BÁO CAN THIỆP SỚM: SỨC KHỎE TINH THẦN</b>';\n  const crisisTg = base.crisisFlag\n    ? '\\n🆘 <b>Phản hồi chứa nội dung đáng lo ngại — hãy liên hệ trực tiếp ngay, không chờ lịch 1-on-1.</b>\\n'\n    : '';\n  const action = isCritical\n    ? '🚨 <i>Yêu cầu HR liên hệ nhân viên trong 24 giờ; cân nhắc giảm tải sprint hoặc cấp ngày nghỉ hỗ trợ tinh thần.</i>'\n    : '👉 <i>Quản lý vui lòng chủ động hẹn lịch 1-on-1 sớm nhất.</i>';\n\n  const telegramText = [\n    header, crisisTg,\n    '👤 <b>Nhân sự:</b> ' + esc(name) + ' (' + esc(job) + ')',\n    '🏢 <b>Phòng ban:</b> ' + esc(dept),\n    '📅 <b>Tình trạng:</b> Căng thẳng ' + base.stressDays + ' ngày liên tiếp',\n    '💬 <b>Phản hồi:</b> <i>' + esc(base.latestFeedback) + '</i>',\n    '',\n    '🤖 <b>Gợi ý từ AI (công cụ hỗ trợ, không phải chẩn đoán y khoa):</b>',\n    aiTg, '', action\n  ].join('\\n').substring(0, 4000);\n\n  const emailBody = [\n    'Kính gửi Phòng Nhân sự,', '',\n    'Hệ thống HR Tech AI phát hiện nguy cơ kiệt sức mức ' + base.riskTier + ':',\n    '- Nhân viên: ' + name + ' (' + job + ')',\n    '- Phòng ban: ' + dept,\n    '- Số ngày căng thẳng liên tiếp: ' + base.stressDays,\n    '- Phản hồi gần nhất: \"' + base.latestFeedback + '\"',\n    base.crisisFlag ? '- LƯU Ý: phản hồi chứa nội dung đáng lo ngại, đề nghị liên hệ trực tiếp ngay.' : '',\n    '', 'Gợi ý từ AI (công cụ hỗ trợ, không phải chẩn đoán y khoa):', aiMail, '',\n    'Đề xuất: ưu tiên sắp xếp buổi đối thoại 1-on-1 trong 24 giờ tới.', '',\n    'Trân trọng,', 'HR Tech Automation System'\n  ].join('\\n');\n\n  return [{ json: {\n    riskTier: base.riskTier, telegramText, emailBody,\n    emailSubject: '[' + (isCritical ? 'KHẨN CẤP' : 'CẢNH BÁO') + '] Nguy cơ kiệt sức: ' + name + ' (' + base.stressDays + ' ngày căng thẳng)',\n    hrChatId: base.hrChatId, managerChatId: base.managerChatId,\n    hrEmail: CONFIG.HR_EMAIL, managerEmail: profile.manager_email || ''\n  } }];\n} catch (err) {\n  const base = $('Data Validation & Sanitize').first().json;\n  return [{ json: {\n    riskTier: base.riskTier,\n    telegramText: '🔴 Cảnh báo kiệt sức: ' + esc(base.employeeName) + ' (' + base.stressDays + ' ngày). Lỗi dựng tin nhắn: ' + esc(err.message),\n    emailBody: 'Cảnh báo kiệt sức: ' + base.employeeName + ' (' + base.stressDays + ' ngày). Lỗi dựng nội dung: ' + err.message,\n    emailSubject: '[CẢNH BÁO] Nguy cơ kiệt sức: ' + base.employeeName,\n    hrChatId: base.hrChatId, managerChatId: base.managerChatId, hrEmail: CONFIG.HR_EMAIL, managerEmail: ''\n  } }];\n}"
+        "jsCode": "// WF-01 | Dựng thẻ cảnh báo (Telegram HTML + Email text)\nconst CONFIG = { HR_EMAIL: 'vutranpoh@gmail.com' }; // TODO: đổi sang email HR thật\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\ntry {\n  const base = $('Data Validation & Sanitize').first().json;\n  const profile = $('MySQL User Profile').first().json || {};\n  const aiRaw = String($input.first().json.text || '').trim();\n  const aiOk = aiRaw.length > 0;\n\n  const name = profile.full_name || base.employeeName;\n  const job = profile.job_title || 'Nhân viên';\n  const dept = profile.dept_name || base.departmentName;\n  const isCritical = base.riskTier === 'CRITICAL';\n\n  const aiTg = aiOk ? esc(aiRaw.slice(0, 2200)) : 'AI không khả dụng — vui lòng liên hệ trực tiếp với nhân viên.';\n  const aiMail = aiOk ? aiRaw.slice(0, 4000) : 'AI không khả dụng — vui lòng liên hệ trực tiếp với nhân viên.';\n\n  const header = isCritical\n    ? '🔴 <b>BÁO ĐỘNG ĐỎ: NGUY CƠ KIỆT SỨC NGHIÊM TRỌNG</b>'\n    : '🟡 <b>CẢNH BÁO CAN THIỆP SỚM: SỨC KHỎE TINH THẦN</b>';\n  const crisisTg = base.crisisFlag\n    ? '\\n🆘 <b>Phản hồi chứa nội dung đáng lo ngại — hãy liên hệ trực tiếp ngay, không chờ lịch 1-on-1.</b>\\n'\n    : '';\n  const action = isCritical\n    ? '🚨 <i>Yêu cầu HR liên hệ nhân viên trong 24 giờ; cân nhắc giảm tải sprint hoặc cấp ngày nghỉ hỗ trợ tinh thần.</i>'\n    : '👉 <i>Quản lý vui lòng chủ động hẹn lịch 1-on-1 sớm nhất.</i>';\n\n  const telegramText = [\n    header, crisisTg,\n    '👤 <b>Nhân sự:</b> ' + esc(name) + ' (' + esc(job) + ')',\n    '🏢 <b>Phòng ban:</b> ' + esc(dept),\n    '📅 <b>Tình trạng:</b> Căng thẳng ' + base.stressDays + ' ngày liên tiếp',\n    '💬 <b>Phản hồi:</b> <i>' + esc(base.latestFeedback) + '</i>',\n    '',\n    '🤖 <b>Gợi ý từ AI (công cụ hỗ trợ, không phải chẩn đoán y khoa):</b>',\n    aiTg, '', action\n  ].join('\\n').substring(0, 4000);\n\n  const emailBody = [\n    'Kính gửi Phòng Nhân sự,', '',\n    'Hệ thống HR Tech AI phát hiện nguy cơ kiệt sức mức ' + base.riskTier + ':',\n    '- Nhân viên: ' + name + ' (' + job + ')',\n    '- Phòng ban: ' + dept,\n    '- Số ngày căng thẳng liên tiếp: ' + base.stressDays,\n    '- Phản hồi gần nhất: \"' + base.latestFeedback + '\"',\n    base.crisisFlag ? '- LƯU Ý: phản hồi chứa nội dung đáng lo ngại, đề nghị liên hệ trực tiếp ngay.' : '',\n    '', 'Gợi ý từ AI (công cụ hỗ trợ, không phải chẩn đoán y khoa):', aiMail, '',\n    'Đề xuất: ưu tiên sắp xếp buổi đối thoại 1-on-1 trong 24 giờ tới.', '',\n    'Trân trọng,', 'HR Tech Automation System'\n  ].join('\\n');\n\n  return [{ json: {\n    riskTier: base.riskTier, telegramText, emailBody,\n    emailSubject: '[' + (isCritical ? 'KHẨN CẤP' : 'CẢNH BÁO') + '] Nguy cơ kiệt sức: ' + name + ' (' + base.stressDays + ' ngày căng thẳng)',\n    hrChatId: base.hrChatId, managerChatId: base.managerChatId,\n    hrEmail: CONFIG.HR_EMAIL, managerEmail: profile.manager_email || 'vutranpoh@gmail.com'\n  } }];\n} catch (err) {\n  const base = $('Data Validation & Sanitize').first().json;\n  return [{ json: {\n    riskTier: base.riskTier,\n    telegramText: '🔴 Cảnh báo kiệt sức: ' + esc(base.employeeName) + ' (' + base.stressDays + ' ngày). Lỗi dựng tin nhắn: ' + esc(err.message),\n    emailBody: 'Cảnh báo kiệt sức: ' + base.employeeName + ' (' + base.stressDays + ' ngày). Lỗi dựng nội dung: ' + err.message,\n    emailSubject: '[CẢNH BÁO] Nguy cơ kiệt sức: ' + base.employeeName,\n    hrChatId: base.hrChatId, managerChatId: base.managerChatId, hrEmail: CONFIG.HR_EMAIL, managerEmail: ''\n  } }];\n}"
       },
       "id": "a1c30e01-b7a4-4f01-a001-000000000008",
       "name": "Build Alert Card",
@@ -218,13 +221,13 @@
     },
     {
       "parameters": {
-        "fromEmail": "noreply@company.com",
-        "toEmail": "={{ $('Build Alert Card').first().json.hrEmail }}",
+        "fromEmail": "quocthangngo2006@gmail.com",
+        "toEmail": "={{ $('Build Alert Card').first().json.managerEmail || $('Build Alert Card').first().json.hrEmail }}",
         "subject": "={{ $('Build Alert Card').first().json.emailSubject }}",
         "emailFormat": "text",
         "text": "={{ $('Build Alert Card').first().json.emailBody }}",
         "options": {},
-        "ccEmail": "={{ $('Build Alert Card').first().json.managerEmail }}"
+        "ccEmail": "={{ ($('Build Alert Card').first().json.riskTier === 'CRITICAL' && $('Build Alert Card').first().json.managerEmail !== $('Build Alert Card').first().json.hrEmail) ? $('Build Alert Card').first().json.hrEmail : '' }}"
       },
       "id": "a1c30e01-b7a4-4f01-a001-000000000011",
       "name": "Email HR Official Notice",
@@ -421,7 +424,7 @@
       "main": [
         [
           {
-            "node": "MySQL Audit Record",
+            "node": "Email HR Official Notice",
             "type": "main",
             "index": 0
           }

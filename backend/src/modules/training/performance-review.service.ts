@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +16,8 @@ import {
   User,
   UserRole,
 } from '../../entities';
+import { ReviewCalendarService } from './review-calendar.service';
+import { defaultReviewCalendar, reviewPhaseOnDate, vietnamDate } from './review-calendar';
 
 type ReviewReminderResult = {
   reviewPeriod: string;
@@ -37,32 +40,33 @@ export class PerformanceReviewService {
     private readonly reminderRepository: Repository<PerformanceReviewReminder>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @Optional() private readonly calendarService?: ReviewCalendarService,
   ) {}
 
   async getPendingReviewReminders(
     asOfInput?: string,
     phaseOverride?: ReviewReminderPhase,
+    allowRepeat = false,
   ) {
     const asOf = asOfInput ? new Date(asOfInput) : new Date();
     if (Number.isNaN(asOf.getTime())) {
       throw new BadRequestException('Thời điểm kiểm tra không hợp lệ.');
     }
 
-    const { year, month, day } = this.getVietnamDateParts(asOf);
+    const { year, month } = this.getVietnamDateParts(asOf);
     const reviewPeriod = `${year}-${String(month).padStart(2, '0')}`;
-    const phase = phaseOverride ?? (
-      day === 25
-        ? ReviewReminderPhase.OPENING
-        : day === 28
-          ? ReviewReminderPhase.SECOND_REMINDER
-          : null
-    );
+    const calendar = this.calendarService ? await this.calendarService.get(reviewPeriod) : defaultReviewCalendar(reviewPeriod);
+    const phase = phaseOverride ?? reviewPhaseOnDate(calendar, vietnamDate(asOf));
 
     if (!phase || !Object.values(ReviewReminderPhase).includes(phase)) {
       return {
         generatedAt: asOf.toISOString(),
         reviewPeriod,
         phase: null,
+        deadline: calendar.deadline,
+        openingDate: calendar.openingDate,
+        reminderDate: calendar.reminderDate,
+        pendingEmployeeCount: 0,
         count: 0,
         reminders: [],
         message: 'Hôm nay không phải ngày mở kỳ hoặc ngày nhắc hạn đánh giá.',
@@ -146,10 +150,9 @@ export class PerformanceReviewService {
       }
     }
 
-    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    const deadline = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const deadline = calendar.deadline;
     const reminders = [...grouped.values()]
-      .filter((group) => !deliveredRecipientIds.has(group.recipient.id))
+      .filter((group) => allowRepeat === true || !deliveredRecipientIds.has(group.recipient.id))
       .map((group) => ({
         notificationKey: `${reviewPeriod}:${phase}:${group.recipient.id}`,
         reviewPeriod,
@@ -178,6 +181,8 @@ export class PerformanceReviewService {
       reviewPeriod,
       phase,
       deadline,
+      openingDate: calendar.openingDate,
+      reminderDate: calendar.reminderDate,
       count: reminders.length,
       pendingEmployeeCount: reminders.reduce(
         (sum, reminder) => sum + reminder.pendingCount,
@@ -248,6 +253,30 @@ export class PerformanceReviewService {
       status: saved.status,
       emailNotified: saved.emailNotified,
       telegramNotified: saved.telegramNotified,
+    };
+  }
+
+  async getCalendarBoard(viewerId: number, period: string) {
+    const calendar = this.calendarService ? await this.calendarService.get(period) : { ...defaultReviewCalendar(period), version: 0, configured: false, updatedAt: null };
+    const [roster, history] = await Promise.all([
+      this.getPendingReviewsForReviewer(viewerId, period),
+      this.reminderRepository.find({ where: { reviewPeriod: period }, order: { sentAt: 'DESC' } }),
+    ]);
+    const delivery = (employeeId: number, phase: ReviewReminderPhase) => {
+      const rows = history.filter(row => row.phase === phase && (row.pendingEmployeeIds || []).includes(employeeId));
+      const row = rows.find(row => row.status === AutomationDeliveryStatus.SENT) || rows[0];
+      return row ? { status: row.status, sentAt: row.sentAt, emailNotified: row.emailNotified, telegramNotified: row.telegramNotified } : null;
+    };
+    return {
+      calendar,
+      today: vietnamDate(new Date()),
+      count: roster.count,
+      submittedCount: roster.submittedCount,
+      employees: roster.employees.map(employee => ({
+        ...employee,
+        openingDelivery: delivery(employee.id, ReviewReminderPhase.OPENING),
+        followUpDelivery: delivery(employee.id, ReviewReminderPhase.SECOND_REMINDER),
+      })),
     };
   }
 

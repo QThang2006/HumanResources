@@ -10,9 +10,9 @@ Thành viên 4 sở hữu ba luồng tự động hóa đúng theo phân công v
 | Nhóm | Workflow trên n8n | File nguồn | Số node | Vai trò |
 |---|---|---|---:|---|
 | Bổ trợ giao diện TV4 | `TV4 - 01 Trả lời Kho tri thức có dẫn nguồn` | `01_tv4_knowledge_rag.json` | 8 | Nhận câu hỏi từ giao diện, tìm nội dung liên quan và trả lời kèm nguồn |
-| Luồng 4.1 | `TV4 - 02 Nhắc hoàn thành khóa học bắt buộc` | `02_mandatory_training_reminder.json` | 12 | Quét khóa bắt buộc sắp đến hạn, nhắc nhân viên, quản lý và kênh đào tạo |
-| Luồng 4.2 | `TV4 - 03 Kỳ Đánh Giá KPI Tháng & Đôn Đốc Hạn Chót` | `03_monthly_performance_review_reminder.json` | 12 | Mở kỳ đánh giá ngày 25 và nhắc lần hai ngày 28 hằng tháng |
-| Luồng 4.3 | `TV4 - 04 Quy Trình Thôi Việc Tự Động (Offboarding)` | `04_offboarding_workflow.json` | 12 | Điều phối IT, Kế toán, nhân viên và kênh liên phòng ban khi HR duyệt thôi việc |
+| Luồng 4.1 | `[TV4] WF-02: Mandatory Training Reminder & Escalation` | `02_mandatory_training_reminder.json` | 18 | Quét khóa bắt buộc sắp đến hạn, nhắc nhân viên, quản lý và kênh đào tạo |
+| Luồng 4.2 | `[TV4] WF-03: Monthly KPI Review Cycle & Follow-up` | `03_monthly_performance_review_reminder.json` | 19 | Mở kỳ đánh giá ngày 25 và nhắc lần hai ngày 28 hằng tháng |
+| Luồng 4.3 | `[TV4] WF-04: Offboarding Coordination & Delivery Recovery` | `04_offboarding_workflow.json` | 18 | Điều phối IT, Kế toán, nhân viên và kênh liên phòng ban khi HR duyệt thôi việc |
 
 Điểm cần nói rõ khi báo cáo:
 
@@ -131,51 +131,21 @@ GEMINI_API_KEY=THAY_BẰNG_API_KEY_GEMINI
 
 Không ghi App Password, bot token hoặc khóa tự động hóa trực tiếp vào file Markdown.
 
-### 3.5. Import an toàn bằng CLI trên Linux
+### 3.5. Chuẩn bị bản import an toàn trên Linux
 
-Chuẩn bị bốn workflow với ID ổn định và trạng thái inactive. Lệnh dưới đây
-dùng cho lần khởi tạo, khi chưa có workflow RAG đang hoạt động:
-
-```bash
-node scripts/prepare-tv4-n8n-import.cjs
-for workflow_file in 01_tv4_knowledge_rag.json 02_mandatory_training_reminder.json 03_monthly_performance_review_reminder.json 04_offboarding_workflow.json; do
-  docker cp ".temp/tv4-n8n-import/$workflow_file" "hr_n8n:/tmp/tv4-import-$workflow_file"
-  docker exec hr_n8n n8n import:workflow --input="/tmp/tv4-import-$workflow_file"
-done
-```
-
-Script không ghi secret vào Git. Ba workflow 4.1–4.3 đọc
-`N8N_AUTOMATION_SECRET` từ môi trường n8n và vẫn inactive sau khi import.
-Chỉ publish sau khi đã gắn SMTP/Telegram credential và đặt địa chỉ nhận thử nghiệm.
-
-Để giữ cấu hình mail cá nhân riêng với mã nguồn nhóm, có thể đặt một file JSON
-cục bộ trong `.temp` với các trường `senderEmail`, `testEmployeeEmail`,
-`testManagerEmail`, `testInternalEmail`, `itEmail`, `accountingEmail`.
-Các trường này chỉ chứa địa chỉ mail, không chứa mật khẩu SMTP hoặc bot token.
-Có thể thêm `telegramChatId` dạng chuỗi số đã được xác minh bằng thao tác
-Telegram **Chat → Get**; giá trị sẽ được áp dụng vào node cấu hình của cả ba
-workflow thông báo. Giữ dấu âm của ID nhóm, không dùng username bot thay ID nhóm.
-Sau đó chuẩn bị import bằng:
+Với instance đã có workflow, export đúng từng ID TV4 trước, giữ file ngoài repository. Dùng builder để giữ nguyên ID workflow, ID node cũ, cấu hình và tham chiếu credential:
 
 ```bash
-TV4_N8N_CREDENTIAL_SOURCE_DIR=.temp/n8n-backup \
-TV4_N8N_MAIL_CONFIG_FILE=.temp/tv4-mail-routing.json \
-node scripts/prepare-tv4-n8n-import.cjs
+node scripts/build-tv4-workflows.cjs \
+  --source-dir /tmp/tv4-instance-backup \
+  --output-dir /tmp/tv4-instance-ready
 ```
 
-`TV4_N8N_CREDENTIAL_SOURCE_DIR` trỏ tới bản export workflow cục bộ để giữ tham chiếu
-credential đã gắn. Script chỉ đọc SMTP/Telegram credential ID, không giải mã
-credential. Nếu RAG đang hoạt động, chỉ import ba file thông báo cần cập nhật,
-tránh import lại cả thư mục làm workflow RAG chuyển sang inactive.
-Sao chép từng file tới tên đích cụ thể để tránh `docker cp` lồng thư mục khi
-thư mục đích đã tồn tại, khiến CLI vô tình import lại bản cũ.
+Thư mục đầu vào có ba file tên như trong bảng phần 1. Bản export có thể là một object hoặc mảng một workflow. Không dùng export của thành viên khác. Kiểm tra ba file đầu ra rồi import vào đúng instance đã export; không dùng ID của local cho host. Bản chuẩn bị chưa Publish và không ghim dữ liệu.
 
-Workflow RAG không gửi thông báo ngoài nên có thể publish riêng:
+Cho lần khởi tạo mới, `node scripts/prepare-tv4-n8n-import.cjs` chuẩn bị mặc định ba workflow chính vào `/tmp/tv4-n8n-import`. Chỉ thêm `--include-knowledge` khi chủ động muốn chuẩn bị cả workflow 01. Có thể dùng `TV4_N8N_CREDENTIAL_SOURCE_DIR` để giữ tham chiếu SMTP/Telegram từ export TV4; script nhận tên cũ tiếng Việt hoặc tên mới tiếng Anh. `TV4_N8N_MAIL_CONFIG_FILE` có thể trỏ đến file cấu hình nhận thư ở ngoài repository.
 
-```bash
-docker exec hr_n8n n8n publish:workflow --id=tv4KnowledgeRagV1
-docker compose restart n8n
-```
+Workflow và node của ba luồng chính dùng tên tiếng Anh; email/Telegram vẫn viết tiếng Việt. Sau import, rà soát sender, credential, Chat ID, backend URL, link workspace/khảo sát, trường test và múi giờ. Publish từng workflow TV4 khi sẵn sàng. Không restart instance n8n dùng chung chỉ để cập nhật TV4.
 
 ---
 
@@ -311,264 +281,95 @@ Khi xóa tài liệu, backend xóa bản ghi, các nội dung liên quan và fil
 
 ## 5. Luồng 4.1 — Nhắc hoàn thành khóa học bắt buộc
 
-### 5.1. Thông tin chung
+File: `02_mandatory_training_reminder.json`. Số node: **18**.
 
-- File: `02_mandatory_training_reminder.json`
-- Lịch chạy: `0 8 * * *` — 08:00 mỗi ngày.
-- Múi giờ: `Asia/Ho_Chi_Minh`.
-- Số node: 12.
-- API lấy dữ liệu: `GET /api/training/automation/pending-reminders`.
-- API ghi kết quả: `POST /api/training/automation/reminder-results`.
+| STT | Node | Chức năng |
+|---:|---|---|
+| 1 | `Daily Training Schedule` | Chạy lúc 08:00 mỗi ngày theo giờ Việt Nam. |
+| 2 | `Load Workflow Configuration` | Nạp backend URL, khóa tự động hóa, sender, email chuyển hướng và Chat ID. |
+| 3 | `Validate Training Configuration` | Kiểm tra backend URL, sender và khóa bắt buộc; xác định Telegram có thể dùng. |
+| 4 | `Fetch Training Reminders` | GET /api/training/automation/pending-reminders; backend quyết định ai đủ điều kiện. |
+| 5 | `Split Training Assignments` | Tách mỗi lượt học thành một item; rỗng trả skip=true. |
+| 6 | `Has Training Reminders?` | True vào xử lý; false kết thúc bình thường. |
+| 7 | `Process Training Assignments` | Loop Over Items, batch=1; hoàn tất một lượt và callback trước khi sang lượt kế tiếp. |
+| 8 | `Classify Training Alert` | Kiểm tra dữ liệu lượt học và phân biệt DUE_SOON/OVERDUE. |
+| 9 | `Compose Training Notices` | Soạn email nhân viên, quản lý và Telegram; chọn người nhận thật hoặc chuyển hướng kiểm thử. |
+| 10 | `Has Valid Employee Email?` | Chỉ gửi email nhân viên khi địa chỉ hợp lệ. |
+| 11 | `Send Employee Reminder` | Gửi thư nhắc; lỗi không chặn các kênh còn lại. |
+| 12 | `Should Notify Manager?` | Kiểm tra có quản lý, cần báo quản lý và email quản lý hợp lệ. |
+| 13 | `Send Manager Reminder` | Gửi thư đôn đốc cho quản lý. |
+| 14 | `Has Training Telegram Route?` | Kiểm tra Chat ID trước khi gọi Telegram. |
+| 15 | `Send Training Telegram` | Gửi tóm tắt vào nhóm đào tạo. |
+| 16 | `Summarize Training Delivery` | Tổng hợp từng kênh thành SENT/PARTIAL/FAILED, ghi rõ kênh lỗi hoặc không cần gửi. |
+| 17 | `Record Training Delivery` | POST /api/training/automation/reminder-results; retry tối đa 3 lần cùng runId. |
+| 18 | `Collect Training Receipt` | Xác nhận backend đã ghi; trả biên nhận gọn về Loop để xử lý lượt tiếp theo. |
 
-Backend chỉ đưa một lượt đào tạo vào danh sách nhắc khi thỏa tất cả điều kiện:
+Backend giữ nguyên điều kiện: nhân viên đang hoạt động, khóa bắt buộc chưa hoàn thành, tiến độ dưới 50%, đã quá hạn hoặc còn tối đa 3 ngày, lần nhắc trước cách ít nhất 20 giờ. N8n không tự nới các điều kiện này.
 
-1. Nhân viên đang hoạt động.
-2. Khóa học thuộc loại `MANDATORY`.
-3. Chưa hoàn thành.
-4. Tiến độ dưới 50%.
-5. Hạn hoàn thành còn tối đa ba ngày hoặc đã quá hạn.
-6. Chưa được nhắc trong 20 giờ gần nhất.
+Khi thiếu email nhân viên, quản lý và Telegram hợp lệ vẫn được xử lý. Kênh thiếu địa chỉ được ghi thất bại thay vì báo đã gửi. Nếu không có quản lý phụ trách, quản lý không được tính là kênh bắt buộc. Callback dùng runId để chống tăng bộ đếm trùng; điều đó không bảo đảm SMTP chỉ giao thư đúng một lần nếu kết nối bị ngắt sau khi server nhận thư.
 
-### 5.2. Luồng xử lý
-
-```text
-[1. Lịch 08:00] -> [2. Cấu hình] -> [3. Lấy danh sách]
-                                           │
-                                           ▼
-                                  [4. Tách từng lượt]
-                                           │
-                                           ▼
-                                  [5. Có cần nhắc?]
-                                           │ Có
-                                           ▼
-                                  [6. Soạn nội dung]
-                                           │
-                                           ▼
-                                  [7. Email nhân viên]
-                                           │
-                                           ▼
-                                  [8. Có quản lý?]
-                                     ├── Có -> [9. Email quản lý]
-                                     └── Không ───────────────┐
-                                                              ▼
-                                                   [10. Telegram]
-                                                              │
-                                                              ▼
-                                                   [11. Tổng hợp]
-                                                              │
-                                                              ▼
-                                                   [12. Callback]
-```
-
-### 5.3. Giải thích 12 node
-
-| STT | Node | Loại | Nhiệm vụ chính |
-|---:|---|---|---|
-| 1 | `Lịch chạy 08 giờ mỗi ngày` | Schedule Trigger | Khởi động workflow lúc 08:00 mỗi ngày |
-| 2 | `Nạp cấu hình an toàn` | Set | Nạp API base, khóa tự động hóa, email gửi, email kiểm thử và Telegram chat ID |
-| 3 | `Lấy danh sách cần nhắc` | HTTP Request | Gọi backend bằng `X-Automation-Secret` để lấy các lượt đủ điều kiện |
-| 4 | `Tách từng lượt đào tạo` | Code | Mỗi lượt đào tạo trở thành một item; nếu rỗng tạo item `skip = true` |
-| 5 | `Có trường hợp cần nhắc?` | IF | Nhánh `true` tiếp tục gửi; nhánh `false` kết thúc bình thường khi danh sách cần nhắc rỗng, không phải lỗi |
-| 6 | `Soạn nội dung nhắc bằng tiếng Việt` | Code | Tạo tiêu đề, email HTML, tin Telegram, nhãn còn hạn/quá hạn và chọn người nhận thử nghiệm |
-| 7 | `Gửi thư nhắc nhân viên` | Email Send | Gửi email cho nhân viên; thử lại tối đa ba lần, cách nhau hai giây |
-| 8 | `Có quản lý trực tiếp?` | IF | Kiểm tra có người quản lý hợp lệ để nhận thư hay không |
-| 9 | `Thông báo cho quản lý` | Email Send | Gửi thông báo đôn đốc cho quản lý trực tiếp hoặc quản lý phòng ban dự phòng |
-| 10 | `Thông báo kênh đào tạo` | Telegram | Gửi tóm tắt cho nhóm đào tạo, kể cả khi chưa có quản lý |
-| 11 | `Tổng hợp kết quả gửi` | Code | Tính `SENT`, `PARTIAL` hoặc `FAILED` từ kết quả từng kênh |
-| 12 | `Lưu kết quả về hệ thống` | HTTP Request | Callback để backend lưu số lần nhắc, thời điểm nhắc, run ID và trạng thái leo thang |
-
-### 5.4. Cơ chế an toàn và chống gửi lặp
-
-- Các API tự động hóa không dùng JWT người dùng mà dùng header `X-Automation-Secret`.
-- Backend so sánh khóa bằng hash và `timingSafeEqual`.
-- `retryOnFail` được bật cho Email và Telegram.
-- `continueRegularOutput` giúp workflow vẫn tổng hợp được trạng thái khi một kênh lỗi.
-- Cooldown 20 giờ ngăn workflow gửi lặp nhiều lần trong cùng ngày.
-- `runId` giúp callback có tính lặp an toàn: cùng một lần chạy không làm tăng bộ đếm hai lần.
-- Nếu nhân viên chưa có `manager_id`, backend tìm Manager đang hoạt động cùng phòng ban.
-
-### 5.5. Kịch bản kiểm thử trực tiếp
-
-1. Tạo hoặc chọn một khóa bắt buộc.
-2. Gán cho nhân viên với hạn còn từ một đến ba ngày.
-3. Đặt tiến độ dưới 50%.
-4. Trong node `Nạp cấu hình an toàn`, để trống `testEmployeeEmail` nếu muốn gửi theo email thật của nhân viên và đặt `testManagerEmail` nếu tài khoản quản lý vẫn dùng email đăng nhập mẫu.
-5. Bấm `Execute workflow`.
-6. Kiểm tra:
-   - Node `Lấy danh sách cần nhắc` trả `count = 1` hoặc lớn hơn.
-   - Email nhân viên xuất hiện trong hộp thư thử nghiệm.
-   - Email quản lý xuất hiện nếu có quản lý.
-   - Telegram có thông báo.
-   - Node callback trả `recorded = true`.
-7. Chạy lại ngay: backend có thể trả `count = 0` do cooldown 20 giờ. Đây là hành vi đúng.
+Demo: chọn lượt học đủ điều kiện, kiểm tra email chuyển hướng, Execute, xem kết quả từng kênh và callback. Chạy lại ngay có thể trả danh sách rỗng do cooldown.
 
 ---
 
-## 6. Luồng 4.2 — Kỳ đánh giá KPI tháng và đôn đốc hạn chót
+## 6. Luồng 4.2 — Kỳ đánh giá và lịch nhắc cấu hình từ website
 
-### 6.1. Thông tin chung
+File: `03_monthly_performance_review_reminder.json`. **19 node**. Xem [lịch đánh giá TV4](../../docs/TV4_REVIEW_CALENDAR.md) để cấu hình và demo.
 
-- File: `03_monthly_performance_review_reminder.json`
-- Số node: 12.
-- Lịch mở kỳ: `0 8 25 * *` — 08:00 ngày 25 hằng tháng.
-- Lịch nhắc lần hai: `0 8 28 * *` — 08:00 ngày 28 hằng tháng.
-- API lấy dữ liệu: `GET /api/training/automation/review-reminders`.
-- API ghi kết quả: `POST /api/training/automation/review-reminder-results`.
+1. **Daily Review Schedule** chạy 08:00 hằng ngày.
+2. **Load Workflow Configuration** nạp kết nối, sender, người nhận kiểm thử và link; không còn testPhase/testAsOf.
+3. **Prepare Review Request** kiểm tra cấu hình và chuẩn bị runId.
+4. **Fetch Review Recipients** gọi backend. Backend đọc lịch của tháng hiện tại, xác định phase và lọc/gom đối tượng.
+5. **Is Review Phase Active?** dừng nếu hôm nay không trùng lịch.
+6. **Split Review Recipients** tách từng nhóm quản lý; danh sách rỗng tạo skip=true.
+7. **Has Review Recipients?** có nhóm thì xử lý, rỗng thì tổng kết số lượng 0.
+8. **Process Review Recipients** xử lý từng quản lý, batch size 1.
+9. **Compose Review Notices** soạn bảng nhân viên và thông báo theo phase từ backend.
+10. **Has Valid Reviewer Email?** kiểm tra địa chỉ email.
+11. **Send Review Email** gửi cho người phụ trách.
+12. **Has Review Telegram Route?** kiểm tra nhóm Telegram.
+13. **Send Review Telegram** thông báo từng nhóm.
+14. **Summarize Review Delivery** tính SENT/PARTIAL/FAILED.
+15. **Record Review Delivery** lưu callback theo kỳ, đợt, người nhận và runId.
+16. **Collect Review Receipt** xác nhận kết quả ghi và quay lại Loop.
+17. **Build Review Run Summary** tổng hợp các biên nhận khi vòng lặp hoàn tất.
+18. **Has Review Summary Route?** kiểm tra kênh tổng kết.
+19. **Send Review Run Summary** gửi tổng kết cho kênh HR.
 
-Backend chỉ trả những nhân viên đang hoạt động và chưa có bản đánh giá trong kỳ hiện tại. Người nhận được chọn theo thứ tự:
-
-1. Quản lý trực tiếp của nhân viên.
-2. Manager đang hoạt động cùng phòng ban.
-3. HR đang hoạt động làm người nhận dự phòng.
-
-### 6.2. Hai giai đoạn thông báo
-
-| Giai đoạn | Ngày | Giá trị `phase` | Nội dung |
-|---|---:|---|---|
-| Mở kỳ | 25 | `OPENING` | Thông báo danh sách nhân viên cần được đánh giá |
-| Nhắc lần hai | 28 | `SECOND_REMINDER` | Nhắc những đánh giá vẫn chưa được nộp |
-
-Hạn hoàn thành được backend tính là ngày cuối cùng của tháng.
-
-### 6.3. Giải thích 12 node
-
-| STT | Node | Loại | Nhiệm vụ chính |
-|---:|---|---|---|
-| 1 | `Cron ngày 25 - Mở kỳ đánh giá` | Schedule Trigger | Kích hoạt đợt `OPENING` |
-| 2 | `Cron ngày 28 - Đôn đốc chưa nộp` | Schedule Trigger | Kích hoạt đợt `SECOND_REMINDER` |
-| 3 | `Nạp cấu hình an toàn` | Set | Nạp URL, khóa, email, Telegram, đường dẫn biểu mẫu và biến kiểm thử |
-| 4 | `Xác định đợt thông báo` | Code | Tính ngày theo giờ Việt Nam, xác định phase và tạo run ID |
-| 5 | `Lấy danh sách quản lý cần nhắc` | HTTP Request | Gọi backend với `asOf` và `phase` |
-| 6 | `Tách từng quản lý phụ trách` | Code | Mỗi quản lý cùng danh sách nhân viên chưa nộp trở thành một item |
-| 7 | `Có quản lý cần thông báo?` | IF | Nhánh `true` tiếp tục gửi; nhánh `false` dừng an toàn khi không còn đánh giá thiếu |
-| 8 | `Soạn nội dung đánh giá bằng tiếng Việt` | Code | Tạo bảng HTML nhân viên, hạn hoàn thành, email và Telegram |
-| 9 | `Gửi thư cho quản lý` | Email Send | Gửi danh sách đánh giá còn thiếu tới người phụ trách |
-| 10 | `Thông báo kênh đánh giá` | Telegram | Thông báo kỳ, người phụ trách, số lượng còn thiếu và hạn |
-| 11 | `Tổng hợp kết quả thông báo` | Code | Đánh giá Email/Telegram thành `SENT/PARTIAL/FAILED` |
-| 12 | `Lưu kết quả nhắc đánh giá` | HTTP Request | Lưu run ID, phase, danh sách nhân viên và kết quả vào backend |
-
-### 6.4. Kiểm thử không cần chờ đến ngày 25 hoặc 28
-
-Trong node `Nạp cấu hình an toàn`, dùng hai trường chỉ dành cho demo:
-
-```text
-testPhase = OPENING
-testAsOf  = 2026-10-25T01:00:00.000Z
-```
-
-Hoặc để kiểm tra nhắc lần hai:
-
-```text
-testPhase = SECOND_REMINDER
-testAsOf  = 2026-10-28T01:00:00.000Z
-```
-
-Sau khi demo phải xóa hai giá trị này để lịch tự động dùng ngày thật.
-
-Kết quả mong đợi:
-
-- Backend gom đúng nhân viên chưa có đánh giá theo từng người phụ trách.
-- Email có bảng tên, chức danh, phòng ban và hạn hoàn thành.
-- Telegram hiển thị số đánh giá còn thiếu.
-- Callback lưu trạng thái.
-- Nếu một phase đã được ghi `SENT` cho cùng người nhận, backend không tiếp tục trả nhắc trùng.
+Super Admin cấu hình ngày mở kỳ, ngày nhắc lần hai và hạn ngay trên website. HR chỉ xem lịch/tiến độ; quyền Manager/Employee không thay đổi. Mặc định ngày 25/28, hạn cuối tháng. Đổi lịch không xóa lịch sử gửi hoặc đặt lại chống gửi lặp. Chọn tháng để xem không đổi tháng thực thi của workflow. Workflow không chấm KPI.
 
 ---
 
-## 7. Luồng 4.3 — Quy trình thôi việc tự động liên phòng ban
+## 7. Luồng 4.3 — Điều phối thôi việc và phục hồi kênh gửi lỗi
 
-### 7.1. Thông tin chung
+File: `04_offboarding_workflow.json`. Số node: **18**.
 
-- File: `04_offboarding_workflow.json`
-- Số node: 12.
-- Trigger: `POST /webhook/tv4-offboarding`.
-- Backend kích hoạt khi HR/SuperAdmin gọi `POST /api/offboarding`.
-- API lấy hồ sơ: `GET /api/offboarding/automation/:id`.
-- API callback: `POST /api/offboarding/automation/:id/results`.
+| STT | Node | Chức năng |
+|---:|---|---|
+| 1 | `Offboarding Approval Webhook` | Nhận POST /webhook/tv4-offboarding từ backend. |
+| 2 | `Load Offboarding Configuration` | Nạp API, khóa xác thực, sender, email IT/Kế toán, Chat ID và khảo sát. |
+| 3 | `Authenticate Offboarding Request` | Bắt buộc header khóa đúng và caseId số nguyên dương. |
+| 4 | `Fetch Approved Offboarding Case` | GET /api/offboarding/automation/{caseId}; backend trả hồ sơ và alreadyNotified. |
+| 5 | `Is Approved Case Valid?` | Kiểm tra mã khớp, nhân viên, ngày cuối và trạng thái APPROVED/IN_PROGRESS/PARTIAL/FAILED. |
+| 6 | `Respond to Invalid Case` | Nhánh không hợp lệ trả HTTP 409, không gửi các thông báo thôi việc. |
+| 7 | `Compose Offboarding Notices` | Soạn từng kênh, kiểm tra người nhận, đặt cờ send theo alreadyNotified. |
+| 8 | `Should Notify IT?` | Chỉ gửi nếu IT chưa được xác nhận và địa chỉ hợp lệ. |
+| 9 | `Send IT Handover Notice` | Yêu cầu IT bàn giao tài sản và xử lý quyền truy cập theo ngày cuối. |
+| 10 | `Should Notify Finance?` | Chỉ gửi nếu Kế toán chưa được xác nhận và địa chỉ hợp lệ. |
+| 11 | `Send Finance Handover Notice` | Gửi yêu cầu đối chiếu lương, phép và quyết toán. |
+| 12 | `Should Notify Employee?` | Chỉ gửi nếu nhân viên chưa được xác nhận và email hợp lệ. |
+| 13 | `Send Employee Farewell` | Gửi lời cảm ơn và khảo sát; ưu tiên email cá nhân. |
+| 14 | `Should Notify Offboarding Telegram?` | Chỉ gửi nếu Telegram chưa được xác nhận và Chat ID hợp lệ. |
+| 15 | `Send Offboarding Telegram` | Gửi tóm tắt hồ sơ cho nhóm phối hợp. |
+| 16 | `Summarize Offboarding Delivery` | Kết hợp kênh đã thành công trước đó với kết quả mới; lưu attemptedChannels/skippedChannels. |
+| 17 | `Record Offboarding Delivery` | POST /api/offboarding/automation/{caseId}/results; retry callback cùng runId. |
+| 18 | `Respond to Offboarding Request` | Trả trạng thái và cờ kênh; callback lỗi trả HTTP 502 thay vì xác nhận giả rằng đã lưu. |
 
-### 7.2. Luồng xử lý
+Gửi lại một hồ sơ PARTIAL không gửi lại kênh backend đã xác nhận thành công. Ví dụ IT, Kế toán và nhân viên đã nhận, Telegram lỗi: lần sau chỉ thử Telegram; kết quả cuối vẫn giữ ba cờ thành công trước đó.
 
-```text
-HR duyệt thôi việc
-        │
-        ▼
-Backend lưu hồ sơ APPROVED và bắn webhook
-        │
-        ▼
-[1. Webhook] -> [2. Cấu hình] -> [3. Xác thực khóa]
-                                      │
-                                      ▼
-                             [4. Lấy hồ sơ backend]
-                                      │
-                                      ▼
-                             [5. Soạn nội dung]
-                                      │
-                                      ▼
-                              [6. Email IT]
-                                      │
-                                      ▼
-                          [7. Email Kế toán]
-                                      │
-                                      ▼
-                         [8. Email nhân viên]
-                                      │
-                                      ▼
-                             [9. Telegram]
-                                      │
-                                      ▼
-                           [10. Tổng hợp]
-                                      │
-                                      ▼
-                            [11. Callback]
-                                      │
-                                      ▼
-                            [12. Phản hồi]
-```
+SENT nghĩa là các kênh thông báo đã được xác nhận gửi; backend có thể chuyển hồ sơ COMPLETED theo logic hiện có. Điều đó không xác nhận IT đã thu hồi xong laptop hay Kế toán đã quyết toán xong. Workflow chỉ gửi yêu cầu, không tự khóa tài khoản hoặc xử lý tài chính.
 
-Các bước gửi hiện được nối tuần tự để n8n giữ đủ kết quả của từng kênh trước khi tổng hợp và ghi trạng thái cuối cùng về backend.
-
-### 7.3. Giải thích 12 node
-
-| STT | Node | Loại | Nhiệm vụ chính |
-|---:|---|---|---|
-| 1 | `Webhook - HR Duyệt Thôi Việc` | Webhook | Nhận `caseId` từ backend |
-| 2 | `Nạp cấu hình liên phòng ban` | Set | Nạp URL backend, khóa, các email, Telegram và link khảo sát |
-| 3 | `Xác thực yêu cầu từ hệ thống` | Code | So sánh secret trong header và kiểm tra `caseId` là số nguyên dương |
-| 4 | `Lấy hồ sơ thôi việc đã duyệt` | HTTP Request | Lấy hồ sơ chính thức từ backend; không tin hoàn toàn payload webhook |
-| 5 | `Soạn nội dung điều phối bằng tiếng Việt` | Code | Tạo ba email riêng và tin Telegram; escape dữ liệu đưa vào HTML |
-| 6 | `Gửi ticket cho phòng IT` | Email Send | Yêu cầu thu hồi thiết bị, khóa email/VPN và bàn giao dữ liệu |
-| 7 | `Gửi thông báo cho Kế toán` | Email Send | Yêu cầu tính lương, phép năm và đối chiếu tạm ứng |
-| 8 | `Gửi thư cảm ơn và khảo sát` | Email Send | Gửi thư cảm ơn và liên kết khảo sát thôi việc tới email cá nhân |
-| 9 | `Thông báo kênh liên phòng ban` | Telegram | Thông báo tóm tắt hồ sơ đã được duyệt |
-| 10 | `Tổng hợp kết quả liên phòng ban` | Code | Theo dõi đủ bốn kênh IT, Kế toán, nhân viên và Telegram |
-| 11 | `Lưu kết quả thôi việc về hệ thống` | HTTP Request | Ghi kết quả và chuyển trạng thái backend |
-| 12 | `Phản hồi kết quả offboarding` | Respond to Webhook | Trả kết quả `SENT/PARTIAL/FAILED` cho lời gọi ban đầu |
-
-### 7.4. Trạng thái hồ sơ
-
-```text
-APPROVED -> IN_PROGRESS -> COMPLETED
-                       ├-> PARTIAL
-                       └-> FAILED
-```
-
-- `COMPLETED`: cả bốn kênh thành công.
-- `PARTIAL`: có ít nhất một kênh thành công nhưng chưa đủ bốn kênh.
-- `FAILED`: không có kênh nào thành công.
-- Callback trùng `runId` được nhận diện và không ghi lặp.
-
-### 7.5. Kịch bản kiểm thử
-
-1. Bật workflow ở chế độ Active để backend gọi production webhook.
-2. Dùng tài khoản HR hoặc SuperAdmin tạo hồ sơ thôi việc cho một Employee đang hoạt động.
-3. Chọn ngày làm việc cuối ở hiện tại hoặc tương lai.
-4. Trong node cấu hình, đặt `testEmployeeEmail` và `testInternalEmail` về hộp thư thử nghiệm.
-5. Kiểm tra bốn kết quả:
-   - email ticket IT;
-   - email quyết toán Kế toán;
-   - email cảm ơn và khảo sát;
-   - tin Telegram.
-6. Kiểm tra callback: trạng thái hồ sơ phải là `COMPLETED` nếu cả bốn kênh thành công hoặc `PARTIAL` nếu một kênh lỗi.
+Demo đầy đủ cần hồ sơ đã duyệt thật trong database kiểm thử và backend gọi webhook. Ghim dữ liệu chỉ thay đầu vào trong thực thi thủ công, không thay cho hồ sơ backend hay bỏ qua xác thực. Không ghim cấu hình/dữ liệu mẫu khi vận hành chính thức.
 
 ---
 
@@ -630,13 +431,22 @@ npm.cmd run test:tv4-automation
 npm.cmd run test:documents
 ```
 
+Kiểm thử nâng cấp riêng ba workflow trên Linux (không cần build lại khi backend đang watch):
+
+```bash
+cd backend
+npm run test:tv4-workflows
+```
+
+Fixture chạy graph trên n8n thật được tạo bằng `node scripts/test-tv4-workflow-graph.cjs /tmp/tv4-qa-fixtures`. Phải import/chạy fixture bằng database n8n riêng; các node HTTP/SMTP/Telegram đã được thay bằng Code, không gửi ra ngoài. Chi tiết và kết quả ở `docs/TV4_WORKFLOW_UPGRADE.md`.
+
 Các bài kiểm thử bao phủ:
 
 - điều kiện lọc khóa bắt buộc;
 - fallback quản lý theo phòng ban;
 - cooldown và callback chống ghi lặp;
 - phân tích sơ bộ khi chưa có KPI;
-- cấu trúc 12 node của workflow 4.1–4.3;
+- cấu trúc 18/19/18 node của workflow 4.1–4.3;
 - hai lịch ngày 25 và 28;
 - theo dõi đủ bốn kênh offboarding;
 - xóa PDF an toàn;
@@ -674,7 +484,7 @@ npm.cmd run build
 ## 12. Checklist bàn giao
 
 - [ ] Bốn file workflow import được vào n8n.
-- [ ] Ba workflow 4.1–4.3 có đúng 12 node; workflow Kho tri thức có 8 node.
+- [ ] Ba workflow 4.1–4.3 có 18/19/18 node; workflow Kho tri thức giữ 8 node.
 - [ ] Múi giờ của workflow lịch là `Asia/Ho_Chi_Minh`.
 - [ ] Đã thay toàn bộ giá trị `THAY_BANG_...` trong node cấu hình.
 - [ ] Đã gắn SMTP credential cho tất cả Email node.

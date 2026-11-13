@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import {
   CalendarDays,
   ChevronLeft,
@@ -205,6 +206,8 @@ function ScheduleDetail({
 }
 
 export function InterviewSchedule({ openCandidate }: { openCandidate: (id: number) => void }) {
+  const { user } = useAuth();
+  const isHrOrAdmin = user?.role === 'HR' || user?.role === 'SUPERADMIN';
   const [anchor, setAnchor] = useState(() => dayKey());
   const [period, setPeriod] = useState<CalendarPeriod>('week');
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
@@ -320,9 +323,22 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
     <section aria-label="Lịch phỏng vấn" className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Lịch phỏng vấn</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xl font-bold text-slate-900">Lịch phỏng vấn</h2>
+            {isHrOrAdmin ? (
+              <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
+                Toàn hệ thống (HR)
+              </span>
+            ) : (
+              <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
+                Lịch cá nhân phụ trách
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-slate-500">
-            Theo dõi giờ hẹn và mở phòng Meet từ từng buổi phỏng vấn.
+            {isHrOrAdmin
+              ? 'Theo dõi toàn bộ lịch phỏng vấn và mở phòng Google Meet của tất cả vị trí.'
+              : `Chỉ hiển thị các buổi phỏng vấn được phân công cho ${user?.fullName || 'bạn'}.`}
           </p>
         </div>
         <button
@@ -355,18 +371,27 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
           </select>
         </Field>
         <Field label="Người phỏng vấn">
-          <select
-            className={inputClass}
-            value={interviewerId}
-            onChange={(e) => setInterviewerId(e.target.value)}
-          >
-            <option value="">Tất cả người phỏng vấn</option>
-            {filters.interviewers.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </select>
+          {isHrOrAdmin ? (
+            <select
+              className={inputClass}
+              value={interviewerId}
+              onChange={(e) => setInterviewerId(e.target.value)}
+            >
+              <option value="">Tất cả người phỏng vấn</option>
+              {filters.interviewers.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex items-center justify-between rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <span className="font-medium truncate">{user?.fullName || 'Người phỏng vấn'}</span>
+              <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                Chỉ định
+              </span>
+            </div>
+          )}
         </Field>
         <Field label="Kết quả phỏng vấn">
           <select className={inputClass} value={result} onChange={(e) => setResult(e.target.value)}>
@@ -692,9 +717,13 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
           <div className="grid min-h-[280px] place-items-center p-8 text-center">
             <div>
               <CalendarDays className="mx-auto text-slate-300" size={36} aria-hidden="true" />
-              <h4 className="mt-3 font-semibold text-slate-700">Chưa có buổi phỏng vấn phù hợp</h4>
+              <h4 className="mt-3 font-semibold text-slate-700">
+                {isHrOrAdmin ? 'Chưa có buổi phỏng vấn phù hợp' : 'Chưa có lịch phỏng vấn được phân công'}
+              </h4>
               <p className="mt-1 text-sm text-slate-500">
-                Chọn khoảng thời gian khác hoặc bỏ bớt bộ lọc.
+                {isHrOrAdmin
+                  ? 'Chọn khoảng thời gian khác hoặc bỏ bớt bộ lọc.'
+                  : `Hiện tại chưa có buổi phỏng vấn nào được gán cho ${user?.fullName || 'bạn'} trong khoảng thời gian này.`}
               </p>
             </div>
           </div>

@@ -40,4 +40,45 @@ export class CreateJobDto {
   @IsNotEmpty({ message: 'Yêu cầu ứng viên không được để trống.' })
   @MaxLength(20000)
   requirements: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null && value !== '')
+  @Trim()
+  @IsString()
+  @MaxLength(50)
+  level?: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null && value !== '')
+  @Trim()
+  @IsString()
+  @MaxLength(50)
+  employmentType?: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null && value !== '')
+  @Trim()
+  @IsString()
+  @MaxLength(50)
+  experienceYears?: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  headcount?: number;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null && value !== '')
+  @Trim()
+  @IsString()
+  deadline?: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @Trim()
+  @IsString()
+  @MaxLength(20000)
+  benefits?: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @Trim()
+  @IsString()
+  @MaxLength(1000)
+  skills?: string;
 }

@@ -1,5 +1,5 @@
 {
-  "name": "TV4 - 03 Kỳ Đánh Giá KPI Tháng & Đôn Đốc Hạn Chót",
+  "name": "[TV4] WF-03: Monthly KPI Review Cycle & Follow-up",
   "nodes": [
     {
       "parameters": {
@@ -7,38 +7,18 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "0 8 25 * *"
+              "expression": "0 8 * * *"
             }
           ]
         }
       },
       "id": "tv4-review-01-open-schedule",
-      "name": "Cron ngày 25 - Mở kỳ đánh giá",
+      "name": "Daily Review Schedule",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
         0,
-        180
-      ]
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 8 28 * *"
-            }
-          ]
-        }
-      },
-      "id": "tv4-review-02-remind-schedule",
-      "name": "Cron ngày 28 - Đôn đốc chưa nộp",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        0,
-        420
+        0
       ]
     },
     {
@@ -82,14 +62,8 @@
               "value": "http://localhost:5173/employee/workspace"
             },
             {
-              "id": "test-phase",
-              "name": "testPhase",
-              "type": "string",
-              "value": ""
-            },
-            {
-              "id": "test-as-of",
-              "name": "testAsOf",
+              "id": "tv4-manualRunDate",
+              "name": "manualRunDate",
               "type": "string",
               "value": ""
             }
@@ -98,43 +72,31 @@
         "options": {}
       },
       "id": "tv4-review-03-config",
-      "name": "Nạp cấu hình an toàn",
+      "name": "Load Workflow Configuration",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        240,
-        300
+        300,
+        0
       ]
     },
     {
       "parameters": {
-        "jsCode": "const config = $json;\nconst now = config.testAsOf ? new Date(config.testAsOf) : new Date();\nif (Number.isNaN(now.getTime())) throw new Error('testAsOf không hợp lệ');\nconst dateParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);\nconst day = Number(dateParts.find((part) => part.type === 'day')?.value);\nconst automaticPhase = day === 25 ? 'OPENING' : day === 28 ? 'SECOND_REMINDER' : '';\nconst phase = String(config.testPhase || automaticPhase).trim();\nreturn [{ json: { ...config, asOf: now.toISOString(), phase, skipSchedule: !phase, runId: String($execution.id) } }];"
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nreturn (function reviewPhase() {\n  const validated = (function configValidation() {\n  const item = $json;\n  if (!httpUrl(item.apiBaseUrl)) throw Error('Địa chỉ backend không hợp lệ.');\n  if (!String(item.automationSecret || '').trim()) throw Error('Thiếu khóa xác thực tự động hóa.');\n  if (!emailValid(item.senderEmail)) throw Error('Email gửi không hợp lệ.');\n  return [{ json: { ...item, apiBaseUrl: item.apiBaseUrl.replace(/\\/+$/, ''), senderEmail: item.senderEmail.trim(), telegramReady: chatValid(item.telegramChatId) } }];\n})();\n  const config = validated[0].json;\n  if (!httpUrl(config.reviewFormUrl)) throw Error('Đường dẫn thực hiện đánh giá không hợp lệ.');\n  return [{ json: { ...config, ...(function manualScheduleOptions() {\n  const manual = $execution.mode === 'test';\n  const date = manual ? String($json.manualRunDate || '').trim() : '';\n  if (date) {\n    const parsed = new Date(date + 'T00:00:00Z');\n    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0,10) !== date || Number(date.slice(0,4)) < 2000 || Number(date.slice(0,4)) > 2100) throw Error('Ngày chạy thủ công phải là ngày hợp lệ dạng YYYY-MM-DD (2000–2100).');\n  }\n  return { allowRepeat: manual, asOf: date ? date + 'T08:00:00+07:00' : '' };\n})(), runId: String($execution.id) } }];\n})();"
       },
       "id": "tv4-review-04-phase",
-      "name": "Xác định đợt thông báo",
+      "name": "Prepare Review Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        470,
-        300
+        600,
+        0
       ]
     },
     {
       "parameters": {
         "url": "={{ $json.apiBaseUrl + '/training/automation/review-reminders' }}",
         "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "asOf",
-              "value": "={{ $json.asOf }}"
-            },
-            {
-              "name": "phase",
-              "value": "={{ $json.phase }}"
-            }
-          ]
-        },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -146,28 +108,40 @@
         },
         "options": {
           "timeout": 10000
+        },
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "asOf",
+              "value": "={{ $json.asOf }}"
+            },
+            {
+              "name": "repeat",
+              "value": "={{ $json.allowRepeat ? 'true' : 'false' }}"
+            }
+          ]
         }
       },
       "id": "tv4-review-05-fetch",
-      "name": "Lấy danh sách quản lý cần nhắc",
+      "name": "Fetch Review Recipients",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        700,
-        300
+        900,
+        0
       ]
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst payload = response.data ?? response;\nconst reminders = Array.isArray(payload.reminders) ? payload.reminders : [];\nconst config = $('Xác định đợt thông báo').first().json;\nif (reminders.length === 0) return [{ json: { ...config, skip: true, reviewPeriod: payload.reviewPeriod, phase: payload.phase, message: payload.message || 'Không có trường hợp cần nhắc.' } }];\nreturn reminders.map((reminder) => ({ json: { ...config, ...reminder, skip: false } }));"
+        "jsCode": "const response = $input.first().json;\nconst payload = response.data ?? response;\nconst reminders = Array.isArray(payload.reminders) ? payload.reminders : [];\nconst config = $('Prepare Review Request').first().json;\nif (reminders.length === 0) return [{ json: { ...config, skip: true, reviewPeriod: payload.reviewPeriod, phase: payload.phase, message: payload.message || 'Không có trường hợp cần nhắc.' } }];\nreturn reminders.map((reminder) => ({ json: { ...config, ...reminder, skip: false } }));"
       },
       "id": "tv4-review-06-split",
-      "name": "Tách từng quản lý phụ trách",
+      "name": "Split Review Recipients",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        930,
-        300
+        1500,
+        0
       ]
     },
     {
@@ -194,45 +168,45 @@
         "options": {}
       },
       "id": "tv4-review-07-if",
-      "name": "Có quản lý cần thông báo?",
+      "name": "Has Review Recipients?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "notes": "Nhánh true tiếp tục gửi thông báo. Nhánh false kết thúc bình thường vì không có quản lý nào còn nhân viên chưa hoàn thành đánh giá.",
-      "notesInFlow": true,
       "position": [
-        1160,
-        300
-      ]
+        1800,
+        0
+      ],
+      "notesInFlow": true,
+      "notes": "The true branch processes pending recipients. The false branch completes normally when there is nothing to send."
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const item = $json;\nconst esc = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst recipientEmail = String(item.testManagerEmail || item.recipient?.email || '').trim();\nif (!recipientEmail) throw new Error('Người quản lý chưa có email nhận thông báo');\nconst employeeRows = item.employees.map((employee, index) => `<tr><td style=\"padding:8px;border:1px solid #ddd\">${index + 1}</td><td style=\"padding:8px;border:1px solid #ddd\"><strong>${esc(employee.fullName)}</strong><br/><small>${esc(employee.jobTitle || 'Chưa cập nhật chức danh')}</small></td><td style=\"padding:8px;border:1px solid #ddd\">${esc(employee.departmentName)}</td></tr>`).join('');\nconst isSecond = item.phase === 'SECOND_REMINDER';\nconst title = isSecond ? 'NHẮC LẦN 2 - CÒN ĐÁNH GIÁ CHƯA NỘP' : 'MỞ KỲ ĐÁNH GIÁ KPI THÁNG';\nconst subject = isSecond ? `[Nhắc lần 2] ${item.pendingCount} đánh giá KPI ${item.reviewPeriodLabel} chưa nộp` : `[Thông báo] Mở kỳ đánh giá KPI ${item.reviewPeriodLabel}`;\nconst intro = isSecond ? `Hệ thống ghi nhận còn <strong>${item.pendingCount} nhân viên</strong> thuộc phạm vi phụ trách chưa có đánh giá KPI.` : `Kỳ đánh giá KPI <strong>${esc(item.reviewPeriodLabel)}</strong> đã được mở. Anh/chị có <strong>${item.pendingCount} nhân viên</strong> cần hoàn thành đánh giá.`;\nconst emailHtml = `<p>Chào <strong>${esc(item.recipient.fullName)}</strong>,</p><p>${intro}</p><table style=\"border-collapse:collapse;width:100%\"><thead><tr><th style=\"padding:8px;border:1px solid #ddd\">STT</th><th style=\"padding:8px;border:1px solid #ddd\">Nhân viên</th><th style=\"padding:8px;border:1px solid #ddd\">Phòng ban</th></tr></thead><tbody>${employeeRows}</tbody></table><p>Hạn hoàn thành: <strong>${esc(item.deadline)}</strong>.</p><p><a href=\"${esc(item.reviewFormUrl)}\">Mở biểu mẫu đánh giá</a></p><p><em>Đây là thông báo tự động từ hệ thống Nhân sự.</em></p>`;\nconst telegramText = `📊 <b>${title}</b>\\n\\nKỳ: <b>${esc(item.reviewPeriodLabel)}</b>\\nNgười phụ trách: <b>${esc(item.recipient.fullName)}</b>\\nSố đánh giá còn thiếu: <b>${item.pendingCount}</b>\\nHạn hoàn thành: <b>${esc(item.deadline)}</b>`;\nreturn { json: { ...item, recipientEmail, emailSubject: subject, emailHtml, telegramText, pendingEmployeeIds: item.employees.map((employee) => employee.id) } };"
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\n// TV4_UPGRADE_COMPOSE_V2\nconst item = $json;\nconst esc = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst recipientEmail = String(item.testManagerEmail || item.recipient?.email || '').trim();\n\nconst employeeRows = item.employees.map((employee, index) => `<tr><td style=\"padding:8px;border:1px solid #ddd\">${index + 1}</td><td style=\"padding:8px;border:1px solid #ddd\"><strong>${esc(employee.fullName)}</strong><br/><small>${esc(employee.jobTitle || 'Chưa cập nhật chức danh')}</small></td><td style=\"padding:8px;border:1px solid #ddd\">${esc(employee.departmentName)}</td></tr>`).join('');\nconst isSecond = item.phase === 'SECOND_REMINDER';\nconst title = isSecond ? 'NHẮC LẦN 2 - CÒN ĐÁNH GIÁ CHƯA NỘP' : 'MỞ KỲ ĐÁNH GIÁ KPI THÁNG';\nconst subject = isSecond ? `[Nhắc lần 2] ${item.pendingCount} đánh giá KPI ${item.reviewPeriodLabel} chưa nộp` : `[Thông báo] Mở kỳ đánh giá KPI ${item.reviewPeriodLabel}`;\nconst intro = isSecond ? `Hệ thống ghi nhận còn <strong>${item.pendingCount} nhân viên</strong> thuộc phạm vi phụ trách chưa có đánh giá KPI.` : `Kỳ đánh giá KPI <strong>${esc(item.reviewPeriodLabel)}</strong> đã được mở. Anh/chị có <strong>${item.pendingCount} nhân viên</strong> cần hoàn thành đánh giá.`;\nconst emailHtml = `<p>Chào <strong>${esc(item.recipient.fullName)}</strong>,</p><p>${intro}</p><table style=\"border-collapse:collapse;width:100%\"><thead><tr><th style=\"padding:8px;border:1px solid #ddd\">STT</th><th style=\"padding:8px;border:1px solid #ddd\">Nhân viên</th><th style=\"padding:8px;border:1px solid #ddd\">Phòng ban</th></tr></thead><tbody>${employeeRows}</tbody></table><p>Hạn hoàn thành: <strong>${esc(item.deadline)}</strong>.</p><p><a href=\"${esc(item.reviewFormUrl)}\">Mở biểu mẫu đánh giá</a></p><p><em>Đây là thông báo tự động từ hệ thống Nhân sự.</em></p>`;\nconst telegramText = `📊 <b>${title}</b>\\n\\nKỳ: <b>${esc(item.reviewPeriodLabel)}</b>\\nNgười phụ trách: <b>${esc(item.recipient.fullName)}</b>\\nSố đánh giá còn thiếu: <b>${item.pendingCount}</b>\\nHạn hoàn thành: <b>${esc(item.deadline)}</b>`;\nreturn { json: { ...item, recipientEmail, recipientEmailReady: emailValid(recipientEmail), telegramReady: chatValid(item.telegramChatId), emailSubject: subject, emailHtml, telegramText, pendingEmployeeIds: item.employees.map((employee) => employee.id) } };"
       },
       "id": "tv4-review-08-compose",
-      "name": "Soạn nội dung đánh giá bằng tiếng Việt",
+      "name": "Compose Review Notices",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1390,
-        220
+        2400,
+        0
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{ $('Soạn nội dung đánh giá bằng tiếng Việt').item.json.senderEmail }}",
+        "fromEmail": "={{ $('Compose Review Notices').item.json.senderEmail }}",
         "toEmail": "={{ $json.recipientEmail }}",
         "subject": "={{ $json.emailSubject }}",
         "html": "={{ $json.emailHtml }}",
         "options": {}
       },
       "id": "tv4-review-09-email",
-      "name": "Gửi thư cho quản lý",
+      "name": "Send Review Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1620,
-        220
+        2700,
+        320
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -247,20 +221,20 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $('Soạn nội dung đánh giá bằng tiếng Việt').item.json.telegramChatId }}",
-        "text": "={{ $('Soạn nội dung đánh giá bằng tiếng Việt').item.json.telegramText }}",
+        "chatId": "={{ $('Compose Review Notices').item.json.telegramChatId }}",
+        "text": "={{ $('Compose Review Notices').item.json.telegramText }}",
         "additionalFields": {
           "appendAttribution": false,
           "parse_mode": "HTML"
         }
       },
       "id": "tv4-review-10-telegram",
-      "name": "Thông báo kênh đánh giá",
+      "name": "Send Review Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1850,
-        220
+        3000,
+        320
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -270,15 +244,15 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const source = $('Soạn nội dung đánh giá bằng tiếng Việt').item.json;\nconst emailResult = $('Gửi thư cho quản lý').item.json || {};\nconst telegramResult = $('Thông báo kênh đánh giá').item.json || {};\nconst emailNotified = !emailResult.error && (!Array.isArray(emailResult.rejected) || emailResult.rejected.length === 0);\nconst telegramNotified = !telegramResult.error && telegramResult.ok !== false;\nconst successCount = Number(emailNotified) + Number(telegramNotified);\nconst status = successCount === 2 ? 'SENT' : successCount > 0 ? 'PARTIAL' : 'FAILED';\nreturn { json: { ...source, emailNotified, telegramNotified, status, detail: `Email=${emailNotified}; Telegram=${telegramNotified}` } };"
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nreturn (function reviewSummary() {\n  const source = $('Compose Review Notices').item.json;\n  const emailError = source.recipientEmailReady ? outputError('Send Review Email', source.recipientEmail) : 'Email người phụ trách không hợp lệ.';\n  const telegramError = source.telegramReady ? outputError('Send Review Telegram', '', true) : 'Chưa có Chat ID Telegram hợp lệ.';\n  const emailNotified = !emailError, telegramNotified = !telegramError;\n  return { json: { ...source, emailNotified, telegramNotified, status: deliveryStatus([emailNotified, telegramNotified]), detail: `Email: ${emailError || 'đã gửi'}; Telegram: ${telegramError || 'đã gửi'}` } };\n})();"
       },
       "id": "tv4-review-11-summary",
-      "name": "Tổng hợp kết quả thông báo",
+      "name": "Summarize Review Delivery",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2080,
-        220
+        3300,
+        0
       ]
     },
     {
@@ -307,132 +281,441 @@
         }
       },
       "id": "tv4-review-12-callback",
-      "name": "Lưu kết quả nhắc đánh giá",
+      "name": "Record Review Delivery",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2310,
-        220
-      ]
+        3600,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "tv4-03-is-review-phase-active-",
+      "name": "Is Review Phase Active?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "condition",
+              "leftValue": "={{ Boolean(($json.data ?? $json).phase) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "tv4-03-recipient-loop",
+      "name": "Process Review Recipients",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2100,
+        0
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "reset": false
+        }
+      }
+    },
+    {
+      "id": "tv4-03-has-valid-reviewer-email-",
+      "name": "Has Valid Reviewer Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2700,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "condition",
+              "leftValue": "={{ $('Compose Review Notices').item.json.recipientEmailReady }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "tv4-03-has-review-telegram-route-",
+      "name": "Has Review Telegram Route?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3000,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "condition",
+              "leftValue": "={{ $('Compose Review Notices').item.json.telegramReady }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "tv4-03-collect-review-receipt",
+      "name": "Collect Review Receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3900,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nreturn (function callbackReceipt() {\n  const response = $json;\n  const payload = response.data ?? response;\n  const source = $('Summarize Review Delivery').item.json;\n  return { json: { runId: source.runId, assignmentId: source.assignmentId, recipientId: source.recipient?.id, pendingCount: source.pendingCount, status: source.status, callbackRecorded: !response.error && payload.recorded === true, callbackError: Boolean(response.error || payload.recorded !== true), employeeNotified: source.employeeNotified, managerNotified: source.managerNotified, emailNotified: source.emailNotified, telegramNotified: source.telegramNotified } };\n})();"
+      }
+    },
+    {
+      "id": "tv4-03-build-review-run-summary",
+      "name": "Build Review Run Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        -400
+      ],
+      "parameters": {
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nreturn (function reviewRunSummary() {\n  const config = $('Prepare Review Request').first().json;\n  const response = $('Fetch Review Recipients').first().json;\n  const payload = response.data ?? response;\n  const results = $input.all().map(item => item.json).filter(item => !item.skip);\n  const total = Number(payload.count) || 0;\n  const sent = results.filter(item => item.status === 'SENT').length;\n  const partial = results.filter(item => item.status === 'PARTIAL').length;\n  const failed = results.filter(item => item.status === 'FAILED').length;\n  const callbackErrors = results.filter(item => item.callbackError).length;\n  const telegramText = ['📊 <b>TỔNG KẾT ĐỢT NHẮC ĐÁNH GIÁ</b>', `Kỳ: ${escapeHtml(payload.reviewPeriod || '')}`, `Đợt: ${payload.phase === 'OPENING' ? 'Mở kỳ' : 'Đôn đốc lần hai'}`, `Người phụ trách cần nhắc: ${total}`, `Nhân viên đang chờ đánh giá: ${Number(payload.pendingEmployeeCount) || 0}`, `Gửi đầy đủ: ${sent}; gửi một phần: ${partial}; gửi lỗi: ${failed}`, `Lỗi lưu kết quả: ${callbackErrors}`].join('\\n');\n  return [{ json: { runId: config.runId, totalRecipients: total, pendingEmployeeCount: Number(payload.pendingEmployeeCount) || 0, sent, partial, failed, callbackErrors, telegramReady: config.telegramReady, telegramChatId: config.telegramChatId, telegramText } }];\n})();"
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegramChatId }}",
+        "text": "={{ $json.telegramText }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "tv4-review-summary-telegram",
+      "name": "Send Review Run Summary",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2700,
+        -400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "tv4-03-has-review-summary-route-",
+      "name": "Has Review Summary Route?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2400,
+        -400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "condition",
+              "leftValue": "={{ $json.telegramReady }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
     }
   ],
   "connections": {
-    "Cron ngày 25 - Mở kỳ đánh giá": {
+    "Daily Review Schedule": {
       "main": [
         [
           {
-            "node": "Nạp cấu hình an toàn",
+            "node": "Load Workflow Configuration",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Cron ngày 28 - Đôn đốc chưa nộp": {
+    "Load Workflow Configuration": {
       "main": [
         [
           {
-            "node": "Nạp cấu hình an toàn",
+            "node": "Prepare Review Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Nạp cấu hình an toàn": {
+    "Prepare Review Request": {
       "main": [
         [
           {
-            "node": "Xác định đợt thông báo",
+            "node": "Fetch Review Recipients",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Xác định đợt thông báo": {
+    "Fetch Review Recipients": {
       "main": [
         [
           {
-            "node": "Lấy danh sách quản lý cần nhắc",
+            "node": "Is Review Phase Active?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Lấy danh sách quản lý cần nhắc": {
+    "Is Review Phase Active?": {
       "main": [
         [
           {
-            "node": "Tách từng quản lý phụ trách",
+            "node": "Split Review Recipients",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Tách từng quản lý phụ trách": {
+    "Split Review Recipients": {
       "main": [
         [
           {
-            "node": "Có quản lý cần thông báo?",
+            "node": "Has Review Recipients?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Có quản lý cần thông báo?": {
+    "Has Review Recipients?": {
       "main": [
         [
           {
-            "node": "Soạn nội dung đánh giá bằng tiếng Việt",
+            "node": "Process Review Recipients",
             "type": "main",
             "index": 0
           }
         ],
-        []
-      ]
-    },
-    "Soạn nội dung đánh giá bằng tiếng Việt": {
-      "main": [
         [
           {
-            "node": "Gửi thư cho quản lý",
+            "node": "Build Review Run Summary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Gửi thư cho quản lý": {
+    "Process Review Recipients": {
       "main": [
         [
           {
-            "node": "Thông báo kênh đánh giá",
+            "node": "Build Review Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Compose Review Notices",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Thông báo kênh đánh giá": {
+    "Compose Review Notices": {
       "main": [
         [
           {
-            "node": "Tổng hợp kết quả thông báo",
+            "node": "Has Valid Reviewer Email?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Tổng hợp kết quả thông báo": {
+    "Has Valid Reviewer Email?": {
       "main": [
         [
           {
-            "node": "Lưu kết quả nhắc đánh giá",
+            "node": "Send Review Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has Review Telegram Route?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Review Email": {
+      "main": [
+        [
+          {
+            "node": "Has Review Telegram Route?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Review Telegram Route?": {
+      "main": [
+        [
+          {
+            "node": "Send Review Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Summarize Review Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Review Telegram": {
+      "main": [
+        [
+          {
+            "node": "Summarize Review Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Review Delivery": {
+      "main": [
+        [
+          {
+            "node": "Record Review Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Review Delivery": {
+      "main": [
+        [
+          {
+            "node": "Collect Review Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Review Receipt": {
+      "main": [
+        [
+          {
+            "node": "Process Review Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Review Run Summary": {
+      "main": [
+        [
+          {
+            "node": "Has Review Summary Route?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Review Summary Route?": {
+      "main": [
+        [
+          {
+            "node": "Send Review Run Summary",
             "type": "main",
             "index": 0
           }
@@ -445,5 +728,5 @@
     "timezone": "Asia/Ho_Chi_Minh"
   },
   "active": false,
-  "versionId": "tv4-review-workflow-v2"
+  "pinData": {}
 }

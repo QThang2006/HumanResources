@@ -162,6 +162,14 @@ export class JobsController {
       input.title,
       input.departmentName || 'Kỹ Thuật',
       input.level || 'Middle - Senior',
+      {
+        skills: input.skills,
+        experienceYears: input.experienceYears,
+        employmentType: input.employmentType,
+        location: input.location,
+        salaryRange: input.salaryRange,
+        specialNotes: input.specialNotes,
+      },
     );
   }
 }

@@ -42,6 +42,27 @@ export class Job {
   @Column({ type: 'text' })
   requirements: string;
 
+  @Column({ type: 'varchar', length: 50, default: 'Middle' })
+  level: string;
+
+  @Column({ name: 'employment_type', type: 'varchar', length: 50, default: 'Toàn thời gian' })
+  employmentType: string;
+
+  @Column({ name: 'experience_years', type: 'varchar', length: 50, default: '1 - 3 năm' })
+  experienceYears: string;
+
+  @Column({ type: 'int', default: 1 })
+  headcount: number;
+
+  @Column({ type: 'date', nullable: true })
+  deadline: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  benefits: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  skills: string | null;
+
   @Column({ type: 'enum', enum: JobStatus, default: JobStatus.OPEN })
   status: JobStatus;
 

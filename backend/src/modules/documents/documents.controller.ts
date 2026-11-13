@@ -27,7 +27,7 @@ import { User, UserRole } from '../../entities/user.entity';
 
 @Controller('documents')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.SUPERADMIN, UserRole.HR)
+@Roles(UserRole.SUPERADMIN, UserRole.HR, UserRole.MANAGER)
 export class DocumentsController {
     constructor(
         private readonly documentsService: DocumentsService,
@@ -42,6 +42,7 @@ export class DocumentsController {
     }
 
     @Delete(':id')
+    @Roles(UserRole.SUPERADMIN, UserRole.HR)
     deleteDocument(
         @Param('id', ParseIntPipe) documentId: number,
     ) {
@@ -52,6 +53,7 @@ export class DocumentsController {
     // 2. UPLOAD PDF KNOWLEDGE BASE
     // =========================
     @Post('upload')
+    @Roles(UserRole.SUPERADMIN, UserRole.HR)
     @UseInterceptors(
         FileInterceptor('file', {
             dest: './uploads/documents',

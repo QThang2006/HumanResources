@@ -9,6 +9,7 @@ import {
   Bot,
   LogOut,
   ClipboardCheck,
+  GraduationCap,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -101,6 +102,11 @@ export const Navbar: React.FC = () => {
                 <Link to="/admin/recruitment" className={navLinkClass('/admin/recruitment')}>
                   <ClipboardCheck className="h-4 w-4" />
                   Góc Phỏng Vấn Chuyên Môn
+                </Link>
+
+                <Link to="/admin/settings" className={navLinkClass('/admin/settings')}>
+                  <GraduationCap className="h-4 w-4" />
+                  Đào Tạo & Đánh Giá
                 </Link>
 
                 <Link to="/employee/workspace" className={navLinkClass('/employee/workspace')}>

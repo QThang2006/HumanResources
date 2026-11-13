@@ -1,22 +1,30 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 
 /**
  * ⚡ Dịch vụ Điều Phối Webhook n8n Automation Engine (Non-blocking Asynchronous)
  * Tự động kích hoạt quy trình: Lịch Google Meet, Email chúc mừng Hired, Cảnh báo Telegram
+ * Hỗ trợ: Header Auth (X-Webhook-Secret) & Transactional Outbox khi n8n sự cố
  */
 @Injectable()
 export class N8nService {
   private readonly logger = new Logger(N8nService.name);
   private webhookBaseUrl: string;
+  private webhookSecret: string;
   private defaultSenderEmail: string;
   private defaultHrEmail: string;
   private defaultTelegramChatId: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @Optional() private readonly dataSource?: DataSource,
+  ) {
     this.webhookBaseUrl =
       this.configService.get<string>('N8N_WEBHOOK_URL') ||
       'http://localhost:5678/webhook';
+    this.webhookSecret =
+      this.configService.get<string>('N8N_WEBHOOK_SECRET') || '';
     this.defaultSenderEmail =
       this.configService.get<string>('MAIL_FROM') ||
       this.configService.get<string>('GMAIL_USER') ||
@@ -230,10 +238,17 @@ export class N8nService {
   ): Promise<boolean> {
     try {
       this.logger.log(`[n8n Dispatcher] Bắn webhook [${actionName}] tới: ${url}`);
-      // Gọi fetch bất đồng bộ, không làm nghẽn luồng xử lý chính của người dùng
-      const response = await fetch(url, {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...extraHeaders,
+      };
+      if (this.webhookSecret) {
+        headers['X-Webhook-Secret'] = this.webhookSecret;
+      }
+
+      fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...extraHeaders },
+        headers,
         signal: AbortSignal.timeout(10000),
         body: JSON.stringify({
           event: actionName,
@@ -241,12 +256,49 @@ export class N8nService {
           ...data,
           data,
         }),
-      });
-      if (!response.ok) this.logger.warn('Webhook rejected: HTTP ' + response.status);
-      return response.ok;
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            this.logger.warn(
+              `[n8n Dispatcher] Webhook [${actionName}] trả về mã HTTP ${res.status}: ${res.statusText}`,
+            );
+            await this.saveOutboxIfAvailable(url, data, `HTTP ${res.status}: ${res.statusText}`);
+          }
+        })
+        .catch(async (err) => {
+          this.logger.warn(
+            `[n8n Dispatcher] Không thể kết nối tới server n8n (${url}): ${err.message}`,
+          );
+          await this.saveOutboxIfAvailable(url, data, err.message);
+        });
+
+      return true;
     } catch (err: any) {
       this.logger.error(`[n8n Dispatcher] Lỗi ngoại lệ: ${err.message}`);
       return false;
+    }
+  }
+
+  /**
+   * Lưu sự kiện vào bảng pending_webhooks (Outbox Pattern) khi n8n gặp sự cố
+   * Workflow WF-01c sẽ tự động quét và gửi lại định kỳ 5 phút
+   */
+  private async saveOutboxIfAvailable(url: string, data: any, errorMessage: string): Promise<void> {
+    if (!this.dataSource || !this.dataSource.isInitialized) {
+      return;
+    }
+
+    try {
+      const isBurnout = url.includes('burnout-alert');
+      const eventType = isBurnout ? 'BURNOUT_ALERT' : 'GENERIC_EVENT';
+
+      await this.dataSource.query(
+        `INSERT INTO pending_webhooks (event_type, payload, last_error) VALUES (?, ?, ?)`,
+        [eventType, JSON.stringify(data), String(errorMessage).slice(0, 480)],
+      );
+      this.logger.log(`[n8n Outbox] Đã lưu sự kiện [${eventType}] vào pending_webhooks để tự động gửi lại.`);
+    } catch (dbErr: any) {
+      this.logger.error(`[n8n Outbox] Không thể lưu pending_webhooks: ${dbErr.message}`);
     }
   }
 }

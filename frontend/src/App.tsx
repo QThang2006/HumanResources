@@ -45,11 +45,11 @@ function App() {
               }
             />
 
-            {/* Cài Đặt Hệ Thống & Sổ Tay RAG: Dành riêng cho SuperAdmin & HR */}
+            {/* Cài Đặt Hệ Thống & Sổ Tay RAG: Dành riêng cho SuperAdmin, HR & Manager */}
             <Route
               path="/admin/settings"
               element={
-                <ProtectedRoute allowedRoles={['SUPERADMIN', 'HR']}>
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'HR', 'MANAGER']}>
                   <AdminSettingsPage />
                 </ProtectedRoute>
               }

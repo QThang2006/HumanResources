@@ -680,10 +680,34 @@ export class OnboardingService {
 
     if (user.role === UserRole.EMPLOYEE) {
       try {
-        // logic mandatory hiện có
+        const mandatoryCourses = await this.courseRepository.find({
+          where: { type: TrainingCourseType.MANDATORY },
+        });
+
+        if (mandatoryCourses.length > 0) {
+          const existingAssignments = await this.trainingRepository.find({
+            where: { userId },
+            select: ['courseId'],
+          });
+          const assignedCourseIds = new Set(existingAssignments.map((a) => a.courseId));
+
+          const unassigned = mandatoryCourses.filter((c) => !assignedCourseIds.has(c.id));
+          if (unassigned.length > 0) {
+            const newAssignments = unassigned.map((c) =>
+              this.trainingRepository.create({
+                userId,
+                courseId: c.id,
+                progressPercent: 0,
+                assignedByAi: false,
+                status: TrainingStatus.ASSIGNED,
+              }),
+            );
+            await this.trainingRepository.save(newAssignments);
+          }
+        }
       } catch (err) {
         this.logger.warn(
-            `Không thể tự động đồng bộ khóa học bắt buộc cho user ${userId}: ${(err as Error).message}`,
+          `Không thể tự động đồng bộ khóa học bắt buộc cho user ${userId}: ${(err as Error).message}`,
         );
       }
     }

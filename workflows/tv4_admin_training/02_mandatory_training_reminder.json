@@ -1,5 +1,5 @@
 {
-  "name": "TV4 - 02 Nhắc hoàn thành khóa học bắt buộc",
+  "name": "[TV4] WF-02: Mandatory Training Reminder & Escalation",
   "nodes": [
     {
       "parameters": {
@@ -13,12 +13,12 @@
         }
       },
       "id": "tv4-training-01-schedule",
-      "name": "Lịch chạy 08 giờ mỗi ngày",
+      "name": "Daily Training Schedule",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
         0,
-        300
+        0
       ]
     },
     {
@@ -60,18 +60,30 @@
               "name": "testManagerEmail",
               "type": "string",
               "value": "test-manager@example.com"
+            },
+            {
+              "id": "tv4-workspaceUrl",
+              "name": "workspaceUrl",
+              "type": "string",
+              "value": "http://localhost:5173/employee/workspace"
+            },
+            {
+              "id": "tv4-manualRunDate",
+              "name": "manualRunDate",
+              "type": "string",
+              "value": ""
             }
           ]
         },
         "options": {}
       },
       "id": "tv4-training-02-config",
-      "name": "Nạp cấu hình an toàn",
+      "name": "Load Workflow Configuration",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        220,
-        300
+        300,
+        0
       ]
     },
     {
@@ -88,28 +100,41 @@
         },
         "options": {
           "timeout": 10000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "asOf",
+              "value": "={{ $json.asOf }}"
+            },
+            {
+              "name": "repeat",
+              "value": "={{ $json.allowRepeat ? 'true' : 'false' }}"
+            }
+          ]
         }
       },
       "id": "tv4-training-03-fetch",
-      "name": "Lấy danh sách cần nhắc",
+      "name": "Fetch Training Reminders",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        440,
-        300
+        900,
+        0
       ]
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst payload = response.data ?? response;\nconst reminders = Array.isArray(payload.reminders) ? payload.reminders : [];\nconst config = $('Nạp cấu hình an toàn').first().json;\nconst runId = String($execution.id);\n\nif (reminders.length === 0) {\n  return [{ json: { skip: true, runId, generatedAt: payload.generatedAt, ...config } }];\n}\n\nreturn reminders.map((reminder) => ({\n  json: {\n    skip: false,\n    runId,\n    ...config,\n    ...reminder\n  }\n}));"
+        "jsCode": "const response = $input.first().json;\nconst payload = response.data ?? response;\nconst reminders = Array.isArray(payload.reminders) ? payload.reminders : [];\nconst config = $('Validate Training Configuration').first().json;\nconst runId = String($execution.id);\n\nif (reminders.length === 0) {\n  return [{ json: { skip: true, runId, generatedAt: payload.generatedAt, ...config } }];\n}\n\nreturn reminders.map((reminder) => ({\n  json: {\n    skip: false,\n    runId,\n    ...config,\n    ...reminder\n  }\n}));"
       },
       "id": "tv4-training-04-split",
-      "name": "Tách từng lượt đào tạo",
+      "name": "Split Training Assignments",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
-        300
+        1200,
+        0
       ]
     },
     {
@@ -136,45 +161,45 @@
         "options": {}
       },
       "id": "tv4-training-05-if-reminder",
-      "name": "Có trường hợp cần nhắc?",
+      "name": "Has Training Reminders?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "notes": "Nhánh true tiếp tục gửi thông báo. Nhánh false kết thúc bình thường vì backend không trả về lượt đào tạo nào cần nhắc; đây không phải lỗi.",
-      "notesInFlow": true,
       "position": [
-        880,
-        300
-      ]
+        1500,
+        0
+      ],
+      "notesInFlow": true,
+      "notes": "The true branch processes pending recipients. The false branch completes normally when there is nothing to send."
     },
     {
       "parameters": {
-        "jsCode": "const item = $json;\nconst employee = item.employee;\nconst manager = item.manager;\nconst course = item.course;\nconst esc = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst testEmployeeEmail = String(item.testEmployeeEmail || '').trim();\nconst testManagerEmail = String(item.testManagerEmail || '').trim();\nconst employeeEmail = testEmployeeEmail || employee.email;\nconst managerEmail = manager ? (testManagerEmail || manager.email || '') : '';\nconst overdue = item.daysRemaining < 0;\nconst dueLabel = overdue\n  ? 'đã quá hạn ' + Math.abs(item.daysRemaining) + ' ngày'\n  : item.daysRemaining === 0\n    ? 'đến hạn hôm nay'\n    : 'còn ' + item.daysRemaining + ' ngày';\nconst courseLink = course.courseUrl || 'http://localhost:5173/employee/workspace';\nconst subject = (overdue ? '[Quá hạn]' : '[Nhắc hạn]') + ' Khóa học bắt buộc: ' + course.title;\nconst employeeHtml = '<p>Chào <strong>' + esc(employee.fullName) + '</strong>,</p><p>Khóa học bắt buộc <strong>' + esc(course.title) + '</strong> ' + dueLabel + ', nhưng tiến độ hiện tại mới đạt <strong>' + item.progressPercent + '%</strong>.</p><p>Vui lòng tiếp tục học và hoàn thành đúng hạn.</p><p><a href=\"' + esc(courseLink) + '\">Mở khóa học</a></p><p>Đây là thông báo tự động từ hệ thống Đào tạo nội bộ.</p>';\nconst managerHtml = manager\n  ? '<p>Chào <strong>' + esc(manager.fullName) + '</strong>,</p><p>Nhân viên <strong>' + esc(employee.fullName) + '</strong> đang có khóa học bắt buộc <strong>' + esc(course.title) + '</strong> ' + dueLabel + '; tiến độ hiện tại là <strong>' + item.progressPercent + '%</strong>.</p><p>Vui lòng hỗ trợ đôn đốc nhân viên hoàn thành.</p>'\n  : '';\nconst managerLabel = item.managerSource === 'DEPARTMENT' ? 'Quản lý phòng ban' : 'Quản lý trực tiếp';\nconst telegramText = [\n  '📚 <b>NHẮC TIẾN ĐỘ ĐÀO TẠO</b>',\n  '',\n  'Nhân viên: <b>' + esc(employee.fullName) + '</b>',\n  'Khóa học: <b>' + esc(course.title) + '</b>',\n  'Tiến độ: <b>' + item.progressPercent + '%</b>',\n  'Hạn: <b>' + dueLabel + '</b>',\n  manager\n    ? managerLabel + ': <b>' + esc(manager.fullName) + '</b>'\n    : '⚠️ Chưa khai báo quản lý cho nhân viên'\n].join('\\n');\n\nreturn { json: {\n  ...item,\n  employeeEmail,\n  managerEmail,\n  hasManager: Boolean(manager && managerEmail),\n  emailSubject: subject,\n  employeeHtml,\n  managerHtml,\n  telegramText\n} };",
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\n// TV4_UPGRADE_COMPOSE_V2\nconst item = $json;\nconst employee = item.employee;\nconst manager = item.manager;\nconst course = item.course;\nconst esc = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst testEmployeeEmail = String(item.testEmployeeEmail || '').trim();\nconst testManagerEmail = String(item.testManagerEmail || '').trim();\nconst employeeEmail = testEmployeeEmail || employee.email;\nconst managerEmail = manager ? (testManagerEmail || manager.email || '') : '';\nconst overdue = item.daysRemaining < 0;\nconst dueLabel = overdue\n  ? 'đã quá hạn ' + Math.abs(item.daysRemaining) + ' ngày'\n  : item.daysRemaining === 0\n    ? 'đến hạn hôm nay'\n    : 'còn ' + item.daysRemaining + ' ngày';\nconst courseLink = httpUrl(course.courseUrl) || httpUrl(item.workspaceUrl);\nconst subject = (overdue ? '[Quá hạn]' : '[Nhắc hạn]') + ' Khóa học bắt buộc: ' + course.title;\nconst employeeHtml = '<p>Chào <strong>' + esc(employee.fullName) + '</strong>,</p><p>Khóa học bắt buộc <strong>' + esc(course.title) + '</strong> ' + dueLabel + ', nhưng tiến độ hiện tại mới đạt <strong>' + item.progressPercent + '%</strong>.</p><p>Vui lòng tiếp tục học và hoàn thành đúng hạn.</p>' + (courseLink ? '<p><a href=\"' + esc(courseLink) + '\">Mở khóa học</a></p>' : '<p>Vui lòng mở khóa học trong không gian làm việc của bạn.</p>') + '<p>Đây là thông báo tự động từ hệ thống Đào tạo nội bộ.</p>';\nconst managerHtml = manager\n  ? '<p>Chào <strong>' + esc(manager.fullName) + '</strong>,</p><p>Nhân viên <strong>' + esc(employee.fullName) + '</strong> đang có khóa học bắt buộc <strong>' + esc(course.title) + '</strong> ' + dueLabel + '; tiến độ hiện tại là <strong>' + item.progressPercent + '%</strong>.</p><p>Vui lòng hỗ trợ đôn đốc nhân viên hoàn thành.</p>'\n  : '';\nconst managerLabel = item.managerSource === 'DEPARTMENT' ? 'Quản lý phòng ban' : 'Quản lý trực tiếp';\nconst telegramText = [\n  '📚 <b>NHẮC TIẾN ĐỘ ĐÀO TẠO</b>',\n  '',\n  'Nhân viên: <b>' + esc(employee.fullName) + '</b>',\n  'Khóa học: <b>' + esc(course.title) + '</b>',\n  'Tiến độ: <b>' + item.progressPercent + '%</b>',\n  'Hạn: <b>' + dueLabel + '</b>',\n  manager\n    ? managerLabel + ': <b>' + esc(manager.fullName) + '</b>'\n    : '⚠️ Chưa khai báo quản lý cho nhân viên'\n].join('\\n');\n\nreturn { json: {\n  ...item,\n  employeeEmail,\n  managerEmail,\n  hasManager: Boolean(manager && item.notifyManager !== false && emailValid(managerEmail)),\n  employeeEmailReady: emailValid(employeeEmail),\n  telegramReady: chatValid(item.telegramChatId),\n  emailSubject: subject,\n  employeeHtml,\n  managerHtml,\n  telegramText\n} };",
         "mode": "runOnceForEachItem"
       },
       "id": "tv4-training-06-compose",
-      "name": "Soạn nội dung nhắc bằng tiếng Việt",
+      "name": "Compose Training Notices",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
-        220
+        2400,
+        0
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.senderEmail }}",
+        "fromEmail": "={{ $('Compose Training Notices').item.json.senderEmail }}",
         "toEmail": "={{ $json.employeeEmail }}",
         "subject": "={{ $json.emailSubject }}",
         "html": "={{ $json.employeeHtml }}",
         "options": {}
       },
       "id": "tv4-training-07-email-employee",
-      "name": "Gửi thư nhắc nhân viên",
+      "name": "Send Employee Reminder",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1320,
-        220
+        2700,
+        320
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -198,7 +223,7 @@
           "conditions": [
             {
               "id": "has-manager-condition",
-              "leftValue": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.hasManager }}",
+              "leftValue": "={{ $('Compose Training Notices').item.json.hasManager }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -211,29 +236,29 @@
         "options": {}
       },
       "id": "tv4-training-08-if-manager",
-      "name": "Có quản lý trực tiếp?",
+      "name": "Should Notify Manager?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1540,
-        220
+        3000,
+        0
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.senderEmail }}",
-        "toEmail": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.managerEmail }}",
-        "subject": "={{ '[Quản lý] ' + $('Soạn nội dung nhắc bằng tiếng Việt').item.json.emailSubject }}",
-        "html": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.managerHtml }}",
+        "fromEmail": "={{ $('Compose Training Notices').item.json.senderEmail }}",
+        "toEmail": "={{ $('Compose Training Notices').item.json.managerEmail }}",
+        "subject": "={{ '[Quản lý] ' + $('Compose Training Notices').item.json.emailSubject }}",
+        "html": "={{ $('Compose Training Notices').item.json.managerHtml }}",
         "options": {}
       },
       "id": "tv4-training-09-email-manager",
-      "name": "Thông báo cho quản lý",
+      "name": "Send Manager Reminder",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1760,
-        140
+        3000,
+        320
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -248,20 +273,20 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.telegramChatId }}",
-        "text": "={{ $('Soạn nội dung nhắc bằng tiếng Việt').item.json.telegramText }}",
+        "chatId": "={{ $('Compose Training Notices').item.json.telegramChatId }}",
+        "text": "={{ $('Compose Training Notices').item.json.telegramText }}",
         "additionalFields": {
           "parse_mode": "HTML",
           "appendAttribution": false
         }
       },
       "id": "tv4-training-10-telegram",
-      "name": "Thông báo kênh đào tạo",
+      "name": "Send Training Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1980,
-        220
+        3300,
+        320
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -270,16 +295,16 @@
     },
     {
       "parameters": {
-        "jsCode": "const source = $('Soạn nội dung nhắc bằng tiếng Việt').item.json;\nconst nodeError = (nodeName) => {\n  try {\n    const output = $(nodeName).item.json;\n    if (!output) return 'Node không trả kết quả.';\n    if (output.error) return String(output.error.message || output.error);\n    if (Array.isArray(output.rejected) && output.rejected.length > 0) {\n      return 'Máy chủ email từ chối người nhận.';\n    }\n    if (output.ok === false) return String(output.description || 'Telegram từ chối gửi tin.');\n    return '';\n  } catch (_) {\n    return 'Node không chạy hoặc không trả kết quả.';\n  }\n};\n\nconst employeeError = nodeError('Gửi thư nhắc nhân viên');\nconst managerError = source.hasManager ? nodeError('Thông báo cho quản lý') : '';\nconst telegramError = nodeError('Thông báo kênh đào tạo');\nconst employeeNotified = !employeeError;\nconst managerNotified = source.hasManager && !managerError;\nconst telegramNotified = !telegramError;\nconst requiredResults = [employeeNotified, telegramNotified];\nif (source.hasManager) requiredResults.push(managerNotified);\nconst successCount = requiredResults.filter(Boolean).length;\nconst status = successCount === requiredResults.length\n  ? 'SENT'\n  : successCount > 0\n    ? 'PARTIAL'\n    : 'FAILED';\nconst details = [\n  `Nhân viên: ${employeeNotified ? 'đã gửi' : 'lỗi - ' + employeeError}`,\n  source.hasManager\n    ? `Quản lý: ${managerNotified ? 'đã gửi' : 'lỗi - ' + managerError}`\n    : 'Quản lý: bỏ qua vì chưa khai báo',\n  `Telegram: ${telegramNotified ? 'đã gửi' : 'lỗi - ' + telegramError}`,\n];\nreturn { json: {\n  apiBaseUrl: source.apiBaseUrl,\n  automationSecret: source.automationSecret,\n  assignmentId: source.assignmentId,\n  runId: source.runId,\n  employeeNotified,\n  managerNotified,\n  telegramNotified,\n  status,\n  detail: details.join('; ')\n} };",
-        "mode": "runOnceForEachItem"
+        "mode": "runOnceForEachItem",
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nreturn (function trainingSummary() {\n  const source = $('Compose Training Notices').item.json;\n  const employeeError = source.employeeEmailReady ? outputError('Send Employee Reminder', source.employeeEmail) : 'Email nhân viên không hợp lệ.';\n  const managerRequired = Boolean(source.manager && source.notifyManager !== false);\n  const managerError = managerRequired ? (source.hasManager ? outputError('Send Manager Reminder', source.managerEmail) : 'Email quản lý không hợp lệ.') : '';\n  const telegramError = source.telegramReady ? outputError('Send Training Telegram', '', true) : 'Chưa có Chat ID Telegram hợp lệ.';\n  const employeeNotified = !employeeError;\n  const managerNotified = managerRequired && !managerError;\n  const telegramNotified = !telegramError;\n  const flags = [employeeNotified, telegramNotified];\n  if (managerRequired) flags.push(managerNotified);\n  return { json: { apiBaseUrl: source.apiBaseUrl, automationSecret: source.automationSecret, assignmentId: source.assignmentId, runId: source.runId, employeeNotified, managerNotified, telegramNotified, status: deliveryStatus(flags), detail: [`Nhân viên: ${employeeError || 'đã gửi'}`, `Quản lý: ${managerRequired ? managerError || 'đã gửi' : 'không có người phụ trách'}`, `Telegram: ${telegramError || 'đã gửi'}`].join('; ') } };\n})();"
       },
       "id": "tv4-training-11-result",
-      "name": "Tổng hợp kết quả gửi",
+      "name": "Summarize Training Delivery",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
-        220
+        3600,
+        0
       ]
     },
     {
@@ -308,139 +333,359 @@
         }
       },
       "id": "tv4-training-12-callback",
-      "name": "Lưu kết quả về hệ thống",
+      "name": "Record Training Delivery",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2420,
-        220
-      ]
+        3900,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "tv4-02-validate-training-configuration",
+      "name": "Validate Training Configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nconst validated = (function configValidation() {\n  const item = $json;\n  if (!httpUrl(item.apiBaseUrl)) throw Error('Địa chỉ backend không hợp lệ.');\n  if (!String(item.automationSecret || '').trim()) throw Error('Thiếu khóa xác thực tự động hóa.');\n  if (!emailValid(item.senderEmail)) throw Error('Email gửi không hợp lệ.');\n  return [{ json: { ...item, apiBaseUrl: item.apiBaseUrl.replace(/\\/+$/, ''), senderEmail: item.senderEmail.trim(), telegramReady: chatValid(item.telegramChatId) } }];\n})(); return [{ json: { ...validated[0].json, ...(function manualScheduleOptions() {\n  const manual = $execution.mode === 'test';\n  const date = manual ? String($json.manualRunDate || '').trim() : '';\n  if (date) {\n    const parsed = new Date(date + 'T00:00:00Z');\n    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0,10) !== date || Number(date.slice(0,4)) < 2000 || Number(date.slice(0,4)) > 2100) throw Error('Ngày chạy thủ công phải là ngày hợp lệ dạng YYYY-MM-DD (2000–2100).');\n  }\n  return { allowRepeat: manual, asOf: date ? date + 'T08:00:00+07:00' : '' };\n})() } }];"
+      }
+    },
+    {
+      "id": "tv4-02-classify-training-alert",
+      "name": "Classify Training Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nreturn (function classifyTraining() {\n  const item = $json;\n  if (!Number.isInteger(item.assignmentId) || !item.employee || !item.course || !Number.isFinite(item.daysRemaining)) throw Error('Dữ liệu lượt học không hợp lệ.');\n  return { json: { ...item, alertTier: item.daysRemaining < 0 ? 'OVERDUE' : 'DUE_SOON', telegramReady: chatValid(item.telegramChatId) } };\n})();"
+      }
+    },
+    {
+      "id": "tv4-02-recipient-loop",
+      "name": "Process Training Assignments",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1800,
+        0
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "reset": false
+        }
+      }
+    },
+    {
+      "id": "tv4-02-has-valid-employee-email-",
+      "name": "Has Valid Employee Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2700,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "condition",
+              "leftValue": "={{ $('Compose Training Notices').item.json.employeeEmailReady }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "tv4-02-has-training-telegram-route-",
+      "name": "Has Training Telegram Route?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3300,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "condition",
+              "leftValue": "={{ $('Compose Training Notices').item.json.telegramReady }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "tv4-02-collect-training-receipt",
+      "name": "Collect Training Receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4200,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const emailValid = value => /^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(String(value || '').trim());\nconst chatValid = value => /^-?[1-9]\\d*$/.test(String(value || '').trim());\nconst escapeHtml = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst httpUrl = value => { const text = String(value || '').trim(); const match = text.match(/^https?:\\/\\/([^\\s/<>\"'?#]+)(?:[/?#][^\\s<>\"']*)?$/i); return match && !match[1].includes('@') ? text : ''; };\nconst outputError = (name, recipient, telegram = false) => {\n  try {\n    const result = $(name).item.json;\n    if (!result || result.error) return String(result?.error?.message || result?.error || 'Không có kết quả gửi.');\n    if (telegram) return result.ok === true || Number.isInteger(result.message_id) ? '' : 'Telegram chưa xác nhận gửi thành công.';\n    if (Array.isArray(result.rejected) && result.rejected.length) return 'Máy chủ email từ chối người nhận.';\n    if (Array.isArray(result.accepted)) return result.accepted.some(email => String(email).toLowerCase() === String(recipient).toLowerCase()) ? '' : 'Máy chủ email chưa chấp nhận người nhận.';\n    return result.messageId ? '' : 'Máy chủ email chưa xác nhận gửi thành công.';\n  } catch { return 'Kênh chưa chạy hoặc không trả kết quả.'; }\n};\nconst deliveryStatus = flags => flags.every(Boolean) ? 'SENT' : flags.some(Boolean) ? 'PARTIAL' : 'FAILED';\n\nreturn (function callbackReceipt() {\n  const response = $json;\n  const payload = response.data ?? response;\n  const source = $('Summarize Training Delivery').item.json;\n  return { json: { runId: source.runId, assignmentId: source.assignmentId, recipientId: source.recipient?.id, pendingCount: source.pendingCount, status: source.status, callbackRecorded: !response.error && payload.recorded === true, callbackError: Boolean(response.error || payload.recorded !== true), employeeNotified: source.employeeNotified, managerNotified: source.managerNotified, emailNotified: source.emailNotified, telegramNotified: source.telegramNotified } };\n})();"
+      }
     }
   ],
   "connections": {
-    "Lịch chạy 08 giờ mỗi ngày": {
+    "Daily Training Schedule": {
       "main": [
         [
           {
-            "node": "Nạp cấu hình an toàn",
+            "node": "Load Workflow Configuration",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Nạp cấu hình an toàn": {
+    "Load Workflow Configuration": {
       "main": [
         [
           {
-            "node": "Lấy danh sách cần nhắc",
+            "node": "Validate Training Configuration",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Lấy danh sách cần nhắc": {
+    "Validate Training Configuration": {
       "main": [
         [
           {
-            "node": "Tách từng lượt đào tạo",
+            "node": "Fetch Training Reminders",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Tách từng lượt đào tạo": {
+    "Fetch Training Reminders": {
       "main": [
         [
           {
-            "node": "Có trường hợp cần nhắc?",
+            "node": "Split Training Assignments",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Có trường hợp cần nhắc?": {
+    "Split Training Assignments": {
       "main": [
         [
           {
-            "node": "Soạn nội dung nhắc bằng tiếng Việt",
+            "node": "Has Training Reminders?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Training Reminders?": {
+      "main": [
+        [
+          {
+            "node": "Process Training Assignments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Training Assignments": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Classify Training Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Training Alert": {
+      "main": [
+        [
+          {
+            "node": "Compose Training Notices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Training Notices": {
+      "main": [
+        [
+          {
+            "node": "Has Valid Employee Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Valid Employee Email?": {
+      "main": [
+        [
+          {
+            "node": "Send Employee Reminder",
             "type": "main",
             "index": 0
           }
         ],
-        []
-      ]
-    },
-    "Soạn nội dung nhắc bằng tiếng Việt": {
-      "main": [
         [
           {
-            "node": "Gửi thư nhắc nhân viên",
+            "node": "Should Notify Manager?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Gửi thư nhắc nhân viên": {
+    "Send Employee Reminder": {
       "main": [
         [
           {
-            "node": "Có quản lý trực tiếp?",
+            "node": "Should Notify Manager?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Có quản lý trực tiếp?": {
+    "Should Notify Manager?": {
       "main": [
         [
           {
-            "node": "Thông báo cho quản lý",
+            "node": "Send Manager Reminder",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Thông báo kênh đào tạo",
+            "node": "Has Training Telegram Route?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Thông báo cho quản lý": {
+    "Send Manager Reminder": {
       "main": [
         [
           {
-            "node": "Thông báo kênh đào tạo",
+            "node": "Has Training Telegram Route?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Thông báo kênh đào tạo": {
+    "Has Training Telegram Route?": {
       "main": [
         [
           {
-            "node": "Tổng hợp kết quả gửi",
+            "node": "Send Training Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Summarize Training Delivery",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Tổng hợp kết quả gửi": {
+    "Send Training Telegram": {
       "main": [
         [
           {
-            "node": "Lưu kết quả về hệ thống",
+            "node": "Summarize Training Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Training Delivery": {
+      "main": [
+        [
+          {
+            "node": "Record Training Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Training Delivery": {
+      "main": [
+        [
+          {
+            "node": "Collect Training Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Training Receipt": {
+      "main": [
+        [
+          {
+            "node": "Process Training Assignments",
             "type": "main",
             "index": 0
           }

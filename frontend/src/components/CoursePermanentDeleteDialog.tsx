@@ -31,20 +31,20 @@ export function CoursePermanentDeleteDialog({ course, busy, error, onCancel, onC
       aria-describedby="perm-delete-description"
       onCancel={event => { event.preventDefault(); if (!busy) onCancel(); }}
       onClick={event => { if (event.target === ref.current && !busy) onCancel(); }}
-      className="m-auto w-[calc(100%_-_2rem)] max-w-md rounded-2xl border border-[#EDC7CC] bg-white p-0 text-[#303438] shadow-2xl backdrop:bg-black/40"
+      className="m-auto w-[calc(100%_-_2rem)] max-w-md rounded-xl border border-rose-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-black/40"
     >
       {course && (
         <div className="p-6">
-          <div className="flex items-center gap-3 text-lg font-bold text-[#9D4150]">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FBF1F2] text-[#9D4150]">
+          <div className="flex items-center gap-3 text-lg font-bold text-rose-700">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-700">
               <AlertTriangle className="h-5 w-5" aria-hidden="true" />
             </div>
             <h3 id="perm-delete-title">Xóa vĩnh viễn khóa học?</h3>
           </div>
 
-          <div id="perm-delete-description" className="mt-4 space-y-3 text-sm leading-6 text-[#636A70]">
-            <p className="font-semibold text-[#1D2023] [overflow-wrap:anywhere]">{course.title}</p>
-            <p className="rounded-xl border border-[#EDC7CC] bg-[#FBF1F2] p-3 text-xs font-semibold leading-5 text-[#9D4150]">
+          <div id="perm-delete-description" className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
+            <p className="font-semibold text-slate-900 [overflow-wrap:anywhere]">{course.title}</p>
+            <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold leading-5 text-rose-700">
               Khóa học sẽ được xóa khỏi danh mục và mục Đã gỡ. Bạn không thể khôi phục khóa học sau thao tác này.
             </p>
             <p>
@@ -54,7 +54,7 @@ export function CoursePermanentDeleteDialog({ course, busy, error, onCancel, onC
             </p>
           </div>
 
-          {error && <p role="alert" className="mt-4 text-sm leading-6 text-[#9D4150]">{error}</p>}
+          {error && <p role="alert" className="mt-4 text-sm leading-6 text-rose-700">{error}</p>}
 
           <div className="mt-6 flex justify-end gap-3">
             <button
@@ -62,7 +62,7 @@ export function CoursePermanentDeleteDialog({ course, busy, error, onCancel, onC
               autoFocus
               disabled={busy}
               onClick={onCancel}
-              className="min-h-11 rounded-xl border border-[#D8DCDE] px-4 text-sm font-semibold hover:bg-[#F8F9F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] disabled:opacity-50"
+              className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 disabled:opacity-50"
             >
               Hủy
             </button>
@@ -70,7 +70,7 @@ export function CoursePermanentDeleteDialog({ course, busy, error, onCancel, onC
               type="button"
               disabled={busy}
               onClick={onConfirm}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#9D4150] px-4 text-sm font-semibold text-white hover:bg-[#843743] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A4153] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
             >
               {busy ? (
                 <>

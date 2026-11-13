@@ -53,13 +53,13 @@
               "id": "test-manager-email",
               "name": "testManagerEmail",
               "type": "string",
-              "value": "test-manager@example.com"
+              "value": ""
             },
             {
               "id": "review-form-url",
               "name": "reviewFormUrl",
               "type": "string",
-              "value": "http://localhost:5173/employee/workspace"
+              "value": "https://soma-registrar-dependent-baltimore.trycloudflare.com/admin/settings"
             },
             {
               "id": "tv4-manualRunDate",

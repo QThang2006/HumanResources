@@ -264,7 +264,9 @@ export const UserManagementPanel: React.FC<{ currentUserId: number }> = ({ curre
         && (departmentFilter === 'ALL' || String(item.department?.id ?? item.departmentId ?? '') === departmentFilter)
         && (statusFilter === 'ALL' || (item.isActive === false ? 'INACTIVE' : 'ACTIVE') === statusFilter)
         && (!keyword || searchable.includes(keyword));
-    });
+    }).sort((a, b) =>
+      ALL_ROLES.indexOf(a.role) - ALL_ROLES.indexOf(b.role) || a.id - b.id,
+    );
   }, [roleFilter, departmentFilter, statusFilter, searchTerm, users]);
 
   return (

@@ -75,9 +75,12 @@ async function loadMailRouting(filename) {
     'senderEmail', 'testEmployeeEmail', 'testManagerEmail',
     'testInternalEmail', 'itEmail', 'accountingEmail',
   ];
+  const optionalTestFields = new Set([
+    'testEmployeeEmail', 'testManagerEmail', 'testInternalEmail',
+  ]);
   for (const field of fields) {
     const address = String(routing[field] || '').trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+    if ((!optionalTestFields.has(field) || address) && !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(address)) {
       throw new Error(`Thiếu hoặc sai địa chỉ nhận đã xác nhận: ${field}`);
     }
     routing[field] = address;

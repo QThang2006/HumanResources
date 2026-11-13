@@ -44,13 +44,13 @@
               "id": "test-employee-email",
               "name": "testEmployeeEmail",
               "type": "string",
-              "value": "test-employee@example.com"
+              "value": ""
             },
             {
               "id": "test-internal-email",
               "name": "testInternalEmail",
               "type": "string",
-              "value": "test-internal@example.com"
+              "value": ""
             },
             {
               "id": "it-email",
@@ -74,7 +74,7 @@
               "id": "exit-survey-url",
               "name": "exitSurveyUrl",
               "type": "string",
-              "value": "https://forms.gle/THAY_BANG_LINK_FORM_KHAO_SAT"
+              "value": "https://docs.google.com/forms/d/e/1FAIpQLSc0uSrblMXl9LFPBpU0rO0Q51VfwxfHJ0hATHiKB--fHxSBCA/viewform"
             }
           ]
         },
@@ -297,8 +297,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify((() => { const response=$json; const payload=response.data ?? response; const source=$(\"Summarize Offboarding Delivery\").item.json; const recorded=!response.error && payload.recorded===true; return {success:recorded && source.status!==\"FAILED\",caseId:source.caseId,status:source.status,callbackRecorded:recorded,errorCode:recorded?null:\"CALLBACK_FAILED\",notifications:{it:source.itNotified,accounting:source.financeNotified,employee:source.employeeNotified,telegram:source.telegramNotified}}; })()) }}",
+        "respondWith": "firstIncomingItem",
         "options": {
           "responseCode": "={{ $json.error || ($json.data ?? $json).recorded !== true ? 502 : 200 }}"
         }
@@ -357,7 +356,7 @@
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({success:false,errorCode:\"INVALID_OFFBOARDING_CASE\",message:\"Không thể điều phối hồ sơ. Kiểm tra mã hồ sơ, trạng thái duyệt và kết nối backend.\"}) }}",
+        "responseBody": "={{ {success:false,errorCode:\"INVALID_OFFBOARDING_CASE\",message:\"Không thể điều phối hồ sơ. Kiểm tra mã hồ sơ, trạng thái duyệt và kết nối backend.\"} }}",
         "options": {
           "responseCode": 409
         }

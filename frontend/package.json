@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node --test test/*.test.cjs",
     "test:calendar-date": "node --test test/calendar-date.test.cjs",
     "test:training-catalog": "node --test test/training-catalog.test.cjs",
     "test:offboarding": "node --test test/offboarding.test.cjs",

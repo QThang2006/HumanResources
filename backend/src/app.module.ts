@@ -32,6 +32,7 @@ import { ApplicationsModule } from './modules/applications/applications.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { InterviewDelivery } from './modules/applications/interview-delivery.entity';
 import { OffboardingModule } from './modules/offboarding/offboarding.module';
+import { HealthModule } from './modules/health/health.module';
 import { PerformanceReviewSchedule } from './modules/training/performance-review-schedule.entity';
 
 @Module({
@@ -96,6 +97,7 @@ import { PerformanceReviewSchedule } from './modules/training/performance-review
     DocumentsModule,
     TrainingModule,
     OffboardingModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

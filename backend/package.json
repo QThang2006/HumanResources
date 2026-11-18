@@ -6,6 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "test": "node --test test/health.test.cjs test/users-role-boundary.test.cjs test/department-manager.test.cjs test/documents.test.cjs test/gemini-timeout.test.cjs test/training-due-date.test.cjs",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start",

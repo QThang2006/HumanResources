@@ -3,14 +3,16 @@ name: Build, Push and Deploy HR Enterprise (Docker)
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   # ==========================================
-  # CI GATE 1: BACKEND CI (Build & Test)
+  # CI GATE 1: BACKEND CI (Lint, Type Check, Test & Build)
   # ==========================================
   ci-backend:
-    name: Backend CI (Build & Test)
+    name: Backend CI (Lint, Type Check, Test & Build)
     runs-on: ubuntu-latest
 
     steps:
@@ -27,14 +29,20 @@ jobs:
       - name: Install dependencies
         run: cd backend && npm ci
 
+      - name: Lint Backend
+        run: cd backend && npm run lint
+
+      - name: Type Check Backend
+        run: cd backend && npm run typecheck
+
       - name: Run Backend Tests (Includes Build)
         run: cd backend && npm test
 
   # ==========================================
-  # CI GATE 2: FRONTEND CI (Lint, Test & Build)
+  # CI GATE 2: FRONTEND CI (Lint, Test, Type Check & Build)
   # ==========================================
   ci-frontend:
-    name: Frontend CI (Lint, Test & Build)
+    name: Frontend CI (Lint, Test, Type Check & Build)
     runs-on: ubuntu-latest
 
     steps:
@@ -57,15 +65,17 @@ jobs:
       - name: Run Frontend Tests
         run: cd frontend && npm test
 
-      - name: Build Frontend Application
+      - name: Type Check & Build Frontend
         run: cd frontend && npm run build
 
   # ==========================================
   # CD JOB 1: BUILD & PUSH BACKEND DOCKER IMAGE
+  # (Chỉ chạy khi push/merge lên main, KHÔNG chạy khi mở PR)
   # ==========================================
   build-and-push-backend:
     name: Build & Push Backend Image
     needs: [ci-backend, ci-frontend]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -99,6 +109,7 @@ jobs:
   build-and-push-frontend:
     name: Build & Push Frontend Image
     needs: [ci-backend, ci-frontend]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -127,11 +138,12 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ==========================================
-  # CD JOB 3: DEPLOY PURE DOCKER TO VPS & AUTO-ROLLBACK
+  # CD JOB 3: DEPLOY PURE DOCKER TO VPS (1 SINGLE SSH CONNECTION)
   # ==========================================
   deploy-to-vps:
     name: Deploy Pure Docker to VPS
     needs: [build-and-push-backend, build-and-push-frontend]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -144,7 +156,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Pull Versioned Images & Package Archive
+      - name: Pull Versioned Images & Package Single Deploy Archive
         run: |
           IMAGE_TAG="${GITHUB_SHA}"
           BACKEND_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/hr-backend:${IMAGE_TAG}"
@@ -155,9 +167,16 @@ jobs:
 
           echo "📦 Đang đóng gói 2 Docker Images (${IMAGE_TAG})..."
           docker save "${BACKEND_IMAGE}" "${FRONTEND_IMAGE}" | gzip > /tmp/hr-images.tar.gz
-          ls -lh /tmp/hr-images.tar.gz
 
-      - name: Transfer Docker Images & Deploy on VPS via SSH
+          echo "📦 Gộp cấu hình + 2 Docker Images vào 1 gói duy nhất..."
+          tar -cf /tmp/deploy-all.tar \
+            docker-compose.app.yml \
+            deploy/deploy-production.sh \
+            deploy/nginx/hr-enterprise.conf \
+            -C /tmp hr-images.tar.gz
+          ls -lh /tmp/deploy-all.tar
+
+      - name: Stream Package & Deploy via Single SSH Connection
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PORT: ${{ secrets.VPS_PORT || '10601' }}
@@ -170,18 +189,19 @@ jobs:
           printf '%s\n' "${VPS_SSH_KEY}" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-          SSH_OPTS="-i ~/.ssh/deploy_key -p ${VPS_PORT} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10"
-          SCP_OPTS="-i ~/.ssh/deploy_key -P ${VPS_PORT} -o StrictHostKeyChecking=no"
-
-          echo "📤 Đang đẩy cấu hình Docker Compose & Script Deploy lên VPS..."
-          ssh ${SSH_OPTS} "${VPS_USERNAME}@${VPS_HOST}" "mkdir -p /var/www/HumanResources/deploy/nginx"
-          scp ${SCP_OPTS} docker-compose.app.yml "${VPS_USERNAME}@${VPS_HOST}:/var/www/HumanResources/docker-compose.app.yml"
-          scp ${SCP_OPTS} deploy/deploy-production.sh "${VPS_USERNAME}@${VPS_HOST}:/var/www/HumanResources/deploy/deploy-production.sh"
-          scp ${SCP_OPTS} deploy/nginx/hr-enterprise.conf "${VPS_USERNAME}@${VPS_HOST}:/var/www/HumanResources/deploy/nginx/hr-enterprise.conf"
-
-          echo "📤 Đang đẩy gói Docker Images (/tmp/hr-images.tar.gz) lên VPS..."
-          scp ${SCP_OPTS} /tmp/hr-images.tar.gz "${VPS_USERNAME}@${VPS_HOST}:/tmp/hr-images.tar.gz"
-
-          echo "🚀 Đang kích hoạt Deploy Thuần Docker + Health Check + Auto-Rollback trên VPS..."
-          ssh ${SSH_OPTS} "${VPS_USERNAME}@${VPS_HOST}" \
-            "chmod +x /var/www/HumanResources/deploy/deploy-production.sh && DOCKER_USERNAME='${DOCKER_USERNAME}' IMAGE_TAG='${IMAGE_TAG}' IMAGES_ARCHIVE='/tmp/hr-images.tar.gz' bash /var/www/HumanResources/deploy/deploy-production.sh"
+          echo "🚀 Mở 1 kết nối SSH duy nhất để truyền Docker Images & Deploy..."
+          cat /tmp/deploy-all.tar | ssh \
+            -i ~/.ssh/deploy_key \
+            -p "${VPS_PORT}" \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=20 \
+            "${VPS_USERNAME}@${VPS_HOST}" \
+            "set -euo pipefail
+             mkdir -p /var/www/HumanResources/deploy/nginx
+             tar -xf - --no-same-owner -C /var/www/HumanResources
+             mv /var/www/HumanResources/hr-images.tar.gz /tmp/hr-images.tar.gz
+             chmod +x /var/www/HumanResources/deploy/deploy-production.sh
+             DOCKER_USERNAME='${DOCKER_USERNAME}' IMAGE_TAG='${IMAGE_TAG}' IMAGES_ARCHIVE='/tmp/hr-images.tar.gz' \
+               bash /var/www/HumanResources/deploy/deploy-production.sh </dev/null"

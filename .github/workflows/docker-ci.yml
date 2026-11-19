@@ -1,4 +1,4 @@
-name: Build, Push and Deploy HR Enterprise
+name: Build, Push and Deploy HR Enterprise (Docker)
 
 on:
   push:
@@ -7,10 +7,10 @@ on:
 
 jobs:
   # ==========================================
-  # CI GATE 1: BACKEND CI (Test & Build)
+  # CI GATE 1: BACKEND CI (Build & Test)
   # ==========================================
   ci-backend:
-    name: Backend CI (Test & Build)
+    name: Backend CI (Build & Test)
     runs-on: ubuntu-latest
 
     steps:
@@ -64,7 +64,7 @@ jobs:
   # CD JOB 1: BUILD & PUSH BACKEND DOCKER IMAGE
   # ==========================================
   build-and-push-backend:
-    name: Build & Push Backend
+    name: Build & Push Backend Image
     needs: [ci-backend, ci-frontend]
     runs-on: ubuntu-latest
 
@@ -97,7 +97,7 @@ jobs:
   # CD JOB 2: BUILD & PUSH FRONTEND DOCKER IMAGE
   # ==========================================
   build-and-push-frontend:
-    name: Build & Push Frontend
+    name: Build & Push Frontend Image
     needs: [ci-backend, ci-frontend]
     runs-on: ubuntu-latest
 
@@ -127,10 +127,10 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ==========================================
-  # CD JOB 3: DEPLOY TO PRODUCTION VPS & ROLLBACK
+  # CD JOB 3: DEPLOY PURE DOCKER TO VPS & AUTO-ROLLBACK
   # ==========================================
   deploy-to-vps:
-    name: Deploy to Production VPS
+    name: Deploy Pure Docker to VPS
     needs: [build-and-push-backend, build-and-push-frontend]
     runs-on: ubuntu-latest
 
@@ -138,16 +138,50 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Execute Remote Deployment via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          port: ${{ secrets.VPS_PORT || 10601 }}
-          username: ${{ secrets.VPS_USERNAME || 'root' }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            export DOCKER_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
-            export IMAGE_TAG="${{ github.sha }}"
-            cd /var/www/HumanResources
-            git fetch origin main && git checkout -f origin/main
-            bash deploy/deploy-production.sh
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull Versioned Images & Package Archive
+        run: |
+          IMAGE_TAG="${GITHUB_SHA}"
+          BACKEND_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/hr-backend:${IMAGE_TAG}"
+          FRONTEND_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/hr-frontend:${IMAGE_TAG}"
+
+          docker pull "${BACKEND_IMAGE}"
+          docker pull "${FRONTEND_IMAGE}"
+
+          echo "📦 Đang đóng gói 2 Docker Images (${IMAGE_TAG})..."
+          docker save "${BACKEND_IMAGE}" "${FRONTEND_IMAGE}" | gzip > /tmp/hr-images.tar.gz
+          ls -lh /tmp/hr-images.tar.gz
+
+      - name: Transfer Docker Images & Deploy on VPS via SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT || '10601' }}
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME || 'root' }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${VPS_SSH_KEY}" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          SSH_OPTS="-i ~/.ssh/deploy_key -p ${VPS_PORT} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10"
+          SCP_OPTS="-i ~/.ssh/deploy_key -P ${VPS_PORT} -o StrictHostKeyChecking=no"
+
+          echo "📤 Đang đẩy cấu hình Docker Compose & Script Deploy lên VPS..."
+          ssh ${SSH_OPTS} "${VPS_USERNAME}@${VPS_HOST}" "mkdir -p /var/www/HumanResources/deploy/nginx"
+          scp ${SCP_OPTS} docker-compose.app.yml "${VPS_USERNAME}@${VPS_HOST}:/var/www/HumanResources/docker-compose.app.yml"
+          scp ${SCP_OPTS} deploy/deploy-production.sh "${VPS_USERNAME}@${VPS_HOST}:/var/www/HumanResources/deploy/deploy-production.sh"
+          scp ${SCP_OPTS} deploy/nginx/hr-enterprise.conf "${VPS_USERNAME}@${VPS_HOST}:/var/www/HumanResources/deploy/nginx/hr-enterprise.conf"
+
+          echo "📤 Đang đẩy gói Docker Images (/tmp/hr-images.tar.gz) lên VPS..."
+          scp ${SCP_OPTS} /tmp/hr-images.tar.gz "${VPS_USERNAME}@${VPS_HOST}:/tmp/hr-images.tar.gz"
+
+          echo "🚀 Đang kích hoạt Deploy Thuần Docker + Health Check + Auto-Rollback trên VPS..."
+          ssh ${SSH_OPTS} "${VPS_USERNAME}@${VPS_HOST}" \
+            "chmod +x /var/www/HumanResources/deploy/deploy-production.sh && DOCKER_USERNAME='${DOCKER_USERNAME}' IMAGE_TAG='${IMAGE_TAG}' IMAGES_ARCHIVE='/tmp/hr-images.tar.gz' bash /var/www/HumanResources/deploy/deploy-production.sh"

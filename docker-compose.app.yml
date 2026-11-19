@@ -1,0 +1,31 @@
+# ========================================================
+# 🐳 HR ENTERPRISE - APPLICATION CONTAINERS (PRODUCTION)
+# Chạy tách biệt hoàn toàn (project: hr-app) với docker-compose.yml
+# (MySQL & n8n thuộc project humanresources) để cập nhật / rollback
+# ứng dụng KHÔNG BAO GIỜ ảnh hưởng DB & n8n
+# ========================================================
+name: hr-app
+
+services:
+  backend:
+    image: ${DOCKER_USERNAME}/hr-backend:${IMAGE_TAG:-latest}
+    container_name: hr_backend
+    restart: unless-stopped
+    # Dùng network_mode: host để kết nối trực tiếp tới MySQL (127.0.0.1:3307),
+    # n8n (127.0.0.1:5678) và lắng nghe cổng 3001 mà không cần đổi backend/.env
+    network_mode: host
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/backups:/app/backups
+      - ./backend/.ats-private:/app/.ats-private
+      - ./backend/.env:/app/.env
+
+  frontend:
+    image: ${DOCKER_USERNAME}/hr-frontend:${IMAGE_TAG:-latest}
+    container_name: hr_frontend
+    restart: unless-stopped
+    # Chỉ bind vào localhost:8080 để host Nginx reverse proxy tiếp nhận lưu lượng
+    ports:
+      - "127.0.0.1:8080:80"

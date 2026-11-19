@@ -30,12 +30,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 
-# Cài đặt công cụ cần thiết cho native modules lúc cài production dependencies
-RUN apk add --no-cache python3 make g++
-
-# Chỉ copy package*.json và cài đặt các dependencies cần thiết cho runtime
+# Chỉ copy package*.json, biên dịch native modules (bcrypt) rồi gỡ build-deps để giảm dung lượng image
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && npm ci --omit=dev \
+    && apk del .build-deps \
+    && npm cache clean --force
 
 # Copy thư mục dist đã biên dịch từ Stage 1 sang Stage 2
 COPY --from=builder /app/dist ./dist

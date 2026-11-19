@@ -1,4 +1,4 @@
-name: Build and Push Docker Images to Docker Hub
+name: Build, Push and Deploy HR Enterprise
 
 on:
   push:
@@ -27,11 +27,8 @@ jobs:
       - name: Install dependencies
         run: cd backend && npm ci
 
-      - name: Run Backend Tests
+      - name: Run Backend Tests (Includes Build)
         run: cd backend && npm test
-
-      - name: Build NestJS Application
-        run: cd backend && npm run build
 
   # ==========================================
   # CI GATE 2: FRONTEND CI (Lint, Test & Build)
@@ -128,3 +125,29 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/hr-frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ==========================================
+  # CD JOB 3: DEPLOY TO PRODUCTION VPS & ROLLBACK
+  # ==========================================
+  deploy-to-vps:
+    name: Deploy to Production VPS
+    needs: [build-and-push-backend, build-and-push-frontend]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Execute Remote Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT || 10601 }}
+          username: ${{ secrets.VPS_USERNAME || 'root' }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            export DOCKER_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
+            export IMAGE_TAG="${{ github.sha }}"
+            cd /var/www/HumanResources
+            git fetch origin main && git checkout -f origin/main
+            bash deploy/deploy-production.sh

@@ -20,6 +20,9 @@ RUN npm run build
 # ==========================================
 FROM nginx:alpine AS runner
 
+# Cập nhật bản vá bảo mật cho hệ điều hành Alpine Linux
+RUN apk upgrade --no-cache
+
 # Xóa cấu hình mặc định của Nginx
 RUN rm -rf /etc/nginx/conf.d/default.conf
 

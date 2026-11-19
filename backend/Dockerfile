@@ -30,12 +30,22 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 
-# Chỉ copy package*.json, biên dịch native modules (bcrypt) rồi gỡ build-deps để giảm dung lượng image
+# Cập nhật bản vá bảo mật Alpine, biên dịch native modules (bcrypt),
+# sau đó gỡ bỏ build-deps và npm/yarn/corepack khỏi runtime image (Docker Hardening)
 COPY package*.json ./
-RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+RUN apk upgrade --no-cache \
+    && apk add --no-cache --virtual .build-deps python3 make g++ \
     && npm ci --omit=dev \
     && apk del .build-deps \
-    && npm cache clean --force
+    && npm cache clean --force \
+    && rm -rf /usr/local/lib/node_modules/npm \
+              /usr/local/lib/node_modules/corepack \
+              /usr/local/bin/npm \
+              /usr/local/bin/npx \
+              /usr/local/bin/corepack \
+              /usr/local/bin/yarn \
+              /usr/local/bin/yarnpkg \
+              /opt/yarn*
 
 # Copy thư mục dist đã biên dịch từ Stage 1 sang Stage 2
 COPY --from=builder /app/dist ./dist

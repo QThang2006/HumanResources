@@ -69,14 +69,67 @@ jobs:
         run: cd frontend && npm run build
 
   # ==========================================
-  # CD JOB 1: BUILD & PUSH BACKEND DOCKER IMAGE
-  # (Chỉ chạy khi push/merge lên main, KHÔNG chạy khi mở PR)
+  # SECURITY GATE: SECRET SCAN (GITLEAKS) & DEPENDENCY SCAN (TRIVY)
+  # ==========================================
+  security-check:
+    name: Security Check (Gitleaks & Trivy)
+    needs: [ci-backend, ci-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Secret Scan (Gitleaks - Block on Leaked Secrets)
+        run: |
+          GITLEAKS_VERSION="8.21.2"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          chmod +x /tmp/gitleaks
+          /tmp/gitleaks detect --source . --no-git --config .gitleaks.toml --redact --verbose
+
+      - name: Trivy Filesystem & Dependency Scan (Table Report)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Trivy Filesystem Scan (SARIF for GitHub Security)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Upload Trivy FS Report to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: 'trivy-fs-results.sarif'
+          category: 'trivy-filesystem'
+
+  # ==========================================
+  # CD JOB 1: BUILD, PUSH & SCAN BACKEND DOCKER IMAGE
   # ==========================================
   build-and-push-backend:
-    name: Build & Push Backend Image
-    needs: [ci-backend, ci-frontend]
+    name: Build, Push & Scan Backend Image
+    needs: [security-check]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout repository
@@ -103,14 +156,45 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Trivy Scan Backend Docker Image (Table)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'image'
+          image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/hr-backend:${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Trivy Scan Backend Docker Image (SARIF)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'image'
+          image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/hr-backend:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-backend-image.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Upload Backend Image Scan to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: 'trivy-backend-image.sarif'
+          category: 'trivy-image-backend'
+
   # ==========================================
-  # CD JOB 2: BUILD & PUSH FRONTEND DOCKER IMAGE
+  # CD JOB 2: BUILD, PUSH & SCAN FRONTEND DOCKER IMAGE
   # ==========================================
   build-and-push-frontend:
-    name: Build & Push Frontend Image
-    needs: [ci-backend, ci-frontend]
+    name: Build, Push & Scan Frontend Image
+    needs: [security-check]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout repository
@@ -136,6 +220,34 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/hr-frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trivy Scan Frontend Docker Image (Table)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'image'
+          image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/hr-frontend:${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Trivy Scan Frontend Docker Image (SARIF)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'image'
+          image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/hr-frontend:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-frontend-image.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Upload Frontend Image Scan to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: 'trivy-frontend-image.sarif'
+          category: 'trivy-image-frontend'
 
   # ==========================================
   # CD JOB 3: DEPLOY PURE DOCKER TO VPS (1 SINGLE SSH CONNECTION)

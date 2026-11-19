@@ -1,0 +1,17 @@
+title = "HR Enterprise Gitleaks Configuration"
+
+[extend]
+# Kế thừa toàn bộ 150+ luật phát hiện mật khẩu, API Key, Private Key mặc định của Gitleaks
+useDefault = true
+
+[allowlist]
+description = "Bỏ qua lockfile, file mẫu (.env.example), tài liệu và bộ test giả lập"
+paths = [
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)\.env\.example$''',
+  '''^backend/test/''',
+  '''^frontend/test/''',
+  '''^docs/''',
+  '''\.md$''',
+  '''^docker-compose\.linux\.yml$''',
+]

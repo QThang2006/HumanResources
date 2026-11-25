@@ -97,16 +97,17 @@ export class OnboardingController {
     return this.onboardingService.getBurnoutAlerts();
   }
 
-  // Trưởng phòng can thiệp xử lý cảnh báo kiệt sức (1-1 Review)
+  // Trưởng phòng / HR / SuperAdmin can thiệp xử lý cảnh báo kiệt sức (1-1 Review)
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.MANAGER, UserRole.HR)
+  @Roles(UserRole.MANAGER, UserRole.HR, UserRole.SUPERADMIN)
   @Patch('mood/:id/resolve')
   async resolveMoodAlert(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('id') userId: number,
+    @CurrentUser('role') userRole: UserRole,
     @Body() dto: ResolveMoodDto,
   ) {
-    return this.onboardingService.resolveBurnout(id, userId, dto.note);
+    return this.onboardingService.resolveBurnout(id, userId, dto.note, userRole);
   }
 
   // Lấy danh sách khóa học đào tạo (L&D) được gán cho nhân viên
@@ -137,8 +138,9 @@ export class OnboardingController {
     return this.onboardingService.chatWithCopilot(userId, dto.message);
   }
 
-  // Seed dữ liệu mẫu onboarding tasks cho user đang đăng nhập (dùng cho demo)
-  @UseGuards(JwtAuthGuard)
+  // Seed dữ liệu mẫu onboarding tasks cho user đang đăng nhập (chỉ dành cho SUPERADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERADMIN)
   @Post('seed-tasks')
   async seedTasks(@CurrentUser('id') userId: number) {
     return this.onboardingService.seedOnboardingTasks(userId);

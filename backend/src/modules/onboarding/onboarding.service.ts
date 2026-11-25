@@ -89,6 +89,48 @@ export class OnboardingService {
   }
 
   /**
+   * Kiểm tra phạm vi quản lý của MANAGER đối với một nhân viên mục tiêu.
+   * Hợp lệ khi nhân viên thuộc cùng phòng ban, có `managerId === actorId`,
+   * hoặc thuộc phòng ban do `actorId` làm Trưởng phòng (`department.managerId === actorId`).
+   */
+  private async assertManagerCanAccessEmployee(
+    actorId: number,
+    targetUserId: number,
+    preloadedTargetUser?: User | null,
+  ): Promise<void> {
+    const [actor, targetUser] = await Promise.all([
+      this.userRepository.findOne({ where: { id: actorId } }),
+      preloadedTargetUser !== undefined
+        ? Promise.resolve(preloadedTargetUser)
+        : this.userRepository.findOne({
+            where: { id: targetUserId },
+            relations: ['department'],
+          }),
+    ]);
+
+    if (!actor || !targetUser) {
+      throw new ForbiddenException(
+        'Bạn không có quyền thao tác với nhân viên thuộc phòng ban khác.',
+      );
+    }
+
+    const isDirectManager = targetUser.managerId === actor.id;
+    const isDepartmentHead = targetUser.department?.managerId === actor.id;
+    const isSameDepartment =
+      actor.departmentId !== null &&
+      actor.departmentId !== undefined &&
+      targetUser.departmentId !== null &&
+      targetUser.departmentId !== undefined &&
+      actor.departmentId === targetUser.departmentId;
+
+    if (!isDirectManager && !isDepartmentHead && !isSameDepartment) {
+      throw new ForbiddenException(
+        'Bạn chỉ có quyền thao tác với nhân viên thuộc phòng ban hoặc quyền quản lý của mình.',
+      );
+    }
+  }
+
+  /**
    * Toggle trạng thái hoàn thành nhiệm vụ.
    * - Nếu chưa hoàn thành → đánh dấu hoàn thành + ghi completedAt
    * - Nếu đã hoàn thành → bỏ đánh dấu + xóa completedAt
@@ -114,6 +156,11 @@ export class OnboardingService {
         throw new ForbiddenException(
           'Bạn không có quyền thao tác trên nhiệm vụ của nhân viên khác.',
         );
+      }
+
+      // 🔒 MANAGER chỉ được thao tác task của nhân viên cùng phòng ban hoặc dưới quyền quản lý
+      if (userRole === UserRole.MANAGER) {
+        await this.assertManagerCanAccessEmployee(userId, task.userId);
       }
     }
 
@@ -321,10 +368,17 @@ export class OnboardingService {
   }
 
   /**
-   * Manager/HR can thiệp xử lý cảnh báo kiệt sức.
+   * Manager/HR/SuperAdmin can thiệp xử lý cảnh báo kiệt sức.
+   * - MANAGER chỉ được xử lý cảnh báo của nhân viên thuộc phòng ban hoặc dưới quyền quản lý.
+   * - HR & SUPERADMIN được xử lý trên toàn hệ thống.
    * Đánh dấu isResolved = true, ghi lại resolvedById + resolvedNote.
    */
-  async resolveBurnout(id: number, managerId: number, note?: string) {
+  async resolveBurnout(
+    id: number,
+    managerId: number,
+    note?: string,
+    actorRole?: UserRole,
+  ) {
     const mood = await this.moodRepository.findOne({
       where: { id },
       relations: ['user', 'user.department'],
@@ -332,6 +386,28 @@ export class OnboardingService {
 
     if (!mood) {
       throw new NotFoundException(`Không tìm thấy bản ghi mood #${id}.`);
+    }
+
+    // Xác định vai trò người thao tác (defense-in-depth nếu gọi trực tiếp từ service)
+    let effectiveRole = actorRole;
+    if (!effectiveRole) {
+      const actor = await this.userRepository.findOne({ where: { id: managerId } });
+      effectiveRole = actor?.role;
+    }
+
+    if (
+      effectiveRole !== UserRole.MANAGER &&
+      effectiveRole !== UserRole.HR &&
+      effectiveRole !== UserRole.SUPERADMIN
+    ) {
+      throw new ForbiddenException(
+        'Bạn không có quyền xử lý cảnh báo kiệt sức của nhân viên.',
+      );
+    }
+
+    // 🔒 MANAGER chỉ được xử lý cảnh báo của nhân viên cùng phòng ban hoặc dưới quyền quản lý
+    if (effectiveRole === UserRole.MANAGER && mood.userId !== managerId) {
+      await this.assertManagerCanAccessEmployee(managerId, mood.userId, mood.user);
     }
 
     if (mood.isResolved) {

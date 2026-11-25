@@ -29,6 +29,7 @@ export interface Job {
   status: 'OPEN' | 'CLOSED';
   createdAt: string;
   applicationCount?: number;
+  hiredCount?: number;
 }
 
 export interface Application {

@@ -44,6 +44,7 @@ export interface Job {
   createdAt: string;
   updatedAt: string;
   applicationCount: number;
+  hiredCount?: number;
 }
 export interface JobInput {
   title: string;
@@ -149,6 +150,11 @@ export interface HireReceipt {
   welcomeEmailStatus: 'DISPATCHED_UNVERIFIED' | 'FAILED' | 'NOT_RETRIED';
   email: string;
   fullName: string;
+  jobAutoClosed?: boolean;
+  jobStatus?: JobStatus;
+  hiredCount?: number;
+  headcount?: number;
+  jobAutoClosedMessage?: string | null;
 }
 export interface AiResult<T> {
   mode: 'LIVE' | 'MOCK' | 'N8N' | 'BACKEND';

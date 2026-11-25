@@ -16,6 +16,11 @@ import {
 import { JobEditor } from '../features/recruitment/JobEditor';
 import { CandidateDetail } from '../features/recruitment/CandidateDetail';
 import { InterviewSchedule } from '../features/recruitment/InterviewSchedule';
+import {
+  formatDeadlineDate,
+  formatHiringProgress,
+  isJobDeadlineExpired,
+} from '../features/recruitment/job-deadline';
 
 function RecruitmentLogin() {
   const { setAuthSession } = useAuth();
@@ -104,7 +109,7 @@ function RecruitmentBoard() {
   const [candidateId, setCandidateId] = useState<number | null>(null);
   const [loadedJobId, setLoadedJobId] = useState<number | null>(null);
   const [draggedId, setDraggedId] = useState<number | null>(null);
-  const [boardNotice, setBoardNotice] = useState('');
+  const [boardNotice, setBoardNotice] = useState<{ message: string; success?: boolean } | null>(null);
   const [focusSchedule, setFocusSchedule] = useState(false);
   const [focusHire, setFocusHire] = useState(false);
   const [section, setSection] = useState<'board' | 'schedule'>('board');
@@ -229,7 +234,7 @@ function RecruitmentBoard() {
     setMinScore('');
     setRejected(false);
     setCandidateId(null);
-    setBoardNotice('');
+    setBoardNotice(null);
     setDraggedId(null);
     setLoadedJobId(null);
     setData({ items: [], total: 0, page: 1, pageSize: 30, counts: {} });
@@ -243,7 +248,7 @@ function RecruitmentBoard() {
       setFocusHire(false);
       setFocusSchedule(true);
       setCandidateId(candidate.id);
-      setBoardNotice('');
+      setBoardNotice(null);
     } else if (
       target === 'HIRED' &&
       capabilities?.hire &&
@@ -252,13 +257,14 @@ function RecruitmentBoard() {
       setFocusSchedule(false);
       setFocusHire(true);
       setCandidateId(candidate.id);
-      setBoardNotice('');
+      setBoardNotice(null);
     } else {
-      setBoardNotice(
-        target === 'HIRED'
-          ? 'Chỉ tuyển hồ sơ có vòng phỏng vấn mới nhất đạt. Mở hồ sơ để kiểm tra; trạng thái chưa thay đổi.'
-          : 'Chưa chuyển hồ sơ. Hãy mở hồ sơ và dùng thao tác phù hợp với trạng thái hiện tại.',
-      );
+      setBoardNotice({
+        message:
+          target === 'HIRED'
+            ? 'Chỉ tuyển hồ sơ có vòng phỏng vấn mới nhất đạt. Mở hồ sơ để kiểm tra; trạng thái chưa thay đổi.'
+            : 'Chưa chuyển hồ sơ. Hãy mở hồ sơ và dùng thao tác phù hợp với trạng thái hiện tại.',
+      });
     }
   }
   async function toggleStatus() {
@@ -389,25 +395,55 @@ function RecruitmentBoard() {
                   Đang tải vị trí...
                 </p>
               ) : jobs.items.length ? (
-                jobs.items.map((job) => (
-                  <button
-                    key={job.id}
-                    onClick={() => choose(job)}
-                    aria-pressed={selected?.id === job.id}
-                    className={
-                      'block w-full rounded-lg border p-3 text-left transition-colors ' +
-                      (selected?.id === job.id
-                        ? 'border-blue-400 bg-blue-50 shadow-sm'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50')
-                    }
-                  >
-                    <span className="block font-semibold">{job.title}</span>
-                    <span className="mt-1 block text-xs text-slate-500">
-                      {job.departmentName} · {job.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'} ·{' '}
-                      {job.applicationCount} hồ sơ
-                    </span>
-                  </button>
-                ))
+                jobs.items.map((job) => {
+                  const hiredCount = job.hiredCount ?? 0;
+                  const headcount = Math.max(1, job.headcount ?? 1);
+                  const reachedQuota = hiredCount >= headcount;
+                  const expired = job.status === 'OPEN' && isJobDeadlineExpired(job.deadline);
+                  const deadlineLabel = formatDeadlineDate(job.deadline);
+                  return (
+                    <button
+                      key={job.id}
+                      onClick={() => choose(job)}
+                      aria-pressed={selected?.id === job.id}
+                      className={
+                        'block w-full rounded-lg border p-3 text-left transition-colors ' +
+                        (selected?.id === job.id
+                          ? 'border-blue-400 bg-blue-50 shadow-sm'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50')
+                      }
+                    >
+                      <span className="block font-semibold text-slate-900">{job.title}</span>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        {job.departmentName} · {job.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'} ·{' '}
+                        {job.applicationCount} hồ sơ
+                      </span>
+                      <span className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
+                        <span
+                          className={
+                            'rounded-md border px-2 py-0.5 ' +
+                            (reachedQuota
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-blue-200 bg-blue-50 text-blue-700')
+                          }
+                        >
+                          {formatHiringProgress(hiredCount, headcount)}
+                        </span>
+                        {expired ? (
+                          <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700">
+                            Quá hạn nộp
+                          </span>
+                        ) : (
+                          deadlineLabel && (
+                            <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-600">
+                              Hạn: {deadlineLabel}
+                            </span>
+                          )
+                        )}
+                      </span>
+                    </button>
+                  );
+                })
               ) : (
                 <p className="text-sm text-slate-500">Chưa có vị trí phù hợp.</p>
               )}
@@ -421,25 +457,61 @@ function RecruitmentBoard() {
               </p>
             ) : (
               <>
-                <header className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <div>
-                    <h2 className="text-xl font-bold">{selected.title}</h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {selected.departmentName} ·{' '}
-                      {selected.status === 'OPEN' ? 'Đang mở ứng tuyển' : 'Đã đóng ứng tuyển'}
-                    </p>
+                <header className="space-y-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900">{selected.title}</h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {selected.departmentName} ·{' '}
+                        {selected.status === 'OPEN' ? 'Đang mở ứng tuyển' : 'Đã đóng ứng tuyển'}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                        <span
+                          className={
+                            'rounded-lg border px-2.5 py-1 ' +
+                            ((selected.hiredCount ?? 0) >= Math.max(1, selected.headcount ?? 1)
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-blue-200 bg-blue-50 text-blue-700')
+                          }
+                        >
+                          {formatHiringProgress(selected.hiredCount, selected.headcount)}
+                        </span>
+                        <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700">
+                          Hạn nộp:{' '}
+                          {selected.deadline
+                            ? formatDeadlineDate(selected.deadline)
+                            : 'Không giới hạn'}
+                        </span>
+                        {selected.status === 'OPEN' && isJobDeadlineExpired(selected.deadline) && (
+                          <span className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">
+                            Quá hạn nộp — đã ẩn khỏi /careers
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {operator && (
+                      <div className="flex gap-2">
+                        <button
+                          className={secondaryClass}
+                          onClick={() => setEditor({ job: selected })}
+                        >
+                          Sửa JD
+                        </button>
+                        <button disabled={busy} className={secondaryClass} onClick={toggleStatus}>
+                          {selected.status === 'OPEN' ? 'Đóng tuyển' : 'Mở lại'}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {operator && (
-                    <div className="flex gap-2">
-                      <button
-                        className={secondaryClass}
-                        onClick={() => setEditor({ job: selected })}
-                      >
-                        Sửa JD
-                      </button>
-                      <button disabled={busy} className={secondaryClass} onClick={toggleStatus}>
-                        {selected.status === 'OPEN' ? 'Đóng tuyển' : 'Mở lại'}
-                      </button>
+                  {selected.status === 'OPEN' && isJobDeadlineExpired(selected.deadline) && (
+                    <div
+                      role="status"
+                      className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-900"
+                    >
+                      Tin tuyển dụng này đã quá hạn nộp ({formatDeadlineDate(selected.deadline)}) theo
+                      ngày Việt Nam nên đã tự động ẩn khỏi cổng công khai <code>/careers</code> và
+                      ngừng nhận CV mới. Hãy gia hạn trong <strong>Sửa JD</strong> hoặc bấm{' '}
+                      <strong>Đóng tuyển</strong>.
                     </div>
                   )}
                 </header>
@@ -489,7 +561,7 @@ function RecruitmentBoard() {
                     </button>
                   </Alert>
                 )}
-                {boardNotice && <Alert>{boardNotice}</Alert>}
+                {boardNotice && <Alert success={boardNotice.success}>{boardNotice.message}</Alert>}
                 <p className="text-xs text-slate-500">
                   Ưu tiên điểm AI cao → thấp; bằng điểm thì hồ sơ mới hơn trước. Hồ sơ chưa chấm nằm cuối.
                 </p>
@@ -618,6 +690,7 @@ function RecruitmentBoard() {
             setCandidateId(null);
             setFocusHire(false);
           }}
+          notifyBoard={(message, success) => setBoardNotice({ message, success })}
           changed={() => setRevision((v) => v + 1)}
         />
       )}

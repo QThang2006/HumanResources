@@ -9,17 +9,23 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, FindManyOptions, Raw, Repository } from 'typeorm';
 import { Job, JobStatus } from '../../entities/job.entity';
 import { Department } from '../../entities/department.entity';
-import { Application } from '../../entities/application.entity';
+import { Application, ApplicationStatus } from '../../entities/application.entity';
 import { User, UserRole } from '../../entities/user.entity';
 import { RecruitmentAiService } from './recruitment-ai.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { ChangeJobStatusDto } from './dto/change-job-status.dto';
 import { CreateDepartmentDto } from './dto/create-department.dto';
+import {
+  isJobDeadlineExpired,
+  normalizeJobDeadline,
+  parseJobDeadlineInput,
+  todayVietnamDate,
+} from './job-deadline';
 
 type JobsActor = Pick<User, 'id' | 'role' | 'departmentId'>;
 
-function jobView(job: Job & { applicationCount?: number }) {
+function jobView(job: Job & { applicationCount?: number; hiredCount?: number }) {
   return {
     id: job.id,
     title: job.title,
@@ -33,13 +39,14 @@ function jobView(job: Job & { applicationCount?: number }) {
     employmentType: job.employmentType || 'Toàn thời gian',
     experienceYears: job.experienceYears || '1 - 3 năm',
     headcount: job.headcount ?? 1,
-    deadline: job.deadline ? (job.deadline instanceof Date ? job.deadline.toISOString().split('T')[0] : String(job.deadline)) : null,
+    deadline: normalizeJobDeadline(job.deadline),
     benefits: job.benefits || null,
     skills: job.skills || null,
     status: job.status,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     applicationCount: job.applicationCount ?? 0,
+    hiredCount: job.hiredCount ?? 0,
   };
 }
 
@@ -97,9 +104,18 @@ export class JobsService {
           }),
         }
       : {};
+    const todayVn = todayVietnamDate();
+    const publicDeadlineFilter = !actor
+      ? {
+          deadline: Raw((alias) => `(${alias} IS NULL OR ${alias} >= :todayVn)`, {
+            todayVn,
+          }),
+        }
+      : {};
     const options: FindManyOptions<Job> = {
       where: {
         ...where,
+        ...publicDeadlineFilter,
         ...(actor && status ? { status } : {}),
         ...titleFilter,
         ...departmentFilter,
@@ -126,14 +142,33 @@ export class JobsService {
       .getRepository(Application)
       .createQueryBuilder('application')
       .select('application.jobId', 'jobId')
-      .addSelect('COUNT(*)', 'count')
+      .addSelect('COUNT(*)', 'applicationCount')
+      .addSelect(
+        `SUM(CASE WHEN application.status = :hiredStatus THEN 1 ELSE 0 END)`,
+        'hiredCount',
+      )
       .where('application.jobId IN (:...ids)', { ids: rows.map((row) => row.id) })
+      .setParameter('hiredStatus', ApplicationStatus.HIRED)
       .groupBy('application.jobId')
-      .getRawMany<{ jobId: number; count: string }>();
-    const byJob = new Map(counts.map((row) => [Number(row.jobId), Number(row.count)]));
-    return rows.map((row) =>
-      jobView(Object.assign(row, { applicationCount: byJob.get(row.id) || 0 })),
+      .getRawMany<{ jobId: number; applicationCount: string; hiredCount: string }>();
+    const byJob = new Map(
+      counts.map((row) => [
+        Number(row.jobId),
+        {
+          applicationCount: Number(row.applicationCount || 0),
+          hiredCount: Number(row.hiredCount || 0),
+        },
+      ]),
     );
+    return rows.map((row) => {
+      const stats = byJob.get(row.id);
+      return jobView(
+        Object.assign(row, {
+          applicationCount: stats?.applicationCount ?? 0,
+          hiredCount: stats?.hiredCount ?? 0,
+        }),
+      );
+    });
   }
 
   private async applyDepartmentManager(
@@ -255,9 +290,15 @@ export class JobsService {
   }
 
   async filters() {
+    const todayVn = todayVietnamDate();
     const departments = await this.departments
       .createQueryBuilder('department')
-      .innerJoin('department.jobs', 'job', 'job.status = :status', { status: JobStatus.OPEN })
+      .innerJoin(
+        'department.jobs',
+        'job',
+        'job.status = :status AND (job.deadline IS NULL OR job.deadline >= :todayVn)',
+        { status: JobStatus.OPEN, todayVn },
+      )
       .select('department.id', 'id')
       .addSelect('department.name', 'name')
       .distinct(true)
@@ -268,6 +309,7 @@ export class JobsService {
       .createQueryBuilder('job')
       .select('job.location', 'location')
       .where('job.status = :status', { status: JobStatus.OPEN })
+      .andWhere('(job.deadline IS NULL OR job.deadline >= :todayVn)', { todayVn })
       .andWhere("TRIM(job.location) <> ''")
       .distinct(true)
       .orderBy('job.location', 'ASC')
@@ -277,17 +319,28 @@ export class JobsService {
 
   async findById(id: number, actor?: JobsActor) {
     const job = await this.jobs.findOne({ where: { id }, relations: ['department'] });
-    if (!job || (!actor && job.status !== JobStatus.OPEN)) {
-      throw new NotFoundException('Không tìm thấy vị trí tuyển dụng.');
+    if (!job || (!actor && (job.status !== JobStatus.OPEN || isJobDeadlineExpired(job.deadline)))) {
+      throw new NotFoundException('Không tìm thấy vị trí tuyển dụng hoặc đã hết hạn nộp hồ sơ.');
     }
     if (actor) this.assertScope(actor, job.departmentId);
-    return jobView(job);
+    const [view] = await this.views([job], actor);
+    return view;
+  }
+
+  private resolveDeadlineInput(deadline?: string | null): Date | null {
+    if (!deadline || !deadline.trim()) return null;
+    const parsed = parseJobDeadlineInput(deadline);
+    if (!Number.isFinite(parsed.getTime())) {
+      throw new BadRequestException('Hạn nộp hồ sơ không hợp lệ (định dạng YYYY-MM-DD).');
+    }
+    return parsed;
   }
 
   async create(input: CreateJobDto, userId: number) {
     if (!(await this.departments.existsBy({ id: input.departmentId }))) {
       throw new BadRequestException('Phòng ban không tồn tại.');
     }
+    const deadline = this.resolveDeadlineInput(input.deadline);
     const job = await this.jobs.save(
       this.jobs.create({
         title: input.title,
@@ -300,7 +353,7 @@ export class JobsService {
         employmentType: input.employmentType || 'Toàn thời gian',
         experienceYears: input.experienceYears || '1 - 3 năm',
         headcount: input.headcount ?? 1,
-        deadline: input.deadline ? new Date(input.deadline) : null,
+        deadline,
         benefits: input.benefits || null,
         skills: input.skills || null,
         createdBy: userId,
@@ -313,7 +366,8 @@ export class JobsService {
   private async savedJob(id: number) {
     const job = await this.jobs.findOne({ where: { id }, relations: ['department'] });
     if (!job) throw new NotFoundException('Không tìm thấy vị trí tuyển dụng.');
-    return jobView(job);
+    const [view] = await this.views([job], { id: 0, role: UserRole.HR, departmentId: null });
+    return view;
   }
 
   private checkRevision(job: Job, expected: string) {
@@ -351,7 +405,7 @@ export class JobsService {
       if (input.employmentType !== undefined) job.employmentType = input.employmentType;
       if (input.experienceYears !== undefined) job.experienceYears = input.experienceYears;
       if (input.headcount !== undefined) job.headcount = input.headcount;
-      if (input.deadline !== undefined) job.deadline = input.deadline ? new Date(input.deadline) : null;
+      if (input.deadline !== undefined) job.deadline = this.resolveDeadlineInput(input.deadline);
       if (input.benefits !== undefined) job.benefits = input.benefits;
       if (input.skills !== undefined) job.skills = input.skills;
       job.updatedAt = this.nextRevision(job.updatedAt);

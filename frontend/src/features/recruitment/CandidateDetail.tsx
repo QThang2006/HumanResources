@@ -83,6 +83,7 @@ export function CandidateDetail({
   capabilities,
   close,
   changed,
+  notifyBoard,
   focusSchedule = false,
   focusHire = false,
 }: {
@@ -90,6 +91,7 @@ export function CandidateDetail({
   capabilities: Capabilities | null;
   close: () => void;
   changed: () => void;
+  notifyBoard?: (message: string, success?: boolean) => void;
   focusSchedule?: boolean;
   focusHire?: boolean;
 }) {
@@ -616,6 +618,18 @@ export function CandidateDetail({
                                 : result.welcomeEmailStatus === 'DISPATCHED_UNVERIFIED'
                                   ? ' Thư chào mừng đang chờ xác nhận.'
                                   : '';
+                            const autoCloseNotice = result.jobAutoClosed
+                              ? ' ' +
+                                (result.jobAutoClosedMessage ||
+                                  `Đã tuyển đủ chỉ tiêu (${result.hiredCount ?? 1}/${result.headcount ?? 1}) — tin tuyển dụng đã tự động đóng.`)
+                              : '';
+                            if (result.jobAutoClosed) {
+                              notifyBoard?.(
+                                result.jobAutoClosedMessage ||
+                                  `Vị trí "${candidate.jobTitle}" đã tuyển đủ chỉ tiêu (${result.hiredCount ?? 1}/${result.headcount ?? 1}) và tự động chuyển sang Đã đóng.`,
+                                true,
+                              );
+                            }
                             return (
                               (result.alreadyHired
                                 ? 'Hồ sơ đã nhận việc trước đó.'
@@ -625,7 +639,8 @@ export function CandidateDetail({
                               ' · ' +
                               result.onboardingTasksCount +
                               ' nhiệm vụ onboarding.' +
-                              emailNotice
+                              emailNotice +
+                              autoCloseNotice
                             );
                           })
                         }

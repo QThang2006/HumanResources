@@ -11,6 +11,12 @@ import { Department } from '../../entities/department.entity';
 import { GeminiService } from '../core/ai/gemini.service';
 import { VectorService } from '../core/ai/vector.service';
 import { N8nService } from '../core/automation/n8n.service';
+import {
+  getVietnamCalendarDayDiff,
+  getVietnamDayBounds,
+  getVietnamDayRange,
+  getVietnamRecentDays,
+} from './vietnam-time';
 import { getTrainingCourseDetails } from '../training/training-course-history';
 
 /**
@@ -147,12 +153,8 @@ export class OnboardingService {
    * Kiểm tra nhân viên đã check-in cảm xúc hôm nay chưa.
    * Trả về bản ghi mood nếu đã check-in, hoặc null nếu chưa.
    */
-  async getTodayMood(userId: number): Promise<EmployeeMood | null> {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+  async getTodayMood(userId: number, now: Date = new Date()): Promise<EmployeeMood | null> {
+    const { startOfDay, endOfDay } = getVietnamDayBounds(now);
 
     const todayMood = await this.moodRepository.findOne({
       where: {
@@ -166,16 +168,15 @@ export class OnboardingService {
   }
 
   /**
-   * Lấy lịch sử cảm xúc N ngày gần nhất (mặc định 7 ngày).
+   * Lấy lịch sử cảm xúc N ngày gần nhất (mặc định 7 ngày) theo múi giờ Việt Nam (Asia/Ho_Chi_Minh).
    * Frontend dùng để hiển thị dãy chấm tròn mood history.
    */
-  async getMoodHistory(userId: number, days: number = 7): Promise<EmployeeMood[]> {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - (days - 1));
-    startDate.setHours(0, 0, 0, 0);
-
-    const endDate = new Date();
-    endDate.setHours(23, 59, 59, 999);
+  async getMoodHistory(
+    userId: number,
+    days: number = 7,
+    now: Date = new Date(),
+  ): Promise<EmployeeMood[]> {
+    const { startDate, endDate } = getVietnamDayRange(days, now);
 
     return this.moodRepository.find({
       where: {
@@ -190,17 +191,22 @@ export class OnboardingService {
    * Ghi nhận cảm xúc hàng ngày + Phát hiện kiệt sức tự động (Burnout Detection).
    *
    * Luồng xử lý:
-   *   1. Chặn trùng: Mỗi nhân viên chỉ được check-in 1 lần/ngày.
+   *   1. Chặn trùng: Mỗi nhân viên chỉ được check-in 1 lần/ngày (theo ngày Việt Nam Asia/Ho_Chi_Minh).
    *   2. Tạo bản ghi EmployeeMood mới trong DB.
-   *   3. Nếu mood = STRESSED → đếm chuỗi ngày STRESSED liên tiếp gần nhất.
+   *   3. Nếu mood = STRESSED → đếm chuỗi ngày STRESSED liên tiếp gần nhất theo lịch Việt Nam.
    *   4. Nếu chuỗi ≥ 3 ngày → đánh cờ isBurnoutRisk = true
    *      → gọi n8nService.triggerBurnoutAlert() bắn Telegram/Email cho HR & Manager.
    *
    * Tham khảo thiết kế: Lattice (1 lần/ngày), 15Five (ngưỡng 3 tuần), WHO Burnout Framework.
    */
-  async recordMood(userId: number, mood: MoodType, feedbackText?: string) {
-    // ── Bước 1: Chặn check-in trùng (1 lần/ngày) ──
-    const existing = await this.getTodayMood(userId);
+  async recordMood(
+    userId: number,
+    mood: MoodType,
+    feedbackText?: string,
+    now: Date = new Date(),
+  ) {
+    // ── Bước 1: Chặn check-in trùng (1 lần/ngày theo giờ Việt Nam) ──
+    const existing = await this.getTodayMood(userId, now);
     if (existing) {
       throw new ConflictException(
         'Bạn đã chia sẻ cảm xúc hôm nay rồi. Hẹn gặp lại ngày mai!',
@@ -223,27 +229,22 @@ export class OnboardingService {
         take: 5,
       });
 
-      // Đếm chuỗi STRESSED liên tiếp theo ngày làm việc thực tế (chặn đứt chuỗi nếu khoảng cách > 3 ngày)
+      // Đếm chuỗi STRESSED liên tiếp theo ngày làm việc thực tế tại Việt Nam (chặn đứt chuỗi nếu > 3 ngày)
       let consecutiveStressBefore = 0;
-      let lastCheckDate = new Date();
-      lastCheckDate.setHours(0, 0, 0, 0);
+      let lastCheckDate: Date = getVietnamDayBounds(now).startOfDay;
 
       for (const record of recentMoods) {
         if (record.mood !== MoodType.STRESSED) {
           break;
         }
 
-        const recordDate = new Date(record.createdAt);
-        recordDate.setHours(0, 0, 0, 0);
-
-        const diffDays = Math.round(
-          (lastCheckDate.getTime() - recordDate.getTime()) / (1000 * 60 * 60 * 24),
-        );
+        const recordDayStart = getVietnamDayBounds(new Date(record.createdAt)).startOfDay;
+        const diffDays = getVietnamCalendarDayDiff(lastCheckDate, recordDayStart);
 
         // Khoảng cách <= 3 ngày (cho phép 2 ngày cuối tuần T7, CN mà không làm đứt chuỗi)
         if (diffDays >= 1 && diffDays <= 3) {
           consecutiveStressBefore++;
-          lastCheckDate = recordDate;
+          lastCheckDate = recordDayStart;
         } else {
           // Khoảng cách ngày quá xa (> 3 ngày) -> đứt chuỗi căng thẳng liên tục
           break;
@@ -369,7 +370,12 @@ export class OnboardingService {
    * - QUY TẮC CHUẨN: Chỉ lấy nhân viên (role = EMPLOYEE), loại bỏ SuperAdmin và chính Manager ra khỏi danh sách cấp dưới.
    * - Tổng hợp cảnh báo sớm nếu có nhân viên check-in Căng thẳng hôm nay.
    */
-  async getTeamMood(userId: number, userRole?: UserRole, departmentId?: number) {
+  async getTeamMood(
+    userId: number,
+    userRole?: UserRole,
+    departmentId?: number,
+    now: Date = new Date(),
+  ) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['department'],
@@ -423,13 +429,9 @@ export class OnboardingService {
       });
     }
 
-    const today = new Date();
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { startOfDay, endOfDay } = getVietnamDayBounds(now);
 
-    // ── 1. MOOD HÔM NAY ──
+    // ── 1. MOOD HÔM NAY (theo ngày Việt Nam Asia/Ho_Chi_Minh) ──
     const memberIds = teamMembers.map((m) => m.id);
     let todayMoods: EmployeeMood[] = [];
 
@@ -444,10 +446,9 @@ export class OnboardingService {
       });
     }
 
-    // ── 2. TỔNG HỢP MOOD TUẦN (7 NGÀY GẦN NHẤT) ──
-    const past7DaysStart = new Date(today);
-    past7DaysStart.setDate(past7DaysStart.getDate() - 6);
-    past7DaysStart.setHours(0, 0, 0, 0);
+    // ── 2. TỔNG HỢP MOOD TUẦN (7 NGÀY GẦN NHẤT THEO GIỜ VIỆT NAM) ──
+    const { startDate: past7DaysStart } = getVietnamDayRange(7, now);
+    const recent7Days = getVietnamRecentDays(7, now);
 
     let weekMoods: EmployeeMood[] = [];
     if (memberIds.length > 0) {
@@ -460,27 +461,14 @@ export class OnboardingService {
       });
     }
 
-    // Phân bổ mood 7 ngày theo từng ngày (Day-by-Day Trend)
+    // Phân bổ mood 7 ngày theo từng ngày Việt Nam (Day-by-Day Trend)
     const daysTrend = [];
     const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-    const formatLocalDate = (dt: Date): string => {
-      const y = dt.getFullYear();
-      const m = String(dt.getMonth() + 1).padStart(2, '0');
-      const day = String(dt.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    };
 
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dStart = new Date(d);
-      dStart.setHours(0, 0, 0, 0);
-      const dEnd = new Date(d);
-      dEnd.setHours(23, 59, 59, 999);
-
+    for (const dayInfo of recent7Days) {
       const dayRecords = weekMoods.filter((m) => {
         const time = new Date(m.createdAt).getTime();
-        return time >= dStart.getTime() && time <= dEnd.getTime();
+        return time >= dayInfo.startOfDay.getTime() && time <= dayInfo.endOfDay.getTime();
       });
 
       const dayGreat = dayRecords.filter((m) => m.mood === MoodType.GREAT).length;
@@ -495,15 +483,15 @@ export class OnboardingService {
         else dominantMood = MoodType.NORMAL;
       }
 
-      const dayIndex = d.getDay();
-      const dateFormatted = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const dayLabel = i === 0 ? 'Hôm nay' : `${dayNames[dayIndex]} (${dateFormatted})`;
+      const dayLabel = dayInfo.isToday
+        ? 'Hôm nay'
+        : `${dayNames[dayInfo.dayOfWeek]} (${dayInfo.displayDate})`;
 
       daysTrend.push({
-        date: formatLocalDate(d),
+        date: dayInfo.dateKey,
         dayLabel,
-        dayName: dayNames[dayIndex],
-        isToday: i === 0,
+        dayName: dayNames[dayInfo.dayOfWeek],
+        isToday: dayInfo.isToday,
         stats: {
           great: dayGreat,
           normal: dayNormal,
@@ -586,29 +574,21 @@ export class OnboardingService {
       const todayMood = moodMap.get(member.id);
       const memberWeekMoods = userWeekMoodsMap.get(member.id) || [];
 
-      // Dải 7 chấm tròn cảm xúc của nhân viên này trong 7 ngày
-      const history7Days = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const dStart = new Date(d);
-        dStart.setHours(0, 0, 0, 0);
-        const dEnd = new Date(d);
-        dEnd.setHours(23, 59, 59, 999);
-
+      // Dải 7 chấm tròn cảm xúc của nhân viên này trong 7 ngày (theo giờ Việt Nam)
+      const history7Days = recent7Days.map((dayInfo) => {
         const found = memberWeekMoods.find((m) => {
           const t = new Date(m.createdAt).getTime();
-          return t >= dStart.getTime() && t <= dEnd.getTime();
+          return t >= dayInfo.startOfDay.getTime() && t <= dayInfo.endOfDay.getTime();
         });
 
-        history7Days.push({
-          date: formatLocalDate(d),
-          dayName: dayNames[d.getDay()],
-          isToday: i === 0,
+        return {
+          date: dayInfo.dateKey,
+          dayName: dayNames[dayInfo.dayOfWeek],
+          isToday: dayInfo.isToday,
           mood: found?.mood || null,
           hasCheckedIn: !!found,
-        });
-      }
+        };
+      });
 
       return {
         userId: member.id,

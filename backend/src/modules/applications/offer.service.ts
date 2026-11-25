@@ -13,9 +13,21 @@ import { CreateOfferInput, OfferDeliveryInput } from './offer.dto';
 const hash = (v: string) => createHash('sha256').update(v).digest('hex');
 const html = (v: unknown) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export function offerView(o: Offer) {
-    return { offerId: o.id, candidateName: o.candidateName, jobTitle: o.jobTitle, salary: o.salary,
-        startDate: o.startDate, expiresAt: o.expiresAt, status: o.status, deliveryStatus: o.deliveryStatus,
-        sentAt: o.sentAt, remindedAt: o.remindedAt, respondedAt: o.respondedAt };
+    return {
+        offerId: o.id,
+        version: o.version ?? 1,
+        candidateName: o.candidateName,
+        jobTitle: o.jobTitle,
+        salary: o.salary,
+        startDate: o.startDate,
+        expiresAt: o.expiresAt,
+        status: o.status,
+        deliveryStatus: o.deliveryStatus,
+        sentAt: o.sentAt,
+        remindedAt: o.remindedAt,
+        respondedAt: o.respondedAt,
+        createdAt: o.createdAt,
+    };
 }
 @Injectable()
 export class OfferService {
@@ -53,11 +65,46 @@ export class OfferService {
             const latest = await m.getRepository(Interview).findOne({ where: { applicationId }, order: { round: 'DESC', id: 'DESC' } });
             if (latest?.result !== InterviewResult.PASSED)
                 throw new ConflictException('Vòng phỏng vấn mới nhất chưa đạt.');
-            if (await m.getRepository(Offer).findOneBy({ applicationId }))
-                throw new ConflictException('Hồ sơ đã có Offer. Tải lại để kiểm tra trạng thái.');
-            const row = m.getRepository(Offer).create({ applicationId, candidateEmail: app.candidateEmail, candidateName: app.candidateName,
-                jobTitle: input.roleTitle.trim(), salary: input.salary.trim(), startDate: input.startDate,
-                expiresAt: new Date(Date.now() + 48 * 3600000), version: 1, tokenHash: hash(responseToken), deliveryTokenHash: hash(token), status: OfferStatus.PENDING });
+            const latestOffer = await m.getRepository(Offer).findOne({
+                where: { applicationId },
+                order: { version: 'DESC', id: 'DESC' },
+                lock: { mode: 'pessimistic_write' },
+            });
+            if (latestOffer) {
+                if (
+                    latestOffer.status === OfferStatus.PENDING &&
+                    latestOffer.sentAt &&
+                    latestOffer.expiresAt &&
+                    latestOffer.expiresAt.getTime() <= Date.now()
+                ) {
+                    latestOffer.status = OfferStatus.EXPIRED;
+                    await m.getRepository(Offer).save(latestOffer);
+                }
+                if (latestOffer.status === OfferStatus.PENDING) {
+                    throw new ConflictException(
+                        `Hồ sơ đang có Offer v${latestOffer.version} chờ phản hồi. Tải lại để kiểm tra trạng thái.`,
+                    );
+                }
+                if (latestOffer.status === OfferStatus.ACCEPTED) {
+                    throw new ConflictException(
+                        `Ứng viên đã chấp nhận Offer v${latestOffer.version}. Không thể phát hành thêm Offer mới.`,
+                    );
+                }
+            }
+            const nextVersion = latestOffer ? latestOffer.version + 1 : 1;
+            const row = m.getRepository(Offer).create({
+                applicationId,
+                candidateEmail: app.candidateEmail,
+                candidateName: app.candidateName,
+                jobTitle: input.roleTitle.trim(),
+                salary: input.salary.trim(),
+                startDate: input.startDate,
+                expiresAt: new Date(Date.now() + 48 * 3600000),
+                version: nextVersion,
+                tokenHash: hash(responseToken),
+                deliveryTokenHash: hash(token),
+                status: OfferStatus.PENDING,
+            });
             const result = await m.getRepository(Offer).save(row);
             app.status = ApplicationStatus.OFFERED;
             await m.getRepository(Application).save(app);
@@ -77,7 +124,11 @@ export class OfferService {
         const token = randomBytes(32).toString('hex'), responseToken = randomBytes(32).toString('hex');
         const id = await this.db.transaction(async (m) => {
             await m.getRepository(Application).findOne({ where: { id: applicationId }, lock: { mode: 'pessimistic_write' } });
-            const o = await m.getRepository(Offer).findOne({ where: { applicationId }, lock: { mode: 'pessimistic_write' } });
+            const o = await m.getRepository(Offer).findOne({
+                where: { applicationId },
+                order: { version: 'DESC', id: 'DESC' },
+                lock: { mode: 'pessimistic_write' },
+            });
             if (!o || o.claimedAt || o.status !== OfferStatus.PENDING)
                 throw new ConflictException('Chỉ thử lại Offer chưa được workflow nhận. Kiểm tra execution nếu đã nhận.');
             o.tokenHash = hash(responseToken);
@@ -91,7 +142,16 @@ export class OfferService {
     }
     async list(applicationId: number, actor: Actor) {
         assertOperator(actor);
-        return (await this.offers.find({ where: { applicationId }, order: { version: 'DESC' } })).map(offerView);
+        await this.offers
+            .createQueryBuilder()
+            .update()
+            .set({ status: OfferStatus.EXPIRED })
+            .where(
+                'application_id = :applicationId AND status = :status AND sentAt IS NOT NULL AND expires_at <= :now',
+                { applicationId, status: OfferStatus.PENDING, now: new Date() },
+            )
+            .execute();
+        return (await this.offers.find({ where: { applicationId }, order: { version: 'DESC', id: 'DESC' } })).map(offerView);
     }
     private validToken(token: string, expected: string) {
         return /^[a-f0-9]{64}$/.test(token || '') && !!expected && timingSafeEqual(Buffer.from(hash(token)), Buffer.from(expected));
@@ -117,6 +177,12 @@ export class OfferService {
             const o = await m.getRepository(Offer).findOne({ where: { id: found.id }, lock: { mode: 'pessimistic_write' } });
             if (!o.sentAt)
                 throw new ConflictException('Offer chưa được xác nhận gửi.');
+            const latestOffer = await m.getRepository(Offer).findOne({
+                where: { applicationId: found.applicationId },
+                order: { version: 'DESC', id: 'DESC' },
+            });
+            if (latestOffer && latestOffer.id !== o.id)
+                throw new ConflictException(`Offer v${o.version} đã được thay thế bởi phiên bản mới hơn (v${latestOffer.version}) và không còn hiệu lực.`);
             if (o.status === status)
                 return offerView(o);
             if (o.status !== OfferStatus.PENDING || app.status !== ApplicationStatus.OFFERED)
@@ -193,11 +259,12 @@ export class OfferService {
                 }
             }
             await m.getRepository(Offer).save(o);
+            const versionLabel = o.version > 1 ? ` (Phiên bản v${o.version})` : '';
             const responseUrl = input.responseToken ? `${config.ui}/offers/${input.responseToken}` : '';
             return { ...offerView(o), shouldSend, fromEmail: config.fromEmail, hrEmail: config.hrEmail, candidateEmail: o.candidateEmail,
                 remindAt: o.sentAt ? new Date(o.sentAt.getTime() + 24 * 3600000).toISOString() : null,
-                subject: `Thư mời nhận việc - ${o.jobTitle.replace(/[\r\n]/g, ' ')}`,
-                html: `<h2>Thư mời nhận việc</h2><p>Kính gửi ${html(o.candidateName)},</p><p>Vị trí: <b>${html(o.jobTitle)}</b></p><p>Mức lương: ${html(o.salary)}</p><p>Ngày nhận việc: ${html(o.startDate)}</p><p>Vui lòng phản hồi trong 48 giờ kể từ khi thư được gửi.</p><p><a href="${html(responseUrl)}">Xem và phản hồi Offer</a></p><p>Trân trọng, Phòng Nhân sự.</p>` };
+                subject: `Thư mời nhận việc${versionLabel} - ${o.jobTitle.replace(/[\r\n]/g, ' ')}`,
+                html: `<h2>Thư mời nhận việc${html(versionLabel)}</h2><p>Kính gửi ${html(o.candidateName)},</p><p>Vị trí: <b>${html(o.jobTitle)}</b></p><p>Mức lương: ${html(o.salary)}</p><p>Ngày nhận việc: ${html(o.startDate)}</p><p>Vui lòng phản hồi trong 48 giờ kể từ khi thư được gửi.</p><p><a href="${html(responseUrl)}">Xem và phản hồi Offer</a></p><p>Trân trọng, Phòng Nhân sự.</p>` };
         });
     }
 }

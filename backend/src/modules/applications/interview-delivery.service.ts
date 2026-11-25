@@ -22,6 +22,9 @@ export interface InterviewDispatchPayload {
   interviewerEmail: string;
   scheduledAt: string;
   round: number;
+  action?: 'SCHEDULED' | 'RESCHEDULED';
+  previousScheduledAt?: string;
+  previousEventId?: string | null;
   fromEmail?: string;
 }
 function digest(token: string) {
@@ -85,6 +88,9 @@ export class InterviewDeliveryService {
       );
     const requestId = randomUUID();
     const token = base ? randomBytes(32).toString('hex') : null;
+    // Remove any previous delivery row (e.g., on reschedule) so createdAt, claimedAt,
+    // callback tokens and status reset cleanly without colliding on interview_id PK.
+    await manager.getRepository(InterviewDelivery).delete({ interviewId: payload.interviewId });
     const row = manager.getRepository(InterviewDelivery).create({
       interviewId: payload.interviewId,
       requestId,
@@ -94,6 +100,10 @@ export class InterviewDeliveryService {
       status: base ? 'PENDING' : 'UNVERIFIED',
       calendarStatus: base ? 'PENDING' : 'UNVERIFIED',
       emailStatus: base ? 'PENDING' : 'UNVERIFIED',
+      claimedAt: null,
+      smtpMessageId: null,
+      failureStage: null,
+      failureCode: null,
       expiresAt: new Date(Date.now() + 48 * 60 * 60_000),
     });
     await manager.getRepository(InterviewDelivery).save(row);

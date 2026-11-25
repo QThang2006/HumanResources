@@ -37,12 +37,27 @@ import {
   SubmitInput,
   StateInput,
   ScheduleInput,
+  RescheduleInput,
   ResultInput,
 } from '../jobs/recruitment.dto';
 import { N8nService } from '../core/automation/n8n.service';
 import { CvStorageService } from './cv-storage.service';
 import { deliveryView, InterviewDeliveryService } from './interview-delivery.service';
+import { InterviewDelivery } from './interview-delivery.entity';
 import { ConfigService } from '@nestjs/config';
+
+const INTERVIEW_CONFLICT_WINDOW_MS = 45 * 60 * 1000;
+
+function formatVietnamDateTime(date: Date): string {
+  return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
 
 function interviewView(row: Interview) {
   return {
@@ -392,16 +407,68 @@ export class ApplicationsService {
     return [...managers, ...fallback];
   }
 
-  async schedule(id: number, input: ScheduleInput, actor: Actor) {
-    assertOperator(actor);
-    if (new Date(input.scheduledAt).getMilliseconds() !== 0)
+  private assertValidScheduleTime(scheduledAt: string): Date {
+    const parsed = new Date(scheduledAt);
+    if (!Number.isFinite(parsed.getTime()) || parsed.getMilliseconds() !== 0)
       throw new BadRequestException('Thời gian xếp lịch chỉ nhận độ chính xác đến giây.');
-    if (
-      !/(Z|[+-]\d{2}:\d{2})$/i.test(input.scheduledAt) ||
-      new Date(input.scheduledAt).getTime() <= Date.now()
-    ) {
+    if (!/(Z|[+-]\d{2}:\d{2})$/i.test(scheduledAt) || parsed.getTime() <= Date.now()) {
       throw new BadRequestException('Chọn thời gian tương lai có múi giờ.');
     }
+    return parsed;
+  }
+
+  private async resolveAuthorizedInterviewer(
+    manager: EntityManager,
+    job: Job,
+    interviewerId: number,
+  ): Promise<User> {
+    if (!job?.department) throw new NotFoundException('Không tìm thấy phòng ban tuyển dụng.');
+    const interviewer = await manager.getRepository(User).findOne({
+      where: { id: interviewerId, isActive: true },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const fallbackAllowed =
+      !job.department.managerId &&
+      interviewer &&
+      [UserRole.HR, UserRole.SUPERADMIN].includes(interviewer.role);
+    const designatedManager =
+      job.department.managerId && interviewer?.id === job.department.managerId;
+    const sameDepartmentManager =
+      !job.department.managerId &&
+      interviewer?.role === UserRole.MANAGER &&
+      interviewer.departmentId === job.departmentId;
+    if (!interviewer || (!designatedManager && !sameDepartmentManager && !fallbackAllowed))
+      throw new BadRequestException(
+        'Người phỏng vấn phải là Manager của phòng ban hoặc HR/SuperAdmin khi phòng ban chưa có Manager.',
+      );
+    return interviewer;
+  }
+
+  private async assertInterviewerAvailable(
+    manager: EntityManager,
+    interviewer: User,
+    scheduledAt: Date,
+    excludeInterviewId?: number,
+  ) {
+    const existingInterviews = await manager.getRepository(Interview).find({
+      where: { interviewerId: interviewer.id },
+    });
+    const conflict = existingInterviews.find((item) => {
+      if (excludeInterviewId !== undefined && item.id === excludeInterviewId) return false;
+      const itemTime = new Date(item.scheduledAt).getTime();
+      if (!Number.isFinite(itemTime)) return false;
+      return Math.abs(itemTime - scheduledAt.getTime()) < INTERVIEW_CONFLICT_WINDOW_MS;
+    });
+    if (conflict) {
+      throw new ConflictException(
+        `Người phỏng vấn ${interviewer.fullName} đã có lịch phỏng vấn khác lúc ${formatVietnamDateTime(new Date(conflict.scheduledAt))} (trùng trong khung ±45 phút). Vui lòng chọn khung giờ hoặc người phỏng vấn khác.`,
+      );
+    }
+  }
+
+  async schedule(id: number, input: ScheduleInput, actor: Actor) {
+    assertOperator(actor);
+    const scheduledAt = this.assertValidScheduleTime(input.scheduledAt);
     const result = await this.db.transaction(async (manager) => {
       const app = await this.locked(manager, id, actor);
       if (![ApplicationStatus.APPLIED, ApplicationStatus.INTERVIEWING].includes(app.status))
@@ -410,31 +477,14 @@ export class ApplicationsService {
         where: { id: app.jobId },
         relations: ['department'],
       });
-      if (!job?.department) throw new NotFoundException('Không tìm thấy phòng ban tuyển dụng.');
-      const interviewer = await manager.getRepository(User).findOneBy({
-        id: input.interviewerId,
-        isActive: true,
-      });
-      const fallbackAllowed =
-        !job.department.managerId &&
-        interviewer && [UserRole.HR, UserRole.SUPERADMIN].includes(interviewer.role);
-      const designatedManager =
-        job.department.managerId && interviewer?.id === job.department.managerId;
-      const sameDepartmentManager =
-        !job.department.managerId &&
-        interviewer?.role === UserRole.MANAGER &&
-        interviewer.departmentId === job.departmentId;
-      if (!interviewer || (!designatedManager && !sameDepartmentManager && !fallbackAllowed))
-        throw new BadRequestException(
-          'Người phỏng vấn phải là Manager của phòng ban hoặc HR/SuperAdmin khi phòng ban chưa có Manager.',
-        );
+      const interviewer = await this.resolveAuthorizedInterviewer(manager, job, input.interviewerId);
       const existing = await manager
         .getRepository(Interview)
         .findOneBy({ applicationId: id, round: input.round });
       if (existing) {
         if (
           existing.interviewerId !== input.interviewerId ||
-          existing.scheduledAt.getTime() !== new Date(input.scheduledAt).getTime()
+          existing.scheduledAt.getTime() !== scheduledAt.getTime()
         )
           throw new ConflictException('Vòng phỏng vấn này đã có lịch khác.');
         return { interview: existing, app, interviewer, created: false };
@@ -444,12 +494,13 @@ export class ApplicationsService {
         .findOne({ where: { applicationId: id }, order: { round: 'DESC' } });
       if (input.round !== (last?.round || 0) + 1)
         throw new ConflictException('Số vòng phải nối tiếp vòng gần nhất.');
+      await this.assertInterviewerAvailable(manager, interviewer, scheduledAt);
       const interview = await manager.getRepository(Interview).save(
         manager.getRepository(Interview).create({
           applicationId: id,
           interviewerId: input.interviewerId,
           round: input.round,
-          scheduledAt: new Date(input.scheduledAt),
+          scheduledAt,
           result: InterviewResult.PENDING,
         }),
       );
@@ -466,6 +517,7 @@ export class ApplicationsService {
         interviewerEmail: interviewer.email,
         scheduledAt: interview.scheduledAt.toISOString(),
         round: interview.round,
+        action: 'SCHEDULED' as const,
         ...(sender ? { fromEmail: sender } : {}),
       };
       const delivery = await this.delivery.prepare(manager, payload);
@@ -494,6 +546,131 @@ export class ApplicationsService {
             ? 'Đã lưu lịch. Đang chờ kết quả tạo Google Meet và gửi thư mời.'
             : 'Đã lưu lịch. Chưa xác nhận email/Google Meet; hãy kiểm tra workflow.',
     };
+  }
+
+  async reschedule(interviewId: number, input: RescheduleInput, actor: Actor) {
+    assertOperator(actor);
+    const scheduledAt = this.assertValidScheduleTime(input.scheduledAt);
+    const record = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
+    if (!record) throw new NotFoundException('Không tìm thấy lịch phỏng vấn.');
+
+    const result = await this.db.transaction(async (manager) => {
+      const app = await this.locked(manager, record.applicationId, actor);
+      const interview = await manager
+        .getRepository(Interview)
+        .findOne({ where: { id: interviewId }, lock: { mode: 'pessimistic_write' } });
+      if (!interview) throw new NotFoundException('Không tìm thấy lịch phỏng vấn.');
+      if (interview.result !== InterviewResult.PENDING)
+        throw new ConflictException('Chỉ được đổi lịch cho vòng phỏng vấn đang chờ (PENDING).');
+      if (app.status !== ApplicationStatus.INTERVIEWING)
+        throw new ConflictException('Chỉ được đổi lịch khi hồ sơ đang ở trạng thái phỏng vấn.');
+
+      const job = await manager.getRepository(Job).findOne({
+        where: { id: app.jobId },
+        relations: ['department'],
+      });
+      const nextInterviewerId = input.interviewerId ?? interview.interviewerId;
+      const interviewer = await this.resolveAuthorizedInterviewer(manager, job, nextInterviewerId);
+      await this.assertInterviewerAvailable(manager, interviewer, scheduledAt, interview.id);
+
+      const previousScheduledAt = new Date(interview.scheduledAt).toISOString();
+      const previousEventId = interview.googleCalendarEventId || null;
+
+      interview.interviewerId = interviewer.id;
+      interview.scheduledAt = scheduledAt;
+      interview.meetingLink = null;
+      interview.googleCalendarEventId = null;
+      interview.updatedAt = nextRevision(interview.updatedAt);
+      await manager.getRepository(Interview).save(interview);
+
+      const sender = this.config.get<string>('MAIL_FROM') || this.config.get<string>('GMAIL_USER');
+      const payload = {
+        interviewId: interview.id,
+        applicationId: app.id,
+        candidateName: app.candidateName,
+        candidateEmail: app.candidateEmail,
+        interviewerName: interviewer.fullName,
+        interviewerEmail: interviewer.email,
+        scheduledAt: interview.scheduledAt.toISOString(),
+        round: interview.round,
+        action: 'RESCHEDULED' as const,
+        previousScheduledAt,
+        previousEventId,
+        ...(sender ? { fromEmail: sender } : {}),
+      };
+      const delivery = await this.delivery.prepare(manager, payload);
+      return { interview, applicationId: app.id, payload: { ...payload, delivery } };
+    });
+
+    let dispatch = 'UNVERIFIED';
+    try {
+      const accepted = await this.n8n.triggerInterviewScheduled(result.payload);
+      dispatch = accepted ? 'UNVERIFIED' : 'FAILED';
+    } catch {
+      dispatch = 'FAILED';
+    }
+    if (dispatch === 'FAILED') await this.delivery.dispatchFailed(result.interview.id);
+
+    const interview = (await this.detail(result.applicationId, actor)).interviews.find(
+      (i) => i.id === result.interview.id,
+    );
+    return {
+      interview,
+      dispatch,
+      message:
+        dispatch === 'FAILED'
+          ? `Đã đổi lịch vòng ${result.interview.round} nhưng chưa gửi được webhook cập nhật Meet/Email. Hãy kiểm tra workflow.`
+          : result.payload.delivery
+            ? `Đã đổi lịch vòng ${result.interview.round}. Đang chờ workflow cập nhật Google Meet và gửi lại thư mời.`
+            : `Đã đổi lịch vòng ${result.interview.round}. Đã gửi yêu cầu cập nhật Google Meet và thư mời.`,
+    };
+  }
+
+  async cancelInterview(interviewId: number, actor: Actor) {
+    assertOperator(actor);
+    const record = await this.db.getRepository(Interview).findOneBy({ id: interviewId });
+    if (!record) throw new NotFoundException('Không tìm thấy lịch phỏng vấn.');
+
+    return this.db.transaction(async (manager) => {
+      const app = await this.locked(manager, record.applicationId, actor);
+      const interview = await manager
+        .getRepository(Interview)
+        .findOne({ where: { id: interviewId }, lock: { mode: 'pessimistic_write' } });
+      if (!interview) throw new NotFoundException('Không tìm thấy lịch phỏng vấn.');
+      if (interview.result !== InterviewResult.PENDING)
+        throw new ConflictException('Chỉ được hủy lịch phỏng vấn đang chờ (PENDING).');
+      if ([ApplicationStatus.OFFERED, ApplicationStatus.HIRED, ApplicationStatus.REJECTED].includes(app.status))
+        throw new ConflictException('Hồ sơ đã qua bước phỏng vấn, không thể hủy lịch.');
+
+      const deliveryRepo = manager.getRepository(InterviewDelivery);
+      if (deliveryRepo) {
+        await deliveryRepo.delete({ interviewId: interview.id });
+      }
+      await manager.getRepository(Interview).delete({ id: interview.id });
+
+      const remainingInterviewsCount = await manager
+        .getRepository(Interview)
+        .countBy({ applicationId: app.id });
+      let revertedToApplied = false;
+      if (remainingInterviewsCount === 0 && app.status === ApplicationStatus.INTERVIEWING) {
+        app.status = ApplicationStatus.APPLIED;
+        app.updatedAt = nextRevision(app.updatedAt);
+        await manager.getRepository(Application).save(app);
+        revertedToApplied = true;
+      }
+
+      return {
+        deletedInterviewId: interview.id,
+        applicationId: app.id,
+        round: interview.round,
+        remainingInterviewsCount,
+        applicationStatus: app.status,
+        revertedToApplied,
+        message: revertedToApplied
+          ? `Đã hủy lịch phỏng vấn vòng ${interview.round}. Hồ sơ không còn vòng nào nên đã tự động chuyển về Mới nộp (APPLIED).`
+          : `Đã hủy lịch phỏng vấn vòng ${interview.round}.`,
+      };
+    });
   }
 
   async result(interviewId: number, input: ResultInput, actor: Actor) {

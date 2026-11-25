@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Post,
   Patch,
@@ -28,6 +29,7 @@ import {
   SubmitInput,
   StateInput,
   ScheduleInput,
+  RescheduleInput,
   ResultInput,
   JobIdQuery,
 } from '../jobs/recruitment.dto';
@@ -97,6 +99,24 @@ export class ApplicationsController {
   @Roles(UserRole.HR, UserRole.SUPERADMIN)
   interviewers(@Query() query: JobIdQuery, @CurrentUser() actor: Actor) {
     return this.service.interviewers(query.jobId, actor);
+  }
+
+  @Patch('interviews/:id/reschedule')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  reschedule(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() input: RescheduleInput,
+    @CurrentUser() actor: Actor,
+  ) {
+    return this.service.reschedule(id, input, actor);
+  }
+
+  @Delete('interviews/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  cancelInterview(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: Actor) {
+    return this.service.cancelInterview(id, actor);
   }
 
   @Patch('interviews/:id/result')
@@ -176,5 +196,28 @@ export class ApplicationsController {
   @Roles(UserRole.HR, UserRole.SUPERADMIN)
   hire(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: Actor) {
     return this.service.hire(id, actor);
+  }
+}
+
+@Controller('interviews')
+export class InterviewsController {
+  constructor(private readonly service: ApplicationsService) {}
+
+  @Patch(':id/reschedule')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  reschedule(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() input: RescheduleInput,
+    @CurrentUser() actor: Actor,
+  ) {
+    return this.service.reschedule(id, input, actor);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HR, UserRole.SUPERADMIN)
+  cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: Actor) {
+    return this.service.cancelInterview(id, actor);
   }
 }

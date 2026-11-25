@@ -5,6 +5,7 @@ import { recruitmentApi as api } from './api';
 import type { Candidate, Capabilities, DepartmentManager, Interview } from './types';
 import { statusLabels } from './types';
 import { Alert, Dialog, Field, buttonClass, errorText, inputClass, secondaryClass } from './ui';
+import { canManageInterview, toDateTimeLocalInput } from './interview-helpers';
 
 function ResultForm({
   interview,
@@ -106,6 +107,10 @@ export function CandidateDetail({
   const [scorePreview, setScorePreview] = useState<string>('');
   const [questionPreview, setQuestionPreview] = useState<string[]>([]);
   const [editingInterviewId, setEditingInterviewId] = useState<number | null>(null);
+  const [reschedulingInterviewId, setReschedulingInterviewId] = useState<number | null>(null);
+  const [rescheduleInterviewerId, setRescheduleInterviewerId] = useState('');
+  const [rescheduleAt, setRescheduleAt] = useState('');
+  const [cancellingInterviewId, setCancellingInterviewId] = useState<number | null>(null);
   const [confirmReject, setConfirmReject] = useState(false);
   const [confirmHire, setConfirmHire] = useState(focusHire);
   const [peopleError, setPeopleError] = useState('');
@@ -389,6 +394,9 @@ export function CandidateDetail({
                       onChange={(e) => setScheduledAt(e.target.value)}
                     />
                   </Field>
+                  <p className="text-xs text-slate-500">
+                    Hệ thống tự động kiểm tra trùng lịch người phỏng vấn trong khung ±45 phút.
+                  </p>
                   <button className={buttonClass} disabled={!interviewers.length}>
                     Lưu lịch phỏng vấn
                   </button>
@@ -481,6 +489,149 @@ export function CandidateDetail({
                         <li key={index}>{q}</li>
                       ))}
                     </ol>
+                  )}
+                  {canManageInterview(interview.result, candidate.status, operator) && (
+                    <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className={secondaryClass}
+                          disabled={busy}
+                          onClick={() => {
+                            setCancellingInterviewId(null);
+                            if (reschedulingInterviewId === interview.id) {
+                              setReschedulingInterviewId(null);
+                            } else {
+                              setReschedulingInterviewId(interview.id);
+                              setRescheduleInterviewerId(String(interview.interviewerId));
+                              setRescheduleAt(toDateTimeLocalInput(interview.scheduledAt));
+                            }
+                          }}
+                        >
+                          {reschedulingInterviewId === interview.id ? 'Đóng đổi lịch' : 'Đổi lịch'}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-300 bg-white px-3.5 py-2 text-sm font-medium text-rose-700 shadow-sm transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={busy}
+                          onClick={() => {
+                            setReschedulingInterviewId(null);
+                            setCancellingInterviewId(
+                              cancellingInterviewId === interview.id ? null : interview.id,
+                            );
+                          }}
+                        >
+                          Hủy lịch
+                        </button>
+                      </div>
+                      {reschedulingInterviewId === interview.id && (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            act(async () => {
+                              const res = await api.rescheduleInterview(interview.id, {
+                                interviewerId: rescheduleInterviewerId
+                                  ? Number(rescheduleInterviewerId)
+                                  : undefined,
+                                scheduledAt: new Date(rescheduleAt).toISOString(),
+                              });
+                              setReschedulingInterviewId(null);
+                              return res.message;
+                            });
+                          }}
+                          className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/50 p-3.5"
+                        >
+                          <p className="text-sm font-semibold text-slate-900">
+                            Đổi lịch phỏng vấn Vòng {interview.round}
+                          </p>
+                          <fieldset disabled={busy} className="space-y-3">
+                            <Field label="Người phỏng vấn">
+                              <select
+                                required
+                                className={inputClass}
+                                value={rescheduleInterviewerId}
+                                onChange={(e) => setRescheduleInterviewerId(e.target.value)}
+                              >
+                                <option value="">Chọn người phỏng vấn</option>
+                                {interviewers.map((person) => (
+                                  <option key={person.id} value={person.id}>
+                                    {person.fullName} · {person.jobTitle || 'Chưa có chức danh'} ·{' '}
+                                    {person.role}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+                            <Field
+                              label={
+                                'Thời gian mới (' +
+                                Intl.DateTimeFormat().resolvedOptions().timeZone +
+                                ')'
+                              }
+                            >
+                              <input
+                                required
+                                type="datetime-local"
+                                className={inputClass}
+                                value={rescheduleAt}
+                                onChange={(e) => setRescheduleAt(e.target.value)}
+                              />
+                            </Field>
+                            <p className="text-xs text-slate-600">
+                              Kiểm tra trùng giờ ±45 phút và gửi lại webhook n8n cập nhật Google
+                              Meet / email mời.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              <button className={buttonClass} disabled={!interviewers.length}>
+                                {busy ? 'Đang lưu...' : 'Lưu lịch mới'}
+                              </button>
+                              <button
+                                type="button"
+                                className={secondaryClass}
+                                onClick={() => setReschedulingInterviewId(null)}
+                              >
+                                Hủy thao tác
+                              </button>
+                            </div>
+                          </fieldset>
+                        </form>
+                      )}
+                      {cancellingInterviewId === interview.id && (
+                        <Alert>
+                          <p className="font-semibold">
+                            Xác nhận hủy lịch phỏng vấn Vòng {interview.round}?
+                          </p>
+                          <p className="mt-1">
+                            {candidate.interviews.length === 1
+                              ? 'Đây là vòng phỏng vấn duy nhất — hồ sơ sẽ tự động quay về trạng thái Mới nộp (APPLIED).'
+                              : 'Khung giờ của người phỏng vấn sẽ được giải phóng ngay sau khi hủy.'}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className={secondaryClass}
+                              disabled={busy}
+                              onClick={() => setCancellingInterviewId(null)}
+                            >
+                              Giữ nguyên lịch
+                            </button>
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center rounded-lg bg-rose-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
+                              disabled={busy}
+                              onClick={() =>
+                                act(async () => {
+                                  const res = await api.cancelInterview(interview.id);
+                                  setCancellingInterviewId(null);
+                                  return res.message;
+                                })
+                              }
+                            >
+                              {busy ? 'Đang hủy...' : 'Xác nhận hủy lịch'}
+                            </button>
+                          </div>
+                        </Alert>
+                      )}
+                    </div>
                   )}
                   {Number(interview.interviewerId) === Number(user?.id) && (
                     <button

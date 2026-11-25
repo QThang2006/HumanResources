@@ -11,8 +11,15 @@ import {
   Video,
 } from 'lucide-react';
 import { recruitmentApi as api } from './api';
-import type { InterviewResult, InterviewScheduleQuery, Lookup, ScheduledInterview } from './types';
+import type {
+  DepartmentManager,
+  InterviewResult,
+  InterviewScheduleQuery,
+  Lookup,
+  ScheduledInterview,
+} from './types';
 import { statusLabels } from './types';
+import { canManageInterview, toDateTimeLocalInput } from './interview-helpers';
 import {
   calendarWindow,
   dateLabel,
@@ -54,12 +61,16 @@ async function loadPeriod(query: InterviewScheduleQuery, signal: AbortSignal) {
 
 function ScheduleDetail({
   id,
+  isOperator,
   close,
   openCandidate,
+  onChanged,
 }: {
   id: number;
+  isOperator: boolean;
   close: () => void;
   openCandidate: (id: number) => void;
+  onChanged: (notice: string) => void;
 }) {
   const [revision, setRevision] = useState(0);
   const [data, setData] = useState<{
@@ -67,9 +78,77 @@ function ScheduleDetail({
     row: ScheduledInterview | null;
     error: string;
   }>({ revision: -1, row: null, error: '' });
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [interviewers, setInterviewers] = useState<DepartmentManager[]>([]);
+  const [interviewersLoading, setInterviewersLoading] = useState(false);
+  const [rescheduleInterviewerId, setRescheduleInterviewerId] = useState('');
+  const [rescheduleAt, setRescheduleAt] = useState('');
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [actionNotice, setActionNotice] = useState('');
   const loading = data.revision !== revision;
   const row = loading ? null : data.row;
   const error = loading ? '' : data.error;
+
+  async function openReschedule(target: ScheduledInterview) {
+    setConfirmCancel(false);
+    setActionError('');
+    setActionNotice('');
+    if (rescheduleOpen) {
+      setRescheduleOpen(false);
+      return;
+    }
+    setRescheduleInterviewerId(String(target.interviewerId));
+    setRescheduleAt(toDateTimeLocalInput(target.scheduledAt));
+    setRescheduleOpen(true);
+    setInterviewersLoading(true);
+    try {
+      const people = await api.interviewers(target.jobId);
+      setInterviewers(people);
+    } catch (e) {
+      setActionError('Không tải được danh sách người phỏng vấn: ' + errorText(e));
+    } finally {
+      setInterviewersLoading(false);
+    }
+  }
+
+  async function submitReschedule(event: React.FormEvent) {
+    event.preventDefault();
+    if (!row || actionBusy) return;
+    setActionBusy(true);
+    setActionError('');
+    setActionNotice('');
+    try {
+      const res = await api.rescheduleInterview(row.id, {
+        interviewerId: rescheduleInterviewerId ? Number(rescheduleInterviewerId) : undefined,
+        scheduledAt: new Date(rescheduleAt).toISOString(),
+      });
+      setRescheduleOpen(false);
+      setActionNotice(res.message);
+      setRevision((v) => v + 1);
+      onChanged(res.message);
+    } catch (e) {
+      setActionError(errorText(e));
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function submitCancel() {
+    if (!row || actionBusy) return;
+    setActionBusy(true);
+    setActionError('');
+    try {
+      const res = await api.cancelInterview(row.id);
+      onChanged(res.message);
+      close();
+    } catch (e) {
+      setActionError(errorText(e));
+    } finally {
+      setActionBusy(false);
+    }
+  }
   useEffect(() => {
     const controller = new AbortController();
     let running = false;
@@ -189,6 +268,128 @@ function ScheduleDetail({
                 </p>
               )}
             </section>
+            {actionError && <Alert>{actionError}</Alert>}
+            {actionNotice && <Alert success>{actionNotice}</Alert>}
+            {canManageInterview(row.result, row.applicationStatus, isOperator) && (
+              <section
+                aria-label="Quản lý lịch phỏng vấn"
+                className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4"
+              >
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    className={secondaryClass}
+                    onClick={() => void openReschedule(row)}
+                  >
+                    {rescheduleOpen ? 'Đóng đổi lịch' : 'Đổi lịch'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-300 bg-white px-3.5 py-2 text-sm font-medium text-rose-700 shadow-sm transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => {
+                      setRescheduleOpen(false);
+                      setActionError('');
+                      setConfirmCancel((value) => !value);
+                    }}
+                  >
+                    Hủy lịch
+                  </button>
+                </div>
+                {rescheduleOpen && (
+                  <form
+                    onSubmit={submitReschedule}
+                    className="space-y-3 rounded-xl border border-blue-200 bg-white p-4"
+                  >
+                    <p className="text-sm font-semibold text-slate-900">
+                      Đổi lịch phỏng vấn Vòng {row.round}
+                    </p>
+                    <fieldset disabled={actionBusy} className="space-y-3">
+                      <Field label="Người phỏng vấn">
+                        <select
+                          required
+                          className={inputClass}
+                          disabled={interviewersLoading}
+                          value={rescheduleInterviewerId}
+                          onChange={(e) => setRescheduleInterviewerId(e.target.value)}
+                        >
+                          <option value={row.interviewerId}>{row.interviewerName} (Hiện tại)</option>
+                          {interviewers
+                            .filter((person) => person.id !== row.interviewerId)
+                            .map((person) => (
+                              <option key={person.id} value={person.id}>
+                                {person.fullName} · {person.jobTitle || 'Chưa có chức danh'} ·{' '}
+                                {person.role}
+                              </option>
+                            ))}
+                        </select>
+                      </Field>
+                      <Field
+                        label={
+                          'Thời gian mới (' +
+                          Intl.DateTimeFormat().resolvedOptions().timeZone +
+                          ')'
+                        }
+                      >
+                        <input
+                          required
+                          type="datetime-local"
+                          className={inputClass}
+                          value={rescheduleAt}
+                          onChange={(e) => setRescheduleAt(e.target.value)}
+                        />
+                      </Field>
+                      <p className="text-xs text-slate-500">
+                        Kiểm tra trùng giờ ±45 phút và gửi lại webhook n8n cập nhật Google Meet /
+                        email mời.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button className={buttonClass} disabled={actionBusy}>
+                          {actionBusy ? 'Đang lưu...' : 'Lưu lịch mới'}
+                        </button>
+                        <button
+                          type="button"
+                          className={secondaryClass}
+                          onClick={() => setRescheduleOpen(false)}
+                        >
+                          Hủy thao tác
+                        </button>
+                      </div>
+                    </fieldset>
+                  </form>
+                )}
+                {confirmCancel && (
+                  <Alert>
+                    <p className="font-semibold">
+                      Xác nhận hủy lịch phỏng vấn Vòng {row.round} của {row.candidateName}?
+                    </p>
+                    <p className="mt-1">
+                      Nếu hồ sơ không còn vòng phỏng vấn nào khác, trạng thái sẽ tự động chuyển về
+                      Mới nộp (APPLIED).
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className={secondaryClass}
+                        disabled={actionBusy}
+                        onClick={() => setConfirmCancel(false)}
+                      >
+                        Giữ nguyên lịch
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-lg bg-rose-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
+                        disabled={actionBusy}
+                        onClick={() => void submitCancel()}
+                      >
+                        {actionBusy ? 'Đang hủy...' : 'Xác nhận hủy lịch'}
+                      </button>
+                    </div>
+                  </Alert>
+                )}
+              </section>
+            )}
             <div className="flex flex-wrap justify-between gap-3">
               <button className={secondaryClass} onClick={() => setRevision((v) => v + 1)}>
                 <RefreshCw size={16} aria-hidden="true" />
@@ -222,6 +423,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
   const [filterError, setFilterError] = useState('');
   const [revision, setRevision] = useState(0);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [scheduleNotice, setScheduleNotice] = useState('');
   const [expanded, setExpanded] = useState<string[]>([]);
   const range = useMemo(() => calendarWindow(anchor, period), [anchor, period]);
   const queryKey = JSON.stringify([
@@ -404,6 +606,7 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
           </select>
         </Field>
       </div>
+      {scheduleNotice && <Alert success>{scheduleNotice}</Alert>}
       {filterError && (
         <Alert>
           Chưa tải được bộ lọc. {filterError}
@@ -733,7 +936,12 @@ export function InterviewSchedule({ openCandidate }: { openCandidate: (id: numbe
         <ScheduleDetail
           key={selectedId}
           id={selectedId}
+          isOperator={isHrOrAdmin}
           close={() => setSelectedId(null)}
+          onChanged={(message) => {
+            setScheduleNotice(message);
+            setRevision((v) => v + 1);
+          }}
           openCandidate={(id) => {
             setSelectedId(null);
             openCandidate(id);

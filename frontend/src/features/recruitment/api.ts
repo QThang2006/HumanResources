@@ -24,6 +24,7 @@ const get = <T>(url: string, params?: object, signal?: AbortSignal) =>
 const post = <T>(url: string, data?: unknown) =>
   apiClient.post<unknown, T>(url, data, { timeout: 55000 });
 const patch = <T>(url: string, data: unknown) => apiClient.patch<unknown, T>(url, data);
+const del = <T>(url: string) => apiClient.delete<unknown, T>(url);
 export const recruitmentApi = {
   jobs: (
     params: {
@@ -112,6 +113,24 @@ export const recruitmentApi = {
       '/applications/' + id + '/interview',
       input,
     ),
+  rescheduleInterview: (
+    id: number,
+    input: { interviewerId?: number; scheduledAt: string },
+  ) =>
+    patch<{ interview: Interview; dispatch: string; message: string }>(
+      '/interviews/' + id + '/reschedule',
+      input,
+    ),
+  cancelInterview: (id: number) =>
+    del<{
+      deletedInterviewId: number;
+      applicationId: number;
+      round: number;
+      remainingInterviewsCount: number;
+      applicationStatus: ApplicationStatus;
+      revertedToApplied: boolean;
+      message: string;
+    }>('/interviews/' + id),
   questions: (id: number) =>
     post<AiResult<string[]>>('/applications/interviews/' + id + '/questions'),
   result: (

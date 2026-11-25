@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { recruitmentApi as api } from '../features/recruitment/api';
 import type { Job } from '../features/recruitment/types';
 import { errorText } from '../features/recruitment/ui';
+import { formatDeadlineDate, isJobDeadlineExpired } from '../features/recruitment/job-deadline';
 import {
   ArrowLeft,
   ArrowRight,
@@ -178,6 +179,7 @@ function JobDetail({ id }: { id: number }) {
   }
 
   const skillsList = job ? parseSkills(job) : [];
+  const deadlineExpired = job ? isJobDeadlineExpired(job.deadline) : false;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-16">
@@ -345,7 +347,7 @@ function JobDetail({ id }: { id: number }) {
                   <div className="min-w-0">
                     <p className="text-xs text-slate-500 font-medium">Hạn nộp hồ sơ</p>
                     <p className="text-sm font-bold text-slate-900 truncate">
-                      {job.deadline ? formatDate(job.deadline) : 'Đang mở tuyển'}
+                      {job.deadline ? formatDeadlineDate(job.deadline) || formatDate(job.deadline) : 'Đang mở tuyển'}
                     </p>
                   </div>
                 </div>
@@ -805,10 +807,20 @@ function JobDetail({ id }: { id: number }) {
                         Bằng việc gửi hồ sơ, bạn đồng ý cho phép ban tuyển dụng xử lý thông tin cá nhân theo đúng mục đích tuyển dụng.
                       </p>
 
+                      {/* Expired Deadline Warning */}
+                      {deadlineExpired && (
+                        <div
+                          role="alert"
+                          className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800"
+                        >
+                          Vị trí tuyển dụng này đã hết hạn nộp hồ sơ. Hệ thống ngừng tiếp nhận CV mới.
+                        </div>
+                      )}
+
                       {/* Submit Button */}
                       <button
                         type="submit"
-                        disabled={busy || !file}
+                        disabled={busy || !file || deadlineExpired}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
                       >
                         {busy ? (

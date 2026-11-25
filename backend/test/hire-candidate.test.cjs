@@ -114,6 +114,11 @@ test(
         assert.equal(receipt.alreadyHired, false);
         assert.equal(receipt.onboardingTasksCount, 5);
         assert.equal(receipt.welcomeEmailStatus, 'DISPATCHED_UNVERIFIED');
+        assert.equal(receipt.jobAutoClosed, true);
+        assert.equal(receipt.jobStatus, 'CLOSED');
+        assert.equal(receipt.hiredCount, 1);
+        assert.equal(receipt.headcount, 1);
+        assert.match(receipt.jobAutoClosedMessage, /1\/1/);
         assert.deepEqual(
           Object.keys(receipt).sort(),
           [
@@ -124,8 +129,15 @@ test(
             'fullName',
             'onboardingTasksCount',
             'welcomeEmailStatus',
+            'jobAutoClosed',
+            'jobStatus',
+            'hiredCount',
+            'headcount',
+            'jobAutoClosedMessage',
           ].sort(),
         );
+        const updatedJob = await db.getRepository(e.Job).findOneByOrFail({ id: job.id });
+        assert.equal(updatedJob.status, 'CLOSED');
         const user = await db.getRepository(e.User).findOneByOrFail({ id: receipt.hiredUserId });
         assert.equal(user.role, 'EMPLOYEE');
         assert.equal(user.departmentId, job.departmentId);

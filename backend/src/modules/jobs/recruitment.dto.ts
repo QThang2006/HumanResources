@@ -85,6 +85,10 @@ export class ScheduleInput {
   @IsISO8601() scheduledAt: string;
   @Type(() => Number) @IsInt() @Min(1) @Max(20) round: number;
 }
+export class RescheduleInput {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) interviewerId?: number;
+  @IsISO8601() scheduledAt: string;
+}
 export class ResultInput {
   @IsISO8601() expectedUpdatedAt: string;
   @IsEnum(InterviewResult) expectedResult: InterviewResult;

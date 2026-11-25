@@ -49,6 +49,10 @@ export class N8nService {
     interviewerEmail: string;
     scheduledAt: string;
     round: number;
+    action?: 'SCHEDULED' | 'RESCHEDULED';
+    previousScheduledAt?: string;
+    previousEventId?: string | null;
+    delivery?: unknown;
     fromEmail?: string;
     telegramChatId?: string;
   }): Promise<boolean> {

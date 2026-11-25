@@ -6,7 +6,7 @@ import { N8nAiGuard } from './n8n-ai.guard';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApplicationsService } from './applications.service';
-import { ApplicationsController } from './applications.controller';
+import { ApplicationsController, InterviewsController } from './applications.controller';
 import { Application } from '../../entities/application.entity';
 import { Job } from '../../entities/job.entity';
 import { Interview } from '../../entities/interview.entity';
@@ -42,7 +42,14 @@ import {
       Offer,
     ]),
   ],
-  controllers: [IntakeController, ApplicationsController, N8nAiController, InterviewScheduleController, OfferController],
+  controllers: [
+    IntakeController,
+    ApplicationsController,
+    InterviewsController,
+    N8nAiController,
+    InterviewScheduleController,
+    OfferController,
+  ],
   providers: [
     ApplicationAcknowledgementService,
     CvScoreQueueService,

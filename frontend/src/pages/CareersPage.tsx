@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Briefcase, ChevronLeft, ChevronRight, DollarSign, MapPin } from 'lucide-react';
+import { ArrowRight, Briefcase, Calendar, ChevronLeft, ChevronRight, DollarSign, MapPin, Users } from 'lucide-react';
 import { jobsApi } from '../api/jobs.api';
 import type { JobFilters, JobPage } from '../api/jobs.api';
+import { daysUntilDeadline, formatDeadlineDate } from '../features/recruitment/job-deadline';
 
 const PAGE_SIZE = 6;
 
@@ -277,6 +278,8 @@ export function CareersPage() {
                 const skillsArray = job.skills
                   ? job.skills.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 4)
                   : [];
+                const remainingDays = daysUntilDeadline(job.deadline);
+                const deadlineLabel = formatDeadlineDate(job.deadline);
                 return (
                   <article
                     key={job.id}
@@ -294,9 +297,16 @@ export function CareersPage() {
                             </span>
                           )}
                         </div>
-                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                          Đang mở tuyển
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {remainingDays !== null && remainingDays >= 0 && remainingDays <= 3 && (
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                              {remainingDays === 0 ? 'Hết hạn hôm nay' : `Còn ${remainingDays} ngày`}
+                            </span>
+                          )}
+                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                            Đang mở tuyển
+                          </span>
+                        </div>
                       </div>
                       <h2 className="break-words text-lg font-bold text-slate-900 hover:text-blue-600">
                         <Link to={'/careers/' + job.id}>{job.title}</Link>
@@ -318,7 +328,7 @@ export function CareersPage() {
                         </div>
                       )}
 
-                      <div className="flex flex-wrap gap-4 mt-4 text-xs font-medium text-slate-500">
+                      <div className="flex flex-wrap items-center gap-4 mt-4 text-xs font-medium text-slate-500">
                         <span className="flex items-center gap-1">
                           <MapPin
                             aria-hidden="true"
@@ -333,14 +343,29 @@ export function CareersPage() {
                           />
                           {job.salaryRange}
                         </span>
+                        <span className="flex items-center gap-1">
+                          <Users
+                            aria-hidden="true"
+                            className="w-3.5 h-3.5 shrink-0 text-slate-400"
+                          />
+                          Chỉ tiêu: {job.headcount ?? 1}
+                        </span>
                         {job.employmentType && (
                           <span className="text-slate-600 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded">
                             {job.employmentType}
                           </span>
                         )}
-                        {job.deadline && (
-                          <span className="text-slate-500">
-                            Hạn nộp: {job.deadline}
+                        {deadlineLabel && (
+                          <span
+                            className={
+                              'flex items-center gap-1 ' +
+                              (remainingDays !== null && remainingDays <= 3
+                                ? 'font-semibold text-amber-700'
+                                : 'text-slate-500')
+                            }
+                          >
+                            <Calendar aria-hidden="true" className="w-3.5 h-3.5 shrink-0" />
+                            Hạn nộp: {deadlineLabel}
                           </span>
                         )}
                       </div>

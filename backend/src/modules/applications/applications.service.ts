@@ -41,6 +41,7 @@ import {
   ResultInput,
 } from '../jobs/recruitment.dto';
 import { N8nService } from '../core/automation/n8n.service';
+import { isJobDeadlineExpired, normalizeJobDeadline } from '../jobs/job-deadline';
 import { CvStorageService } from './cv-storage.service';
 import { deliveryView, InterviewDeliveryService } from './interview-delivery.service';
 import { InterviewDelivery } from './interview-delivery.entity';
@@ -306,6 +307,9 @@ export class ApplicationsService {
       .getRepository(Job)
       .findOneBy({ id: input.jobId, status: JobStatus.OPEN });
     if (!job) throw new NotFoundException('Vị trí đã đóng hoặc không tồn tại.');
+    if (isJobDeadlineExpired(job.deadline)) {
+      throw new ConflictException('Vị trí tuyển dụng đã hết hạn nộp hồ sơ.');
+    }
     const rawCvText = await this.files.parse(file);
     const key = await this.files.save(file);
     try {
@@ -315,6 +319,8 @@ export class ApplicationsService {
           .findOne({ where: { id: input.jobId }, lock: { mode: 'pessimistic_write' } });
         if (!lockedJob || lockedJob.status !== JobStatus.OPEN)
           throw new ConflictException('Vị trí vừa đóng tuyển dụng.');
+        if (isJobDeadlineExpired(lockedJob.deadline))
+          throw new ConflictException('Vị trí tuyển dụng đã hết hạn nộp hồ sơ.');
         return manager.getRepository(Application).save(
           manager.getRepository(Application).create({
             ...input,
@@ -791,6 +797,11 @@ export class ApplicationsService {
         email: string;
         fullName: string;
         onboardingTasksCount: number;
+        jobAutoClosed: boolean;
+        jobStatus: JobStatus;
+        hiredCount: number;
+        headcount: number;
+        jobAutoClosedMessage: string | null;
       };
       notification?: {
         userId: number;
@@ -800,6 +811,7 @@ export class ApplicationsService {
         departmentName: string;
         tempPassword: string;
       };
+      closedJob?: Record<string, unknown>;
     };
     try {
       provisioned = await this.db.transaction(async (manager) => {
@@ -811,6 +823,12 @@ export class ApplicationsService {
               'Hồ sơ đã nhận việc nhưng thiếu tài khoản nhân viên. Cần HR kiểm tra.',
             );
           const count = await manager.getRepository(OnboardingTask).countBy({ userId: user.id });
+          const currentJob = await manager.getRepository(Job).findOneBy({ id: app.jobId });
+          const hiredCount = await manager.getRepository(Application).countBy({
+            jobId: app.jobId,
+            status: ApplicationStatus.HIRED,
+          });
+          const headcount = Math.max(1, Number(currentJob?.headcount ?? 1));
           return {
             receipt: {
               success: true,
@@ -819,6 +837,11 @@ export class ApplicationsService {
               email: user.email,
               fullName: user.fullName,
               onboardingTasksCount: count,
+              jobAutoClosed: false,
+              jobStatus: currentJob?.status ?? JobStatus.OPEN,
+              hiredCount,
+              headcount,
+              jobAutoClosedMessage: null,
             },
           };
         }
@@ -834,9 +857,14 @@ export class ApplicationsService {
         });
         if (latest?.result !== InterviewResult.PASSED)
           throw new ConflictException('Vòng phỏng vấn mới nhất chưa đạt.');
-        const job = await manager
-          .getRepository(Job)
-          .findOne({ where: { id: app.jobId }, relations: ['department'] });
+        const job = await manager.getRepository(Job).findOne({
+          where: { id: app.jobId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!job) throw new NotFoundException('Không tìm thấy vị trí tuyển dụng.');
+        const department = await manager
+          .getRepository(Department)
+          .findOneBy({ id: job.departmentId });
         const email = app.candidateEmail.trim().toLowerCase();
         if (await manager.getRepository(User).findOneBy({ email }))
           throw new ConflictException(
@@ -909,6 +937,33 @@ export class ApplicationsService {
         app.hiredUserId = user.id;
         app.updatedAt = nextRevision(app.updatedAt);
         await manager.getRepository(Application).save(app);
+
+        const hiredCount = await manager.getRepository(Application).countBy({
+          jobId: job.id,
+          status: ApplicationStatus.HIRED,
+        });
+        const headcount = Math.max(1, Number(job.headcount ?? 1));
+        let jobAutoClosed = false;
+        let closedJob: Record<string, unknown> | undefined;
+        if (hiredCount >= headcount && job.status !== JobStatus.CLOSED) {
+          job.status = JobStatus.CLOSED;
+          job.updatedAt = nextRevision(job.updatedAt);
+          await manager.getRepository(Job).save(job);
+          jobAutoClosed = true;
+          closedJob = {
+            id: job.id,
+            title: job.title,
+            departmentId: job.departmentId,
+            departmentName: department?.name || '',
+            status: job.status,
+            headcount,
+            hiredCount,
+            deadline: normalizeJobDeadline(job.deadline),
+          };
+        }
+        const jobAutoClosedMessage = jobAutoClosed
+          ? `Vị trí "${job.title}" đã tuyển đủ chỉ tiêu (${hiredCount}/${headcount}) và tự động đóng tuyển dụng.`
+          : null;
         return {
           receipt: {
             success: true,
@@ -917,15 +972,21 @@ export class ApplicationsService {
             email: user.email,
             fullName: user.fullName,
             onboardingTasksCount: defaultOnboardingTasks.length,
+            jobAutoClosed,
+            jobStatus: job.status,
+            hiredCount,
+            headcount,
+            jobAutoClosedMessage,
           },
           notification: {
             userId: user.id,
             fullName: user.fullName,
             email: user.email,
             jobTitle: user.jobTitle,
-            departmentName: job.department.name,
+            departmentName: department?.name || '',
             tempPassword,
           },
+          closedJob,
         };
       });
     } catch (error: any) {
@@ -934,6 +995,16 @@ export class ApplicationsService {
           'Email này vừa được dùng cho tài khoản khác. Hồ sơ chưa đổi trạng thái; hãy tải lại để kiểm tra.',
         );
       throw error;
+    }
+    if (provisioned.closedJob) {
+      try {
+        await this.n8n.triggerJobsChanged({
+          action: 'STATUS_CHANGED',
+          job: provisioned.closedJob,
+        });
+      } catch {
+        this.logger.warn('Không đồng bộ được webhook đóng tin tuyển dụng tự động.');
+      }
     }
     let welcomeEmailStatus: 'DISPATCHED_UNVERIFIED' | 'FAILED' | 'NOT_RETRIED' = 'NOT_RETRIED';
     if (provisioned.notification) {

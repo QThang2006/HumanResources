@@ -404,7 +404,18 @@ export class JobsService {
       if (input.level !== undefined) job.level = input.level;
       if (input.employmentType !== undefined) job.employmentType = input.employmentType;
       if (input.experienceYears !== undefined) job.experienceYears = input.experienceYears;
-      if (input.headcount !== undefined) job.headcount = input.headcount;
+      if (input.headcount !== undefined) {
+        const currentHiredCount = await manager.getRepository(Application).countBy({
+          jobId: id,
+          status: ApplicationStatus.HIRED,
+        });
+        if (input.headcount < currentHiredCount) {
+          throw new BadRequestException(
+            `Chỉ tiêu tuyển dụng (${input.headcount}) không thể nhỏ hơn số ứng viên đã tuyển (${currentHiredCount}).`,
+          );
+        }
+        job.headcount = input.headcount;
+      }
       if (input.deadline !== undefined) job.deadline = this.resolveDeadlineInput(input.deadline);
       if (input.benefits !== undefined) job.benefits = input.benefits;
       if (input.skills !== undefined) job.skills = input.skills;

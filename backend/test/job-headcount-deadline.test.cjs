@@ -310,4 +310,10 @@ test('ApplicationsService.hireCandidate auto-closes job only once hiredCount >= 
   assert.equal(second.jobsChangedCalls.length, 1);
   assert.equal(second.jobsChangedCalls[0].action, 'STATUS_CHANGED');
   assert.equal(second.jobsChangedCalls[0].job.status, JobStatus.CLOSED);
+
+  // Scenario 3: headcount = 2, already 2/2 hired -> blocks over-hiring with 409 Conflict
+  await assert.rejects(
+    () => runHireScenario({ headcount: 2, existingHiredCount: 2 }),
+    (err) => err instanceof ConflictException && /2\/2/.test(err.message),
+  );
 });

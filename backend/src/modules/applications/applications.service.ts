@@ -862,6 +862,16 @@ export class ApplicationsService {
           lock: { mode: 'pessimistic_write' },
         });
         if (!job) throw new NotFoundException('Không tìm thấy vị trí tuyển dụng.');
+        const headcount = Math.max(1, Number(job.headcount ?? 1));
+        const currentHiredCount = await manager.getRepository(Application).countBy({
+          jobId: job.id,
+          status: ApplicationStatus.HIRED,
+        });
+        if (currentHiredCount >= headcount) {
+          throw new ConflictException(
+            `Vị trí "${job.title}" đã tuyển đủ chỉ tiêu (${currentHiredCount}/${headcount}). Hãy tăng chỉ tiêu tuyển dụng trong Sửa JD nếu muốn tuyển thêm.`,
+          );
+        }
         const department = await manager
           .getRepository(Department)
           .findOneBy({ id: job.departmentId });
@@ -942,7 +952,6 @@ export class ApplicationsService {
           jobId: job.id,
           status: ApplicationStatus.HIRED,
         });
-        const headcount = Math.max(1, Number(job.headcount ?? 1));
         let jobAutoClosed = false;
         let closedJob: Record<string, unknown> | undefined;
         if (hiredCount >= headcount && job.status !== JobStatus.CLOSED) {

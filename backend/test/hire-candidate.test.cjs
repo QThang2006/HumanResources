@@ -17,6 +17,7 @@ test(
       title: 'Backend Engineer',
       description: 'Demo JD',
       requirements: 'NestJS',
+      headcount: 10,
       status: 'OPEN',
     });
     let sequence = 0;
@@ -114,11 +115,11 @@ test(
         assert.equal(receipt.alreadyHired, false);
         assert.equal(receipt.onboardingTasksCount, 5);
         assert.equal(receipt.welcomeEmailStatus, 'DISPATCHED_UNVERIFIED');
-        assert.equal(receipt.jobAutoClosed, true);
-        assert.equal(receipt.jobStatus, 'CLOSED');
+        assert.equal(receipt.jobAutoClosed, false);
+        assert.equal(receipt.jobStatus, 'OPEN');
         assert.equal(receipt.hiredCount, 1);
-        assert.equal(receipt.headcount, 1);
-        assert.match(receipt.jobAutoClosedMessage, /1\/1/);
+        assert.equal(receipt.headcount, 10);
+        assert.equal(receipt.jobAutoClosedMessage, null);
         assert.deepEqual(
           Object.keys(receipt).sort(),
           [
@@ -137,7 +138,7 @@ test(
           ].sort(),
         );
         const updatedJob = await db.getRepository(e.Job).findOneByOrFail({ id: job.id });
-        assert.equal(updatedJob.status, 'CLOSED');
+        assert.equal(updatedJob.status, 'OPEN');
         const user = await db.getRepository(e.User).findOneByOrFail({ id: receipt.hiredUserId });
         assert.equal(user.role, 'EMPLOYEE');
         assert.equal(user.departmentId, job.departmentId);
@@ -284,5 +285,35 @@ test(
         );
       },
     );
+    await t.test('auto-closes job at headcount and blocks over-hiring with 409', async () => {
+      const singleSlotJob = await db.getRepository(e.Job).save({
+        departmentId: h.departments[0].id,
+        createdBy: h.users.hr.id,
+        title: 'Single Slot Engineer',
+        description: 'Quota test',
+        requirements: 'NestJS',
+        headcount: 1,
+        status: 'OPEN',
+      });
+      const firstCandidate = await candidate({ jobId: singleSlotJob.id });
+      const secondCandidate = await candidate({ jobId: singleSlotJob.id });
+      const firstHire = await hire(firstCandidate);
+      assert.equal(firstHire.status, 201);
+      assert.equal(firstHire.data.jobAutoClosed, true);
+      assert.equal(firstHire.data.jobStatus, 'CLOSED');
+      assert.equal(firstHire.data.hiredCount, 1);
+      assert.equal(firstHire.data.headcount, 1);
+      assert.match(firstHire.data.jobAutoClosedMessage, /1\/1/);
+      const closedRow = await db.getRepository(e.Job).findOneByOrFail({ id: singleSlotJob.id });
+      assert.equal(closedRow.status, 'CLOSED');
+      const usersBefore = await users();
+      const overHire = await hire(secondCandidate);
+      assert.equal(overHire.status, 409);
+      assert.equal(await users(), usersBefore);
+      assert.equal(
+        (await db.getRepository(e.Application).findOneByOrFail({ id: secondCandidate.id })).status,
+        'OFFERED',
+      );
+    });
   },
 );

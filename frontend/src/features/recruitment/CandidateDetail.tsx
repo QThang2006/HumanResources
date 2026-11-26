@@ -1,5 +1,6 @@
 import { OfferPanel } from './OfferPanel';
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { recruitmentApi as api } from './api';
 import type { Candidate, Capabilities, DepartmentManager, Interview } from './types';
@@ -114,6 +115,8 @@ export function CandidateDetail({
   const [rescheduleAt, setRescheduleAt] = useState('');
   const [cancellingInterviewId, setCancellingInterviewId] = useState<number | null>(null);
   const [confirmReject, setConfirmReject] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [sendRejectionEmail, setSendRejectionEmail] = useState(true);
   const [confirmHire, setConfirmHire] = useState(focusHire);
   const [peopleError, setPeopleError] = useState('');
   const [peopleAttempt, setPeopleAttempt] = useState(0);
@@ -253,6 +256,21 @@ export function CandidateDetail({
               <p className="mt-2 break-words text-sm text-slate-600">
                 {candidate.candidateEmail} · {candidate.candidatePhone || 'Chưa có số điện thoại'}
               </p>
+              {candidate.trackingCode && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono font-semibold text-slate-700">
+                    Mã tra cứu: {candidate.trackingCode}
+                  </span>
+                  <Link
+                    to={'/track/' + encodeURIComponent(candidate.trackingCode)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-blue-600 underline hover:text-blue-700"
+                  >
+                    Mở trang tra cứu công khai
+                  </Link>
+                </div>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -802,33 +820,102 @@ export function CandidateDetail({
                   </Alert>
                 )}
                 {confirmReject && (
-                  <Alert>
-                    Từ chối hồ sơ sẽ kết thúc quy trình tuyển dụng này.{' '}
-                    <div className="mt-3 flex gap-2">
+                  <div className="space-y-4 rounded-xl border border-rose-200 bg-rose-50/70 p-4 text-sm text-slate-800">
+                    <div>
+                      <p className="font-semibold text-rose-900">
+                        Xác nhận từ chối hồ sơ của {candidate.candidateName}?
+                      </p>
+                      <p className="mt-1 text-xs text-rose-800">
+                        Từ chối hồ sơ sẽ kết thúc quy trình tuyển dụng cho ứng viên ở vị trí này.
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <Field label="Lý do từ chối ngắn (tùy chọn — tối đa 500 ký tự)">
+                        <textarea
+                          rows={3}
+                          maxLength={500}
+                          disabled={busy}
+                          value={rejectionReason}
+                          onChange={(e) => setRejectionReason(e.target.value)}
+                          placeholder="Ví dụ: Kinh nghiệm chuyên môn hiện tại chưa khớp với yêu cầu vị trí..."
+                          className={inputClass}
+                        />
+                      </Field>
+                      <p className="text-right text-xs text-slate-500">
+                        {rejectionReason.length}/500 ký tự
+                      </p>
+                    </div>
+                    <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={sendRejectionEmail}
+                        disabled={busy}
+                        onChange={(e) => setSendRejectionEmail(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
+                      />
+                      <span>
+                        <strong className="font-semibold text-slate-900">
+                          Tự động gửi Email cảm ơn & từ chối lịch sự
+                        </strong>
+                        <span className="mt-0.5 block text-xs text-slate-500">
+                          Kích hoạt n8n gửi thư tới {candidate.candidateEmail} với tên ứng viên và vị
+                          trí {candidate.jobTitle}.
+                        </span>
+                      </span>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
                       <button
+                        type="button"
                         className={secondaryClass}
                         disabled={busy}
-                        onClick={() => setConfirmReject(false)}
+                        onClick={() => {
+                          setConfirmReject(false);
+                          setRejectionReason('');
+                          setSendRejectionEmail(true);
+                        }}
                       >
                         Hủy
                       </button>
                       <button
-                        className={buttonClass}
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={busy}
                         onClick={() =>
                           act(async () => {
-                            await api.state(candidate, 'REJECTED');
+                            const updated = await api.state(candidate, 'REJECTED', {
+                              rejectionReason: rejectionReason.trim() || undefined,
+                              sendRejectionEmail,
+                            });
                             setConfirmReject(false);
-                            return 'Đã từ chối hồ sơ.';
+                            setRejectionReason('');
+                            setSendRejectionEmail(true);
+                            if (sendRejectionEmail) {
+                              return updated.rejectionEmailStatus === 'FAILED'
+                                ? 'Đã từ chối hồ sơ, nhưng chưa gửi được webhook Email từ chối. HR cần kiểm tra workflow n8n.'
+                                : 'Đã từ chối hồ sơ và gửi yêu cầu gửi Email từ chối lịch sự tới ứng viên.';
+                            }
+                            return 'Đã từ chối hồ sơ (không gửi Email tự động).';
                           })
                         }
                       >
-                        Xác nhận từ chối
+                        {busy ? 'Đang xử lý...' : 'Xác nhận từ chối'}
                       </button>
                     </div>
-                  </Alert>
+                  </div>
                 )}
               </section>
+            )}
+            {candidate.status === 'REJECTED' && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-4 text-sm text-rose-900">
+                <p className="font-semibold">Hồ sơ đã bị từ chối</p>
+                {candidate.rejectionReason ? (
+                  <p className="mt-1 whitespace-pre-wrap text-rose-800">
+                    Lý do ghi nhận: {candidate.rejectionReason}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-rose-700">Không ghi nhận lý do chi tiết.</p>
+                )}
+              </div>
             )}
             {candidate.status === 'HIRED' && (
               <Alert success>

@@ -1,4 +1,5 @@
 import { OfferResponsePage } from './pages/OfferResponsePage';
+import { ApplicationTrackingPage } from './pages/ApplicationTrackingPage';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { MainLayout } from './layouts/MainLayout';
@@ -22,6 +23,8 @@ function App() {
             <Route path="/careers" element={<CareersPage />} />
             <Route path="/careers/:id" element={<JobDetailPage />} />
             <Route path="/offers/:token" element={<OfferResponsePage />} />
+            <Route path="/track" element={<ApplicationTrackingPage />} />
+            <Route path="/track/:code" element={<ApplicationTrackingPage />} />
             <Route path="/login" element={<LoginPage />} />
 
             {/* 2. Tuyến Đường Phân Quyền Được Bảo Vệ (Protected Routes) */}

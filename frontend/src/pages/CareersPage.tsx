@@ -100,13 +100,22 @@ export function CareersPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mx-auto mb-10 max-w-2xl space-y-2 text-center">
+      <header className="mx-auto mb-10 max-w-2xl space-y-3 text-center">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
           Cơ Hội Nghề Nghiệp Tại Công Ty
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
           Khám phá các vị trí đang tuyển và tìm cơ hội phù hợp với bạn.
         </p>
+        <div>
+          <Link
+            to="/track"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+          >
+            Đã nộp hồ sơ? Tra cứu trạng thái tại đây
+            <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </header>
 
       <section

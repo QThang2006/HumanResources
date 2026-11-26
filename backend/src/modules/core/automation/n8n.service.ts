@@ -2,6 +2,15 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /**
  * ⚡ Dịch vụ Điều Phối Webhook n8n Automation Engine (Non-blocking Asynchronous)
  * Tự động kích hoạt quy trình: Lịch Google Meet, Email chúc mừng Hired, Cảnh báo Telegram
@@ -98,6 +107,78 @@ export class N8nService {
       payload,
       'Phát hành Offer Letter',
       'N8N_OFFER_WEBHOOK_KEY',
+    );
+  }
+
+  /**
+   * Bắn Webhook gửi thư cảm ơn / từ chối lịch sự khi HR chuyển hồ sơ sang REJECTED
+   */
+  async triggerApplicationRejected(payload: {
+    applicationId: number;
+    candidateName: string;
+    candidateEmail: string;
+    jobTitle: string;
+    departmentName?: string;
+    rejectionReason?: string | null;
+    trackingCode?: string | null;
+    trackingUrl?: string | null;
+    fromEmail?: string;
+  }): Promise<boolean> {
+    const safeName = escapeHtml(payload.candidateName || 'Ứng viên');
+    const safeJobTitle = escapeHtml(payload.jobTitle || 'vị trí ứng tuyển');
+    const safeDepartment = payload.departmentName ? escapeHtml(payload.departmentName) : '';
+    const trimmedReason = payload.rejectionReason?.trim() || '';
+    const safeReason = trimmedReason ? escapeHtml(trimmedReason) : '';
+    const safeTrackingCode = payload.trackingCode ? escapeHtml(payload.trackingCode) : '';
+    const safeTrackingUrl =
+      payload.trackingUrl && /^https?:\/\//i.test(payload.trackingUrl)
+        ? escapeHtml(payload.trackingUrl)
+        : '';
+
+    const subject = `Cảm ơn bạn đã ứng tuyển vị trí ${payload.jobTitle || 'tại công ty'}`;
+    const reasonBlock = safeReason
+      ? `<div style="margin:16px 0;padding:12px 16px;background:#f8fafc;border-left:3px solid #2563eb;border-radius:6px;color:#334155;"><strong>Phản hồi từ bộ phận Tuyển dụng:</strong><br/>${safeReason}</div>`
+      : '';
+    const trackingBlock = safeTrackingCode
+      ? `<p style="margin-top:16px;font-size:13px;color:#475569;">Mã tra cứu hồ sơ của bạn: <strong>${safeTrackingCode}</strong>${
+          safeTrackingUrl
+            ? ` — <a href="${safeTrackingUrl}" style="color:#2563eb;">Xem trạng thái hồ sơ</a>`
+            : ''
+        }</p>`
+      : '';
+
+    const html = [
+      `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;max-width:600px;">`,
+      `<p>Chào <strong>${safeName}</strong>,</p>`,
+      `<p>Cảm ơn bạn đã dành thời gian quan tâm và gửi hồ sơ ứng tuyển cho vị trí <strong>${safeJobTitle}</strong>${safeDepartment ? ` (Phòng ${safeDepartment})` : ''}.</p>`,
+      `<p>Sau quá trình xem xét kỹ lưỡng, chúng tôi rất tiếc chưa thể đồng hành cùng bạn ở vị trí này trong đợt tuyển dụng hiện tại.</p>`,
+      reasonBlock,
+      `<p>Chúng tôi luôn trân trọng hồ sơ và kinh nghiệm của bạn. Thông tin của bạn sẽ được lưu trong hệ thống ứng viên tiềm năng và chúng tôi rất mong có cơ hội kết nối lại khi có vị trí phù hợp hơn trong thời gian tới.</p>`,
+      trackingBlock,
+      `<p style="margin-top:20px;">Chúc bạn nhiều sức khỏe và thành công trên chặng đường sự nghiệp sắp tới!</p>`,
+      `<p>Trân trọng,<br/><strong>Bộ phận Tuyển dụng (HR)</strong></p>`,
+      `</div>`,
+    ].join('');
+
+    const fullPayload = {
+      fromEmail: payload.fromEmail || this.defaultSenderEmail,
+      applicationId: payload.applicationId,
+      candidateName: payload.candidateName,
+      candidateEmail: payload.candidateEmail,
+      jobTitle: payload.jobTitle,
+      departmentName: payload.departmentName || '',
+      rejectionReason: trimmedReason || null,
+      trackingCode: payload.trackingCode || null,
+      trackingUrl: payload.trackingUrl || null,
+      subject,
+      html,
+    };
+
+    return this.postWebhook(
+      `${this.webhookBaseUrl.replace(/\/+$/, '')}/application-rejected`,
+      fullPayload,
+      'Gửi thư từ chối ứng viên',
+      this.aiHeaders(),
     );
   }
 

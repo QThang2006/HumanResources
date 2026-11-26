@@ -48,6 +48,19 @@ import { InterviewDelivery } from './interview-delivery.entity';
 import { ConfigService } from '@nestjs/config';
 
 const INTERVIEW_CONFLICT_WINDOW_MS = 45 * 60 * 1000;
+const TRACKING_CODE_PATTERN = /^[A-Z0-9-]{6,32}$/;
+
+function generateTrackingCode(): string {
+  return `APP-${randomBytes(6).toString('hex').toUpperCase()}`;
+}
+
+function buildTrackingUrl(config: ConfigService | undefined, trackingCode: string | null): string | null {
+  if (!trackingCode) return null;
+  const rawBase =
+    typeof config?.get === 'function' ? config.get<string>('PUBLIC_WEB_BASE_URL') || '' : '';
+  const baseUrl = rawBase.trim().replace(/\/+$/, '');
+  return /^https?:\/\//i.test(baseUrl) ? `${baseUrl}/track/${trackingCode}` : `/track/${trackingCode}`;
+}
 
 function formatVietnamDateTime(date: Date): string {
   return new Intl.DateTimeFormat('vi-VN', {
@@ -87,6 +100,8 @@ export function applicationView(row: Application) {
     candidatePhone: row.candidatePhone,
     intakeChannel: row.intakeChannel,
     acknowledgementStatus: row.acknowledgementStatus,
+    trackingCode: row.trackingCode || null,
+    rejectionReason: row.rejectionReason || null,
     status: row.status,
     matchScore: row.matchScore === null ? null : Number(row.matchScore),
     aiSummary: row.aiSummary,
@@ -321,12 +336,14 @@ export class ApplicationsService {
           throw new ConflictException('Vị trí vừa đóng tuyển dụng.');
         if (isJobDeadlineExpired(lockedJob.deadline))
           throw new ConflictException('Vị trí tuyển dụng đã hết hạn nộp hồ sơ.');
+        const trackingCode = generateTrackingCode();
         return manager.getRepository(Application).save(
           manager.getRepository(Application).create({
             ...input,
             ...(intake ? { intakeKey: intake.key, intakeChannel: intake.channel, acknowledgementStatus: 'CLAIMED' }
               : { acknowledgementStatus: 'PENDING' }),
             candidateEmail: input.candidateEmail.trim().toLowerCase(),
+            trackingCode,
             cvFileUrl: key,
             rawCvText,
             status: ApplicationStatus.APPLIED,
@@ -340,8 +357,14 @@ export class ApplicationsService {
       // Receipt delivery never delays AI work or turns a committed application into an error.
       // dispatch() absorbs network failures; the worker retries unclaimed PENDING receipts.
       if (!intake) void this.acknowledgements.dispatch(app.id);
+      const trackingCode = app.trackingCode || null;
+      const trackingPath = trackingCode ? `/track/${trackingCode}` : null;
+      const trackingUrl = buildTrackingUrl(this.config, trackingCode);
       return {
         applicationId: app.id,
+        trackingCode,
+        trackingPath,
+        trackingUrl,
         submittedAt: app.createdAt,
         message: 'Hồ sơ đã được lưu. HR sẽ xem xét CV của bạn.',
         warning: rawCvText
@@ -356,9 +379,47 @@ export class ApplicationsService {
     }
   }
 
+  async trackByCode(rawCode: string) {
+    const code = String(rawCode || '').trim().toUpperCase();
+    if (!TRACKING_CODE_PATTERN.test(code)) {
+      throw new NotFoundException('Không tìm thấy hồ sơ với mã tra cứu này.');
+    }
+    const app = await this.applications.findOne({
+      where: { trackingCode: code },
+      relations: ['job', 'job.department', 'interviews'],
+    });
+    if (!app) {
+      throw new NotFoundException('Không tìm thấy hồ sơ với mã tra cứu này.');
+    }
+    const pendingInterviews = (app.interviews || [])
+      .filter((item) => item.result === InterviewResult.PENDING && item.scheduledAt)
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+    const upcomingInterview =
+      app.status === ApplicationStatus.INTERVIEWING && pendingInterviews.length > 0
+        ? {
+            round: pendingInterviews[0].round,
+            scheduledAt: pendingInterviews[0].scheduledAt,
+          }
+        : null;
+
+    // Strictly allowlisted public payload: never leak AI scores, internal notes,
+    // rejection reasons, interview feedback, CV text, or candidate contact PII.
+    return {
+      trackingCode: app.trackingCode,
+      candidateName: app.candidateName,
+      jobTitle: app.job?.title || '',
+      departmentName: app.job?.department?.name || '',
+      location: app.job?.location || null,
+      status: app.status,
+      submittedAt: app.createdAt,
+      updatedAt: app.updatedAt,
+      upcomingInterview,
+    };
+  }
+
   async status(id: number, input: StateInput, actor: Actor) {
     assertOperator(actor);
-    await this.db.transaction(async (manager) => {
+    const rejectionNotification = await this.db.transaction(async (manager) => {
       const app = await this.locked(manager, id, actor);
       if (app.status !== input.expectedStatus)
         throw new ConflictException('Hồ sơ đã đổi trạng thái. Hãy tải lại.');
@@ -370,11 +431,53 @@ export class ApplicationsService {
         if (latest?.result !== InterviewResult.PASSED)
           throw new ConflictException('Vòng phỏng vấn mới nhất chưa đạt.');
       }
+      if (input.status === ApplicationStatus.REJECTED) {
+        app.rejectionReason = input.rejectionReason?.trim() || null;
+      }
       app.status = input.status;
       app.updatedAt = nextRevision(app.updatedAt);
       await manager.getRepository(Application).save(app);
+
+      if (input.status === ApplicationStatus.REJECTED && input.sendRejectionEmail) {
+        const job = await manager.getRepository(Job).findOne({
+          where: { id: app.jobId },
+          relations: ['department'],
+        });
+        const sender =
+          typeof this.config?.get === 'function'
+            ? this.config.get<string>('MAIL_FROM') || this.config.get<string>('GMAIL_USER')
+            : undefined;
+        return {
+          applicationId: app.id,
+          candidateName: app.candidateName,
+          candidateEmail: app.candidateEmail,
+          jobTitle: job?.title || '',
+          departmentName: job?.department?.name || '',
+          rejectionReason: app.rejectionReason || null,
+          trackingCode: app.trackingCode || null,
+          trackingUrl: buildTrackingUrl(this.config, app.trackingCode || null),
+          ...(sender ? { fromEmail: sender } : {}),
+        };
+      }
+      return null;
     });
-    return this.detail(id, actor);
+
+    const detail = await this.detail(id, actor);
+    if (input.status !== ApplicationStatus.REJECTED) {
+      return detail;
+    }
+
+    let rejectionEmailStatus: 'DISPATCHED_UNVERIFIED' | 'FAILED' | 'SKIPPED' = 'SKIPPED';
+    if (rejectionNotification) {
+      try {
+        const accepted = await this.n8n.triggerApplicationRejected(rejectionNotification);
+        rejectionEmailStatus = accepted ? 'DISPATCHED_UNVERIFIED' : 'FAILED';
+      } catch {
+        rejectionEmailStatus = 'FAILED';
+        this.logger.warn(`Không gửi được webhook thư từ chối cho hồ sơ #${id}.`);
+      }
+    }
+    return { ...detail, rejectionEmailStatus };
   }
 
   async score(id: number, actor: Actor) {

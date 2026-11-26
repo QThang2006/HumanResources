@@ -69,9 +69,17 @@ export class ApplicationAcknowledgementService implements OnModuleInit, OnModule
         throw new ServiceUnavailableException('MAIL_FROM chưa cấu hình đúng email gửi.');
       row.acknowledgementStatus = 'CLAIMED';
       await repo.save(row);
+      const baseUrl = (this.config.get<string>('PUBLIC_WEB_BASE_URL') || '').trim().replace(/\/+$/, '');
+      const trackingCode = row.trackingCode || null;
+      const trackingUrl = trackingCode
+        ? /^https?:\/\//i.test(baseUrl)
+          ? `${baseUrl}/track/${trackingCode}`
+          : `/track/${trackingCode}`
+        : null;
       return {
         shouldSend: true, applicationId: row.id, channel: 'WEBSITE', fromEmail,
         candidateName: row.candidateName, candidateEmail: row.candidateEmail,
+        trackingCode, trackingUrl,
       };
     });
   }

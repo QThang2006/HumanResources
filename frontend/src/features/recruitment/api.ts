@@ -16,6 +16,7 @@ import type {
   JobInput,
   Lookup,
   Page,
+  PublicApplicationTracking,
 } from './types';
 
 // The shared client unwraps JSON responses; Axios' default return type does not reflect it.
@@ -79,10 +80,26 @@ export const recruitmentApi = {
       { title, departmentName, level, ...context },
     ),
   apply: (data: FormData, signal?: AbortSignal) =>
-    apiClient.post<unknown, { applicationId: number; message: string; warning: string | null }>(
-      '/applications/apply',
-      data,
-      { headers: { 'Content-Type': undefined }, timeout: 25000, signal },
+    apiClient.post<
+      unknown,
+      {
+        applicationId: number;
+        trackingCode?: string | null;
+        trackingPath?: string | null;
+        trackingUrl?: string | null;
+        message: string;
+        warning: string | null;
+      }
+    >('/applications/apply', data, {
+      headers: { 'Content-Type': undefined },
+      timeout: 25000,
+      signal,
+    }),
+  trackApplication: (code: string, signal?: AbortSignal) =>
+    get<PublicApplicationTracking>(
+      '/applications/track/' + encodeURIComponent(code.trim().toUpperCase()),
+      undefined,
+      signal,
     ),
   candidates: (params: object, signal?: AbortSignal) =>
     get<CandidatePage>('/applications', params, signal),
@@ -97,10 +114,20 @@ export const recruitmentApi = {
       undefined,
       signal,
     ),
-  state: (candidate: Candidate, status: ApplicationStatus) =>
+  state: (
+    candidate: Candidate,
+    status: ApplicationStatus,
+    options?: { rejectionReason?: string; sendRejectionEmail?: boolean },
+  ) =>
     patch<Candidate>('/applications/' + candidate.id + '/status', {
       expectedStatus: candidate.status,
       status,
+      ...(options?.rejectionReason !== undefined
+        ? { rejectionReason: options.rejectionReason }
+        : {}),
+      ...(options?.sendRejectionEmail !== undefined
+        ? { sendRejectionEmail: options.sendRejectionEmail }
+        : {}),
     }),
   score: (id: number) =>
     post<AiResult<{ matchScore: number; summary: string; skillsDetected: string[] }>>(

@@ -90,6 +90,9 @@ export interface Candidate {
   candidateName: string;
   candidateEmail: string;
   candidatePhone: string | null;
+  trackingCode?: string | null;
+  rejectionReason?: string | null;
+  rejectionEmailStatus?: 'DISPATCHED_UNVERIFIED' | 'FAILED' | 'SKIPPED';
   status: ApplicationStatus;
   matchScore: number | null;
   aiSummary: string | null;
@@ -160,6 +163,20 @@ export interface AiResult<T> {
   mode: 'LIVE' | 'MOCK' | 'N8N' | 'BACKEND';
   data: T;
   saved?: boolean;
+}
+export interface PublicApplicationTracking {
+  trackingCode: string;
+  candidateName: string;
+  jobTitle: string;
+  departmentName: string;
+  location: string | null;
+  status: ApplicationStatus;
+  submittedAt: string;
+  updatedAt: string;
+  upcomingInterview: {
+    round: number;
+    scheduledAt: string;
+  } | null;
 }
 export const statusLabels: Record<ApplicationStatus, string> = {
   APPLIED: 'Mới nộp',

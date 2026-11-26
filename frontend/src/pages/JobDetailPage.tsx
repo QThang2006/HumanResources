@@ -85,9 +85,13 @@ function JobDetail({ id }: { id: number }) {
   const [submitError, setSubmitError] = useState('');
   const [busy, setBusy] = useState(false);
   const [copiedToast, setCopiedToast] = useState(false);
+  const [copiedTrackingCode, setCopiedTrackingCode] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [receipt, setReceipt] = useState<{
     applicationId: number;
+    trackingCode?: string | null;
+    trackingPath?: string | null;
+    trackingUrl?: string | null;
     message: string;
     warning: string | null;
   } | null>(null);
@@ -584,6 +588,42 @@ function JobDetail({ id }: { id: number }) {
                         </p>
                       </div>
 
+                      {receipt.trackingCode && (
+                        <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-left">
+                          <p className="text-xs font-bold uppercase tracking-wider text-blue-700">
+                            Mã tra cứu trạng thái hồ sơ
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                            <code className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 font-mono text-sm font-bold text-blue-700">
+                              {receipt.trackingCode}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (navigator.clipboard && receipt.trackingCode) {
+                                  navigator.clipboard.writeText(receipt.trackingCode);
+                                  setCopiedTrackingCode(true);
+                                  setTimeout(() => setCopiedTrackingCode(false), 2500);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                            >
+                              {copiedTrackingCode ? (
+                                <>
+                                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                  Đã sao chép
+                                </>
+                              ) : (
+                                'Sao chép mã'
+                              )}
+                            </button>
+                          </div>
+                          <p className="mt-2 text-xs text-slate-600">
+                            Lưu lại mã này để kiểm tra tiến độ duyệt hồ sơ bất cứ lúc nào mà không cần đăng nhập.
+                          </p>
+                        </div>
+                      )}
+
                       {receipt.warning && (
                         <div
                           role="status"
@@ -607,9 +647,21 @@ function JobDetail({ id }: { id: number }) {
                       </div>
 
                       <div className="pt-2 flex flex-col gap-2">
+                        {receipt.trackingCode && (
+                          <Link
+                            to={'/track/' + encodeURIComponent(receipt.trackingCode)}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-all shadow-sm"
+                          >
+                            Theo dõi trạng thái hồ sơ <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        )}
                         <Link
                           to="/careers"
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-all shadow-sm"
+                          className={
+                            receipt.trackingCode
+                              ? 'inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all'
+                              : 'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-all shadow-sm'
+                          }
                         >
                           Khám phá các vị trí khác <ArrowRight className="h-4 w-4" />
                         </Link>

@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsInt,
@@ -79,6 +80,8 @@ export class SubmitInput {
 export class StateInput {
   @IsEnum(ApplicationStatus) expectedStatus: ApplicationStatus;
   @IsEnum(ApplicationStatus) status: ApplicationStatus;
+  @IsOptional() @Trim() @IsString() @MaxLength(500) rejectionReason?: string;
+  @IsOptional() @IsBoolean() sendRejectionEmail?: boolean;
 }
 export class ScheduleInput {
   @Type(() => Number) @IsInt() @Min(1) interviewerId: number;

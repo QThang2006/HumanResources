@@ -91,6 +91,13 @@ export class Application {
   @Column({ type: 'enum', enum: ApplicationStatus, default: ApplicationStatus.APPLIED })
   status: ApplicationStatus;
 
+  @Index({ unique: true })
+  @Column({ name: 'tracking_code', type: 'varchar', length: 32, nullable: true })
+  trackingCode: string | null;
+
+  @Column({ name: 'rejection_reason', type: 'varchar', length: 500, nullable: true })
+  rejectionReason: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

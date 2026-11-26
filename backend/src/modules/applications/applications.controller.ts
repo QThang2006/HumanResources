@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Post,
   Patch,
   Param,
@@ -85,6 +86,13 @@ export class ApplicationsController {
   )
   apply(@Body() input: SubmitInput, @UploadedFile() file: Express.Multer.File) {
     return this.service.apply(input, file);
+  }
+
+  // Public candidate status lookup endpoint (must stay registered before @Get(':id')).
+  @Get('track/:code')
+  @Header('Cache-Control', 'no-store')
+  track(@Param('code') code: string) {
+    return this.service.trackByCode(code);
   }
 
   @Get()

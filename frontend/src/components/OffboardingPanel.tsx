@@ -5,7 +5,7 @@ import { usersApi } from '../api/users.api';
 import type { User } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { TrainingToast } from './TrainingToast';
-import { createOffboardingDraft, validateOffboarding, vietnamToday } from './offboarding';
+import { createOffboardingDraft, isOffboardingEligible, validateOffboarding, vietnamToday } from './offboarding';
 import { OffboardingDetailsDrawer } from './OffboardingDetailsDrawer';
 import { useOffboardingTracking } from './use-offboarding-tracking';
 import './offboarding.css';
@@ -57,14 +57,14 @@ export function OffboardingPanel({ active = true }: { active?: boolean }) {
     return () => { alive.current = false; window.clearTimeout(timer); };
   }, [allowed, reload]);
   useEffect(() => { if (creating) formHeading.current?.focus(); }, [creating, step]);
-  const pendingKey = records.filter(record => ['APPROVED', 'IN_PROGRESS'].includes(record.status)).map(record => record.id).sort((a, b) => a - b).join(',');
+  const pendingKey = records.filter(record => ['APPROVED', 'IN_PROGRESS'].includes(record.status) && !Object.values(record.delivery).every(Boolean)).map(record => record.id).sort((a, b) => a - b).join(',');
   const applyTracking = useCallback((cases: OffboardingCase[]) => { if (!lock.current) setRecords(cases); }, []);
   const tracking = useOffboardingTracking(allowed && active && !busy && !loading, pendingKey, trackingCycle, applyTracking);
   const refresh = () => { setTrackingCycle(value => value + 1); void reload(); };
 
   if (!allowed) return null;
-  const occupied = new Set(records.filter(record => record.status !== 'CANCELLED').map(record => record.employee.id));
-  const eligible = employees.filter(employee => employee.role === 'EMPLOYEE' && employee.isActive !== false && !occupied.has(employee.id));
+  const occupied = new Set(records.filter(record => !['CANCELLED', 'COMPLETED'].includes(record.status)).map(record => record.employee.id));
+  const eligible = employees.filter(employee => isOffboardingEligible(employee) && !occupied.has(employee.id));
   const selected = Object.values(drafts);
   const visible = records.filter(record => (filter === 'ALL' || (filter === 'ATTENTION' ? ['PARTIAL', 'FAILED'].includes(record.status) : record.status === filter)) && `${record.id} ${record.employee.fullName || ''} ${record.employee.email || ''}`.toLocaleLowerCase('vi').includes(query.trim().toLocaleLowerCase('vi')));
   const updateDraft = (id: number, patch: Partial<OffboardingInput>) => { setDrafts(current => ({ ...current, [id]: { ...current[id], ...patch } })); setConfirming(false); setFormError(''); };
@@ -113,9 +113,23 @@ export function OffboardingPanel({ active = true }: { active?: boolean }) {
     finally { if (alive.current) { setRetryId(null); await reload(); } lock.current = false; if (alive.current) setBusy(false); }
   };
 
+  const updateLifecycle = async (action: 'cancel' | 'finalize', id: number) => {
+    if (lock.current) return;
+    lock.current = true; setBusy(true);
+    try {
+      const result = await offboardingApi[action](id);
+      if (alive.current) {
+        setRecords(current => current.map(record => record.id === id ? result.offboarding : record));
+        setRetryId(null);
+        setToast({ message: result.message, success: true });
+        await reload();
+      }
+    } finally { lock.current = false; if (alive.current) setBusy(false); }
+  };
+
   const detail = records.find(record => record.id === expanded);
   const pickerEmployees = eligible.filter(employee => `${employee.fullName} ${employee.email} ${employee.departmentName || ''}`.toLocaleLowerCase('vi').includes(pickerQuery.trim().toLocaleLowerCase('vi')));
-  const filters = [['ALL','Tất cả'], ['APPROVED','Chờ điều phối'], ['IN_PROGRESS','Đang xử lý'], ['ATTENTION','Cần xử lý lại'], ['COMPLETED','Đã thông báo đủ']] as const;
+  const filters = [['ALL','Tất cả'], ['APPROVED','Chờ điều phối'], ['IN_PROGRESS','Đang xử lý'], ['ATTENTION','Cần xử lý lại'], ['COMPLETED','Đã đóng'], ['CANCELLED','Đã hủy']] as const;
   return <section className="tv4-offboarding" aria-labelledby="tv4-offboarding-title">
     {toast && <TrainingToast message={toast.message} success={toast.success} onClose={closeToast} />}
     <header className="tv4-off-heading"><div><h3 id="tv4-offboarding-title">Hồ sơ thôi việc</h3><p>Quản lý hồ sơ và thông báo bàn giao liên phòng ban.</p></div><div className="tv4-off-actions">
@@ -133,11 +147,12 @@ export function OffboardingPanel({ active = true }: { active?: boolean }) {
             <input type="checkbox" checked={Boolean(drafts[employee.id])} onChange={event => {
               if (event.target.checked) updateDraft(employee.id, createOffboardingDraft(employee));
               else { setDrafts(current => { const next = { ...current }; delete next[employee.id]; return next; }); setConfirming(false); }
-            }} /><span><strong>{employee.fullName}</strong><small>{employee.email} · {employee.departmentName || 'Chưa có phòng ban'}</small></span>
+            }} /><span><strong>{employee.fullName}</strong><small>{employee.role === 'MANAGER' ? 'Quản lý · ' : employee.role === 'HR' ? 'HR · ' : ''}{employee.email} · {employee.departmentName || 'Chưa có phòng ban'}</small></span>
           </label>)}</div>
           {!pickerEmployees.length && <p>{eligible.length ? 'Không tìm thấy nhân viên theo từ khóa này.' : 'Không có nhân viên đủ điều kiện. Nhân viên đã có hồ sơ chưa hủy không thể được chọn lại.'}</p>}
           <p aria-live="polite">Đã chọn {selected.length} nhân viên.</p>
         </>}
+        {step === 2 && selected.some(input => employees.find(employee => employee.id === input.userId)?.role === 'MANAGER') && <p className="tv4-off-warning">Có quản lý trong danh sách thôi việc. Cần kiểm tra người tiếp nhận phòng ban và bàn giao công việc trước ngày làm việc cuối.</p>}
         {step === 2 && <p className="tv4-off-note">Email nhận thông báo được điền từ tài khoản nhân viên; bạn có thể thay bằng địa chỉ khác.</p>}
         {step === 2 && selected.map(input => <fieldset key={input.userId} className="tv4-off-person"><legend>{employees.find(employee => employee.id === input.userId)?.fullName}</legend><div className="tv4-off-fields">
           <label><span>Ngày làm việc cuối <span className="tv4-off-required">· Bắt buộc</span></span><input type="date" required min={vietnamToday()} value={input.lastWorkingDate} onChange={event => updateDraft(input.userId, { lastWorkingDate: event.target.value })} /></label>
@@ -175,6 +190,6 @@ export function OffboardingPanel({ active = true }: { active?: boolean }) {
         {!visible.length && !loadError && <div className="tv4-off-empty"><FileCheck2 size={28} aria-hidden="true" /><h4>{records.length ? 'Không có hồ sơ phù hợp' : 'Chưa có hồ sơ thôi việc'}</h4><p>{records.length ? 'Thay đổi từ khóa hoặc bộ lọc để xem hồ sơ.' : 'Tạo hồ sơ để bắt đầu điều phối thông báo liên phòng ban.'}</p></div>}
       </>}
     </>}
-    {detail && active && <OffboardingDetailsDrawer record={detail} departmentName={employees.find(employee => employee.id === detail.employee.id)?.departmentName} busy={busy} confirmingRetry={retryId === detail.id} onClose={() => { setExpanded(null); setRetryId(null); }} onRequestRetry={() => setRetryId(detail.id)} onCancelRetry={() => setRetryId(null)} onConfirmRetry={() => void retry()} />}
+    {detail && active && <OffboardingDetailsDrawer record={detail} departmentName={employees.find(employee => employee.id === detail.employee.id)?.departmentName} busy={busy} confirmingRetry={retryId === detail.id} onClose={() => { setExpanded(null); setRetryId(null); }} onRequestRetry={() => setRetryId(detail.id)} onCancelRetry={() => setRetryId(null)} onConfirmRetry={() => void retry()} onCancelCase={() => updateLifecycle('cancel', detail.id)} onFinalizeCase={() => updateLifecycle('finalize', detail.id)} />}
   </section>;
 }

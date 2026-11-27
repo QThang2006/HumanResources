@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   ParseIntPipe,
   Post,
   UseGuards,
@@ -39,6 +40,16 @@ export class OffboardingController {
     },
   ) {
     return this.offboardingService.approve(approvedById, body);
+  }
+
+  @Patch(':id/cancel')
+  cancel(@Param('id', ParseIntPipe) id: number) {
+    return this.offboardingService.cancel(id);
+  }
+
+  @Patch(':id/finalize')
+  finalize(@Param('id', ParseIntPipe) id: number) {
+    return this.offboardingService.finalize(id);
   }
 
   @Post(':id/retry')

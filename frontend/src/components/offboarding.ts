@@ -1,7 +1,7 @@
 import type { OffboardingInput, OffboardingStatus } from '../api/offboarding.api';
 
 export const offboardingStatusLabels: Record<OffboardingStatus, string> = {
-  APPROVED: 'Đã duyệt · chờ điều phối', IN_PROGRESS: 'Đang điều phối', COMPLETED: 'Đã gửi đủ thông báo',
+  APPROVED: 'Đã duyệt · chờ điều phối', IN_PROGRESS: 'Đang điều phối', COMPLETED: 'Đã đóng hồ sơ',
   PARTIAL: 'Gửi một phần', FAILED: 'Gửi thất bại', CANCELLED: 'Đã hủy',
 };
 export function vietnamToday(now = new Date()) {
@@ -23,4 +23,8 @@ export function validateOffboarding(input: OffboardingInput, today: string): str
     catch { return 'Đường dẫn khảo sát phải là địa chỉ HTTP hoặc HTTPS hợp lệ.'; }
   }
   return '';
+}
+
+export function isOffboardingEligible(person: { id: number; role: string; isActive?: boolean }) {
+  return person.id !== 1 && person.isActive === true && ['EMPLOYEE', 'MANAGER', 'HR'].includes(person.role);
 }

@@ -57,6 +57,9 @@ export class OffboardingCase {
   @Column({ type: 'enum', enum: OffboardingStatus, default: OffboardingStatus.APPROVED })
   status: OffboardingStatus;
 
+  @Column({ name: 'finalized_at', type: 'datetime', nullable: true })
+  finalizedAt: Date;
+
   @Column({ name: 'last_workflow_run_id', type: 'varchar', length: 100, nullable: true })
   lastWorkflowRunId: string;
 

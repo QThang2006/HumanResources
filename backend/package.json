@@ -9,7 +9,7 @@
     "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "pretest": "nest build",
-    "test": "node --test test/health.test.cjs test/users-role-boundary.test.cjs test/department-manager.test.cjs test/documents.test.cjs test/gemini-timeout.test.cjs test/training-due-date.test.cjs test/job-headcount-deadline.test.cjs test/offer-reissue.test.cjs test/interview-reschedule-cancel.test.cjs test/onboarding-mood.test.cjs test/onboarding-rbac.test.cjs",
+    "test": "node --test test/health.test.cjs test/users-role-boundary.test.cjs test/department-manager.test.cjs test/documents.test.cjs test/gemini-timeout.test.cjs test/training-due-date.test.cjs test/job-headcount-deadline.test.cjs test/offer-reissue.test.cjs test/interview-reschedule-cancel.test.cjs test/onboarding-mood.test.cjs test/onboarding-rbac.test.cjs test/onboarding-training-deadlines.test.cjs test/training-active-assignments.test.cjs",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start",

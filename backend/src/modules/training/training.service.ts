@@ -197,6 +197,7 @@ export class TrainingService {
                 const employees = await this.userRepository.find({
                     where: {
                         role: UserRole.EMPLOYEE,
+                        isActive: true,
                     },
                 });
 
@@ -629,6 +630,7 @@ Yêu cầu:
             where: {
                 id: data.userId,
                 role: UserRole.EMPLOYEE,
+                isActive: true,
             },
         });
 

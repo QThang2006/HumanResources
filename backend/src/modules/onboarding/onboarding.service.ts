@@ -16,8 +16,10 @@ import {
   getVietnamDayBounds,
   getVietnamDayRange,
   getVietnamRecentDays,
+  shiftVietnamDateKey,
 } from './vietnam-time';
 import { getTrainingCourseDetails } from '../training/training-course-history';
+import { parseTrainingDueDate } from '../training/training-due-date';
 
 /**
  * 📌 PHÂN HỆ ONBOARDING, COPILOT RAG & TEAM MOOD
@@ -737,7 +739,7 @@ export class OnboardingService {
     if (user.role === UserRole.EMPLOYEE) {
       try {
         const mandatoryCourses = await this.courseRepository.find({
-          where: { type: TrainingCourseType.MANDATORY },
+          where: { type: TrainingCourseType.MANDATORY, isArchived: false },
         });
 
         if (mandatoryCourses.length > 0) {
@@ -749,6 +751,9 @@ export class OnboardingService {
 
           const unassigned = mandatoryCourses.filter((c) => !assignedCourseIds.has(c.id));
           if (unassigned.length > 0) {
+            const dueAt = parseTrainingDueDate(
+              shiftVietnamDateKey(getVietnamDayBounds().dateKey, 30),
+            );
             const newAssignments = unassigned.map((c) =>
               this.trainingRepository.create({
                 userId,
@@ -756,6 +761,7 @@ export class OnboardingService {
                 progressPercent: 0,
                 assignedByAi: false,
                 status: TrainingStatus.ASSIGNED,
+                dueAt,
               }),
             );
             await this.trainingRepository.save(newAssignments);
@@ -791,6 +797,7 @@ export class OnboardingService {
         assignedByAi: t.assignedByAi,
         aiReason: t.aiReason,
         completedAt: t.completedAt,
+        dueAt: t.dueAt ?? null,
         createdAt: t.createdAt,
       };
     });

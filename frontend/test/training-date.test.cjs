@@ -8,6 +8,17 @@ const source = fs.readFileSync(path.join(__dirname, '../src/components/training-
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 });
+
+test('deadline warnings follow Vietnam dates and the three-day reminder window', () => {
+  const now = Date.parse('2026-11-27T17:00:00Z'); // 00:00 November 28 in Vietnam
+  const soon = dates.trainingDeadline('2026-11-30T16:59:59Z', false, now);
+  assert.equal(soon.label, '30/11/2026'); assert.equal(soon.alert, 'dueSoon');
+  assert.equal(dates.trainingDeadline('2026-12-01T17:00:01Z', false, now).alert, null);
+  assert.equal(dates.trainingDeadline('2026-11-27T16:59:59Z', false, now).alert, 'overdue');
+  assert.equal(dates.trainingDeadline('2026-11-28', false, now).alertLabel, 'Đến hạn hôm nay');
+  assert.equal(dates.trainingDeadline('2026-11-27', true, now).alert, null);
+  for (const value of [null, undefined, '', 'invalid', '2026-02-30']) assert.equal(dates.trainingDeadline(value, false, now), null);
+});
 const dates = {};
 new vm.Script('(function(exports) {\n' + compiled.outputText + '\n})').runInThisContext()(dates);
 

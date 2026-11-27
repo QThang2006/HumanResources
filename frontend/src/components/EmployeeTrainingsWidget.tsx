@@ -17,6 +17,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { onboardingApi } from '../api/onboarding.api';
+import { trainingDeadline } from './training-date';
 
 type TrainingStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
 type TrainingCourseType = 'MANDATORY' | 'AI_SKILL_GAP' | 'SOFT_SKILL';
@@ -36,6 +37,7 @@ interface EmployeeTraining {
   assignedByAi: boolean;
   aiReason: string | null;
   completedAt: string | null;
+  dueAt?: string | null;
   createdAt: string;
 }
 
@@ -248,6 +250,7 @@ export function EmployeeTrainingsWidget() {
                 {visibleTrainings.map(training => {
                   const isUpdating = updatingId === training.id;
                   const type = training.type ?? 'MANDATORY';
+                  const deadline = trainingDeadline(training.dueAt, training.status === 'COMPLETED');
                   const progress = Math.min(
                     100,
                     Math.max(0, training.progressPercent),
@@ -296,6 +299,15 @@ export function EmployeeTrainingsWidget() {
                         >
                           {STATUS_LABELS[training.status]}
                         </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-slate-600">{deadline
+                          ? <>Hạn hoàn thành: <time dateTime={deadline.dateTime}>{deadline.label}</time></>
+                          : 'Chưa có hạn hoàn thành'}</span>
+                        {deadline?.alert && <span className={`inline-flex rounded-md border px-2 py-1 font-semibold ${deadline.alert === 'overdue'
+                          ? 'border-rose-200 bg-rose-50 text-rose-700'
+                          : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{deadline.alertLabel}</span>}
                       </div>
 
                       {training.skillsProvided?.length > 0 && (

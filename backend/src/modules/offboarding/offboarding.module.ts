@@ -4,12 +4,13 @@ import { AutomationSecretGuard } from '../../common/guards/automation-secret.gua
 import { OffboardingCase, User } from '../../entities';
 import { OffboardingAutomationController } from './offboarding-automation.controller';
 import { OffboardingController } from './offboarding.controller';
+import { OffboardingLifecycleWorker } from './offboarding-lifecycle.worker';
 import { OffboardingService } from './offboarding.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([OffboardingCase, User])],
   controllers: [OffboardingController, OffboardingAutomationController],
-  providers: [OffboardingService, AutomationSecretGuard],
+  providers: [OffboardingService, OffboardingLifecycleWorker, AutomationSecretGuard],
   exports: [OffboardingService],
 })
 export class OffboardingModule {}

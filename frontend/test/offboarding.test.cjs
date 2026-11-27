@@ -96,3 +96,53 @@ test('new cases default to the account email without changing existing case reci
  assert.equal(helpers.validateOffboarding({...draft,reason:'Nguyện vọng cá nhân',assetNotes:'Bàn giao thiết bị'},helpers.vietnamToday()),'');
  assert.equal(record.personalEmail,'personal@example.invalid');
 });
+
+test('eligible people include active Manager and HR but never root, SuperAdmin or inactive accounts',()=>{
+ for(const role of ['EMPLOYEE','MANAGER','HR'])assert.equal(helpers.isOffboardingEligible({id:9,role,isActive:true}),true);
+ for(const person of [{id:1,role:'EMPLOYEE',isActive:true},{id:9,role:'SUPERADMIN',isActive:true},{id:9,role:'HR',isActive:false},{id:9,role:'EMPLOYEE'}])assert.equal(helpers.isOffboardingEligible(person),false);
+ const html=render('SUPERADMIN',{0:[],1:[{...employee,id:3,role:'MANAGER',fullName:'Manager QA'},{...employee,id:2,role:'HR',fullName:'HR QA'},{...employee,id:1,fullName:'Protected root'}],6:true});
+ assert.match(html,/Manager QA/);assert.match(html,/HR QA/);assert.doesNotMatch(html,/Protected root/);
+});
+
+test('lifecycle API uses PATCH routes and only the selected existing case',async()=>{
+ const requests=[];const {offboardingApi}=load('api/offboarding.api.ts',{'./client':{apiClient:{patch:async(...args)=>requests.push(args)}}});
+ await offboardingApi.cancel(31);await offboardingApi.finalize(32);
+ assert.deepEqual(requests,[['/offboarding/31/cancel'],['/offboarding/32/finalize']]);
+});
+
+test('drawer exposes lifecycle actions only for open cases and disables early closure',()=>{
+ const previous=global.document;global.document={body:{}};
+ const props={record:{...record,lastWorkingDate:'2099-12-31',managesDepartments:[{id:1,name:'Operations QA'}]},busy:false,confirmingRetry:false,onClose(){},onRequestRetry(){},onCancelRetry(){},onConfirmRetry(){},onCancelCase:async()=>{},onFinalizeCase:async()=>{}};
+ try {
+  const html=renderToStaticMarkup(React.createElement(OffboardingDetailsDrawer,props));
+  assert.match(html,/Hủy hồ sơ/);assert.match(html,/Trưởng phòng: Operations QA/);
+  assert.match(html,/<button[^>]+disabled=""[^>]+title="Chưa đến ngày làm việc cuối"/);
+  for(const status of ['CANCELLED','COMPLETED']){
+   const closed=renderToStaticMarkup(React.createElement(OffboardingDetailsDrawer,{...props,record:{...record,status}}));
+   assert.doesNotMatch(closed,/Hủy hồ sơ|Đóng hồ sơ &amp; Khóa tài khoản/);
+  }
+ }finally{global.document=previous;}
+});
+
+test('both lifecycle confirmations identify account impact and preserve a safe way back',()=>{
+ const previous=global.document;global.document={body:{}};
+ try{for(const action of ['cancel','finalize']){
+  let index=0;
+  const {OffboardingDetailsDrawer:ConfirmDrawer}=load('components/OffboardingDetailsDrawer.tsx',{
+   react:{...React,useState:initial=>React.useState(index++===0?action:initial)},'react-dom':{createPortal:node=>node},'./offboarding':helpers,
+  });
+  const html=renderToStaticMarkup(React.createElement(ConfirmDrawer,{record:{...record,managesDepartments:[{id:1,name:'Operations QA'}]},busy:false,onClose(){}}));
+  assert.match(html,/role="alertdialog"/);assert.match(html,/Quay lại/);
+  assert.match(html,action==='cancel'?/Tài khoản được giữ nguyên/:/Tài khoản sẽ bị khóa/);
+  if(action==='finalize')assert.match(html,/gỡ vai trò trưởng phòng/);
+ }}finally{global.document=previous;}
+});
+
+test('lifecycle action updates the selected case, refreshes and always releases its lock on error',async()=>{
+ const state={records:[record]},context={lock:{current:false},alive:{current:true},setBusy:value=>state.busy=value,setRetryId(){},setToast:value=>state.toast=value,setRecords:fn=>state.records=fn(state.records),reload:async()=>{},offboardingApi:{cancel:async id=>({message:'Cancelled',offboarding:{...record,id,status:'CANCELLED'}})}};
+ await handler('updateLifecycle',context)('cancel',record.id);
+ assert.equal(state.records[0].status,'CANCELLED');assert.equal(state.toast.message,'Cancelled');assert.equal(state.busy,false);
+ context.offboardingApi.finalize=async()=>{throw Error('Chưa đến ngày làm việc cuối');};
+ await assert.rejects(()=>handler('updateLifecycle',context)('finalize',record.id),/Chưa đến ngày/);
+ assert.equal(context.lock.current,false);assert.equal(state.busy,false);
+});

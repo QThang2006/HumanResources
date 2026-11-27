@@ -283,7 +283,7 @@ test('dịch vụ 4.2 gom nhân viên chưa được đánh giá theo quản lý
   assert.deepEqual(result.reminders[0].employees.map((item) => item.id), [4]);
 });
 
-test('dịch vụ 4.3 chỉ hoàn tất khi n8n xác nhận kết quả gửi', async () => {
+test('dịch vụ 4.3 ghi nhận thông báo mà không tự hoàn tất hồ sơ', async () => {
   const record = {
     id: 9,
     status: OffboardingStatus.IN_PROGRESS,
@@ -297,6 +297,7 @@ test('dịch vụ 4.3 chỉ hoàn tất khi n8n xác nhận kết quả gửi', 
     findOne: async () => record,
     save: async (value) => value,
   };
+  repository.manager = { transaction: async action => action({ getRepository: () => repository }) };
   const service = new OffboardingService(repository, {}, {});
 
   const result = await service.recordAutomationResult(9, {
@@ -308,7 +309,7 @@ test('dịch vụ 4.3 chỉ hoàn tất khi n8n xác nhận kết quả gửi', 
     status: AutomationDeliveryStatus.SENT,
   });
 
-  assert.equal(result.status, OffboardingStatus.COMPLETED);
+  assert.equal(result.status, OffboardingStatus.IN_PROGRESS);
   assert.deepEqual(result.channels, {
     it: true,
     finance: true,

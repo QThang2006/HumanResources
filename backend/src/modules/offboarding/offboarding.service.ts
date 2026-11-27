@@ -5,9 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, IsNull, LessThan, Repository } from 'typeorm';
 import {
   AutomationDeliveryStatus,
+  Department,
   OffboardingCase,
   OffboardingStatus,
   User,
@@ -36,7 +37,10 @@ export class OffboardingService {
       exitSurveyUrl?: string;
     },
   ) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(data.lastWorkingDate || '')) {
+    if (!Number.isInteger(data.userId) || data.userId <= 0) throw new BadRequestException('Nhân sự không hợp lệ.');
+    const parsedDate = new Date(`${data.lastWorkingDate}T00:00:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data.lastWorkingDate || '') ||
+      !Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== data.lastWorkingDate) {
       throw new BadRequestException('Ngày làm việc cuối phải có định dạng YYYY-MM-DD.');
     }
     const today = this.vietnamDateKey(new Date());
@@ -57,44 +61,32 @@ export class OffboardingService {
       }
     }
 
-    const [employee, approver] = await Promise.all([
-      this.userRepository.findOne({
-        where: { id: data.userId, role: UserRole.EMPLOYEE, isActive: true },
-      }),
-      this.userRepository.findOne({ where: { id: approvedById } }),
-    ]);
-    if (!employee) throw new NotFoundException('Không tìm thấy nhân viên đang hoạt động.');
-    if (!approver) throw new NotFoundException('Không tìm thấy người duyệt thôi việc.');
-
-    const existing = await this.offboardingRepository.findOne({
-      where: {
-        userId: employee.id,
-        status: In([
-          OffboardingStatus.APPROVED,
-          OffboardingStatus.IN_PROGRESS,
-          OffboardingStatus.PARTIAL,
-          OffboardingStatus.FAILED,
-        ]),
-      },
-      order: { id: 'DESC' },
+    const saved = await this.offboardingRepository.manager.transaction(async (manager) => {
+      const users = manager.getRepository(User);
+      const cases = manager.getRepository(OffboardingCase);
+      const employee = await users.findOne({
+        where: { id: data.userId, isActive: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!employee) throw new NotFoundException('Không tìm thấy nhân sự đang hoạt động.');
+      this.assertEligible(employee);
+      const approver = await users.findOne({ where: { id: approvedById } });
+      if (!approver) throw new NotFoundException('Không tìm thấy người duyệt thôi việc.');
+      const existing = await cases.findOne({
+        where: { userId: employee.id, finalizedAt: IsNull(), status: In([
+          OffboardingStatus.APPROVED, OffboardingStatus.IN_PROGRESS,
+          OffboardingStatus.PARTIAL, OffboardingStatus.FAILED, OffboardingStatus.COMPLETED,
+        ]) },
+        order: { id: 'DESC' },
+      });
+      if (existing) throw new ConflictException(`Nhân sự đã có hồ sơ thôi việc #${existing.id} đang được xử lý.`);
+      return cases.save(cases.create({
+        userId: employee.id, approvedById: approver.id,
+        lastWorkingDate: data.lastWorkingDate, personalEmail,
+        reason: data.reason?.trim() || null, assetNotes: data.assetNotes?.trim() || null,
+        exitSurveyUrl, status: OffboardingStatus.APPROVED,
+      }));
     });
-    if (existing) {
-      throw new ConflictException(
-        `Nhân viên đã có hồ sơ thôi việc #${existing.id} đang được xử lý.`,
-      );
-    }
-
-    const record = this.offboardingRepository.create({
-      userId: employee.id,
-      approvedById: approver.id,
-      lastWorkingDate: data.lastWorkingDate,
-      personalEmail,
-      reason: data.reason?.trim() || null,
-      assetNotes: data.assetNotes?.trim() || null,
-      exitSurveyUrl,
-      status: OffboardingStatus.APPROVED,
-    });
-    const saved = await this.offboardingRepository.save(record);
     const automationQueued = await this.n8nService.triggerOffboardingApproved({
       caseId: saved.id,
     });
@@ -113,13 +105,16 @@ export class OffboardingService {
       relations: { user: true, approvedBy: true },
       order: { approvedAt: 'DESC' },
     });
-    return records.map((record) => this.toView(record));
+    const departments = records.length ? await this.offboardingRepository.manager.getRepository(Department).find({
+      where: { managerId: In(records.map(record => record.userId)) },
+    }) : [];
+    return records.map((record) => this.toView(record, departments));
   }
 
   async retry(id: number) {
     const record = await this.offboardingRepository.findOne({ where: { id } });
     if (!record) throw new NotFoundException('Không tìm thấy hồ sơ thôi việc.');
-    if ([OffboardingStatus.COMPLETED, OffboardingStatus.CANCELLED].includes(record.status)) {
+    if (record.finalizedAt || record.status === OffboardingStatus.CANCELLED) {
       throw new BadRequestException('Hồ sơ đã kết thúc nên không thể gửi lại.');
     }
     const automationQueued = await this.n8nService.triggerOffboardingApproved({ caseId: id });
@@ -132,22 +127,22 @@ export class OffboardingService {
   }
 
   async getAutomationCase(id: number) {
-    const record = await this.offboardingRepository.findOne({
-      where: { id },
-      relations: {
-        user: { department: true, manager: true },
-        approvedBy: true,
-      },
+    const record = await this.offboardingRepository.manager.transaction(async (manager) => {
+      const cases = manager.getRepository(OffboardingCase);
+      const record = await cases.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!record) throw new NotFoundException('Không tìm thấy hồ sơ thôi việc.');
+      if (record.finalizedAt || record.status === OffboardingStatus.CANCELLED) {
+        throw new BadRequestException('Hồ sơ này không còn chờ điều phối.');
+      }
+      if ([OffboardingStatus.APPROVED, OffboardingStatus.COMPLETED].includes(record.status)) {
+        record.status = OffboardingStatus.IN_PROGRESS;
+        await cases.save(record);
+      }
+      return cases.findOne({ where: { id }, relations: { user: { department: true, manager: true }, approvedBy: true } });
     });
-    if (!record) throw new NotFoundException('Không tìm thấy hồ sơ thôi việc.');
-    if ([OffboardingStatus.COMPLETED, OffboardingStatus.CANCELLED].includes(record.status)) {
-      throw new BadRequestException('Hồ sơ này không còn chờ điều phối.');
-    }
-
-    if (record.status === OffboardingStatus.APPROVED) {
-      record.status = OffboardingStatus.IN_PROGRESS;
-      await this.offboardingRepository.save(record);
-    }
 
     return {
       caseId: record.id,
@@ -199,38 +194,99 @@ export class OffboardingService {
     if (!Object.values(AutomationDeliveryStatus).includes(data.status)) {
       throw new BadRequestException('Trạng thái điều phối không hợp lệ.');
     }
-    const record = await this.offboardingRepository.findOne({ where: { id } });
-    if (!record) throw new NotFoundException('Không tìm thấy hồ sơ thôi việc.');
-    if (record.lastWorkflowRunId === data.runId) {
-      return { recorded: true, duplicate: true, id: record.id, status: record.status };
+    return this.offboardingRepository.manager.transaction(async (manager) => {
+      const cases = manager.getRepository(OffboardingCase);
+      const record = await cases.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!record) throw new NotFoundException('Không tìm thấy hồ sơ thôi việc.');
+      if (record.finalizedAt || record.status === OffboardingStatus.CANCELLED) {
+        return { recorded: false, ignored: true, id: record.id, status: record.status };
+      }
+      if (record.lastWorkflowRunId === data.runId) {
+        return { recorded: true, duplicate: true, id: record.id, status: record.status };
+      }
+      const recordedAt = new Date();
+      if (data.itNotified && !record.itNotifiedAt) record.itNotifiedAt = recordedAt;
+      if (data.financeNotified && !record.financeNotifiedAt) record.financeNotifiedAt = recordedAt;
+      if (data.employeeNotified && !record.employeeNotifiedAt) record.employeeNotifiedAt = recordedAt;
+      if (data.telegramNotified && !record.telegramNotifiedAt) record.telegramNotifiedAt = recordedAt;
+      record.lastWorkflowRunId = data.runId;
+      record.automationDetail = data.detail?.slice(0, 4000) || null;
+      // Delivery success does not close employment or lock the account.
+      record.status = data.status === AutomationDeliveryStatus.SENT
+        ? OffboardingStatus.IN_PROGRESS
+        : data.status === AutomationDeliveryStatus.PARTIAL ? OffboardingStatus.PARTIAL : OffboardingStatus.FAILED;
+      await cases.save(record);
+      return {
+        recorded: true, duplicate: false, id: record.id, status: record.status,
+        channels: { it: Boolean(record.itNotifiedAt), finance: Boolean(record.financeNotifiedAt),
+          employee: Boolean(record.employeeNotifiedAt), telegram: Boolean(record.telegramNotifiedAt) },
+      };
+    });
+  }
+
+  async cancel(id: number) {
+    await this.withLockedCase(id, async (record, _user, manager) => {
+      if (record.finalizedAt) throw new BadRequestException('Hồ sơ đã đóng nên không thể hủy.');
+      if (record.status === OffboardingStatus.CANCELLED) return;
+      record.status = OffboardingStatus.CANCELLED;
+      await manager.getRepository(OffboardingCase).save(record);
+    });
+    return { message: 'Đã hủy hồ sơ. Trạng thái tài khoản được giữ nguyên.', offboarding: await this.findOneView(id) };
+  }
+
+  async finalize(id: number, now = new Date()) {
+    await this.withLockedCase(id, async (record, user, manager) => {
+      if (record.status === OffboardingStatus.CANCELLED) throw new BadRequestException('Hồ sơ đã hủy nên không thể đóng.');
+      if (record.finalizedAt) return;
+      this.assertEligible(user);
+      if (record.lastWorkingDate > this.vietnamDateKey(now)) {
+        throw new BadRequestException('Chỉ được đóng hồ sơ từ ngày làm việc cuối.');
+      }
+      await manager.getRepository(User).update(user.id, { isActive: false });
+      // Clear every department led by this person, including cross-department appointments.
+      await manager.getRepository(Department).update({ managerId: user.id }, { managerId: null });
+      record.status = OffboardingStatus.COMPLETED;
+      record.finalizedAt = now;
+      await manager.getRepository(OffboardingCase).save(record);
+    });
+    return { message: 'Đã đóng hồ sơ và khóa tài khoản.', offboarding: await this.findOneView(id) };
+  }
+
+  async finalizeOverdue(now = new Date()) {
+    const records = await this.offboardingRepository.find({
+      select: { id: true },
+      where: { finalizedAt: IsNull(), lastWorkingDate: LessThan(this.vietnamDateKey(now)), status: In([
+        OffboardingStatus.APPROVED, OffboardingStatus.IN_PROGRESS, OffboardingStatus.PARTIAL,
+        OffboardingStatus.FAILED, OffboardingStatus.COMPLETED,
+      ]) },
+    });
+    let completed = 0;
+    for (const record of records) {
+      try { await this.finalize(record.id, now); completed++; }
+      catch (error) {
+        // A cancelled/protected case must not stop processing other due cases.
+        if (!(error instanceof BadRequestException) && !(error instanceof NotFoundException)) throw error;
+      }
     }
+    return { completed };
+  }
 
-    const recordedAt = new Date();
-    if (data.itNotified && !record.itNotifiedAt) record.itNotifiedAt = recordedAt;
-    if (data.financeNotified && !record.financeNotifiedAt) record.financeNotifiedAt = recordedAt;
-    if (data.employeeNotified && !record.employeeNotifiedAt) record.employeeNotifiedAt = recordedAt;
-    if (data.telegramNotified && !record.telegramNotifiedAt) record.telegramNotifiedAt = recordedAt;
-    record.lastWorkflowRunId = data.runId;
-    record.automationDetail = data.detail?.slice(0, 4000) || null;
-    record.status = data.status === AutomationDeliveryStatus.SENT
-      ? OffboardingStatus.COMPLETED
-      : data.status === AutomationDeliveryStatus.PARTIAL
-        ? OffboardingStatus.PARTIAL
-        : OffboardingStatus.FAILED;
-    await this.offboardingRepository.save(record);
+  private assertEligible(user: User) {
+    if (user.id === 1 || ![UserRole.EMPLOYEE, UserRole.MANAGER, UserRole.HR].includes(user.role)) {
+      throw new BadRequestException('Không được tạo hoặc đóng hồ sơ thôi việc cho tài khoản quản trị gốc.');
+    }
+  }
 
-    return {
-      recorded: true,
-      duplicate: false,
-      id: record.id,
-      status: record.status,
-      channels: {
-        it: Boolean(record.itNotifiedAt),
-        finance: Boolean(record.financeNotifiedAt),
-        employee: Boolean(record.employeeNotifiedAt),
-        telegram: Boolean(record.telegramNotifiedAt),
-      },
-    };
+  private async withLockedCase(id: number, action: (record: OffboardingCase, user: User, manager: EntityManager) => Promise<void>) {
+    const snapshot = await this.offboardingRepository.findOne({ where: { id } });
+    if (!snapshot) throw new NotFoundException('Không tìm thấy hồ sơ thôi việc.');
+    await this.offboardingRepository.manager.transaction(async (manager) => {
+      // All lifecycle mutations take the user lock before the case lock.
+      const user = await manager.getRepository(User).findOne({ where: { id: snapshot.userId }, lock: { mode: 'pessimistic_write' } });
+      const record = await manager.getRepository(OffboardingCase).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!user || !record) throw new NotFoundException('Không tìm thấy hồ sơ hoặc nhân sự.');
+      await action(record, user, manager);
+    });
   }
 
   private async findOneView(id: number) {
@@ -239,10 +295,11 @@ export class OffboardingService {
       relations: { user: true, approvedBy: true },
     });
     if (!record) throw new NotFoundException('Không tìm thấy hồ sơ thôi việc.');
-    return this.toView(record);
+    const departments = await this.offboardingRepository.manager.getRepository(Department).find({ where: { managerId: record.userId } });
+    return this.toView(record, departments);
   }
 
-  private toView(record: OffboardingCase) {
+  private toView(record: OffboardingCase, departments: Department[] = []) {
     return {
       id: record.id,
       employee: record.user
@@ -256,7 +313,10 @@ export class OffboardingService {
       reason: record.reason,
       assetNotes: record.assetNotes,
       exitSurveyUrl: record.exitSurveyUrl,
-      status: record.status,
+      // Older COMPLETED rows meant "all notices delivered"; only finalizedAt proves closure.
+      status: record.status === OffboardingStatus.COMPLETED && !record.finalizedAt ? OffboardingStatus.IN_PROGRESS : record.status,
+      finalizedAt: record.finalizedAt ?? null,
+      managesDepartments: departments.filter(department => department.managerId === record.userId).map(({ id, name }) => ({ id, name })),
       delivery: {
         itNotified: Boolean(record.itNotifiedAt),
         financeNotified: Boolean(record.financeNotifiedAt),
